@@ -2,9 +2,11 @@ import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { loginAsAdmin } from "@/api/client";
+import { useI18n } from "@/i18n";
 
 // Admin login — film-lab ops aesthetic
 export function LoginPage() {
+  const { m, t } = useI18n();
   const navigate = useNavigate();
   /*
    * email login email
@@ -21,10 +23,10 @@ export function LoginPage() {
     setLoading(true);
     try {
       await loginAsAdmin(email.trim(), password);
-      toast.success("登录成功");
+      toast.success(t("auth.succeeded"));
       navigate("/", { replace: true });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "登录失败");
+      toast.error(err instanceof Error ? err.message : t("auth.failed"));
     } finally {
       setLoading(false);
     }
@@ -34,13 +36,13 @@ export function LoginPage() {
 
   return (
     <div className="login-shell">
-      <section className="login-brand" aria-label="品牌">
+      <section className="login-brand" aria-label={m.auth.brandAria}>
         <div className="login-sprocket" aria-hidden>
           {sprocketOffsets.map((top) => (
             <span key={top} style={{ top }} />
           ))}
         </div>
-        <div className="login-eyebrow">Ops Console</div>
+        <div className="login-eyebrow">{m.auth.eyebrow}</div>
         <h1 className="login-title">
           PRINT
           <br />
@@ -50,10 +52,10 @@ export function LoginPage() {
 
       <section className="login-panel">
         <div className="login-form-wrap">
-          <h2>登录后台</h2>
+          <h2>{m.auth.heading}</h2>
           <form onSubmit={onSubmit}>
             <div className="login-field">
-              <label htmlFor="email">邮箱</label>
+              <label htmlFor="email">{m.auth.email}</label>
               <input
                 id="email"
                 type="email"
@@ -64,7 +66,7 @@ export function LoginPage() {
               />
             </div>
             <div className="login-field">
-              <label htmlFor="password">密码</label>
+              <label htmlFor="password">{m.auth.password}</label>
               <input
                 id="password"
                 type="password"
@@ -75,7 +77,7 @@ export function LoginPage() {
               />
             </div>
             <button className="login-submit" type="submit" disabled={loading}>
-              {loading ? "验证中…" : "进入控制台"}
+              {loading ? m.auth.submitting : m.auth.submit}
             </button>
           </form>
         </div>

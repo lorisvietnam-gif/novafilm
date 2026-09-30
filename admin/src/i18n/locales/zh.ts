@@ -5,6 +5,8 @@ import { zhProjects } from './zh/projects'
 import { zhQueues } from './zh/queues'
 import { zhTasks } from './zh/tasks'
 import { zhSettings } from './zh/settings'
+import { zhTemplates } from './zh/templates'
+import { zhUsers } from './zh/users'
 import { zhShell } from './zh/shell'
 
 export const zh = {
@@ -16,4 +18,6 @@ export const zh = {
   ...zhSettings,
   ...zhOrders,
   ...zhProjects,
+  ...zhUsers,
+  ...zhTemplates,
 }
