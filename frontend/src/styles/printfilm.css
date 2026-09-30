@@ -1441,8 +1441,9 @@
 }
 
 .pf-tools-card-lg {
+  --pf-tools-card-pad: 1.35rem;
   min-height: 180px;
-  padding: 1.35rem;
+  padding: 0 var(--pf-tools-card-pad) var(--pf-tools-card-pad);
 }
 
 .pf-tools-card-top {
@@ -2509,10 +2510,12 @@
 }
 
 .pf-tools-card {
+  /* 卡片自身留白，媒体条靠负外边距出血到卡片上沿 */
+  --pf-tools-card-pad: var(--pf-space-5);
   background: var(--pf-surface);
   border: 1px solid var(--pf-line);
   border-radius: 18px;
-  padding: 1.25rem;
+  padding: 0 var(--pf-tools-card-pad) var(--pf-tools-card-pad);
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
@@ -2520,6 +2523,37 @@
   text-decoration: none;
   color: inherit;
   transition: border-color var(--pf-dur-base) var(--pf-ease-standard);
+}
+
+.pf-tools-card-media {
+  position: relative;
+  display: block;
+  aspect-ratio: 5 / 2;
+  max-height: 200px;
+  margin: 0 calc(-1 * var(--pf-tools-card-pad));
+  border-radius: 17px 17px 0 0;
+  background: var(--pf-surface-sunken);
+  overflow: hidden;
+}
+
+.pf-tools-card-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* 底部渐隐到卡片底色，图片与标题之间不留硬边 */
+.pf-tools-card-media::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgb(var(--pf-scrim-rgb) / 0) 40%,
+    var(--pf-surface) 100%
+  );
+  pointer-events: none;
 }
 
 .pf-tools-card:hover {
