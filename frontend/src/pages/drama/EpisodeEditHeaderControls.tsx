@@ -1,4 +1,4 @@
-/** 分集编辑顶栏：画幅/清晰度 / 视频风格 / 字幕 / 人物介绍 / 模型 / 镜间衔接 */
+/** Thanh công cụ trên cùng khi sửa tập: khung hình/độ phân giải / phong cách hình ảnh / phụ đề / giới thiệu nhân vật / mô hình / nối cảnh quay */
 
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
 
@@ -50,7 +50,7 @@ type Props = {
   onSubtitleModeChange: (mode: DramaSubtitleMode) => void
   onCharacterIntroModeChange: (mode: DramaCharacterIntroMode) => void
   disabled?: boolean
-  /** 风格/字幕/介绍/衔接为项目全局，分镜页只展示不可改；画幅/清晰度仍可改（随模型过滤） */
+  /** Phong cách/phụ đề/giới thiệu/nối cảnh là cấu hình chung của dự án — trang storyboard chỉ xem, không sửa được; khung hình/độ phân giải vẫn sửa được (lọc theo mô hình) */
   globalSettingsReadOnly?: boolean
 }
 
@@ -58,7 +58,7 @@ type OpenPanel = 'style' | 'model' | 'link' | 'subtitle' | 'intro' | null
 
 const STYLE_PANEL_WIDTH = 420
 
-// 渲染顶栏生成参数控件
+// Render bộ điều khiển tham số tạo ở thanh trên cùng
 export function EpisodeEditHeaderControls({
   styleId,
   modelId,
@@ -87,7 +87,7 @@ export function EpisodeEditHeaderControls({
       setPanelStyle(null)
       return
     }
-    // 固定定位下拉面板，避免与 top/bottom 冲突导致高度被压扁
+    // Cố định vị trí panel thả xuống để không bị top/bottom ép chiều cao
     function updatePanelPosition() {
       const root = rootRef.current
       if (!root) return
@@ -134,11 +134,11 @@ export function EpisodeEditHeaderControls({
   const stop = (e: MouseEvent) => {
     e.stopPropagation()
   }
-  const styleLabel = getImageStyleLabel(styleId) || '视频风格'
-  const modelLabel = catalogModelLabel(modelId, videoModels, '视频模型')
-  const subtitleLabel = subtitleMode === 'model' ? '模型字幕' : '后期字幕'
+  const styleLabel = getImageStyleLabel(styleId) || 'Phong cách hình ảnh'
+  const modelLabel = catalogModelLabel(modelId, videoModels, 'Mô hình video')
+  const subtitleLabel = subtitleMode === 'model' ? 'Phụ đề từ mô hình' : 'Phụ đề hậu kỳ'
   const subtitleUsesModel = subtitleModeUsesModelOutput(subtitleMode)
-  const introLabel = characterIntroMode === 'model' ? '人物介绍' : '无介绍叠字'
+  const introLabel = characterIntroMode === 'model' ? 'Giới thiệu nhân vật' : 'Không chữ chồng giới thiệu'
   const introEnabled = characterIntroModeEnabled(characterIntroMode)
   const globalLocked = disabled || globalSettingsReadOnly
   return (
@@ -166,7 +166,7 @@ export function EpisodeEditHeaderControls({
             if (globalSettingsReadOnly) return
             setOpen((c) => (c === 'style' ? null : 'style'))
           }}
-          title={globalSettingsReadOnly ? `${styleLabel}（项目设置，分镜只读）` : styleLabel}
+          title={globalSettingsReadOnly ? `${styleLabel} (cấu hình dự án, storyboard chỉ đọc)` : styleLabel}
         >
           <Smile size={14} strokeWidth={1.8} />
           <span className="fc-gen-opt-label">{styleLabel}</span>
@@ -180,7 +180,7 @@ export function EpisodeEditHeaderControls({
             if (globalSettingsReadOnly) return
             setOpen((c) => (c === 'subtitle' ? null : 'subtitle'))
           }}
-          title={globalSettingsReadOnly ? `${subtitleLabel}（项目设置，分镜只读）` : '字幕设置'}
+          title={globalSettingsReadOnly ? `${subtitleLabel} (cấu hình dự án, storyboard chỉ đọc)` : 'Cài đặt phụ đề'}
         >
           <Type size={14} strokeWidth={1.8} />
           <span className="fc-gen-opt-label">{subtitleLabel}</span>
@@ -194,7 +194,7 @@ export function EpisodeEditHeaderControls({
             if (globalSettingsReadOnly) return
             setOpen((c) => (c === 'intro' ? null : 'intro'))
           }}
-          title={globalSettingsReadOnly ? `${introLabel}（项目设置，分镜只读）` : '人物介绍叠字'}
+          title={globalSettingsReadOnly ? `${introLabel} (cấu hình dự án, storyboard chỉ đọc)` : 'Chữ chồng giới thiệu nhân vật'}
         >
           <Users size={14} strokeWidth={1.8} />
           <span className="fc-gen-opt-label">{introLabel}</span>
@@ -218,18 +218,18 @@ export function EpisodeEditHeaderControls({
             if (globalSettingsReadOnly) return
             setOpen((c) => (c === 'link' ? null : 'link'))
           }}
-          title={globalSettingsReadOnly ? `${linkLastFrame ? '尾帧衔接' : '并发生成'}（项目设置，分镜只读）` : '镜间尾帧衔接'}
+          title={globalSettingsReadOnly ? `${linkLastFrame ? 'Nối khung cuối' : 'Tạo song song'} (cấu hình dự án, storyboard chỉ đọc)` : 'Nối khung cuối giữa các cảnh quay'}
         >
           <Link2 size={14} strokeWidth={1.8} />
-          <span className="fc-gen-opt-label">{linkLastFrame ? '尾帧衔接' : '并发生成'}</span>
+          <span className="fc-gen-opt-label">{linkLastFrame ? 'Nối khung cuối' : 'Tạo song song'}</span>
           {!globalSettingsReadOnly ? <ChevronDown size={12} strokeWidth={2} /> : null}
         </button>
         <button
           type="button"
           className="fc-gen-opt-btn drama-seedance-help-btn"
           disabled={disabled}
-          title="Seedance 传值与使用规则"
-          aria-label="Seedance 传值与使用规则"
+          title="Seedance: quy tắc truyền giá trị và cách dùng"
+          aria-label="Seedance: quy tắc truyền giá trị và cách dùng"
           onClick={() => setRulesOpen(true)}
         >
           <CircleHelp size={14} strokeWidth={1.8} />
@@ -244,9 +244,9 @@ export function EpisodeEditHeaderControls({
                   className="fc-gen-opt-panel fc-gen-style-panel drama-ep-opt-panel fc-gen-opt-panel--portal"
                   style={panelStyle}
                   role="dialog"
-                  aria-label="视频风格"
+                  aria-label="Phong cách hình ảnh"
                 >
-                  <div className="fc-gen-opt-panel-title">视频风格</div>
+                  <div className="fc-gen-opt-panel-title">Phong cách hình ảnh</div>
                   <div className="fc-gen-style-grid">
                     {IMAGE_STYLE_OPTIONS.map((opt) => {
                       const selected = styleId === opt.id
@@ -274,13 +274,13 @@ export function EpisodeEditHeaderControls({
                   className="fc-gen-opt-panel drama-ep-opt-panel fc-gen-opt-panel--portal"
                   style={panelStyle}
                   role="dialog"
-                  aria-label="视频模型"
+                  aria-label="Mô hình video"
                 >
-                  <div className="fc-gen-opt-panel-title">视频模型</div>
+                  <div className="fc-gen-opt-panel-title">Mô hình video</div>
                   <DramaMediaModelPicker
                     models={videoModels}
                     selectedId={modelId}
-                    emptyHint="请先在管理后台「模型」保存预设默认模型"
+                    emptyHint="Hãy lưu mô hình mặc định trong mục “Mô hình” ở trang quản trị trước"
                     onSelect={(opt) => {
                       onModelChange(opt.id)
                       setOpen(null)
@@ -293,9 +293,9 @@ export function EpisodeEditHeaderControls({
                   className="fc-gen-opt-panel drama-ep-opt-panel fc-gen-opt-panel--portal"
                   style={panelStyle}
                   role="dialog"
-                  aria-label="镜间衔接"
+                  aria-label="Nối giữa các cảnh quay"
                 >
-                  <div className="fc-gen-opt-panel-title">镜间衔接</div>
+                  <div className="fc-gen-opt-panel-title">Nối giữa các cảnh quay</div>
                   <label className="drama-ep-link-last-frame">
                     <input
                       type="checkbox"
@@ -304,10 +304,10 @@ export function EpisodeEditHeaderControls({
                       onChange={(e) => onLinkLastFrameChange(e.target.checked)}
                     />
                     <span>
-                      用上一镜尾帧衔接
+                      Nối bằng khung cuối của cảnh trước
                       <em>
-                        默认开启。按镜序生成，可提前提交下一镜并在队列中等待上一镜完成；关闭后默认并发生成。切换时会立刻重排未开始的任务。有角色/场景参考时以参考图附带尾帧（不可与
-                        first_frame 混用）
+                        Mặc định bật. Sinh theo thứ tự cảnh quay, có thể gửi trước cảnh kế tiếp và để nó chờ trong hàng đợi tới khi cảnh trước xong; tắt đi thì mặc định tạo song song. Đổi thiết lập sẽ xếp lại ngay các tác vụ chưa bắt đầu. Khi có ảnh tham chiếu nhân vật hoặc bối cảnh, khung cuối sẽ đi kèm ảnh tham chiếu (không dùng chung với
+                        first_frame)
                       </em>
                     </span>
                   </label>
@@ -318,9 +318,9 @@ export function EpisodeEditHeaderControls({
                   className="fc-gen-opt-panel drama-ep-opt-panel fc-gen-opt-panel--portal"
                   style={panelStyle}
                   role="dialog"
-                  aria-label="字幕设置"
+                  aria-label="Cài đặt phụ đề"
                 >
-                  <div className="fc-gen-opt-panel-title">字幕设置</div>
+                  <div className="fc-gen-opt-panel-title">Cài đặt phụ đề</div>
                   <label className="drama-ep-link-last-frame">
                     <input
                       type="radio"
@@ -330,9 +330,9 @@ export function EpisodeEditHeaderControls({
                       onChange={() => onSubtitleModeChange('model')}
                     />
                     <span>
-                      模型自出字幕
+                      Phụ đề do mô hình tự tạo
                       <em>
-                        切换后会立刻在当前分镜正文里补回「同步字幕 / 字幕 cue」提示词，生成时由模型直接出字幕。
+                        Khi đổi, hệ thống sẽ chèn lại ngay vào nội dung storyboard hiện tại prompt “同步字幕 / 字幕 cue”; lúc tạo, mô hình tự xuất phụ đề.
                       </em>
                     </span>
                   </label>
@@ -345,9 +345,9 @@ export function EpisodeEditHeaderControls({
                       onChange={() => onSubtitleModeChange('post')}
                     />
                     <span>
-                      后期拼接字幕
+                      Phụ đề ghép hậu kỳ
                       <em>
-                        切换后会立刻去掉当前分镜里的字幕提示词；右侧字幕板仍可预览与导出，供后期叠字。
+                        Khi đổi, hệ thống sẽ xoá ngay các prompt phụ đề trong storyboard hiện tại; bảng phụ đề bên phải vẫn xem trước và xuất được, phục vụ chữ chồng hậu kỳ.
                       </em>
                     </span>
                   </label>
@@ -358,9 +358,9 @@ export function EpisodeEditHeaderControls({
                   className="fc-gen-opt-panel drama-ep-opt-panel fc-gen-opt-panel--portal"
                   style={panelStyle}
                   role="dialog"
-                  aria-label="人物介绍"
+                  aria-label="Giới thiệu nhân vật"
                 >
-                  <div className="fc-gen-opt-panel-title">人物介绍叠字</div>
+                  <div className="fc-gen-opt-panel-title">Chữ chồng giới thiệu nhân vật</div>
                   <label className="drama-ep-link-last-frame">
                     <input
                       type="radio"
@@ -370,9 +370,9 @@ export function EpisodeEditHeaderControls({
                       onChange={() => onCharacterIntroModeChange('model')}
                     />
                     <span>
-                      模型叠字介绍
+                      Mô hình tự thêm chữ giới thiệu
                       <em>
-                        开启后，重新规划分镜时会为首次出场重要角色写入「人物介绍·画面叠字·角色身旁」；生成时由模型把介绍贴在角色身旁。
+                        Bật thì mỗi lần lập lại storyboard, các nhân vật quan trọng xuất hiện lần đầu sẽ được ghi kèm “人物介绍·画面叠字·角色身旁”; lúc tạo, mô hình sẽ đặt phần giới thiệu cạnh nhân vật.
                       </em>
                     </span>
                   </label>
@@ -385,9 +385,9 @@ export function EpisodeEditHeaderControls({
                       onChange={() => onCharacterIntroModeChange('off')}
                     />
                     <span>
-                      关闭人物介绍
+                      Tắt giới thiệu nhân vật
                       <em>
-                        切换后会立刻去掉当前分镜里的人物介绍叠字行；生成时禁止画面内介绍字卡。已去掉的介绍需重新分镜才会回来。
+                        Khi đổi, hệ thống sẽ xoá ngay dòng chữ chồng giới thiệu nhân vật trong storyboard hiện tại; lúc tạa sẽ không sinh thêm thẻ chữ giới thiệu trong khung hình. Phần giới thiệu đã xoá phải lập lại storyboard mới hiện lại.
                       </em>
                     </span>
                   </label>

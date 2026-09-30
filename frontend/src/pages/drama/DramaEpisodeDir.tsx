@@ -1,6 +1,7 @@
-/** 漫剧分集左侧目录（大纲 / 分集页 / 分镜页共用） */
+/** Danh sách tập ở cột trái (dùng chung cho dàn ý / trang sửa tập / trang storyboard) */
 import type { ReactNode } from 'react'
 import type { DramaEpisode } from '../../api/drama'
+import { DramaImageStylePreviewImg } from '../../components/drama/DramaImageStylePreviewImg'
 
 export type DramaEpisodeDirItem = {
   id: number
@@ -18,7 +19,7 @@ type DramaEpisodeDirProps = {
   emptyText?: string
 }
 
-// 从分集列表生成目录项（按集号排序；缺集号不伪装成第 1 集）
+// Sinh mục danh sách từ danh sách tập (sắp theo số tập; thiếu số tập thì không giả vờ là tập 1)
 export function buildEpisodeDirItems(episodes: DramaEpisode[]): DramaEpisodeDirItem[] {
   const sorted = [...episodes].sort((a, b) => {
     const an = Number(a.params?.episodeNumber) || 0
@@ -31,21 +32,21 @@ export function buildEpisodeDirItems(episodes: DramaEpisode[]): DramaEpisodeDirI
     const fragCount = (ep.fragments || []).length
     return {
       id: ep.id,
-      label: epNo >= 1 ? `第 ${epNo} 集` : `未编号 · ${ep.id}`,
-      title: ep.name || `分集 ${ep.id}`,
-      meta: fragCount > 0 ? `${fragCount} 镜` : undefined,
+      label: epNo >= 1 ? `Tập ${epNo}` : `Chưa đánh số · ${ep.id}`,
+      title: ep.name || `Tập ${ep.id}`,
+      meta: fragCount > 0 ? `${fragCount} cảnh quay` : undefined,
     }
   })
 }
 
-// 左侧分集目录
+// Danh sách tập ở cột trái
 export function DramaEpisodeDir({
-  title = '分集目录',
+  title = 'Danh sách tập',
   items,
   activeId,
   onSelect,
   footer,
-  emptyText = '暂无分集',
+  emptyText = 'Chưa có tập nào',
 }: DramaEpisodeDirProps) {
   return (
     <aside className="drama-episode-dir">
@@ -54,7 +55,10 @@ export function DramaEpisodeDir({
         {footer}
       </div>
       {items.length === 0 ? (
-        <p className="drama-episode-dir-empty">{emptyText}</p>
+        <div className="drama-episode-dir-empty">
+          <DramaImageStylePreviewImg styleId="90s-realistic-film" alt="" loading="lazy" />
+          <p>{emptyText}</p>
+        </div>
       ) : (
         <ul>
           {items.map((item) => (

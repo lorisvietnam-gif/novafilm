@@ -1,4 +1,4 @@
-/* 自由画布：全屏浮动工具栏与节点卡片 */
+/* Canvas tự do: thanh công cụ nổi toàn màn hình và thẻ node */
 
 .free-canvas-page {
   --fc-bg: #eef1f4;
@@ -18,7 +18,7 @@
   z-index: 50;
 }
 
-/* 嵌入分集编辑右侧：填满父容器，非全屏遮罩 */
+/* Nhúng bên phải trang chỉnh sửa tập: lấp đầy vùng cha, không phải lớp phủ toàn màn hình */
 .free-canvas-page.is-embedded {
   position: relative;
   inset: auto;
@@ -200,7 +200,7 @@
   top: -8px;
   left: 100%;
   z-index: 5;
-  /* 用内边距桥接空隙，鼠标移入面板不会触发 leave */
+  /* Dùng padding để nối khoảng hở, để chuột đi vào bảng không kích hoạt leave */
   padding: 8px 0 8px 10px;
 }
 
@@ -250,7 +250,7 @@
   color: #334155;
 }
 
-/* 空白双击新建菜单 */
+/* Menu tạo mới khi nhấp đúp vào vùng trống */
 .fc-pane-add-menu {
   position: fixed;
   z-index: 40;
@@ -882,8 +882,44 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
   background: #f8fafc;
   color: #cbd5e1;
+}
+
+/* Khung chờ: ảnh phong cách thật làm nền mờ, icon nổi lên trên */
+.fc-asset-waiting {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+}
+
+.fc-asset-waiting .drama-still,
+.fc-asset-waiting img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.24;
+  filter: saturate(0.68);
+  pointer-events: none;
+  user-select: none;
+}
+
+.fc-asset-waiting::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.5) 0%, rgba(248, 250, 252, 0.82) 100%);
+}
+
+.fc-asset-waiting .fc-placeholder-icon {
+  position: relative;
+  z-index: 1;
 }
 
 .fc-asset-body.is-character,

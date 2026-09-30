@@ -1,4 +1,4 @@
-/** 分集视频步骤：进页规则切分；支持全集规则重切与单集 AI 分镜 */
+/** Bước tạo video theo tập: vào trang sẽ cắt theo quy tắc; có cắt lại toàn bộ bằng quy tắc và lập storyboard AI cho từng tập */
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Clapperboard, Film, Layers, Sparkles, Wand2 } from 'lucide-react'
@@ -7,6 +7,7 @@ import { dialog } from '../../lib/dialog'
 import { loadDramaEpisodes } from '../../lib/dramaStoryboardNav'
 import { readEpisodeSubtitleMode, subtitleModeUsesModelOutput } from '../../lib/dramaSubtitleBoard'
 import { FragmentPlanSkillModal } from '../../components/drama/FragmentPlanSkillModal'
+import { DramaImageStylePreviewImg } from '../../components/drama/DramaImageStylePreviewImg'
 import { readFragmentGenerationStatus } from './dramaEpisodeEditUtils'
 
 type EpisodesStepProps = {
@@ -25,7 +26,7 @@ type EpisodeSummary = {
   planStatus: string
 }
 
-// 读取分集 AI 分镜状态
+// Đọc trạng thái storyboard AI của tập
 function readPlanStatus(ep: DramaEpisode): string {
   const active = (ep.active_tasks || []).find((task) => task.task_type === 'fragment_plan')
   if (
@@ -39,7 +40,7 @@ function readPlanStatus(ep: DramaEpisode): string {
   return typeof st === 'string' ? st : ''
 }
 
-// 汇总单集分镜与视频进度
+// Tổng hợp tiến độ storyboard và video của một tập
 function summarizeEpisode(ep: DramaEpisode): EpisodeSummary {
   const frags = ep.fragments || []
   const activeFragmentIds = new Set<number>()
@@ -83,21 +84,21 @@ function summarizeEpisode(ep: DramaEpisode): EpisodeSummary {
   }
 }
 
-// 分集标题竖排展示用（过长截断）
+// Tiêu đề tập hiển thị dọc (cắt bớt nếu quá dài)
 function verticalTitleLabel(name: string, max = 14): string {
   const clean = (name || '').replace(/\s+/g, '')
   if (clean.length <= max) return clean
   return `${clean.slice(0, max - 1)}…`
 }
 
-// 渲染分集视频步骤
+// Render bước tạo video theo tập
 export function EpisodesStep({ projectId, onError }: EpisodesStepProps) {
   const navigate = useNavigate()
   const [episodes, setEpisodes] = useState<DramaEpisode[]>([])
   const [loading, setLoading] = useState(true)
   const [reseeding, setReseeding] = useState(false)
   const [planningId, setPlanningId] = useState<number | null>(null)
-  // planTarget 待确认 AI 分镜的分集
+  // planTarget tập đang chờ xác nhận lập storyboard AI
   const [planTarget, setPlanTarget] = useState<DramaEpisode | null>(null)
   const seeded = useRef(false)
 
@@ -105,7 +106,7 @@ export function EpisodesStep({ projectId, onError }: EpisodesStepProps) {
     seeded.current = false
   }, [projectId])
 
-  // 进页只读已有分集；force 才按剧本重切
+  // Vào trang chỉ đọc các tập đã có; chỉ khi force mới cắt lại theo kịch bản
   async function loadEpisodes(force = false) {
     const rows = await loadDramaEpisodes(projectId, force)
     setEpisodes(rows)
@@ -123,7 +124,7 @@ export function EpisodesStep({ projectId, onError }: EpisodesStepProps) {
           setEpisodes(await dramaApi.listEpisodes(projectId))
         }
       } catch (err) {
-        onError(err instanceof Error ? err.message : '分集加载失败')
+        onError(err instanceof Error ? err.message : 'Tải danh sách tập thất bại')
         try {
           setEpisodes(await dramaApi.listEpisodes(projectId))
         } catch {
@@ -139,10 +140,10 @@ export function EpisodesStep({ projectId, onError }: EpisodesStepProps) {
   async function handleReseed() {
     if (reseeding || planningId != null) return
     const ok = await dialog.confirm({
-      title: '规则重切全部分镜',
+      title: 'Cắt lại toàn bộ storyboard bằng quy tắc',
       message:
-        '将按规则引擎快速重切全部分镜（含已编辑、已生成视频的分集）。单集精细分镜请用「AI 分镜」。是否继续？',
-      confirmText: '继续切分',
+        'Sẽ cắt lại nhanh toàn bộ storyboard bằng bộ quy tắc (kể cả các tập đã sửa hoặc đã tạo video). Muốn chia cảnh tinh tế cho một tập thì dùng “Storyboard AI”. Tiếp tục?',
+      confirmText: 'Tiếp tục cắt',
       tone: 'danger',
     })
     if (!ok) return
@@ -150,24 +151,24 @@ export function EpisodesStep({ projectId, onError }: EpisodesStepProps) {
     try {
       const rows = await loadEpisodes(true)
       await dialog.alert({
-        title: '切分完成',
-        message: `已更新 ${rows.length} 集分镜，可进入各集编辑查看。`,
+        title: 'Đã cắt xong',
+        message: `Đã cập nhật storyboard cho ${rows.length} tập; vào từng tập để xem.`,
         tone: 'success',
       })
     } catch (err) {
-      onError(err instanceof Error ? err.message : '重新切分失败')
+      onError(err instanceof Error ? err.message : 'Cắt lại thất bại')
     } finally {
       setReseeding(false)
     }
   }
 
-  // 打开 AI 分镜确认弹窗（勾选 Skill）
+  // Mở hộp thoại xác nhận storyboard AI (có chọn Skill)
   function handlePlanEpisode(ep: DramaEpisode) {
     if (reseeding || planningId != null) return
     setPlanTarget(ep)
   }
 
-  // 入队单集 LLM 分镜并轮询（字幕方式沿用该集当前设置）
+  // Đưa storyboard LLM của một tập vào hàng đợi rồi thăm dò (cách làm phụ đề lấy theo cài đặt hiện tại của tập)
   async function startPlanEpisode(ep: DramaEpisode, skillIds: number[]) {
     setPlanTarget(null)
     setPlanningId(ep.id)
@@ -189,22 +190,22 @@ export function EpisodesStep({ projectId, onError }: EpisodesStepProps) {
           const count = Number(cur.params?.fragment_plan_count) || (cur.fragments || []).length
           const mode = String(cur.params?.fragment_plan_mode || 'llm')
           await dialog.alert({
-            title: '分镜完成',
+            title: 'Đã lập xong storyboard',
             message:
               mode === 'rules_fallback'
-                ? `「${cur.name}」已回退规则切分，共 ${count} 条。`
-                : `「${cur.name}」AI 分镜完成，共 ${count} 条。`,
+                ? `“${cur.name}” đã lùi về cắt bằng quy tắc, gồm ${count} cảnh quay.`
+                : `“${cur.name}” đã lập xong storyboard AI, gồm ${count} cảnh quay.`,
             tone: 'success',
           })
           return
         }
         if (st === 'failed') {
-          throw new Error(String(cur.params?.fragment_plan_error || 'AI 分镜失败'))
+          throw new Error(String(cur.params?.fragment_plan_error || 'Storyboard AI thất bại'))
         }
       }
-      throw new Error('AI 分镜超时，请稍后刷新')
+      throw new Error('Storyboard AI quá thời gian chờ, hãy tải lại trang sau')
     } catch (err) {
-      onError(err instanceof Error ? err.message : 'AI 分镜失败')
+      onError(err instanceof Error ? err.message : 'Storyboard AI thất bại')
     } finally {
       setPlanningId(null)
     }
@@ -225,10 +226,10 @@ export function EpisodesStep({ projectId, onError }: EpisodesStepProps) {
             <Film size={22} strokeWidth={1.75} />
           </div>
           <div>
-            <h2>分集视频</h2>
+            <h2>Video theo tập</h2>
             <p className="drama-episodes-hero-sub">
-              共 <strong>{episodes.length}</strong> 集 ·{' '}
-              <strong>{totalFragments}</strong> 个分镜 · 已出片{' '}
+              Tổng <strong>{episodes.length}</strong> tập ·{' '}
+              <strong>{totalFragments}</strong> cảnh quay · Đã ra phim{' '}
               <strong>{totalVideos}</strong>
             </p>
           </div>
@@ -241,26 +242,31 @@ export function EpisodesStep({ projectId, onError }: EpisodesStepProps) {
             onClick={() => void handleReseed()}
           >
             <Layers size={16} strokeWidth={1.75} aria-hidden />
-            {reseeding ? '切分中…' : '规则重切全部'}
+            {reseeding ? 'Đang cắt…' : 'Cắt lại toàn bộ bằng quy tắc'}
           </button>
         </div>
       </header>
 
       <div className="drama-episodes-tips" role="note">
         <Sparkles size={15} strokeWidth={1.75} aria-hidden />
-        <span>单集可点 <strong>AI 分镜</strong> 精细规划；进入 <strong>编辑</strong> 可改脚本并生成视频。</span>
+        <span>Từng tập có thể bấm <strong>Storyboard AI</strong> để lên kế hoạch tinh tế; vào <strong>Sửa</strong> để chỉnh kịch bản và tạo video.</span>
       </div>
 
       {loading ? (
-        <div className="drama-episode-grid" aria-busy="true" aria-label="加载分集">
+        <div className="drama-episode-grid" aria-busy="true" aria-label="Đang tải các tập">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="drama-ep-card drama-ep-card-skeleton" />
           ))}
         </div>
       ) : episodes.length === 0 ? (
         <div className="drama-episodes-empty">
+          <DramaImageStylePreviewImg
+            styleId="retro-narrative-film"
+            alt=""
+            loading="lazy"
+          />
           <Clapperboard size={40} strokeWidth={1.25} aria-hidden />
-          <p>暂无分集，请先完成分集剧本步骤。</p>
+          <p>Chưa có tập nào; hãy hoàn tất bước viết kịch bản theo tập trước.</p>
         </div>
       ) : (
         <div className="drama-episode-grid">
@@ -272,16 +278,16 @@ export function EpisodesStep({ projectId, onError }: EpisodesStepProps) {
                 ? Math.round((summary.videoDone / summary.fragmentCount) * 100)
                 : 0
             const epLabel =
-              summary.epNo > 0 ? `第 ${summary.epNo} 集` : `分集 ${ep.id}`
+              summary.epNo > 0 ? `Tập ${summary.epNo}` : `Tập ${ep.id}`
             const statusLabel = planning
-              ? 'AI 分镜中'
+              ? 'Đang lập storyboard AI'
               : summary.videoRunning > 0
-                ? `${summary.videoRunning} 条生成中`
+                ? `${summary.videoRunning} cảnh đang tạo`
                 : summary.videoFailed > 0
-                  ? `${summary.videoFailed} 条失败`
+                  ? `${summary.videoFailed} cảnh thất bại`
                   : summary.videoDone > 0
-                    ? `已出片 ${summary.videoDone}/${summary.fragmentCount}`
-                    : `${summary.fragmentCount} 个分镜`
+                    ? `Đã ra phim ${summary.videoDone}/${summary.fragmentCount}`
+                    : `${summary.fragmentCount} cảnh quay`
 
             return (
               <article
@@ -294,7 +300,7 @@ export function EpisodesStep({ projectId, onError }: EpisodesStepProps) {
                   type="button"
                   className="drama-ep-card-poster"
                   onClick={() => navigate(`/drama/projects/${projectId}/episodes/${ep.id}`)}
-                  aria-label={`编辑 ${ep.name}`}
+                  aria-label={`Sửa ${ep.name}`}
                 >
                   {summary.previewUrl ? (
                     <img src={summary.previewUrl} alt="" className="drama-ep-card-poster-img" />
@@ -326,7 +332,7 @@ export function EpisodesStep({ projectId, onError }: EpisodesStepProps) {
                     {summary.totalSec > 0 ? (
                       <span className="drama-ep-card-meta-item">
                         <Clapperboard size={14} strokeWidth={1.75} aria-hidden />
-                        约 {summary.totalSec}s
+                        Khoảng {summary.totalSec}s
                       </span>
                     ) : null}
                   </div>
@@ -348,7 +354,7 @@ export function EpisodesStep({ projectId, onError }: EpisodesStepProps) {
                     onClick={() => void handlePlanEpisode(ep)}
                   >
                     <Wand2 size={15} strokeWidth={1.75} aria-hidden />
-                    {planning ? '分镜中…' : 'AI 分镜'}
+                    {planning ? 'Đang lập…' : 'Storyboard AI'}
                   </button>
                   <button
                     type="button"
@@ -356,7 +362,7 @@ export function EpisodesStep({ projectId, onError }: EpisodesStepProps) {
                     disabled={planning}
                     onClick={() => navigate(`/drama/projects/${projectId}/episodes/${ep.id}`)}
                   >
-                    编辑
+                    Sửa
                   </button>
                 </div>
               </article>
@@ -366,7 +372,7 @@ export function EpisodesStep({ projectId, onError }: EpisodesStepProps) {
       )}
       <FragmentPlanSkillModal
         open={planTarget != null}
-        message={`将调用大模型重新规划「${planTarget?.name || ''}」的分镜（覆盖本集现有分镜与视频），通常需要数十秒。可勾选本次使用的 Skill。字幕方式沿用该集当前设置。`}
+        message={`Sẽ gọi mô hình ngôn ngữ lớn để lập lại storyboard cho “${planTarget?.name || ''}” (ghi đè storyboard và video hiện có của tập này), thường mất vài chục giây. Có thể chọn Skill dùng cho lần này. Cách làm phụ đề lấy theo cài đặt hiện tại của tập.`}
         onCancel={() => setPlanTarget(null)}
         onConfirm={(skillIds) => {
           if (planTarget) void startPlanEpisode(planTarget, skillIds)

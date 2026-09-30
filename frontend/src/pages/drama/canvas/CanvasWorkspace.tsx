@@ -1,4 +1,4 @@
-/** 画布工作区：React Flow 与 overlay UI 组合 */
+/** Vùng làm việc canvas: ghép React Flow với UI overlay */
 import { useCallback, useEffect } from 'react'
 import { ReactFlowProvider, useReactFlow } from '@xyflow/react'
 import { CanvasBottomControls } from './CanvasBottomControls'
@@ -13,11 +13,11 @@ import './canvas.css'
 
 type CanvasWorkspaceProps = {
   projectId: number
-  /** fullscreen 独立页；embedded 嵌入分集编辑右侧 */
+  /** fullscreen trang độc lập; embedded nhúng bên phải màn sửa tập */
   variant?: 'fullscreen' | 'embedded'
 }
 
-/** 渲染画布主体与各区域 overlay */
+/** Render thân canvas và các lớp overlay */
 function CanvasWorkspaceContent({
   projectId,
   variant = 'fullscreen',
@@ -75,14 +75,14 @@ function CanvasWorkspaceContent({
       ) : null}
       {loading ? (
         <p className="fc-error-toast" style={{ background: '#fff', color: '#64748b' }}>
-          加载画布…
+          Đang tải canvas…
         </p>
       ) : null}
     </div>
   )
 }
 
-/** 提供 React Flow 与画布状态上下文 */
+/** Cung cấp React Flow và context trạng thái canvas */
 export function CanvasWorkspace({
   projectId,
   variant = 'fullscreen',

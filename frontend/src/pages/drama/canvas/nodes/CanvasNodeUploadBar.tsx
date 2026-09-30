@@ -1,4 +1,4 @@
-/** 选中节点顶部：本地上传 + 从全局资产库选择 + 角色音色生成/试听 */
+/** Thanh trên node đang chọn: tải lên từ máy + chọn từ thư viện tư liệu toàn cục + sinh / nghe thử giọng cho nhân vật */
 import { useCallback, useRef, useState, type ChangeEvent, type MouseEvent } from 'react'
 import { AudioLines, FolderOpen, Loader2, Upload } from 'lucide-react'
 import { dramaApi } from '../../../../api/drama'
@@ -15,13 +15,13 @@ import {
 type CanvasNodeUploadBarProps = {
   nodeId: string
   kind: CanvasNodeKind
-  /** 角色节点已绑定音色名 */
+  /** Tên giọng đã gắn của node nhân vật */
   voiceLabel?: string | null
-  /** 角色节点已绑定音色试听地址 */
+  /** Địa chỉ nghe thử của giọng đã gắn cho node nhân vật */
   voiceUrl?: string | null
 }
 
-/** 渲染选中节点的上传与资产库操作条 */
+/** Dựng thanh thao tác tải lên và chọn từ thư viện cho node đang chọn */
 export function CanvasNodeUploadBar({
   nodeId,
   kind,
@@ -29,9 +29,9 @@ export function CanvasNodeUploadBar({
   voiceUrl,
 }: CanvasNodeUploadBarProps) {
   /*
-   * uploading 本地上传中
-   * pickerOpen 资产库弹窗
-   * voiceLoading 音色生成或拉取角色资产中
+   * uploading đang tải lên từ máy
+   * pickerOpen hộp chọn từ thư viện tư liệu
+   * voiceLoading đang sinh giọng hoặc tải tư liệu của nhân vật
    */
   const {
     uploadNodeMedia,
@@ -61,21 +61,21 @@ export function CanvasNodeUploadBar({
     if (!file) return
 
     if (!file.type.startsWith('image/')) {
-      setErrorMessage('请选择图片文件')
+      setErrorMessage('Vui lòng chọn một tệp ảnh')
       return
     }
     if (file.size > 20 * 1024 * 1024) {
-      setErrorMessage('图片不能超过 20MB')
+      setErrorMessage('Ảnh không được vượt quá 20 MB')
       return
     }
 
     setUploading(true)
     void uploadNodeMedia(nodeId, file)
-      .catch((err) => setErrorMessage(err instanceof Error ? err.message : '上传失败'))
+      .catch((err) => setErrorMessage(err instanceof Error ? err.message : 'Tải lên thất bại'))
       .finally(() => setUploading(false))
   }
 
-  // 一键 AI 生成音色并绑定到角色节点
+  // Sinh giọng bằng AI và gắn vào node nhân vật
   async function handleGenerateVoice() {
     if (voiceLoading) return
     setVoiceLoading(true)
@@ -83,11 +83,11 @@ export function CanvasNodeUploadBar({
       const assetId = await ensureNodeAsset(nodeId)
       const list = await dramaApi.listAssets(projectId)
       const asset = list.find((a) => a.id === assetId)
-      if (!asset) throw new Error('角色资产不存在')
+      if (!asset) throw new Error('Không tìm thấy tư liệu của nhân vật')
       const { character } = await generateAndBindCharacterVoice(projectId, asset)
       syncNodeFromAsset(nodeId, character)
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : '音色生成失败')
+      setErrorMessage(err instanceof Error ? err.message : 'Sinh giọng thất bại')
     } finally {
       setVoiceLoading(false)
     }
@@ -110,7 +110,7 @@ export function CanvasNodeUploadBar({
           onClick={() => fileInputRef.current?.click()}
         >
           {uploading ? <Loader2 size={14} className="fc-spin" /> : <Upload size={14} strokeWidth={1.8} />}
-          {uploading ? '上传中…' : '上传图片'}
+          {uploading ? 'Đang tải lên…' : 'Tải ảnh lên'}
         </button>
         <button
           type="button"
@@ -119,7 +119,7 @@ export function CanvasNodeUploadBar({
           onClick={() => setPickerOpen(true)}
         >
           <FolderOpen size={14} strokeWidth={1.8} />
-          从资产库选择
+          Chọn từ thư viện tư liệu
         </button>
         {DRAMA_VOICE_BINDING_ENABLED && isCharacter ? (
           hasVoice && voiceUrl ? (
@@ -136,14 +136,14 @@ export function CanvasNodeUploadBar({
               className="fc-toolbar-chip"
               disabled={uploading || voiceLoading}
               onClick={() => void handleGenerateVoice()}
-              title="按角色设定 AI 生成音色"
+              title="Dùng AI sinh giọng theo phần thiết kế của nhân vật"
             >
               {voiceLoading ? (
                 <Loader2 size={14} className="fc-spin" />
               ) : (
                 <AudioLines size={14} strokeWidth={1.8} />
               )}
-              {voiceLoading ? '生成中…' : '生成音色'}
+              {voiceLoading ? 'Đang sinh…' : 'Sinh giọng'}
             </button>
           )
         ) : null}
@@ -155,8 +155,8 @@ export function CanvasNodeUploadBar({
         projectId={projectId}
         defaultTab="all"
         allowedTypes={canvasKindToLibraryTypes(kind)}
-        title="从资产库选择"
-        confirmLabel="确认使用"
+        title="Chọn từ thư viện tư liệu"
+        confirmLabel="Dùng mục này"
         onPick={async (source) => {
           await applyLibraryMediaToNode(nodeId, source)
         }}

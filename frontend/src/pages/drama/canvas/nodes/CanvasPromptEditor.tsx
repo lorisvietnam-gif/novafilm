@@ -1,4 +1,4 @@
-/** 画布提示词：contentEditable，@asset 显示为带小图的标签 */
+/** Câu lệnh trên canvas: contentEditable, @asset hiện thành nhãn kèm ảnh thu nhỏ */
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { resolveDramaMediaUrl } from '../../../../api/drama'
 import {
@@ -32,7 +32,7 @@ type MentionUi = {
 
 const EMPTY_MENTION: MentionUi = { open: false, query: '', activeIndex: 0 }
 
-/** 把选中资产写入正文并渲染小图标签 */
+/** Ghi tư liệu đã chọn vào phần nội dung và dựng nhãn ảnh thu nhỏ */
 function applyMentionToken(content: string, token: string) {
   const trimmed = content.replace(/\s+$/u, '')
   if (/@(?!(?:asset|duration):\d+)[^\s@]*$/.test(trimmed)) {
@@ -41,7 +41,7 @@ function applyMentionToken(content: string, token: string) {
   return trimmed ? `${trimmed} ${token} ` : `${token} `
 }
 
-/** 可编辑提示词：插入 @ 后渲染资产小图标签 */
+/** Ô chỉnh câu lệnh: sau khi gõ @ sẽ dựng nhãn tư liệu kèm ảnh thu nhỏ */
 export function CanvasPromptEditor({
   value,
   placeholder,
@@ -60,7 +60,7 @@ export function CanvasPromptEditor({
     [mentionItems],
   )
 
-  /** 把 @asset:id 解析成 chip 数据 */
+  /** Chuyển @asset:id thành dữ liệu chip */
   const resolveChip = useCallback(
     (assetId: number) => {
       const item = byAssetId.get(assetId)
@@ -74,7 +74,7 @@ export function CanvasPromptEditor({
     [byAssetId],
   )
 
-  /** 把 value 刷到编辑器 DOM */
+  /** Vẽ giá trị hiện tại vào DOM của ô soạn */
   const paint = useCallback(
     (next: string) => {
       const editor = editorRef.current
@@ -92,12 +92,12 @@ export function CanvasPromptEditor({
     paintedRef.current = true
   }, [paint, value])
 
-  /** 关闭 @ 弹层 */
+  /** Đóng lớp gợi ý @ */
   const closeMention = useCallback(() => {
     setMention(EMPTY_MENTION)
   }, [])
 
-  /** 序列化编辑器并回写 */
+  /** Đọc nội dung ô soạn rồi trả về */
   const emitContent = useCallback(() => {
     const editor = editorRef.current
     if (!editor) return ''
@@ -107,7 +107,7 @@ export function CanvasPromptEditor({
     return next
   }, [onChange])
 
-  /** 根据光标前正文刷新 @ 弹层 */
+  /** Dựa vào phần chữ trước con trỏ để làm mới lớp gợi ý @ */
   const syncMention = useCallback(() => {
     const editor = editorRef.current
     if (!editor || disabled || !allowMention) {
@@ -126,7 +126,7 @@ export function CanvasPromptEditor({
     })
   }, [allowMention, closeMention, disabled])
 
-  /** 插入资产小图标签（优先替换光标处的 @，避免整段重绘后无法再触发） */
+  /** Chèn nhãn tư liệu kèm ảnh thu nhỏ (ưu tiên thay dấu @ ngay tại con trỏ để sau khi vẽ lại toàn bộ vẫn kích hoạt được) */
   const insertMention = useCallback(
     (item: CanvasMentionItem) => {
       const editor = editorRef.current
@@ -230,7 +230,7 @@ export function CanvasPromptEditor({
         className={`fc-generate-input fc-generate-editor nodrag nopan nowheel${empty ? ' is-empty' : ''}`}
         role="textbox"
         aria-multiline="true"
-        aria-label="生成提示词"
+        aria-label="Tạo từ câu lệnh"
         contentEditable={!disabled}
         suppressContentEditableWarning
         data-placeholder={placeholder}

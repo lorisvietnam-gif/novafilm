@@ -1,4 +1,4 @@
-/** 将后端/旧版画布数据规范化为 xyflow 节点与边 */
+/** Chuẩn hoá dữ liệu canvas từ backend / bản cũ thành node và edge của xyflow */
 import type { Edge, Node } from '@xyflow/react'
 import {
   CANVAS_NODE_DEFAULT_LABEL,
@@ -15,18 +15,18 @@ const KIND_SET = new Set<CanvasNodeKind>([
   'audio',
 ])
 
-/** 判断是否为合法节点类型 */
+/** Kiểm tra có phải loại nút hợp lệ không */
 function isCanvasNodeKind(value: unknown): value is CanvasNodeKind {
   return typeof value === 'string' && KIND_SET.has(value as CanvasNodeKind)
 }
 
-/** 规范化单个节点（兼容旧 { id, label, x, y }） */
+/** Chuẩn hoá một node (tương thích bản cũ { id, label, x, y }) */
 export function normalizeCanvasNode(raw: unknown, index: number): Node<CanvasAssetNodeData> | null {
   if (!raw || typeof raw !== 'object') return null
   const item = raw as Record<string, unknown>
   const id = String(item.id || `n-${index}`)
 
-  /* 新版 xyflow：position + data */
+  /* xyflow bản mới: position + data */
   if (item.position && typeof item.position === 'object') {
     const pos = item.position as { x?: unknown; y?: unknown }
     const dataRaw = (item.data && typeof item.data === 'object' ? item.data : {}) as Record<
@@ -65,7 +65,7 @@ export function normalizeCanvasNode(raw: unknown, index: number): Node<CanvasAss
     }
   }
 
-  /* 旧版绝对定位：x / y / label */
+  /* Bản cũ định vị tuyệt đối: x / y / label */
   if ('x' in item || 'y' in item || 'label' in item) {
     const label =
       typeof item.label === 'string' && item.label
@@ -88,7 +88,7 @@ export function normalizeCanvasNode(raw: unknown, index: number): Node<CanvasAss
   return null
 }
 
-/** 规范化边列表 */
+/** Chuẩn hoá danh sách edge */
 export function normalizeCanvasEdges(raw: unknown): Edge[] {
   if (!Array.isArray(raw)) return []
   const edges: Edge[] = []
@@ -108,7 +108,7 @@ export function normalizeCanvasEdges(raw: unknown): Edge[] {
   return edges
 }
 
-/** 规范化节点列表 */
+/** Chuẩn hoá danh sách node */
 export function normalizeCanvasNodes(raw: unknown): Node<CanvasAssetNodeData>[] {
   if (!Array.isArray(raw)) return []
   const nodes: Node<CanvasAssetNodeData>[] = []
@@ -119,7 +119,7 @@ export function normalizeCanvasNodes(raw: unknown): Node<CanvasAssetNodeData>[] 
   return nodes
 }
 
-/** 计算新节点落在视口中心的坐标 */
+/** Tính toạ độ đặt node mới ở chính giữa viewport */
 export function getViewportCenterNodePosition(
   screenToFlowPosition: (p: { x: number; y: number }) => { x: number; y: number },
   size: { width: number; height: number },

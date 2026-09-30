@@ -1,4 +1,4 @@
-/** 出境资产节点：缩略图卡片，可关联多个分镜 */
+/** Nút tài nguyên: thẻ thumbnail, liên kết được nhiều cảnh quay */
 import { memo } from 'react'
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
 import { X } from 'lucide-react'
@@ -8,7 +8,7 @@ type Props = NodeProps<Node<EpisodeAssetNodeData>> & {
   onUnlinkAsset?: (fragmentId: number, assetId: number) => void
 }
 
-// 渲染出境资产节点（同一资产全局只显示一张卡片）
+// Render nút tài nguyên (mỗi tài nguyên chỉ hiện một thẻ duy nhất)
 function EpisodeAssetNodeComponent({ data, selected, onUnlinkAsset }: Props) {
   const links = data.linkedFragments || []
 
@@ -17,8 +17,8 @@ function EpisodeAssetNodeComponent({ data, selected, onUnlinkAsset }: Props) {
       <div className="ep-asset-node-head">
         <span>{data.typeLabel}</span>
         {links.length > 1 ? (
-          <span className="ep-asset-node-count" title="关联分镜数">
-            {links.length} 镜
+          <span className="ep-asset-node-count" title="Số cảnh quay đã liên kết">
+            {links.length} cảnh quay
           </span>
         ) : null}
       </div>
@@ -37,8 +37,8 @@ function EpisodeAssetNodeComponent({ data, selected, onUnlinkAsset }: Props) {
               key={link.fragmentId}
               type="button"
               className="ep-asset-node-unlink-chip"
-              aria-label={`取消 ${link.label} 的关联`}
-              title={`取消 ${link.label} 的关联`}
+              aria-label={`Bỏ liên kết của ${link.label}`}
+              title={`Bỏ liên kết của ${link.label}`}
               onClick={() => onUnlinkAsset?.(link.fragmentId, data.assetId)}
             >
               {link.label}

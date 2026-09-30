@@ -1,9 +1,9 @@
-/** 自由画布页：全屏 React Flow 无限画布（无应用壳布局） */
+/** Trang canvas tự do: canvas vô hạn React Flow toàn màn hình (không có layout khung ứng dụng) */
 import { useParams } from 'react-router-dom'
 import RequireAuth from '../RequireAuth'
 import { CanvasWorkspace } from './CanvasWorkspace'
 
-/** 鉴权后渲染全屏自由画布 */
+/** Render canvas tự do toàn màn hình sau khi xác thực */
 export default function CanvasPage() {
   return (
     <RequireAuth>
@@ -12,7 +12,7 @@ export default function CanvasPage() {
   )
 }
 
-/** 从路由读取 projectId 并挂载工作区 */
+/** Đọc projectId từ route rồi mount vùng làm việc */
 function CanvasPageInner() {
   const { projectId } = useParams()
   const id = Number(projectId)
@@ -20,7 +20,7 @@ function CanvasPageInner() {
   if (!Number.isFinite(id) || id <= 0) {
     return (
       <div className="free-canvas-page" style={{ display: 'grid', placeItems: 'center' }}>
-        <p style={{ color: '#64748b' }}>无效的项目 ID</p>
+        <p style={{ color: '#64748b' }}>ID dự án không hợp lệ.</p>
       </div>
     )
   }

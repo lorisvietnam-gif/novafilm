@@ -1,9 +1,10 @@
-/** 资产详情操作框：预览图、上传/生图提示词编辑、生成/音色、形象历史版本 */
+/** Hộp thao tác chi tiết tài nguyên: xem trước ảnh, sửa prompt tạo ảnh, tạo/gán giọng đọc, các phiên bản ảnh cũ */
 import { useEffect, useRef, useState } from 'react'
 import { dramaApi, resolveDramaAssetPreviewUrl, type DramaAsset } from '../../api/drama'
 import Modal from '../../components/ui/Modal'
 import { readVisualPrompt } from '../../lib/dramaVisualPrompt'
 import { dramaAssetHasImage } from '../../lib/dramaAssetImage'
+import { DramaImageStylePreviewImg } from '../../components/drama/DramaImageStylePreviewImg'
 import {
   formatAssetImageVersionLabel,
   readAssetImageVersions,
@@ -25,7 +26,7 @@ type Props = {
   onError: (message: string) => void
 }
 
-// 将编辑后的提示词写回 params.visualPrompt
+// Ghi prompt đã sửa trở lại params.visualPrompt
 function buildPromptParams(asset: DramaAsset, prompt: string): Record<string, unknown> {
   const prev = (asset.params || {}) as Record<string, unknown>
   const kind = (asset.type || '').toLowerCase()
@@ -39,12 +40,12 @@ function buildPromptParams(asset: DramaAsset, prompt: string): Record<string, un
   return next
 }
 
-// 渲染资产详情操作弹窗
+// Render modal thao tác chi tiết tài nguyên
 export function DramaAssetDetailModal({
   asset,
   open,
   busy = false,
-  genLabel = '生成形象',
+  genLabel = 'Tạo ảnh',
   onClose,
   onUpdated,
   onGenerate,
@@ -53,11 +54,11 @@ export function DramaAssetDetailModal({
   onError,
 }: Props) {
   /*
-   * promptDraft 提示词草稿
-   * saving 保存中
-   * uploading 上传图片中
-   * restoringVersionId 正在还原的版本
-   * lightboxSrc 放大预览图 URL
+   * promptDraft bản nháp prompt
+   * saving đang lưu
+   * uploading đang tải ảnh lên
+   * restoringVersionId phiên bản đang khôi phục
+   * lightboxSrc URL ảnh xem phóng to
    */
   const [promptDraft, setPromptDraft] = useState('')
   const [saving, setSaving] = useState(false)
@@ -74,7 +75,7 @@ export function DramaAssetDetailModal({
   const isProp =
     (asset.type || '').toLowerCase() === 'prop' ||
     (asset.type || '').toLowerCase() === 'material'
-  const deleteLabel = isScene ? '删除场景' : isProp ? '删除道具' : '删除角色'
+  const deleteLabel = isScene ? 'Xoá bối cảnh' : isProp ? 'Xoá đạo cụ' : 'Xoá nhân vật'
   const canDelete = Boolean(onDelete) && (isCharacter || isScene || isProp)
   const dirty = promptDraft.trim() !== readVisualPrompt(asset).trim()
   const imageVersions = readAssetImageVersions(asset)
@@ -87,11 +88,11 @@ export function DramaAssetDetailModal({
     setRestoringVersionId(null)
   }, [open, asset])
 
-  // 保存提示词到资产 params
+  // Lưu prompt vào params của tài nguyên
   async function savePrompt() {
     const text = promptDraft.trim()
     if (!text) {
-      onError('提示词不能为空')
+      onError('Prompt không được để trống')
       return
     }
     setSaving(true)
@@ -101,18 +102,18 @@ export function DramaAssetDetailModal({
       })
       onUpdated(updated)
     } catch (err) {
-      onError(err instanceof Error ? err.message : '保存提示词失败')
+      onError(err instanceof Error ? err.message : 'Lưu prompt thất bại')
     } finally {
       setSaving(false)
     }
   }
 
-  // 先保存脏提示词再触发生图
+  // Lưu prompt đang sửa dở trước, rồi mới kích hoạt tạo ảnh
   async function handleGenerate() {
     if (dirty) {
       const text = promptDraft.trim()
       if (!text) {
-        onError('提示词不能为空')
+        onError('Prompt không được để trống')
         return
       }
       setSaving(true)
@@ -123,7 +124,7 @@ export function DramaAssetDetailModal({
         onUpdated(updated)
         onGenerate(updated)
       } catch (err) {
-        onError(err instanceof Error ? err.message : '保存提示词失败')
+        onError(err instanceof Error ? err.message : 'Lưu prompt thất bại')
       } finally {
         setSaving(false)
       }
@@ -132,28 +133,28 @@ export function DramaAssetDetailModal({
     onGenerate(asset)
   }
 
-  // 本地上传图片，视为已出图
+  // Tải ảnh từ máy lên, xem như đã có ảnh
   async function handleUpload(file: File) {
     setUploading(true)
     try {
       const updated = await dramaApi.uploadAssetMedia(asset.id, file)
       onUpdated(updated)
     } catch (err) {
-      onError(err instanceof Error ? err.message : '上传失败')
+      onError(err instanceof Error ? err.message : 'Tải lên thất bại')
     } finally {
       setUploading(false)
       if (uploadInputRef.current) uploadInputRef.current.value = ''
     }
   }
 
-  // 将历史形象还原为当前
+  // Khôi phục một phiên bản ảnh cũ thành ảnh hiện tại
   async function handleRestoreVersion(versionId: string) {
     setRestoringVersionId(versionId)
     try {
       const updated = await dramaApi.activateAssetImageVersion(asset.id, versionId)
       onUpdated(updated)
     } catch (err) {
-      onError(err instanceof Error ? err.message : '还原失败')
+      onError(err instanceof Error ? err.message : 'Khôi phục thất bại')
     } finally {
       setRestoringVersionId(null)
     }
@@ -164,14 +165,14 @@ export function DramaAssetDetailModal({
       <Modal
         open={open}
         onClose={onClose}
-        title={asset.name || '资产详情'}
+        title={asset.name || 'Chi tiết tài nguyên'}
         size="lg"
         className="drama-asset-detail-modal"
         dismissible={!lightboxSrc}
         footer={
           <div className="drama-modal-actions">
             <button type="button" className="pf-btn" onClick={onClose}>
-              关闭
+              Đóng
             </button>
             <button
               type="button"
@@ -179,7 +180,7 @@ export function DramaAssetDetailModal({
               disabled={saving || !dirty || actionBusy}
               onClick={() => void savePrompt()}
             >
-              {saving ? '保存中…' : '保存提示词'}
+              {saving ? 'Đang lưu…' : 'Lưu prompt'}
             </button>
             <button
               type="button"
@@ -187,7 +188,7 @@ export function DramaAssetDetailModal({
               disabled={actionBusy || !promptDraft.trim()}
               onClick={() => void handleGenerate()}
             >
-              {busy ? '生成中…' : genLabel}
+              {busy ? 'Đang tạo…' : genLabel}
             </button>
           </div>
         }
@@ -197,21 +198,24 @@ export function DramaAssetDetailModal({
             type="button"
             className="drama-asset-detail-media"
             disabled={!mediaSrc}
-            title={mediaSrc ? '点击放大' : undefined}
+            title={mediaSrc ? 'Bấm để phóng to' : undefined}
             onClick={() => mediaSrc && setLightboxSrc(mediaSrc)}
           >
             {mediaSrc ? (
               <img key={mediaSrc} src={mediaSrc} alt={asset.name || ''} />
             ) : (
-              <div className="drama-asset-placeholder">{asset.type || 'asset'}</div>
+              <div className="drama-asset-placeholder">
+                <DramaImageStylePreviewImg styleId="wuxia-realistic-photo" alt="" loading="lazy" />
+                <span>{asset.type || 'tư liệu'}</span>
+              </div>
             )}
           </button>
 
           <p className="drama-muted drama-asset-detail-meta">
             {asset.type}
-            {hasImage ? ' · 已出图' : ' · 未出图'}
-            {isCharacter && voice ? ` · 已绑音色：${voice.label}` : ''}
-            {mediaSrc ? ' · 点击图片可放大' : ''}
+            {hasImage ? ' · Đã có ảnh' : ' · Chưa có ảnh'}
+            {isCharacter && voice ? ` · Đã gán giọng đọc: ${voice.label}` : ''}
+            {mediaSrc ? ' · Bấm vào ảnh để phóng to' : ''}
           </p>
 
           <div className="drama-asset-detail-extra">
@@ -232,7 +236,7 @@ export function DramaAssetDetailModal({
               disabled={actionBusy}
               onClick={() => uploadInputRef.current?.click()}
             >
-              {uploading ? '上传中…' : hasImage ? '更换图片' : '上传图片'}
+              {uploading ? 'Đang tải lên…' : hasImage ? 'Đổi ảnh' : 'Tải ảnh lên'}
             </button>
             {isCharacter && onBindVoice ? (
               <button
@@ -240,7 +244,7 @@ export function DramaAssetDetailModal({
                 className="pf-btn pf-btn-sm"
                 onClick={() => onBindVoice(asset)}
               >
-                {voice ? '更换音色' : '绑定音色'}
+                {voice ? 'Đổi giọng đọc' : 'Gán giọng đọc'}
               </button>
             ) : null}
             {canDelete ? (
@@ -256,10 +260,10 @@ export function DramaAssetDetailModal({
           </div>
 
           {imageVersions.length > 0 ? (
-            <section className="drama-asset-image-versions" aria-label="形象历史版本">
+            <section className="drama-asset-image-versions" aria-label="Các phiên bản ảnh cũ">
               <header className="drama-asset-image-versions-head">
-                <strong>历史版本</strong>
-                <span className="drama-muted">{imageVersions.length} 个</span>
+                <strong>Phiên bản cũ</strong>
+                <span className="drama-muted">{imageVersions.length} bản</span>
               </header>
               <ul className="drama-asset-image-versions-list">
                 {imageVersions.map((version) => {
@@ -270,7 +274,7 @@ export function DramaAssetDetailModal({
                       <button
                         type="button"
                         className="drama-asset-image-version-thumb"
-                        title="点击放大"
+                        title="Bấm để phóng to"
                         onClick={() => setLightboxSrc(thumb)}
                       >
                         <img src={thumb} alt="" />
@@ -289,7 +293,7 @@ export function DramaAssetDetailModal({
                         disabled={actionBusy}
                         onClick={() => void handleRestoreVersion(version.id)}
                       >
-                        {restoring ? '还原中…' : '还原'}
+                        {restoring ? 'Đang khôi phục…' : 'Khôi phục'}
                       </button>
                     </li>
                   )
@@ -299,12 +303,12 @@ export function DramaAssetDetailModal({
           ) : null}
 
           <label className="drama-field">
-            <span>生图提示词</span>
+            <span>Prompt tạo ảnh</span>
             <textarea
               rows={8}
               value={promptDraft}
               onChange={(e) => setPromptDraft(e.target.value)}
-              placeholder="描述外观、构图、光影与风格…"
+              placeholder="Mô tả ngoại hình, bố cục, ánh sáng và phong cách…"
             />
           </label>
         </div>
@@ -313,7 +317,7 @@ export function DramaAssetDetailModal({
       {lightboxSrc ? (
         <DramaImageLightbox
           src={lightboxSrc}
-          alt={asset.name || '预览'}
+          alt={asset.name || 'Xem trước'}
           onClose={() => setLightboxSrc(null)}
         />
       ) : null}

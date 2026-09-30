@@ -1,4 +1,4 @@
-/** 画布节点大屏预览：图片 / 视频 / 音频 / 文本，可下载 */
+/** Xem trước toàn màn hình cho node trên canvas: ảnh / video / âm thanh / văn bản, có thể tải về */
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Download, X } from 'lucide-react'
@@ -24,7 +24,7 @@ type CanvasNodePreviewModalProps = {
   onClose: () => void
 }
 
-/** 按节点内容决定大屏展示形态 */
+/** Chọn cách hiển thị toàn màn hình dựa trên nội dung của node */
 function previewMode(payload: CanvasNodePreviewPayload) {
   const media = (payload.mediaUrl || '').trim()
   const voice = (payload.voiceUrl || '').trim()
@@ -39,7 +39,7 @@ function previewMode(payload: CanvasNodePreviewPayload) {
   return 'empty' as const
 }
 
-/** 节点媒体大屏弹层 */
+/** Lớp popover xem trước media của node */
 export function CanvasNodePreviewModal({ payload, onClose }: CanvasNodePreviewModalProps) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -78,7 +78,7 @@ export function CanvasNodePreviewModal({ payload, onClose }: CanvasNodePreviewMo
         mode === 'video' ? 'mp4' : mode === 'audio' ? 'mp3' : 'png'
       await downloadCanvasMedia(url, canvasMediaFilename(payload.title, url, fallback))
     } catch (err) {
-      setError(err instanceof Error ? err.message : '下载失败')
+      setError(err instanceof Error ? err.message : 'Tải về thất bại')
     } finally {
       setBusy(false)
     }
@@ -89,7 +89,7 @@ export function CanvasNodePreviewModal({ payload, onClose }: CanvasNodePreviewMo
       className="fc-node-preview-backdrop"
       role="dialog"
       aria-modal="true"
-      aria-label={`${payload.title} 预览`}
+      aria-label={`Xem trước ${payload.title}`}
       onClick={onClose}
     >
       <div className="fc-node-preview-bar" onClick={(event) => event.stopPropagation()}>
@@ -103,11 +103,11 @@ export function CanvasNodePreviewModal({ payload, onClose }: CanvasNodePreviewMo
             onClick={() => void handleDownload()}
           >
             <Download size={16} strokeWidth={2} />
-            {busy ? '下载中…' : '下载'}
+            {busy ? 'Đang tải…' : 'Tải về'}
           </button>
-          <button type="button" className="fc-node-preview-btn is-ghost" onClick={onClose} aria-label="关闭">
+          <button type="button" className="fc-node-preview-btn is-ghost" onClick={onClose} aria-label="Đóng">
             <X size={16} strokeWidth={2} />
-            关闭
+            Đóng
           </button>
         </div>
       </div>
@@ -122,14 +122,14 @@ export function CanvasNodePreviewModal({ payload, onClose }: CanvasNodePreviewMo
             <audio src={audioSrc} controls autoPlay />
           </div>
         ) : mode === 'text' ? (
-          <pre className="fc-node-preview-text">{text || '（空文本）'}</pre>
+          <pre className="fc-node-preview-text">{text || '(văn bản trống)'}</pre>
         ) : mode === 'image' ? (
           <div className="fc-node-preview-still">
             <img className="fc-node-preview-media" src={media} alt={payload.title} />
             {audioSrc ? <audio src={audioSrc} controls /> : null}
           </div>
         ) : (
-          <p className="fc-node-preview-empty">暂无内容可预览</p>
+          <p className="fc-node-preview-empty">Chưa có nội dung nào để xem trước</p>
         )}
       </div>
     </div>,

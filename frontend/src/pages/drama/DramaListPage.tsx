@@ -1,4 +1,4 @@
-/** 漫剧 Agent 首页：AI 生剧本 / 自由画布 + 我的项目（多选删除） */
+/** Trang chủ Agent Drama: AI sinh kịch bản / toan vẽ tự do + dự án của tôi (xoá nhiều mục) */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -33,11 +33,11 @@ import './drama.css'
 const CREATIVE_MIN_LENGTH = 20
 const CREATIVE_MAX_LENGTH = 2000
 const CANVAS_PLACEHOLDER =
-  '自由画布创作项目，稍后在画布中完善故事与资产。'
+  'Dự án sáng tạo tự do trên canvas, sau sẽ hoàn thiện cốt truyện và tư liệu ngay trên canvas.'
 
 type AgentTab = 'ai' | 'canvas'
 
-// 格式化更新时间
+// Định dạng thời gian cập nhật
 function formatUpdatedAt(raw?: string) {
   if (!raw) return ''
   const d = new Date(raw)
@@ -46,7 +46,7 @@ function formatUpdatedAt(raw?: string) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-// 封面竖排标题（无预览图时）
+// Tiêu đề dọc trên bìa (khi chưa có ảnh xem trước)
 function verticalTitleLabel(name: string, max = 12): string {
   const clean = (name || '').replace(/\s+/g, '')
   if (clean.length <= max) return clean
@@ -65,7 +65,7 @@ export default function DramaListPage() {
   )
 }
 
-// 渲染 Agent 首页内容
+// Nội dung trang chủ Agent
 function DramaListInner() {
   const navigate = useNavigate()
   const { t, m } = useI18n()
@@ -78,19 +78,19 @@ function DramaListInner() {
     [m],
   )
   /*
-   * storyText AI 创意输入
-   * episodeCount 目标集数
-   * imageStyleId 画面风格
-   * items 我的项目列表
-   * loading 列表加载中
-   * busy 创建中
-   * canvasBusy 画布创建中
-   * error 错误文案
-   * selected 多选 id
-   * deleting 批量删除中
-   * filter 列表筛选
-   * query 搜索
-   * showCreate 是否展开新建面板
+   * storyText ý tưởng câu chuyện do AI sáng tạo
+   * episodeCount số tập mục tiêu
+   * imageStyleId phong cách hình ảnh
+   * items danh sách dự án của tôi
+   * loading đang tải danh sách
+   * busy đang tạo
+   * canvasBusy đang tạo toan vẽ
+   * error thông báo lỗi
+   * selected các id đang chọn
+   * deleting đang xoá hàng loạt
+   * filter bộ lọc danh sách
+   * query từ khoá tìm kiếm
+   * showCreate có mở panel tạo mới không
    */
   const [storyText, setStoryText] = useState('')
   const [episodeCount, setEpisodeCount] = useState(12)
@@ -106,7 +106,7 @@ function DramaListInner() {
   const [query, setQuery] = useState('')
   const [showCreate, setShowCreate] = useState(false)
 
-  // 加载项目列表
+  // Tải danh sách dự án
   async function loadProjects() {
     const rows = await dramaApi.listProjects()
     setItems(rows)
@@ -119,19 +119,19 @@ function DramaListInner() {
   useEffect(() => {
     setLoading(true)
     loadProjects()
-      .catch((err) => setError(err instanceof Error ? err.message : '加载失败'))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Tải thất bại'))
       .finally(() => setLoading(false))
   }, [])
 
-  // AI 立即生成：创建项目并进入大纲步骤
+  // AI tạo ngay: tạo dự án rồi vào bước dàn ý
   async function handleGenerate() {
     const source = storyText.trim()
     if (source.length < CREATIVE_MIN_LENGTH) {
-      setError(`故事内容至少 ${CREATIVE_MIN_LENGTH} 字`)
+      setError(`Nội dung câu chuyện phải có ít nhất ${CREATIVE_MIN_LENGTH} ký tự`)
       return
     }
     if (source.length > CREATIVE_MAX_LENGTH) {
-      setError(`故事内容请控制在 ${CREATIVE_MAX_LENGTH} 字以内`)
+      setError(`Nội dung câu chuyện không nên vượt quá ${CREATIVE_MAX_LENGTH} ký tự`)
       return
     }
     setBusy(true)
@@ -145,13 +145,13 @@ function DramaListInner() {
       })
       navigate(`/drama/projects/${project.id}`, { state: { activeStep: 'outline' } })
     } catch (err) {
-      setError(err instanceof Error ? err.message : '创建失败')
+      setError(err instanceof Error ? err.message : 'Tạo thất bại')
     } finally {
       setBusy(false)
     }
   }
 
-  // 自由画布：创建占位创意项目并进入画布
+  // Toan vẽ tự do: tạo dự án ý tưởng giữ chỗ rồi vào toan vẽ
   async function handleEnterCanvas() {
     if (canvasBusy) return
     setCanvasBusy(true)
@@ -160,18 +160,18 @@ function DramaListInner() {
       const project = await dramaApi.createProject({
         source: CANVAS_PLACEHOLDER,
         episode_count: 1,
-        title: '自由画布项目',
+        title: 'Dự án canvas tự do',
         workflow: 'canvas',
       })
       navigate(`/drama/projects/${project.id}/canvas`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : '创建画布项目失败')
+      setError(err instanceof Error ? err.message : 'Tạo dự án toan vẽ thất bại')
     } finally {
       setCanvasBusy(false)
     }
   }
 
-  // 切换 Tab；画布 Tab 直接创建并跳转
+  // Đổi tab; tab toan vẽ tạo dự án luôn rồi chuyển trang
   function handleTabClick(next: AgentTab) {
     if (next === 'canvas') {
       void handleEnterCanvas()
@@ -207,7 +207,7 @@ function DramaListInner() {
     return true
   })
 
-  // 切换选中
+  // Đổi trạng thái chọn
   const toggleSelect = useCallback((id: number) => {
     setSelected((prev) => {
       const next = new Set(prev)
@@ -217,7 +217,7 @@ function DramaListInner() {
     })
   }, [])
 
-  // 打开项目：自由画布进画布，普通项目进工作台
+  // Mở dự án: toan vẽ tự do vào toan vẽ, dự án thường vào không gian làm việc
   function openProject(item: DramaProjectListItem) {
     if (selectionMode) {
       toggleSelect(item.id)
@@ -226,7 +226,7 @@ function DramaListInner() {
     navigate(dramaProjectEntryPath(item))
   }
 
-  // 重命名
+  // Đổi tên
   async function handleRename(item: DramaProjectListItem) {
     const name = await dialog.prompt({
       title: t('dramaList.renameTitle'),
@@ -243,7 +243,7 @@ function DramaListInner() {
     }
   }
 
-  // 删除单个
+  // Xoá một dự án
   async function handleDeleteOne(item: DramaProjectListItem) {
     const ok = await dialog.confirm({
       title: t('dramaList.deleteTitle'),
@@ -265,7 +265,7 @@ function DramaListInner() {
     }
   }
 
-  // 批量删除
+  // Xoá hàng loạt
   async function handleDeleteSelected() {
     const ids = [...selected]
     if (ids.length === 0) return
@@ -373,7 +373,7 @@ function DramaListInner() {
                   value={storyText}
                   onChange={(e) => setStoryText(e.target.value.slice(0, CREATIVE_MAX_LENGTH + 50))}
                   disabled={busy}
-                  placeholder="在此输入你构想的故事内容：故事设定、主角特征、剧情脉络、最终结局等"
+                  placeholder="Viết ở đây ý tưởng câu chuyện của bạn: bối cảnh, đặc điểm nhân vật chính, diễn biến cốt truyện, kết cục…"
                   rows={7}
                   maxLength={CREATIVE_MAX_LENGTH + 50}
                 />
@@ -400,7 +400,7 @@ function DramaListInner() {
                   onClick={() => void handleGenerate()}
                 >
                   <Sparkles size={16} strokeWidth={1.75} aria-hidden />
-                  {busy ? '创建中…' : '立即生成'}
+                  {busy ? 'Đang tạo…' : 'Tạo ngay'}
                 </Button>
               </div>
             </div>
@@ -420,8 +420,8 @@ function DramaListInner() {
             <div className="pf-empty-illust" aria-hidden>
               <FolderOpen size={48} strokeWidth={1.2} />
             </div>
-            <h2>还没有项目</h2>
-            <p className="pf-muted">用 AI 生剧本或自由画布，创建你的第一部漫剧</p>
+            <h2>Chưa có dự án nào</h2>
+            <p className="pf-muted">Dùng AI sinh kịch bản hoặc toan vẽ tự do để làm bộ Drama đầu tiên của bạn</p>
             <Button
               variant="lime"
               onClick={() => {
@@ -429,14 +429,14 @@ function DramaListInner() {
                 handleTabClick('ai')
               }}
             >
-              新建项目
+              Tạo dự án
             </Button>
           </div>
         ) : filteredItems.length === 0 ? (
           <div className="pf-empty-state is-compact">
-            <p className="pf-muted">没有符合筛选的项目</p>
+            <p className="pf-muted">Không có dự án nào khớp bộ lọc</p>
             <Button variant="ghost" size="sm" onClick={() => { setFilter('all'); setQuery('') }}>
-              清除筛选
+              Xoá bộ lọc
             </Button>
           </div>
         ) : (
@@ -452,7 +452,7 @@ function DramaListInner() {
               <span className="pf-drama-card-plus" aria-hidden>
                 +
               </span>
-              <strong>新建项目</strong>
+              <strong>Tạo dự án</strong>
             </button>
             {filteredItems.map((item) => {
               const isSelected = selected.has(item.id)
@@ -467,7 +467,7 @@ function DramaListInner() {
                     type="button"
                     className="pf-drama-card-cover"
                     onClick={() => openProject(item)}
-                    aria-label={`打开 ${item.title}`}
+                    aria-label={`Mở ${item.title}`}
                   >
                     {coverSrc ? (
                       <img
@@ -480,12 +480,12 @@ function DramaListInner() {
                     ) : (
                       <span className="pf-drama-card-cover-fallback">{verticalTitleLabel(item.title)}</span>
                     )}
-                    {canvas ? <span className="pf-drama-card-cover-badge is-canvas">自由画布</span> : null}
+                    {canvas ? <span className="pf-drama-card-cover-badge is-canvas">Toan vẽ tự do</span> : null}
                     {!canvas && item.cover_pending ? (
-                      <span className="pf-drama-card-cover-badge">封面生成中</span>
+                      <span className="pf-drama-card-cover-badge">Đang tạo bìa</span>
                     ) : null}
                     {!canvas && !coverSrc && !item.cover_pending && item.asset_count > 0 ? (
-                      <span className="pf-drama-card-cover-badge is-muted">待出图</span>
+                      <span className="pf-drama-card-cover-badge is-muted">Chờ tạo ảnh</span>
                     ) : null}
                     <label
                       className={`drama-project-row-check${isSelected || selectionMode ? ' is-visible' : ''}`}
@@ -505,7 +505,7 @@ function DramaListInner() {
                       />
                     </div>
                     <p className="pf-drama-card-meta">{formatDramaCardMeta(item)}</p>
-                    <p className="pf-drama-card-usage" title="本剧累计费用与生成次数">
+                    <p className="pf-drama-card-usage" title="Tổng chi phí và số lần tạo của bộ phim này">
                       {formatDramaUsageBrief(item.usage)}
                     </p>
                     <p className="pf-drama-card-time">{formatUpdatedAt(item.updated_at || item.created_at)}</p>
@@ -519,14 +519,14 @@ function DramaListInner() {
         {selected.size > 0 ? (
           <div className="drama-project-selection-bar">
             <div className="drama-project-selection-inner">
-              <span>已选择 {selected.size} 个项目</span>
+              <span>Đã chọn {selected.size} dự án</span>
               <button
                 type="button"
                 className="drama-project-selection-cancel"
                 disabled={deleting}
                 onClick={() => setSelected(new Set())}
               >
-                取消选择
+                Bỏ chọn
               </button>
               <button
                 type="button"
@@ -535,7 +535,7 @@ function DramaListInner() {
                 onClick={() => void handleDeleteSelected()}
               >
                 <Trash2 size={16} strokeWidth={1.8} />
-                {deleting ? '删除中…' : '删除'}
+                {deleting ? 'Đang xoá…' : 'Xoá'}
               </button>
             </div>
           </div>

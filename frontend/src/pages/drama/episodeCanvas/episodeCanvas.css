@@ -1,4 +1,4 @@
-/* 分集分镜故事板全屏画布 */
+/* Canvas storyboard toàn màn hình của một tập */
 
 .ep-storyboard-page {
   --epc-bg: #eef1f4;
@@ -146,7 +146,7 @@
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
 }
 
-/* —— 分镜节点：视频在上，提示词在下 —— */
+/* —— Node cảnh quay: video ở trên, câu lệnh ở dưới —— */
 .ep-frag-node {
   width: 220px;
   border-radius: 16px;

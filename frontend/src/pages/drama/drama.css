@@ -234,7 +234,7 @@
   background: transparent;
 }
 
-/* WebKit 滚动条：贴合面板，避免默认粗条抢戏 */
+/* Thanh cuộn WebKit: ôm sát bảng, tránh thanh mặc định quá thô chiếm sân */
 .drama-agent-ai textarea::-webkit-scrollbar {
   width: 10px;
 }
@@ -1009,7 +1009,7 @@
   color: var(--drama-ink);
 }
 
-/* 大纲页：项目风格字段触发器（缩略图 + 文案） */
+/* Trang dàn ý: nút mở trường phong cách của dự án (ảnh thu nhỏ + chữ) */
 .drama-style-picker-field {
   display: inline-flex;
   align-items: center;
@@ -1556,7 +1556,7 @@
 .drama-lightbox-backdrop {
   position: fixed;
   inset: 0;
-  /* 高于 pf-dialog-root (1000)，避免在 Modal 内放大时被遮挡 */
+  /* Cao hơn pf-dialog-root (1000), tránh bị che khi phóng to bên trong Modal */
   z-index: 1100;
   background: rgba(10, 10, 10, 0.86);
   display: grid;
@@ -2340,7 +2340,7 @@
   padding-bottom: 48px;
 }
 
-/* Outline — 对齐截图：左目录卡片 + 右大白底三区 */
+/* Dàn ý — căn theo ảnh chụp: thẻ danh mục bên trái + ba vùng nền trắng bên phải */
 .drama-outline-page {
   display: flex;
   flex-direction: column;
@@ -4344,7 +4344,7 @@
   grid-column: 1 / -1;
 }
 
-/* 用 padding 占位保证缩略图高度：button + overflow 下 aspect-ratio 易塌成细条 */
+/* Dùng padding để chừa chỗ, đảm bảo chiều cao ảnh thu nhỏ: button + overflow khiến aspect-ratio dễ xẹp thành sợi mảnh */
 .drama-ep-asset-thumb {
   position: relative;
   width: 100%;
@@ -5920,7 +5920,7 @@
 .drama-ep-fail-reason-pop {
   position: fixed;
   right: 24px;
-  /* 在生成队列 FAB（bottom:96）与微信加群钮之上 */
+  /* Nằm trên nút FAB của hàng đợi sinh (bottom:96) và nút mời tham gia nhóm WeChat */
   bottom: 168px;
   z-index: 80;
   width: min(380px, calc(100vw - 32px));
@@ -6401,7 +6401,7 @@
 .drama-gen-fab-root {
   position: fixed;
   right: 20px;
-  /* 抬高，避免挡住全站微信加群浮钮 */
+  /* Nâng lên để không che nút mời tham gia nhóm WeChat trên toàn site */
   bottom: 96px;
   z-index: 90;
   display: flex;
@@ -6960,7 +6960,7 @@
   color: var(--pf-danger);
 }
 
-/* 批量角色音色生成进度 */
+/* Tiến trình sinh giọng cho nhiều nhân vật */
 .drama-batch-voice-list {
   display: flex;
   flex-direction: column;
@@ -7018,4 +7018,178 @@
   margin: 6px 0 0;
   font-size: 12px;
   color: var(--pf-danger);
+}
+
+/* —— Ảnh thật thay ô trống ——
+ * Dùng ảnh thật từ public/image-styles cho mọi trạng thái rỗng.
+ * Ảnh nằm dưới nội dung, phủ một lớp mờ để chữ luôn đủ tương phản. */
+
+.drama-still {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
+}
+
+.drama-still-wrap {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.drama-still-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 50% 20%, transparent 0%, var(--pf-veil) 100%),
+    linear-gradient(180deg, rgb(var(--pf-scrim-rgb) / 0.18) 0%, var(--pf-veil-strong) 100%);
+}
+
+.drama-still-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* Ô trống của thẻ tư liệu: ảnh phong cách làm nền, nhãn loại nổi lên trên */
+.drama-asset-placeholder {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--drama-line);
+}
+
+.drama-asset-placeholder .drama-still {
+  opacity: 0.32;
+  filter: saturate(0.72) contrast(1.02);
+}
+
+.drama-asset-placeholder > span {
+  position: relative;
+  z-index: 1;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--pf-on-media-chip);
+  color: var(--pf-on-media);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  backdrop-filter: blur(6px);
+}
+
+/* Trạng thái rỗng: khung cao hơn, ảnh làm trọng tâm thị giác */
+.drama-episodes-empty,
+.drama-project-empty,
+.drama-episode-dir-empty {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.drama-episodes-empty {
+  min-height: 220px;
+}
+
+.drama-episodes-empty .drama-still,
+.drama-project-empty .drama-still,
+.drama-episode-dir-empty .drama-still {
+  opacity: 0.28;
+  filter: saturate(0.7);
+}
+
+/* Veil bắt buộc: chữ đặt trên ảnh phải đi qua --pf-veil, không đặt trực tiếp lên ảnh */
+.drama-episodes-empty::after,
+.drama-project-empty::after,
+.drama-episode-dir-empty::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    120% 100% at 50% 30%,
+    transparent 0%,
+    var(--pf-veil) 78%,
+    var(--pf-veil-strong) 100%
+  );
+}
+
+.drama-episodes-empty > *:not(img),
+.drama-project-empty > *:not(img),
+.drama-episode-dir-empty > *:not(img) {
+  position: relative;
+  z-index: 1;
+}
+
+.drama-episodes-empty > p,
+.drama-project-empty > p {
+  max-width: 34ch;
+  line-height: 1.6;
+  color: var(--drama-ink);
+}
+
+/* Hero của bước Tư liệu: dải ảnh mờ phía sau tiêu đề */
+.drama-step-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 18px 20px;
+  border-radius: var(--drama-radius, 14px);
+  border: 1px solid var(--drama-line);
+  background: var(--drama-card);
+}
+
+.drama-step-hero > .drama-still {
+  opacity: 0.26;
+  filter: saturate(0.78);
+}
+/* Hero này giữ chữ bằng thang ink bình thường, nên lớp phủ phải nghiêng về
+   màu surface chứ không phải scrim tối — nếu phủ tối thì tiêu đề sẽ chết. */
+.drama-step-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--pf-surface) 94%, transparent) 0%,
+    color-mix(in srgb, var(--pf-surface) 80%, transparent) 46%,
+    color-mix(in srgb, var(--pf-surface) 62%, transparent) 100%
+  );
+}
+
+.drama-step-hero-main {
+  position: relative;
+  z-index: 1;
+}
+
+/* Khung chờ của node trên canvas: ảnh phong cách mờ, nhãn vẫn đọc được */
+.fc-asset-card .fc-placeholder-icon {
+  position: relative;
+  z-index: 1;
+}
+
+.fc-asset-body.is-waiting {
+  background: var(--fc-line);
+}
+
+/* Danh mục tập bên trái rỗng: ô nhỏ nên ảnh mờ hơn, không lấn át chữ */
+.drama-episode-dir-empty {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 10px;
+}
+
+.drama-episode-dir-empty .drama-still {
+  opacity: 0.22;
+  filter: saturate(0.7);
+}
+
+.drama-episode-dir-empty > p {
+  position: relative;
+  z-index: 1;
 }

@@ -1,4 +1,4 @@
-/** 画布资产自定义节点：类型图标 + 媒体卡片 + 选中工具栏 */
+/** Node tư liệu tuỳ biến trên canvas: icon theo loại + thẻ media + thanh công cụ khi được chọn */
 import {
   memo,
   useCallback,
@@ -20,6 +20,8 @@ import {
 import { AudioLines, Image as ImageIcon, Landmark, Loader2, Maximize2, Play, UserRound } from 'lucide-react'
 import { resolveDramaMediaUrl } from '../../../api/drama'
 import { isAudioUrl, isPlayableVideoUrl } from '../../../lib/canvasNodeMedia'
+import { DramaImageStylePreviewImg } from '../../../components/drama/DramaImageStylePreviewImg'
+import type { ImageStyleId } from '../../../lib/dramaImageStyles'
 import { useCanvasStore } from './CanvasStore'
 import {
   CANVAS_GENERATABLE_KINDS,
@@ -33,7 +35,7 @@ import { CanvasNodePreviewModal } from './CanvasNodePreviewModal'
 import { CanvasNodeUploadBar } from './nodes/CanvasNodeUploadBar'
 import { DRAMA_VOICE_BINDING_ENABLED } from '../../../lib/dramaVoiceBinding'
 
-/** 画布视频缩略：仅展示封面，不拦截单击（单击要选中并显示提示词面板） */
+/** Ảnh nhỏ video trên canvas: chỉ hiện ảnh bìa, không chặn click đơn (click đơn dùng để chọn node và mở bảng câu lệnh) */
 function CanvasAssetVideoPreview({
   src,
   onAspect,
@@ -63,7 +65,7 @@ function CanvasAssetVideoPreview({
   )
 }
 
-/** 按类型返回占位图标 */
+/** Icon chờ theo loại tư liệu */
 function PlaceholderIcon({ kind }: { kind: CanvasAssetNodeData['kind'] }) {
   const className = 'fc-placeholder-icon'
   if (kind === 'character') return <UserRound className={className} size={40} strokeWidth={1.4} />
@@ -74,7 +76,28 @@ function PlaceholderIcon({ kind }: { kind: CanvasAssetNodeData['kind'] }) {
   return <ImageIcon className={className} size={40} strokeWidth={1.4} />
 }
 
-/** 渲染单个画布资产节点 */
+/** Ảnh nền cho ô chờ, chọn theo loại tư liệu; loại không có ảnh thì chỉ hiện icon */
+const NODE_WAITING_STILL: Partial<Record<CanvasAssetNodeData['kind'], ImageStyleId>> = {
+  character: 'wuxia-realistic-photo',
+  scene: 'palace-intrigue-cold',
+  image: 'retro-narrative-film',
+  video: 'neon-cyberpunk-film',
+}
+
+/** Khung chờ của node: ảnh thật làm nền mờ, icon phủ lên trên */
+function NodeWaitingStill({ kind }: { kind: CanvasAssetNodeData['kind'] }) {
+  const styleId = NODE_WAITING_STILL[kind]
+  return (
+    <div className="fc-asset-waiting">
+      {styleId ? (
+        <DramaImageStylePreviewImg styleId={styleId} alt="" loading="lazy" />
+      ) : null}
+      <PlaceholderIcon kind={kind} />
+    </div>
+  )
+}
+
+/** Dựng một node tư liệu trên canvas */
 function CanvasAssetNodeComponent({ id, data, selected }: NodeProps<Node<CanvasAssetNodeData>>) {
   const { updateNodeTextContent, renameNode } = useCanvasStore()
   const updateNodeInternals = useUpdateNodeInternals()
@@ -95,16 +118,16 @@ function CanvasAssetNodeComponent({ id, data, selected }: NodeProps<Node<CanvasA
   const footerLabel =
     data.kind === 'character'
       ? DRAMA_VOICE_BINDING_ENABLED && voiceLabel
-        ? `基础形象 · ${voiceLabel}`
-        : '基础形象'
+        ? `Hình nền · ${voiceLabel}`
+        : 'Hình nền'
       : data.kind === 'scene'
         ? displayName
         : null
 
-  // renaming 是否正在编辑节点名称
-  // draftName 编辑中的名称草稿
-  // previewOpen 是否打开大屏预览
-  // mediaAspect 媒体宽高比（宽/高），用于预览框横竖自适应
+  // renaming có đang sửa tên node không
+  // draftName bản nháp tên đang sửa
+  // previewOpen có đang mở xem trước toàn màn hình không
+  // mediaAspect tỉ lệ khung media (rộng / cao), dùng để khung xem trướng tự co theo chiều ngang dọc
   const [renaming, setRenaming] = useState(false)
   const [draftName, setDraftName] = useState(displayName)
   const [previewOpen, setPreviewOpen] = useState(false)
@@ -130,7 +153,7 @@ function CanvasAssetNodeComponent({ id, data, selected }: NodeProps<Node<CanvasA
     updateNodeInternals(id)
   }, [id, frameSize.width, frameSize.height, updateNodeInternals])
 
-  /** 图片加载后按自然尺寸更新预览框比例 */
+  /** Sau khi ảnh tải xong thì cập nhật tỉ lệ khung xem trước theo kích thước gốc */
   const handleImageLoad = useCallback((event: SyntheticEvent<HTMLImageElement>) => {
     const el = event.currentTarget
     if (el.naturalWidth > 0 && el.naturalHeight > 0) {
@@ -138,7 +161,7 @@ function CanvasAssetNodeComponent({ id, data, selected }: NodeProps<Node<CanvasA
     }
   }, [])
 
-  /** 视频 metadata 就绪后更新预览框比例 */
+  /** Video sẵn sàng metadata thì cập nhật tỉ lệ khung xem trước */
   const handleVideoAspect = useCallback((aspect: number) => {
     if (aspect > 0) setMediaAspect(aspect)
   }, [])
@@ -150,7 +173,7 @@ function CanvasAssetNodeComponent({ id, data, selected }: NodeProps<Node<CanvasA
     [id, updateNodeTextContent],
   )
 
-  /** 进入重命名 */
+  /** Bắt đầu đổi tên */
   const startRename = (event: MouseEvent) => {
     event.stopPropagation()
     event.preventDefault()
@@ -158,7 +181,7 @@ function CanvasAssetNodeComponent({ id, data, selected }: NodeProps<Node<CanvasA
     setRenaming(true)
   }
 
-  /** 提交重命名 */
+  /** Xác nhận đổi tên */
   const commitRename = () => {
     setRenaming(false)
     const next = draftName.trim()
@@ -178,7 +201,7 @@ function CanvasAssetNodeComponent({ id, data, selected }: NodeProps<Node<CanvasA
     }
   }
 
-  /** 双击卡片：放大预览（单击留给选中 / 提示词面板） */
+  /** Nhấp đúp lên thẻ: xem trước toàn màn hình (click đơn dành cho chọn node / mở bảng câu lệnh) */
   const handleCardDoubleClick = (event: MouseEvent) => {
     const target = event.target as HTMLElement
     if (target.closest('textarea, input, button, a')) return
@@ -187,7 +210,7 @@ function CanvasAssetNodeComponent({ id, data, selected }: NodeProps<Node<CanvasA
     setPreviewOpen(true)
   }
 
-  /** 角标放大：不冒泡，避免抢走节点选中 */
+  /** Nút phóng to ở góc: chặn sự kiện lan truyền để không cướp mất thao tác chọn node */
   const handleExpandClick = (event: MouseEvent) => {
     event.stopPropagation()
     event.preventDefault()
@@ -219,13 +242,13 @@ function CanvasAssetNodeComponent({ id, data, selected }: NodeProps<Node<CanvasA
             onBlur={commitRename}
             onKeyDown={handleRenameKeyDown}
             onMouseDown={(e) => e.stopPropagation()}
-            aria-label="节点名称"
+            aria-label="Tên node"
           />
         ) : (
           <button
             type="button"
             className="fc-node-title nodrag nopan"
-            title="双击重命名"
+            title="Nhấp đúp để đổi tên"
             onDoubleClick={startRename}
           >
             {displayName}
@@ -235,7 +258,7 @@ function CanvasAssetNodeComponent({ id, data, selected }: NodeProps<Node<CanvasA
 
       <div
         className={`fc-asset-card${canPreview ? ' is-previewable' : ''}`}
-        title={canPreview ? '双击放大预览' : undefined}
+        title={canPreview ? 'Nhấp đúp để xem toàn màn hình' : undefined}
         onDoubleClick={handleCardDoubleClick}
       >
         <div
@@ -252,16 +275,16 @@ function CanvasAssetNodeComponent({ id, data, selected }: NodeProps<Node<CanvasA
                 className="fc-text-editor nodrag nowheel"
                 value={data.textContent || ''}
                 onChange={handleTextChange}
-                placeholder="输入文本…"
+                placeholder="Nhập nội dung…"
                 rows={4}
               />
             ) : (
-              <span>{data.textContent || data.label || '文本'}</span>
+              <span>{data.textContent || data.label || 'Văn bản'}</span>
             )
           ) : data.generating ? (
             <div className="fc-generating">
               <Loader2 size={28} className="fc-spin" />
-              <span>生成中…</span>
+              <span>Đang sinh…</span>
             </div>
           ) : mediaSrc && data.kind === 'video' && isPlayableVideoUrl(mediaSrc) ? (
             <CanvasAssetVideoPreview src={mediaSrc} onAspect={handleVideoAspect} />
@@ -282,14 +305,14 @@ function CanvasAssetNodeComponent({ id, data, selected }: NodeProps<Node<CanvasA
               onLoad={handleImageLoad}
             />
           ) : (
-            <PlaceholderIcon kind={data.kind} />
+            <NodeWaitingStill kind={data.kind} />
           )}
           {canPreview ? (
             <button
               type="button"
               className="fc-asset-expand nodrag nopan nowheel"
-              title="放大预览"
-              aria-label={`放大预览 ${displayName}`}
+              title="Xem toàn màn hình"
+              aria-label={`Xem toàn màn hình ${displayName}`}
               onClick={handleExpandClick}
               onPointerDown={(event) => event.stopPropagation()}
             >

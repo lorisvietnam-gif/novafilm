@@ -1,4 +1,4 @@
-/** 分集编辑页辅助：资产分类、引用解析、标签文案 */
+/** Tiện ích trang sửa tập: phân loại tài nguyên, tra tham chiếu, chữ nhãn */
 import type { DramaAsset, DramaFragment } from '../../api/drama'
 import {
   DRAMA_RATIO_OPTIONS,
@@ -13,16 +13,16 @@ export type AssetScope = 'episode' | 'series'
 export type AssetTab = 'character' | 'scene' | 'prop'
 
 export const ASSET_TABS: Array<{ key: AssetTab; label: string }> = [
-  { key: 'character', label: '角色' },
-  { key: 'scene', label: '场景' },
-  { key: 'prop', label: '道具' },
+  { key: 'character', label: 'Nhân vật' },
+  { key: 'scene', label: 'Bối cảnh' },
+  { key: 'prop', label: 'Đạo cụ' },
 ]
 
 export const RATIO_OPTIONS = DRAMA_RATIO_OPTIONS
 export const RES_OPTIONS = DRAMA_RES_OPTIONS
 export { readProjectAspectRatio, readProjectResolution, readEpisodeAspectRatio, readEpisodeResolution }
 
-// 从分镜正文提取 @asset:id
+// Trích @asset:id từ nội dung storyboard
 export function extractAssetIds(content: string): number[] {
   const ids: number[] = []
   const re = /@asset:(\d+)/g
@@ -33,7 +33,7 @@ export function extractAssetIds(content: string): number[] {
   return ids
 }
 
-// 合并正文 @asset 与 asset_ids，去重保序
+// Gộp @asset trong nội dung với asset_ids, bỏ trùng và giữ thứ tự
 export function collectFragmentAssetIds(frag: DramaFragment | null | undefined): number[] {
   if (!frag) return []
   const seen = new Set<number>()
@@ -56,7 +56,7 @@ export type FragmentRefStripItem = {
   voiceUrl?: string
 }
 
-// 组装当前分镜关联资产条
+// Dựng dải tài nguyên liên kết của cảnh hiện tại
 export function buildFragmentRefStripItems(
   frag: DramaFragment | null | undefined,
   assets: DramaAsset[],
@@ -71,7 +71,7 @@ export function buildFragmentRefStripItems(
     const voice = asset && readVoice ? readVoice(asset) : null
     return {
       assetId,
-      name: asset?.name || `资产 ${assetId}`,
+      name: asset?.name || `Tài nguyên ${assetId}`,
       type: asset?.type || '',
       previewUrl: preview,
       isCharacter,
@@ -81,7 +81,7 @@ export function buildFragmentRefStripItems(
   })
 }
 
-// 规范化资产分类
+// Chuẩn hoá phân loại tài nguyên
 export function normalizeAssetTab(type: string): AssetTab | null {
   const t = (type || '').toLowerCase()
   if (t === 'character' || t === '角色') return 'character'
@@ -90,7 +90,7 @@ export function normalizeAssetTab(type: string): AssetTab | null {
   return null
 }
 
-// 从分镜正文合计 @duration 秒数（与后端 fragment_content_duration 一致）
+// Cộng tổng số giây @duration trong nội dung storyboard (khớp fragment_content_duration ở backend)
 export function sumFragmentContentDuration(content: string): number {
   const re = /@duration:(\d+)/g
   let total = 0
@@ -102,7 +102,7 @@ export function sumFragmentContentDuration(content: string): number {
   return total
 }
 
-// 解析分镜生成状态（params.generation 优先于已有 video，支持重新生成）
+// Đọc trạng thái tạo của cảnh (ưu tiên params.generation hơn video đã có, hỗ trợ tạo lại)
 export function readFragmentGenerationStatus(
   frag: DramaFragment,
 ): { status: string; error?: string; message?: string; phase?: string } {
@@ -137,7 +137,7 @@ export function readFragmentGenerationStatus(
   return { status: 'idle' }
 }
 
-// 是否处于排队/生成中
+// Có đang xếp hàng / đang tạo không
 export function isFragmentGenerationBusy(status: string): boolean {
   return ['queued', 'running', 'generating', 'pending', 'leased', 'awaiting_poll', 'awaiting_review'].includes(
     status,
@@ -153,7 +153,7 @@ export type FragmentVideoVersion = {
   source?: string
 }
 
-// 读取分镜历史成片版本
+// Đọc các phiên bản bản dựng cũ của cảnh
 export function readFragmentVideoVersions(frag: DramaFragment | null | undefined): FragmentVideoVersion[] {
   if (!frag?.params || typeof frag.params !== 'object') return []
   const raw = (frag.params as Record<string, unknown>).video_versions
@@ -177,15 +177,15 @@ export function readFragmentVideoVersions(frag: DramaFragment | null | undefined
   return out
 }
 
-// 分镜队列徽标文案
+// Chữ trên huy hiệu hàng đợi của cảnh
 export function fragmentQueueBadgeLabel(status: string): string {
-  if (status === 'queued' || status === 'pending' || status === 'leased') return '排队'
-  if (status === 'running' || status === 'generating' || status === 'awaiting_poll') return '生成中'
-  if (status === 'failed') return '失败'
+  if (status === 'queued' || status === 'pending' || status === 'leased') return 'Xếp hàng'
+  if (status === 'running' || status === 'generating' || status === 'awaiting_poll') return 'Đang tạo'
+  if (status === 'failed') return 'Lỗi'
   return ''
 }
 
-// 保存前：有 @duration 标签时用合计值作为 duration_sec
+// Trước khi lưu: nếu có chip @duration thì lấy tổng làm duration_sec
 export function resolveFragmentDurationSec(
   content: string,
   durationSec: number | null | undefined,
@@ -196,14 +196,14 @@ export function resolveFragmentDurationSec(
   return Math.min(15, Math.max(4, fallback))
 }
 
-// 格式化片段标签
+// Định dạng nhãn cảnh
 export function formatFragLabel(index: number, durationSec: number | null | undefined) {
   const n = String(index + 1).padStart(2, '0')
   const sec = durationSec && durationSec > 0 ? durationSec : 8
-  return `片段 ${n} · ${sec}s`
+  return `Cảnh quay ${n} · ${sec}s`
 }
 
-// 按本集/全集与分类筛选资产
+// Lọc tài nguyên theo phạm vi tập này / toàn phim và theo phân loại
 export function filterEpisodeAssets(
   assets: DramaAsset[],
   scope: AssetScope,

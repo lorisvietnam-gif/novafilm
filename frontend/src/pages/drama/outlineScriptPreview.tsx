@@ -1,10 +1,10 @@
-/** 大纲页：剧本按场次解析展示 / 分段编辑 / 弹窗预览 */
+/** Trang dàn ý: hiển thị kịch bản đã phân tích theo cảnh / sửa theo đoạn / xem trước trong popup */
 import { useMemo, useState } from 'react'
 import { Pencil } from 'lucide-react'
 import Modal from '../../components/ui/Modal'
 
 export type OutlineSceneBlock = {
-  /** 原始整段（含场头行），写回时原样拼接 */
+  /** Nguyên đoạn gốc (kèm dòng tiêu đề cảnh), khi ghi lại thì nối nguyên vẹn */
   raw: string
   label: string
   title: string
@@ -21,7 +21,7 @@ export type ParsedScriptLine = {
   dialogue?: string
 }
 
-/** 解析后单场统计：估时 / 对白 / 动作 / 出场 / 内外景 */
+/** Thống kê một cảnh sau khi phân tích: thời lượng ước tính / thoại / hành động / diễn viên / nội ngoại */
 export type OutlineSceneStats = {
   estimatedSec: number
   dialogueCount: number
@@ -30,7 +30,7 @@ export type OutlineSceneStats = {
   location: string
 }
 
-/** 已进分镜时的镜头合计（优先于文本估算） */
+/** Tổng thời lượng cảnh quay khi đã vào storyboard (ưu tiên hơn ước tính từ văn bản) */
 export type OutlineShotDurationStats = {
   fragmentCount: number
   totalSec: number
@@ -39,44 +39,44 @@ export type OutlineShotDurationStats = {
 const SPEAKER_COLORS = ['#059669', '#dc2626', '#ea580c', '#2563eb', '#7c3aed', '#db2777']
 const SCENE_DURATION_MIN = 4
 const SCENE_DURATION_MAX = 120
-/** 与后端 build_fragments 行时长 clamp / 打包上限对齐 */
+/** Cùng giới hạn clamp thời lượng dòng và trần đóng gói với build_fragments ở backend */
 const LINE_DURATION_MIN = 3
 const LINE_DURATION_MAX = 15
 const FRAGMENT_SOFT_MAX = 15
 const FRAGMENT_TOTAL_MAX = 15
 
-// 角色名稳定配色
+// Tô màu ổn định theo tên nhân vật
 export function speakerColor(name: string): string {
   let h = 0
   for (let i = 0; i < name.length; i += 1) h = (h * 31 + name.charCodeAt(i)) >>> 0
   return SPEAKER_COLORS[h % SPEAKER_COLORS.length]
 }
 
-// 从拍摄剧本正文拆出场次块
+// Tách các khối cảnh từ nội dung kịch bản quay
 export function parseOutlineSceneBlocks(text: string): OutlineSceneBlock[] {
   const raw = (text || '').trim()
   if (!raw) return []
   const parts = raw.split(/(?=^#{1,3}\s*场)/m).map((p) => p.trim()).filter(Boolean)
   if (parts.length <= 1 && !/^#{1,3}\s*场/.test(raw)) {
-    return [{ raw, label: '全文', title: '', body: raw }]
+    return [{ raw, label: 'Toàn văn', title: '', body: raw }]
   }
   return parts.map((part, index) => {
     const lines = part.split(/\r?\n/)
     const head = (lines[0] || '').replace(/^#+\s*/, '').trim()
     const labelMatch = head.match(/^场\s*([^\s：:]+)/)
-    const label = labelMatch ? `场 ${labelMatch[1]}` : `场 ${index + 1}`
+    const label = labelMatch ? `Cảnh ${labelMatch[1]}` : `Cảnh ${index + 1}`
     const title = head.replace(/^场\s*[^\s：:]+[：:\s]*/, '').trim()
     const body = lines.slice(1).join('\n').trim()
     return { raw: part, label, title, body }
   })
 }
 
-// 场次块拼回完整正文
+// Ghép các khối cảnh trở lại thành nội dung đầy đủ
 export function joinOutlineSceneBlocks(blocks: OutlineSceneBlock[]): string {
   return blocks.map((b) => b.raw.trim()).filter(Boolean).join('\n\n')
 }
 
-// 解析单行：动作 / 对白 / 元信息
+// Phân tích một dòng: hành động / thoại / thông tin
 export function parseScriptLine(line: string): ParsedScriptLine {
   const text = line ?? ''
   const trimmed = text.trim()
@@ -110,7 +110,7 @@ function compactLen(text: string): number {
   return (text || '').replace(/\s+/g, '').length
 }
 
-/** 单行粗估秒数（对齐后端 build_fragments 量级，供大纲预览） */
+/** Ước tính sơ bộ số giây của một dòng (cùng thang đo với build_fragments ở backend, phục vụ xem trước dàn ý) */
 function estimateLineSec(line: ParsedScriptLine): number {
   if (line.kind === 'empty' || line.kind === 'meta') return 0
   if (line.kind === 'action') {
@@ -131,7 +131,7 @@ function clampLineDuration(sec: number): number {
   return Math.min(LINE_DURATION_MAX, Math.max(LINE_DURATION_MIN, sec))
 }
 
-/** 按分镜打包规则汇总时长（避免「逐行相加」与真实镜数脱节） */
+/** Cộng thời lượng theo đúng quy tắc gom cảnh quay (tránh "cộng từng dòng" lệch với số cảnh thật) */
 function packEstimatedSec(lineSecs: number[]): number {
   let total = 0
   let used = 0
@@ -167,7 +167,7 @@ function parseCastNames(raw: string): string[] {
     .filter(Boolean)
 }
 
-/** 统计一场：估时、对白/动作数、出场人物、内外景 */
+/** Tổng hợp một cảnh: thời lượng ước tính, số thoại/hành động, nhân vật, nội ngoại */
 export function summarizeOutlineScene(body: string): OutlineSceneStats {
   const lines = (body || '').split(/\r?\n/).map((line) => parseScriptLine(line))
   const lineSecs: number[] = []
@@ -204,15 +204,15 @@ function formatClockDuration(sec: number): string {
   if (sec < 60) return `${sec}s`
   const m = Math.floor(sec / 60)
   const s = sec % 60
-  return s ? `${m}分${s}秒` : `${m}分钟`
+  return s ? `${m} phút ${s} giây` : `${m} phút`
 }
 
 function formatEstimateDuration(sec: number): string {
-  if (sec <= 0) return '约 —'
-  return `约 ${formatClockDuration(sec)}`
+  if (sec <= 0) return 'Khoảng —'
+  return `Khoảng ${formatClockDuration(sec)}`
 }
 
-// 渲染解析后的剧本行
+// Render các dòng kịch bản đã phân tích
 function ScriptLines({ text }: { text: string }) {
   const lines = useMemo(
     () => text.split(/\r?\n/).map((line) => parseScriptLine(line)),
@@ -258,16 +258,16 @@ function ScriptLines({ text }: { text: string }) {
   )
 }
 
-/** 场次信息条：对白 / 动作 / 内外景 / 出场 */
+/** Thanh thông tin của cảnh: thoại / hành động / nội ngoại / nhân vật */
 function SceneStatsBar({ stats }: { stats: OutlineSceneStats }) {
   const items: string[] = []
-  if (stats.dialogueCount > 0) items.push(`${stats.dialogueCount} 句对白`)
-  if (stats.actionCount > 0) items.push(`${stats.actionCount} 段动作`)
+  if (stats.dialogueCount > 0) items.push(`${stats.dialogueCount} câu thoại`)
+  if (stats.actionCount > 0) items.push(`${stats.actionCount} đoạn hành động`)
   if (stats.location) items.push(stats.location)
   if (stats.cast.length) items.push(stats.cast.slice(0, 6).join('、'))
   if (!items.length) return null
   return (
-    <div className="drama-outline-scene-stats" aria-label="本场解析信息">
+    <div className="drama-outline-scene-stats" aria-label="Thông tin phân tích của cảnh này">
       {items.map((item) => (
         <span key={item} className="drama-outline-scene-stat">
           {item}
@@ -281,13 +281,13 @@ type OutlineScriptPreviewProps = {
   text: string
   empty: string
   busy?: boolean
-  /** 已切分分镜时优先展示镜头合计时长 */
+  /** Đã chia cảnh quay thì ưu tiên hiện tổng thời lượng cảnh quay */
   shotStats?: OutlineShotDurationStats | null
-  /** 分段保存：返回更新后的完整 body */
+  /** Lưu theo đoạn: trả về toàn bộ body đã cập nhật */
   onSaveScenes?: (nextBody: string) => Promise<void> | void
 }
 
-// 场次卡片列表 + 分段编辑
+// Danh sách thẻ cảnh + sửa theo đoạn
 export function OutlineScriptPreview({
   text,
   empty,
@@ -336,23 +336,23 @@ export function OutlineScriptPreview({
   const summaryBar =
     blocks.length > 0 ? (
       <div className="drama-outline-script-summary">
-        <span>{blocks[0].label === '全文' ? '1 段' : `${blocks.length} 场`}</span>
+        <span>{blocks[0].label === 'Toàn văn' ? '1 đoạn' : `${blocks.length} cảnh`}</span>
         {hasShotDuration ? (
           <span>
-            {shotStats!.fragmentCount} 镜 · 合计 {formatClockDuration(displayTotalSec)}
+            {shotStats!.fragmentCount} cảnh quay · Tổng {formatClockDuration(displayTotalSec)}
           </span>
         ) : displayTotalSec > 0 ? (
-          <span>合计 {formatClockDuration(displayTotalSec)}</span>
+          <span>Tổng {formatClockDuration(displayTotalSec)}</span>
         ) : null}
         <span className="drama-outline-script-summary-hint">
           {hasShotDuration
-            ? '时长取自已切分镜头'
-            : '时长为解析估算，进分镜后以镜头为准'}
+            ? 'Thời lượng lấy từ các cảnh quay đã chia'
+            : 'Thời lượng chỉ là ước tính; sau khi vào storyboard sẽ lấy theo cảnh quay'}
         </span>
       </div>
     ) : null
 
-  if (blocks.length === 1 && blocks[0].label === '全文') {
+  if (blocks.length === 1 && blocks[0].label === 'Toàn văn') {
     return (
       <div className="drama-outline-scene">
         {summaryBar}
@@ -365,7 +365,7 @@ export function OutlineScriptPreview({
               onClick={() => startEdit(0)}
             >
               <Pencil size={13} />
-              编辑本段
+              Sửa đoạn này
             </button>
           ) : null}
         </div>
@@ -408,7 +408,7 @@ export function OutlineScriptPreview({
                 onClick={() => startEdit(i)}
               >
                 <Pencil size={13} />
-                编辑本场
+                Sửa cảnh này
               </button>
             ) : null}
           </header>
@@ -456,17 +456,17 @@ function SceneEditBox({
       />
       <div className="drama-ep-section-edit-actions">
         <button type="button" className="drama-btn-ghost" disabled={saving} onClick={onCancel}>
-          取消
+          Huỷ
         </button>
         <button type="button" className="drama-btn-primary" disabled={saving} onClick={onSave}>
-          {saving ? '保存中…' : '保存本段'}
+          {saving ? 'Đang lưu…' : 'Lưu đoạn này'}
         </button>
       </div>
     </div>
   )
 }
 
-/** 仅弹窗解析预览 */
+/** Chỉ xem trước phân tích trong popup */
 export function OutlineScriptParseModal({
   open,
   onClose,
@@ -481,7 +481,7 @@ export function OutlineScriptParseModal({
   return (
     <Modal open={open} onClose={onClose} title={title} size="xl" className="drama-outline-script-modal">
       <div className="drama-outline-script-modal-body">
-        <OutlineScriptPreview text={text} empty="暂无剧本内容" />
+        <OutlineScriptPreview text={text} empty="Chưa có nội dung kịch bản" />
       </div>
     </Modal>
   )
