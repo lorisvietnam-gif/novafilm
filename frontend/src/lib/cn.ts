@@ -1,4 +1,4 @@
-/** 合并 className，过滤假值 */
+/** Gộp `className`, loại bỏ giá trị falsy */
 export function cn(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(' ')
 }

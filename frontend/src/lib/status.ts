@@ -1,5 +1,6 @@
 import { getActiveLocale } from '../i18n/detect'
 import { messages } from '../i18n/messages'
+import { localized, type LocalizedText } from './localeStrings'
 
 export const RUNNING = new Set([
   'SCRIPTING',
@@ -11,7 +12,7 @@ export const RUNNING = new Set([
   'PARALLEL_ASSETS',
 ])
 
-// 按当前界面语言取状态文案（兼容旧的 STATUS_CN[code] 写法）
+// Lấy nhãn trạng thái theo ngôn ngữ giao diện hiện tại (giữ tương thích với cách gọi cũ STATUS_CN[code])
 export const STATUS_CN: Record<string, string> = new Proxy(
   {},
   {
@@ -38,8 +39,8 @@ export function hasActiveTasks(project: {
 }
 
 /**
- * Prefer stage inferred from shot assets when status is still SCRIPTING
- * (e.g. continue-generate briefly labeled wrong, or worker lag).
+ * Ưu tiên suy ra giai đoạn từ tư liệu của từng cảnh khi trạng thái vẫn còn là SCRIPTING
+ * (ví dụ nút tiếp tục tạo bị gắn nhãn sai trong chốc lát, hoặc worker chậm).
  */
 export function effectiveStatus(project: {
   status: string
@@ -55,7 +56,7 @@ export function effectiveStatus(project: {
   const auds = shots.filter((s) => s.audio_url).length
   const vids = shots.filter((s) => s.video_url).length
   const n = shots.length
-  // full 管线配音由视频模型完成，不要求 TTS audio_url
+  // Ở pipeline full, phần lồng tiếng do mô hình video đảm nhiệm nên không cần audio_url của TTS
   const assetsOk = full ? imgs === n : imgs === n && auds === n
 
   if (assetsOk) {
@@ -79,7 +80,7 @@ export function statusTone(status: string): 'ok' | 'bad' | 'run' | 'idle' {
   return 'idle'
 }
 
-/** Per-shot statuses from pipeline */
+/** Trạng thái của từng cảnh, lấy từ pipeline */
 export const SHOT_STATUS_CN: Record<string, string> = new Proxy(
   {},
   {
@@ -90,17 +91,17 @@ export const SHOT_STATUS_CN: Record<string, string> = new Proxy(
   },
 )
 
-// 兼容旧调用：直接翻译 shot.status
+// Giữ tương thích với cách gọi cũ: dịch trực tiếp shot.status
 export function shotStatusLabel(status: string) {
   return SHOT_STATUS_CN[status] || STATUS_CN[status] || status
 }
 
-// 旧「镜头终态」判断；分镜表请用 shotDisplayDone
+// Phép đánh giá «trạng thái cuối của cảnh» theo cách cũ; bảng storyboard nên dùng shotDisplayDone
 export function shotIsDone(status: string) {
   return ['AUDIO_READY', 'VIDEO_READY', 'DONE', 'IMAGE_READY'].includes(status)
 }
 
-/** 分镜表按素材完备度展示，不盲信 shot.status（AUDIO_READY 只代表配音） */
+/** Bảng storyboard hiển thị theo độ đầy đủ của tư liệu, không tin mù quáng vào shot.status (AUDIO_READY chỉ nói về lồng tiếng) */
 export type ShotDisplayKind =
   | 'failed'
   | 'generating'
@@ -116,8 +117,8 @@ export type ShotAssetLike = {
 }
 
 /*
- * SHOT_TASK_ACTIVE 任务中心进行中状态
- * PROJECT_WIDE_TASKS 整片占用，单镜生成需避开
+ * SHOT_TASK_ACTIVE các trạng thái đang chạy ở trung tâm tác vụ
+ * PROJECT_WIDE_TASKS tác vụ chiếm cả phim, tạo từng cảnh cần tránh
  */
 const SHOT_TASK_ACTIVE = [
   'pending',
@@ -134,7 +135,7 @@ const PROJECT_WIDE_TASKS = new Set([
   'shot_regen_audio',
 ])
 
-/** 按图/视频是否齐推断单镜展示态 */
+/** Suy ra trạng thái hiển thị của một cảnh từ việc ảnh / video đã đủ hay chưa */
 export function shotDisplayKind(
   shot: ShotAssetLike,
   opts?: { pipelineMode?: string | null; generating?: boolean },
@@ -148,12 +149,12 @@ export function shotDisplayKind(
   return 'image_ready'
 }
 
-/** 该镜素材是否已齐（静图看图，全流程看视频） */
+/** Tư liệu của cảnh đã đủ chưa (chế độ ảnh thì xem ảnh, pipeline đầy đủ thì xem video) */
 export function shotDisplayDone(kind: ShotDisplayKind) {
   return kind === 'image_ready' || kind === 'video_ready'
 }
 
-/** 分镜表 / CSV 用的素材态文案 */
+/** Văn bản trạng thái tư liệu dùng cho bảng storyboard / CSV */
 export function shotDisplayLabel(kind: ShotDisplayKind) {
   const key = {
     failed: 'FAILED',
@@ -173,7 +174,7 @@ type TaskLike = {
   cancel_requested?: boolean | null
 }
 
-/** 整片流水线 / 合成 / 整片配音进行中 */
+/** Pipeline cả phim / ghép phim / lồng tiếp toàn phim đang chạy */
 export function isProjectWideBusy(project: {
   status?: string
   active_tasks?: TaskLike[] | null
@@ -188,7 +189,7 @@ export function isProjectWideBusy(project: {
   return isRunning(project.status || '')
 }
 
-/** 该镜是否有进行中的单镜任务 */
+/** Cảnh này có tác vụ tạo riêng đang chạy hay không */
 export function isShotGenerating(
   project: { active_tasks?: TaskLike[] | null } | null | undefined,
   shotId: number,
@@ -207,20 +208,40 @@ export function formatMmSs(seconds: number) {
   return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`
 }
 
-/** 科普全链路步骤：建项 / 风格 / 分镜台共用 */
-export const KEPU_STEPS = [
-  { key: 'topic', label: '选题' },
-  { key: 'style', label: '风格' },
-  { key: 'confirm', label: '确认分镜' },
-  { key: 'assets', label: '画面与配音' },
-  { key: 'videos', label: '镜头视频' },
-  { key: 'compose', label: '合成预览' },
+/** Các bước của chuỗi kiến thức phổ thông: dùng chung cho tạo dự án / phong cách / bàn storyboard */
+const KEPU_STEP_LABELS: Record<string, LocalizedText> = {
+  topic: { zh: '选题', en: 'Topic', vi: 'Chủ đề' },
+  style: { zh: '风格', en: 'Style', vi: 'Phong cách' },
+  confirm: { zh: '确认分镜', en: 'Confirm boards', vi: 'Duyệt storyboard' },
+  assets: { zh: '画面与配音', en: 'Stills and voice', vi: 'Hình ảnh và lồng tiếng' },
+  videos: { zh: '镜头视频', en: 'Shot clips', vi: 'Video từng cảnh' },
+  compose: { zh: '合成预览', en: 'Compose preview', vi: 'Xem bản ghép' },
+}
+
+type KepuStep = { key: string; label: string }
+
+function kepuStep(key: string): KepuStep {
+  return {
+    key,
+    get label() {
+      return localized(KEPU_STEP_LABELS[key] || KEPU_STEP_LABELS.topic)
+    },
+  }
+}
+
+export const KEPU_STEPS: KepuStep[] = [
+  kepuStep('topic'),
+  kepuStep('style'),
+  kepuStep('confirm'),
+  kepuStep('assets'),
+  kepuStep('videos'),
+  kepuStep('compose'),
 ]
 
 export const CREATE_STEPS = KEPU_STEPS
 export const BOARD_STEPS = KEPU_STEPS
 
-/** 静图成片跳过「镜头视频」步 */
+/** Pipeline ảnh tĩnh bỏ qua bước «Video từng cảnh» */
 export function kepuSteps(pipelineMode?: string | null) {
   if (pipelineMode === 'image_text') {
     return KEPU_STEPS.filter((s) => s.key !== 'videos')
@@ -232,7 +253,7 @@ export type KepuWizardPage = 'create' | 'style' | 'board'
 
 export type KepuBillingPhase = 'script' | 'assets' | 'videos' | 'compose'
 
-/** 与后端 resolve_kepu_billing_phase 对齐（前端不做近静音文件检测）。 */
+/** Khớp với resolve_kepu_billing_phase của backend (frontend không tự dò tệp gần như im lặng). */
 export function kepuBillingPhase(project: {
   pipeline_mode?: string | null
   shots?: Array<{ image_url?: string | null; audio_url?: string | null; video_url?: string | null }>
@@ -252,7 +273,7 @@ export function shotsByNo<T extends { shot_no: number }>(shots: T[] | null | und
 }
 
 /**
- * 当前步骤下标；分镜台跟 script / assets / videos / compose 对齐。
+ * Chỉ số của bước hiện tại; bàn storyboard khớp với script / assets / videos / compose.
  */
 export function kepuStepIndex(
   page: KepuWizardPage,
@@ -287,18 +308,44 @@ export function kepuStepIndex(
   return idx('confirm')
 }
 
-/** 分镜台主按钮旁：本步做什么、是否预扣 */
+/** Cạnh nút chính ở bàn storyboard: bước này làm gì, có tạm trừ trước hay không */
 export function kepuPhaseHint(project: {
   status: string
   pipeline_mode?: string | null
   shots?: Array<{ image_url?: string | null; audio_url?: string | null; video_url?: string | null }>
 }): string {
   if (isRunning(effectiveStatus(project))) {
-    return '生成进行中，可在右侧查看各阶段进度。'
+    return localized({
+      zh: '生成进行中，可在右侧查看各阶段进度。',
+      en: 'Generation is running; stage progress is on the right.',
+      vi: 'Đang tạo, bạn có thể xem tiến độ từng giai đoạn ở bên phải.',
+    })
   }
   const phase = kepuBillingPhase(project)
-  if (phase === 'script') return '先在风格页点「生成故事板」，本步只拆分镜脚本（预扣文字模型）。'
-  if (phase === 'assets') return '确认旁白与画面后开始生成：按镜头依次出图（后镜参考上一镜）+ 整片配音。'
-  if (phase === 'videos') return '画面与配音已齐。下一步按镜头依次出视频，后镜参考上一镜尾帧。'
-  return '素材已齐。拼接成片走后期合成（叠旁白字幕与配乐，扣费很少）。'
+  if (phase === 'script') {
+    return localized({
+      zh: '先在风格页点「生成故事板」，本步只拆分镜脚本（预扣文字模型）。',
+      en: 'Generate the storyboard on the style page first; this step only splits the script (text model pre-charged).',
+      vi: 'Trước hết bấm «Tạo storyboard» ở trang phong cách; bước này chỉ tách kịch bản thành cảnh (tạm trừ phí mô hình văn bản).',
+    })
+  }
+  if (phase === 'assets') {
+    return localized({
+      zh: '确认旁白与画面后开始生成：按镜头依次出图（后镜参考上一镜）+ 整片配音。',
+      en: 'Confirm narration and stills, then generate: images shot by shot (each referencing the previous one) plus full voice.',
+      vi: 'Duyệt lời dẫn và hình ảnh rồi bắt đầu tạo: ảnh ra theo thứ tự cảnh (cảnh sau tham chiếu cảnh trước) cộng lồng tiếng toàn phim.',
+    })
+  }
+  if (phase === 'videos') {
+    return localized({
+      zh: '画面与配音已齐。下一步按镜头依次出视频，后镜参考上一镜尾帧。',
+      en: 'Stills and voice are ready. Next, video shot by shot, each referencing the tail frame of the previous one.',
+      vi: 'Hình ảnh và lồng tiếng đã đủ. Bước sau tạo video theo thứ tự cảnh, cảnh sau tham chiếu khung hình cuối của cảnh trước.',
+    })
+  }
+  return localized({
+    zh: '素材已齐。拼接成片走后期合成（叠旁白字幕与配乐，扣费很少）。',
+    en: 'All assets are ready. The final film is composed in post (laying in narration subtitles and music, at low cost).',
+    vi: 'Tư liệu đã đủ. Ghép phim hoàn chỉnh ở bước hậu kỳ (chồng phụ đề lời dẫn và nhạc nền, phí rất nhỏ).',
+  })
 }

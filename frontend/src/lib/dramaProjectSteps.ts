@@ -1,4 +1,6 @@
-/** Drama project workflow steps: 剧情大纲 → 分镜 → 生成视频 */
+/** Các bước trong luồng dự án Drama: dàn ý → storyboard → tạo video */
+
+import { localized, type LocalizedText } from './localeStrings'
 
 export type ProjectStepKey = 'outline' | 'storyboard' | 'video'
 export type WorkspaceViewKey = ProjectStepKey | 'assets' | 'episodes'
@@ -9,24 +11,32 @@ export type ProjectStepItem = {
   order: number
 }
 
+/** Step display names. `key` is the stable value; `label` is resolved on read. */
+const STEP_LABELS: Record<ProjectStepKey, LocalizedText> = {
+  outline: { zh: '剧情大纲', en: 'Outline', vi: 'Dàn ý' },
+  storyboard: { zh: '分镜', en: 'Storyboard', vi: 'Storyboard' },
+  video: { zh: '生成视频', en: 'Generate video', vi: 'Tạo video' },
+}
+
+function stepItem(key: ProjectStepKey, order: number): ProjectStepItem {
+  return {
+    key,
+    order,
+    get label() {
+      return localized(STEP_LABELS[key])
+    },
+  }
+}
+
 export type WorkspaceLocationState = {
   activeStep?: WorkspaceViewKey
   returnStep?: ProjectStepKey | 'episodes'
 }
 
-// 有剧本走大纲；无剧本直接分镜（分集列表）
+// Có kịch bản thì đi qua dàn ý; chưa có thì vào thẳng storyboard (danh sách tập)
 export function buildProjectSteps(hasScript: boolean): ProjectStepItem[] {
-  const steps: Array<{ key: ProjectStepKey; label: string }> = hasScript
-    ? [
-        { key: 'outline', label: '剧情大纲' },
-        { key: 'storyboard', label: '分镜' },
-        { key: 'video', label: '生成视频' },
-      ]
-    : [
-        { key: 'storyboard', label: '分镜' },
-        { key: 'video', label: '生成视频' },
-      ]
-  return steps.map((step, index) => ({ ...step, order: index + 1 }))
+  const keys: ProjectStepKey[] = hasScript ? ['outline', 'storyboard', 'video'] : ['storyboard', 'video']
+  return keys.map(stepItem)
 }
 
 export function getInitialProjectStep(hasScript: boolean): ProjectStepKey {
@@ -37,7 +47,7 @@ export function isProjectStepKey(value: string | undefined): value is ProjectSte
   return value === 'outline' || value === 'storyboard' || value === 'video'
 }
 
-/** 旧 state activeStep=episodes 映射到分镜 */
+/** Map state cũ activeStep=episodes sang storyboard */
 export function normalizeWorkspaceStep(value: string | undefined): ProjectStepKey | 'assets' | null {
   if (value === 'assets') return 'assets'
   if (value === 'episodes' || value === 'storyboard' || value === 'video') {
@@ -56,7 +66,7 @@ export function getNextProjectStep(
   return steps[currentIndex + 1].key
 }
 
-/** 分镜 / 生成视频都进分集路由 */
+/** Cả storyboard lẫn tạo video đều dẫn tới route của tập */
 export function isEpisodesRouteStep(step: ProjectStepKey | string | undefined): boolean {
   return step === 'storyboard' || step === 'video' || step === 'episodes'
 }

@@ -1,11 +1,11 @@
-/** 项目全局成片设置读取：项目 params 优先，再回退分集历史值 */
+/** Đọc cài đặt phim toàn cục của dự án: ưu tiên `params` của dự án, sau đó lùi về giá trị lịch sử của tập */
 import {
   readEpisodeCharacterIntroMode,
   type DramaCharacterIntroMode,
 } from './dramaCharacterIntro'
 import { readEpisodeSubtitleMode, type DramaSubtitleMode } from './dramaSubtitleBoard'
 
-/** 有效字幕方式：项目全局优先，再回退分集历史值 */
+/** Cách đặt phụ đề đang dùng: ưu tiên cấu hình toàn cục của dự án, sau đó lùi về giá trị lịch sử của tập */
 export function readEffectiveSubtitleMode(
   episodeParams?: Record<string, unknown> | null,
   projectParams?: Record<string, unknown> | null,
@@ -15,7 +15,7 @@ export function readEffectiveSubtitleMode(
   return readEpisodeSubtitleMode(episodeParams)
 }
 
-/** 有效人物介绍：项目全局优先，再回退分集历史值 */
+/** Phần giới thiệu nhân vật đang dùng: ưu tiên cấu hình toàn cục của dự án, sau đó lùi về giá trị lịch sử của tập */
 export function readEffectiveCharacterIntroMode(
   episodeParams?: Record<string, unknown> | null,
   projectParams?: Record<string, unknown> | null,

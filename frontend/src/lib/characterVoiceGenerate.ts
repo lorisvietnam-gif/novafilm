@@ -1,4 +1,4 @@
-/** 按角色设定 AI 生成音色并绑定到 voiceAudio（无弹窗，供卡片一键生成） */
+/** AI tạo giọng đọc theo thiết lập của nhân vật rồi gắn vào `voiceAudio` (không hiện hộp thoại, dùng cho nút một chạm trên thẻ) */
 import { dramaApi, type DramaAsset } from '../api/drama'
 import { buildBoundParams } from '../pages/drama/CharacterVoiceBindModal'
 
@@ -7,7 +7,7 @@ export type CharacterVoiceGenerateResult = {
   voice: DramaAsset
 }
 
-// 根据角色资产生成音色描述、合成试听并写回绑定
+// Sinh mô tả giọng từ hồ sơ nhân vật, tổng hợp bản nghe thử rồi ghi lại vào liên kết
 export async function generateAndBindCharacterVoice(
   projectId: number,
   asset: DramaAsset,
@@ -18,12 +18,12 @@ export async function generateAndBindCharacterVoice(
   })
   const voicePrompt = (promptResult.voice_prompt || '').trim()
   if (!voicePrompt) {
-    throw new Error('音色描述为空')
+    throw new Error('Mô tả giọng đọc bị trống')
   }
 
   const voiceResult = await dramaApi.generateVoice({
     project_id: projectId,
-    name: `${asset.name || '角色'}音色`,
+    name: `Giọng ${asset.name || 'nhân vật'}`,
     voice_prompt: voicePrompt,
     speaker: promptResult.speaker || undefined,
     sample_text: promptResult.sample_text || undefined,
@@ -31,7 +31,7 @@ export async function generateAndBindCharacterVoice(
   })
   const voice = voiceResult.asset
   if (!voice?.url) {
-    throw new Error('音色合成失败')
+    throw new Error('Tổng hợp giọng đọc thất bại')
   }
 
   const character = await dramaApi.updateAsset(asset.id, {

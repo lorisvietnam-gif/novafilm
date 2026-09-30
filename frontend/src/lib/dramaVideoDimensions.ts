@@ -1,4 +1,4 @@
-/** 浏览器端探测视频真实宽高（legacy 分镜无 params 时使用） */
+/** Dò kích thước thật của video ngay trong trình duyệt (dùng cho storyboard kiểu cũ khi thiếu `params`) */
 export function probeVideoDimensionsFromUrl(
   url: string,
 ): Promise<{ w: number; h: number } | null> {

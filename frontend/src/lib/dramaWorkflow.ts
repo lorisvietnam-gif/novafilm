@@ -1,7 +1,14 @@
 import type { DramaProject, DramaProjectListItem } from '../api/drama'
+import { localized, type LocalizedText } from './localeStrings'
 
 export type DramaWorkflow = 'script' | 'canvas'
 
+/**
+ * Hai marker này được so khớp với dữ liệu ĐÃ LƯU trong database, không phải với
+ * chuỗi hiển thị: `script.source` do `pages/drama/DramaListPage.tsx` ghi vào, và
+ * `title` của dự án. Dịch chúng làm các bản ghi cũ không còn nhận diện được là
+ * dự án canvas, nên giữ nguyên verbatim ở mọi ngôn ngữ.
+ */
 const CANVAS_SOURCE_MARKER = '自由画布创作项目'
 const CANVAS_TITLE_MARKER = '自由画布'
 
@@ -12,9 +19,8 @@ type WorkflowSource = {
   script?: { source?: string | null } | null
 }
 
-/** 解析漫剧工作流：canvas=自由画布；script=大纲分集 */
-export function resolveDramaWorkflow(item: WorkflowSource | null | undefined): DramaWorkflow {
-  const raw = String(item?.workflow || item?.params?.workflow || '')
+/** Phân tích luồng Drama: canvas=bảng vẽ tự do; script=dàn ý rồi chia tập */
+export function resolveDramaWorkflow(item: WorkflowSource | null | undefined): DramaWorkflow {  const raw = String(item?.workflow || item?.params?.workflow || '')
     .trim()
     .toLowerCase()
   if (raw === 'canvas' || raw === 'script') return raw
@@ -28,14 +34,14 @@ export function resolveDramaWorkflow(item: WorkflowSource | null | undefined): D
   return 'script'
 }
 
-/** 是否自由画布项目 */
+/** Dự án dùng bảng vẽ tự do */
 export function isCanvasWorkflow(
   item: DramaProject | DramaProjectListItem | WorkflowSource | null | undefined,
 ): boolean {
   return resolveDramaWorkflow(item) === 'canvas'
 }
 
-/** 项目入口路径：画布仅进 canvas，普通进工作台 */
+/** Đường dẫn vào dự án: canvas thì vào thẳng canvas, còn lại vào không gian làm việc */
 export function dramaProjectEntryPath(
   item: DramaProject | DramaProjectListItem | WorkflowSource,
 ): string {
@@ -45,13 +51,31 @@ export function dramaProjectEntryPath(
   return `/drama/projects/${id}`
 }
 
-/** 列表卡片 meta 文案 */
+const CARD_META: {
+  canvas: LocalizedText
+  scripted: LocalizedText
+  draft: LocalizedText
+  nodeAssets: LocalizedText
+  episodes: LocalizedText
+  assets: LocalizedText
+} = {
+  canvas: { zh: '自由画布', en: 'Free canvas', vi: 'Bảng vẽ tự do' },
+  scripted: { zh: '已写剧本', en: 'Script written', vi: 'Đã có kịch bản' },
+  draft: { zh: '草稿 · 待写剧本', en: 'Draft · script pending', vi: 'Bản nháp · chưa có kịch bản' },
+  nodeAssets: { zh: '节点资产', en: 'node assets', vi: 'tài nguyên' },
+  episodes: { zh: '集', en: 'episodes', vi: 'tập' },
+  assets: { zh: '资产', en: 'assets', vi: 'tài nguyên' },
+}
+
+/** Văn bản meta trên thẻ danh sách */
 export function formatDramaCardMeta(item: DramaProjectListItem): string {
+  const assets = item.asset_count || 0
   if (isCanvasWorkflow(item)) {
-    return `自由画布 · ${item.asset_count || 0} 节点资产`
+    return `${localized(CARD_META.canvas)} · ${assets} ${localized(CARD_META.nodeAssets)}`
   }
   if (item.has_script) {
-    return `已写剧本 · ${item.episode_count || 0} 集 · ${item.asset_count || 0} 资产`
+    const episodes = item.episode_count || 0
+    return `${localized(CARD_META.scripted)} · ${episodes} ${localized(CARD_META.episodes)} · ${assets} ${localized(CARD_META.assets)}`
   }
-  return `草稿 · 待写剧本 · ${item.asset_count || 0} 资产`
+  return `${localized(CARD_META.draft)} · ${assets} ${localized(CARD_META.assets)}`
 }
