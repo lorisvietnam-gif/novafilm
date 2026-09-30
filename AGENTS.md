@@ -89,3 +89,38 @@ Cơ chế đúng là `Widen<typeof zh>` trong `i18n/messages.ts`: thiếu key s�
 
 Báo cáo ngắn gồm: file đã đụng, commit hash, kết quả `npm run build`, và những chỗ bạn phát hiện
 ngoài phạm vi lane (để board giao việc lại, không tự ý mở rộng phạm vi).
+
+## 6. Hạ tầng và tên miền (quyết định 2026-09-30)
+
+### Kiến trúc đã chốt
+**Frontend = Firebase Hosting · Backend = VPS Linux với Docker Compose.**
+
+Lý do: hệ thống có tác vụ nền, hàng đợi Redis, long-polling và timeout dài — serverless sẽ
+đắt và cấu hình rắc rối. Hai tầng này ở **hai origin khác nhau**, nên CORS của API phải khai
+báo origin của frontend.
+
+### Tên miền: staging trước, production sau
+- **Staging (tạm, chỉ để test):** `novastudio.rr.kg`.
+  Lưu ý: đây là **subdomain miễn phí của Nodeloc, không phải tên miền chúng ta sở hữu**.
+  Nhà cung cấp có thể thu hồi bất cứ lúc nào. Tuyệt đối không dùng làm production.
+- **Production:** sẽ mua tên miền thật sau khi hệ thống ổn định.
+- **CẤM hard-code bất kỳ domain nào vào source.** Mọi tham chiếu phải đến từ biến môi trường
+  (`VITE_SITE_URL` cho frontend, `PUBLIC_BASE_URL` cho backend).
+
+### Khi đổi staging → production, KHÔNG chỉ là đổi biến
+Đây là danh sách những chỗ **phải thao tác ngoài repo**. Đừng tưởng là xong khi đã đổi env:
+
+1. **Luật CORS của bucket Aliyun OSS.** `ensure_browser_cors()` trong `app/services/oss.py`
+   ghi luật CORS **lên bucket**, không nằm trong repo. Phải vào console Aliyun sửa thủ công.
+   Hàm này chỉ chạy khi `OSS_ENABLED=true`; mặc định đang là `false` nên hiện là no-op.
+2. **Custom domain trong Firebase Hosting.** Console Firebase, không phải file trong repo.
+3. **Bản ghi DNS.** Tên miền mới phải trỏ đúng, và tên miền cũ phải tháo ra.
+4. **`CORS_ORIGINS` của FastAPI** (`config.py` → biến `CORS_ORIGINS`) phải khai đúng origin
+   mới. Khác với mục 1: mục này là biến thật.
+5. **`PUBLIC_BASE_URL` của backend** — dùng cho link email và URL media.
+
+### Chưa được quyết, để dành
+- **Media/Egress.** Với `OSS_ENABLED=false`, FastAPI phục vụ `/static` từ đĩa VPS. Sản phẩm
+  xử lý video mà băng thông video chạy trên một VPS là khoản chi phí cần tính trước.
+  Cơ chế OSS có sẵn là Aliyun (Trung Quốc) — độ trễ tới Việt Nam và người dùng quốc tế sẽ tệ.
+  Cần chọn nhà cung cấp lưu trữ trước khi ra mắt.
