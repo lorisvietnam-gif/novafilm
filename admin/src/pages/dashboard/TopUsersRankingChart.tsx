@@ -1,6 +1,7 @@
 import type { AdminTopUser, AdminUsageBucket } from "@/api/client";
 import type { DashboardMetric } from "@/pages/dashboard/DashboardFilters";
 import { UsageDistributionChart } from "@/pages/dashboard/UsageDistributionChart";
+import { useI18n } from "@/i18n";
 
 /** 用户排行转为柱状图数据桶 */
 export function topUsersToBuckets(users: AdminTopUser[]): AdminUsageBucket[] {
@@ -28,9 +29,10 @@ type TopUsersRankingChartProps = {
 
 /** 用户消费排行：与领域分布一致的横向柱状图 */
 export function TopUsersRankingChart({ users, metric }: TopUsersRankingChartProps) {
+  const { m } = useI18n();
   const rows = topUsersToBuckets(users);
   if (rows.length === 0) {
-    return <div className="admin-chart-empty">暂无排行</div>;
+    return <div className="admin-chart-empty">{m.dashboard.noRanking}</div>;
   }
 
   return (

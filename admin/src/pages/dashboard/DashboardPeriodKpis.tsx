@@ -4,6 +4,7 @@ import { fenToYuan } from "@/lib/utils";
 import { dashboardRangeLabel, type DashboardFilterState } from "@/pages/dashboard/DashboardFilters";
 import { DashboardKpiCard } from "@/pages/dashboard/DashboardKpiCard";
 import { calcProfitFen, sumDailyUsage } from "@/pages/dashboard/dashboardMetrics";
+import { useI18n } from "@/i18n";
 
 type DashboardPeriodKpisProps = {
   stats: AdminStats | null;
@@ -13,6 +14,7 @@ type DashboardPeriodKpisProps = {
 
 /** 第二行 KPI：随筛选时间窗变化的调用/扣费/毛利/项目规模 */
 export function DashboardPeriodKpis({ stats, filters, loading }: DashboardPeriodKpisProps) {
+  const { m, t } = useI18n();
   const placeholder = loading ? "…" : "—";
   const rangeLabel = dashboardRangeLabel(filters.days);
   const period = sumDailyUsage(stats?.daily_usage ?? []);
@@ -23,31 +25,43 @@ export function DashboardPeriodKpis({ stats, filters, loading }: DashboardPeriod
   return (
     <div className="admin-dashboard-kpi-grid admin-dashboard-kpi-grid--secondary">
       <DashboardKpiCard
-        label={`${rangeLabel}调用`}
+        label={t("dashboard.kpiCalls", { range: rangeLabel })}
         value={stats ? period.calls.toLocaleString() : placeholder}
-        hint={stats ? `累计 ${stats.usage_calls_total ?? 0} 次` : "调用次数"}
+        hint={
+          stats
+            ? t("dashboard.kpiCallsTotalHint", { count: stats.usage_calls_total ?? 0 })
+            : m.dashboard.kpiCallsHint
+        }
         icon={Activity}
         tone="mint"
       />
       <DashboardKpiCard
-        label={`${rangeLabel}扣费`}
+        label={t("dashboard.kpiCharge", { range: rangeLabel })}
         value={stats ? `¥${fenToYuan(period.charge_fen)}` : placeholder}
-        hint={stats ? `本月 ¥${fenToYuan(stats.usage_charge_month_fen ?? 0)}` : "用户扣费"}
+        hint={
+          stats
+            ? t("dashboard.kpiChargeMonthHint", { value: fenToYuan(stats.usage_charge_month_fen ?? 0) })
+            : m.dashboard.kpiChargeUserHint
+        }
         icon={TrendingUp}
         tone="blue"
       />
       <DashboardKpiCard
-        label={`${rangeLabel}毛利`}
+        label={t("dashboard.kpiProfit", { range: rangeLabel })}
         value={stats ? `¥${fenToYuan(profitFen)}` : placeholder}
-        hint={stats ? `成本 ¥${fenToYuan(period.cost_fen)}` : "扣费减成本"}
+        hint={
+          stats
+            ? t("dashboard.kpiProfitCostHint", { value: fenToYuan(period.cost_fen) })
+            : m.dashboard.kpiProfitHint
+        }
         icon={Percent}
         tone="rose"
-        trend={profitPct ? `毛利率 ${profitPct}` : undefined}
+        trend={profitPct ? t("dashboard.kpiProfitRate", { value: profitPct }) : undefined}
       />
       <DashboardKpiCard
-        label="漫剧项目"
+        label={m.dashboard.kpiDramaProjects}
         value={stats ? stats.drama_project_count ?? 0 : placeholder}
-        hint={stats ? `用户 ${stats.user_count}` : "项目规模"}
+        hint={stats ? t("dashboard.kpiDramaUsersHint", { count: stats.user_count }) : m.dashboard.kpiScaleHint}
         icon={Film}
         tone="slate"
       />

@@ -7,6 +7,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { getActiveLocale } from "@/i18n/detect";
+import { messages } from "@/i18n/messages";
 
 export type SettingsSaveAction = {
   onSave: () => void | Promise<void>;
@@ -25,13 +27,14 @@ const SettingsSaveContext = createContext<SettingsSaveContextValue | null>(null)
 export function SettingsSaveProvider({ children }: { children: ReactNode }) {
   const [action, setAction] = useState<SettingsSaveAction | null>(null);
   const registerSave = useCallback((next: SettingsSaveAction | null) => {
+    const defaultLabel = messages[getActiveLocale()].common.action.save;
     setAction((prev) => {
       if (!prev && !next) return prev;
       if (
         prev &&
         next &&
         prev.saving === next.saving &&
-        (prev.label ?? "保存") === (next.label ?? "保存")
+        (prev.label ?? defaultLabel) === (next.label ?? defaultLabel)
       ) {
         // 同步最新 onSave，避免闭包过期；不触发无意义重渲染依赖
         prev.onSave = next.onSave;

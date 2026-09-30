@@ -1,154 +1,89 @@
-/** Project pipeline status → Chinese label */
-export const PROJECT_STATUS_LABELS: Record<string, string> = {
-  DRAFT: "草稿",
-  SCRIPTING: "脚本生成中",
-  SCRIPT_READY: "脚本就绪",
-  IMAGING: "分镜图生成中",
-  IMAGE_READY: "分镜图就绪",
-  VIDEOING: "视频生成中",
-  VIDEO_READY: "视频就绪",
-  AUDIOING: "配音中",
-  COMPOSING: "合成中",
-  AUDITING: "审核中",
-  DONE: "已完成",
-  REJECTED: "已拒绝",
-  FAILED: "失败",
-  CANCELLED: "已取消",
-};
+import { getActiveLocale } from '@/i18n/detect'
+import { messages } from '@/i18n/messages'
 
-/** Order payment status → Chinese */
-export const ORDER_STATUS_LABELS: Record<string, string> = {
-  pending: "待支付",
-  paid: "已支付",
-  closed: "已关闭",
-};
+/**
+ * Nhãn trạng thái cho bảng quản trị.
+ *
+ * Khoá của mọi bảng ở đây là **giá trị so sánh với dữ liệu backend** (`DRAFT`,
+ * `pending`, `alipay`…). Chúng nằm trong cây pack `i18n/locales` chứ không nằm
+ * trong file này, nên một mã mới phải có mặt ở cả ba ngôn ngữ thì mới biên dịch
+ * được — không thể lỡ tay dịch luôn khoá.
+ *
+ * Tra không trúng thì trả về chính mã, đúng như trước: một trạng thái lạ từ
+ * backend vẫn phải hiện ra để người vận hành nhìn thấy.
+ */
+function labelFrom(map: Record<string, string>, key: string): string {
+  return map[key] ?? key;
+}
 
-/** Work audit / visibility → Chinese */
-export const AUDIT_STATUS_LABELS: Record<string, string> = {
-  pending: "待审核",
-  passed: "已通过",
-  rejected: "已拒绝",
-};
-
-export const VISIBILITY_LABELS: Record<string, string> = {
-  public: "公开",
-  private: "私密",
-  unlisted: "不公开列出",
-};
-
-/** Wallet ledger kind → Chinese */
-export const LEDGER_KIND_LABELS: Record<string, string> = {
-  topup: "充值",
-  grant: "赠送",
-  adjust: "调账",
-  freeze: "冻结",
-  unfreeze: "解冻",
-  settle: "结算",
-  refund: "退款",
-};
-
-/** Payment channel → Chinese */
-export const PAY_TYPE_LABELS: Record<string, string> = {
-  alipay: "支付宝",
-  wxpay: "微信",
-};
-
-/** Unified task platform status → Chinese */
-export const TASK_STATUS_LABELS: Record<string, string> = {
-  pending: "排队中",
-  leased: "已租约",
-  running: "执行中",
-  awaiting_poll: "等待轮询",
-  awaiting_review: "待审核",
-  cancel_requested: "取消中",
-  succeeded: "已成功",
-  failed: "失败",
-  cancelled: "已取消",
-};
-
-/** Task domain → Chinese */
-export const TASK_DOMAIN_LABELS: Record<string, string> = {
-  drama: "漫剧",
-  kepu: "AI短视频",
-  tools: "工具",
-  studio: "工作室",
-  api: "开放 API",
-};
-
-/** Task type → Chinese（轻量同步 + 平台任务） */
-export const TASK_TYPE_LABELS: Record<string, string> = {
-  agent_chat: "漫剧助手聊天",
-  skill_optimize: "Skill 优化提示词",
-  voice_prompt: "角色音色描述",
-  content_expand: "选题扩写",
-  script_summary: "剧本摘要",
-  episode_script: "分集剧本",
-  fragment_plan: "AI 分镜",
-  fragment_video: "分镜视频",
-  seed_assets: "资产抽取",
-  asset_image: "资产生图",
-  asset_video: "资产视频",
-  voice_synthesis: "配音合成",
-  project_pipeline: "科普流水线",
-  shot_regen_image: "单镜重绘",
-  shot_regen_video: "单镜视频",
-  shot_regen_audio: "单镜配音",
-  project_regen_audio: "全片配音",
-  project_compose_only: "仅合成",
-  v1_image: "API 生图",
-  v1_video: "API 生视频",
-  v1_seedance: "API Seedance",
-  tool_image: "工具生图",
-  tool_video: "工具生视频",
-};
-
-// Resolve project status display text
+// Nhãn trạng thái dự án
 export function projectStatusLabel(status: string): string {
-  return PROJECT_STATUS_LABELS[status] ?? status;
+  return labelFrom(messages[getActiveLocale()].labels.projectStatus, status);
 }
 
-// Resolve order status display text
+// Nhãn trạng thái thanh toán của đơn
 export function orderStatusLabel(status: string): string {
-  return ORDER_STATUS_LABELS[status] ?? status;
+  return labelFrom(messages[getActiveLocale()].labels.orderStatus, status);
 }
 
-// Resolve audit status display text
+// Nhãn kết quả kiểm duyệt / hiển thị
 export function auditStatusLabel(status: string): string {
-  return AUDIT_STATUS_LABELS[status] ?? status;
+  return labelFrom(messages[getActiveLocale()].labels.auditStatus, status);
 }
 
-// Resolve visibility display text
+// Nhãn mức hiển thị công khai
 export function visibilityLabel(status: string): string {
-  return VISIBILITY_LABELS[status] ?? status;
+  return labelFrom(messages[getActiveLocale()].labels.visibility, status);
 }
 
-// Resolve ledger kind display text
+// Nhãn loại bút toán ví
 export function ledgerKindLabel(kind: string): string {
-  return LEDGER_KIND_LABELS[kind] ?? kind;
+  return labelFrom(messages[getActiveLocale()].labels.ledgerKind, kind);
 }
 
-// Resolve pay type display text
+// Nhãn kênh thanh toán
 export function payTypeLabel(payType: string): string {
-  return PAY_TYPE_LABELS[payType] ?? payType;
+  return labelFrom(messages[getActiveLocale()].labels.payType, payType);
 }
 
-// Resolve task status display text
+// Nhãn trạng thái tác vụ
 export function taskStatusLabel(status: string): string {
-  return TASK_STATUS_LABELS[status] ?? status;
+  return labelFrom(messages[getActiveLocale()].labels.taskStatus, status);
 }
 
-// Resolve task domain display text
+// Nhãn lĩnh vực tác vụ
 export function taskDomainLabel(domain: string): string {
-  return TASK_DOMAIN_LABELS[domain] ?? domain;
+  return labelFrom(messages[getActiveLocale()].labels.taskDomain, domain);
 }
 
-// Resolve task type display text
+// Nhãn loại tác vụ
 export function taskTypeLabel(taskType: string): string {
-  return TASK_TYPE_LABELS[taskType] ?? taskType;
+  return labelFrom(messages[getActiveLocale()].labels.taskType, taskType);
 }
 
-/** Filter options for project status select (value stays English for API) */
-export const PROJECT_STATUS_OPTIONS: { value: string; label: string }[] = [
-  { value: "", label: "全部状态" },
-  ...Object.entries(PROJECT_STATUS_LABELS).map(([value, label]) => ({ value, label })),
-];
+// Nhãn trạng thái từng cảnh
+export function shotStatusLabel(status: string): string {
+  return labelFrom(messages[getActiveLocale()].labels.shotStatus, status);
+}
+
+// Nhãn năng lực tính phí (mã như usage_by_capability)
+export function capabilityLabel(key: string): string {
+  return labelFrom(messages[getActiveLocale()].labels.capability, key);
+}
+
+// Nhãn căn cứ tính phí; `basis` rỗng thì suy ra từ cờ `estimated`
+export function billingBasisLabel(basis: string | null | undefined, estimated?: boolean): string {
+  if (basis) return labelFrom(messages[getActiveLocale()].labels.billingBasis, basis);
+  return estimated
+    ? messages[getActiveLocale()].labels.billingBasis.estimate
+    : messages[getActiveLocale()].labels.billingBasis.upstream;
+}
+
+/** Lựa chọn trong ô lọc trạng thái dự án (giá trị giữ nguyên tiếng Anh cho API) */
+export function projectStatusOptions(): { value: string; label: string }[] {
+  const m = messages[getActiveLocale()];
+  return [
+    { value: "", label: m.labels.filter.allStatus },
+    ...Object.entries(m.labels.projectStatus).map(([value, label]) => ({ value, label })),
+  ];
+}

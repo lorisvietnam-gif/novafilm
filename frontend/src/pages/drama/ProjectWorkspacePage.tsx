@@ -5,6 +5,7 @@ import { Boxes, ChevronLeft } from 'lucide-react'
 import BillingErrorNotice from '../../components/billing/BillingErrorNotice'
 import AppShell from '../../components/layout/AppShell'
 import { dramaApi, type DramaProject } from '../../api/drama'
+import { localizeBackendMessage } from '../../lib/backendMessages'
 import {
   getInitialProjectStep,
   isEpisodesRouteStep,
@@ -62,7 +63,7 @@ function WorkspaceInner() {
     if (normalized && isEpisodesRouteStep(normalized)) {
       void resolveStoryboardPath(id)
         .then((path) => navigate(path, { replace: true }))
-                .catch((err) => setError(err instanceof Error ? err.message : 'Không mở được trang storyboard'))
+                .catch((err) => setError(err instanceof Error ? localizeBackendMessage(err.message) : 'Không mở được trang storyboard'))
       return
     }
     if (normalized && isProjectStepKey(normalized)) {
@@ -97,7 +98,7 @@ function WorkspaceInner() {
             if (isEpisodesRouteStep(initial)) {
               void resolveStoryboardPath(id)
                 .then((path) => navigate(path, { replace: true }))
-        .catch((err) => setError(err instanceof Error ? err.message : 'Không mở được trang storyboard'))
+        .catch((err) => setError(err instanceof Error ? localizeBackendMessage(err.message) : 'Không mở được trang storyboard'))
               return
             }
             setActiveStep(initial)

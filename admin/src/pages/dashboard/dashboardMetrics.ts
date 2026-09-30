@@ -1,6 +1,8 @@
 import type { AdminDailyUsage, AdminStats, AdminUsageBucket } from "@/api/client";
 import type { DashboardMetric } from "@/pages/dashboard/DashboardFilters";
 import { fenToYuan } from "@/lib/utils";
+import { getActiveLocale } from "@/i18n/detect";
+import { messages } from "@/i18n/messages";
 
 /** 时间窗内日趋势汇总 */
 export function sumDailyUsage(daily: AdminDailyUsage[]) {
@@ -42,5 +44,8 @@ export function projectScaleHint(stats: AdminStats | null): string | undefined {
   if (!stats) return undefined;
   const kepu = sumProjectStatuses(stats.project_status_counts);
   const drama = stats.drama_project_count ?? 0;
-  return `科普 ${kepu} · 漫剧 ${drama}`;
+  const m = messages[getActiveLocale()];
+  return m.dashboard.projectScaleHint
+    .replace("{kepu}", String(kepu))
+    .replace("{drama}", String(drama));
 }

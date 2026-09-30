@@ -10,27 +10,27 @@ import {
   useSettingsSaveSlot,
 } from "@/components/settings/SettingsSaveContext";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 
 type SettingsTab = "routing" | "runtime" | "oss" | "payment" | "site";
 
-const TABS: { id: SettingsTab; label: string }[] = [
-  { id: "routing", label: "模型" },
-  { id: "runtime", label: "运行参数" },
-  { id: "oss", label: "存储 OSS" },
-  { id: "payment", label: "支付计费" },
-  { id: "site", label: "站点工具" },
+const TABS: { id: SettingsTab; labelKey: "tabRouting" | "tabRuntime" | "tabOss" | "tabPayment" | "tabSite" }[] = [
+  { id: "routing", labelKey: "tabRouting" },
+  { id: "runtime", labelKey: "tabRuntime" },
+  { id: "oss", labelKey: "tabOss" },
+  { id: "payment", labelKey: "tabPayment" },
+  { id: "site", labelKey: "tabSite" },
 ];
 
 // 页头：标题 + 统一保存按钮
 function SettingsPageHeader() {
   const { action } = useSettingsSaveSlot();
+  const { m, t } = useI18n();
   return (
     <header className="settings-page-hero">
       <div className="min-w-0">
-        <h1 className="settings-page-title">系统设置</h1>
-        <p className="settings-head-desc">
-          TokenFree API Key、运行参数、OSS / 易支付 / 计费与站点配置；密钥加密存库，留空保存不修改。
-        </p>
+        <h1 className="settings-page-title">{m.settings.title}</h1>
+        <p className="settings-head-desc">{m.settings.description}</p>
       </div>
       {action ? (
         <button
@@ -40,7 +40,7 @@ function SettingsPageHeader() {
           onClick={() => void action.onSave()}
         >
           {action.saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-          {action.label ?? "保存"}
+          {action.label ?? t("common.action.save")}
         </button>
       ) : null}
     </header>
@@ -49,14 +49,15 @@ function SettingsPageHeader() {
 
 // 系统设置内容区
 function SettingsPageInner() {
+  const { m } = useI18n();
   const [tab, setTab] = useState<SettingsTab>("routing");
 
   return (
     <div className="settings-page admin-page">
       <SettingsPageHeader />
 
-      <div className="settings-tabs" role="tablist" aria-label="系统设置分区">
-        {TABS.map(({ id, label }) => (
+      <div className="settings-tabs" role="tablist" aria-label={m.settings.tabsAriaLabel}>
+        {TABS.map(({ id, labelKey }) => (
           <button
             key={id}
             type="button"
@@ -65,7 +66,7 @@ function SettingsPageInner() {
             className={cn("settings-tab", tab === id && "is-active")}
             onClick={() => setTab(id)}
           >
-            {label}
+            {m.settings[labelKey]}
           </button>
         ))}
       </div>
