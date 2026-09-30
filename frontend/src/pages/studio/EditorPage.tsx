@@ -5,18 +5,22 @@ import type { Project, Shot } from '../../api'
 import BillingErrorNotice from '../../components/billing/BillingErrorNotice'
 import AppShell from '../../components/layout/AppShell'
 import ComingSoon from '../../components/ui/ComingSoon'
+import { useI18n } from '../../i18n'
 import { STATUS_CN, shotsByNo } from '../../lib/status'
 import { downloadSingleVideo } from '../../lib/clientDownload'
 import { getDramaImageStylePreviewUrl } from '../../lib/dramaImageStylePreviews'
 import type { ImageStyleId } from '../../lib/dramaImageStyles'
 import './studio.css'
 
-const SCRIPT_TAB = 'Lời dẫn'
-const VISUAL_TAB = 'Hình ảnh'
-const VOICE_TAB = 'Lồng tiếng'
-const TRANSITION_TAB = 'Chuyển cảnh'
-
-const PANEL_TABS = [SCRIPT_TAB, VISUAL_TAB, VOICE_TAB, TRANSITION_TAB] as const
+/** Tab của bảng điều khiển dùng khoá ổn định, nhãn hiển thị lấy từ gói i18n */
+type PanelTab = 'script' | 'visual' | 'voice' | 'transition'
+const PANEL_TABS: PanelTab[] = ['script', 'visual', 'voice', 'transition']
+const PANEL_TAB_SUFFIX: Record<PanelTab, string> = {
+  script: 'Script',
+  visual: 'Visual',
+  voice: 'Voice',
+  transition: 'Transition',
+}
 
 /** Ảnh trang trí cho các ô trống — đổi theo ngữ cảnh để không lặp cảm giác */
 const EMPTY_ART: Record<string, ImageStyleId> = {
@@ -30,9 +34,10 @@ export default function EditorPage() {
   const { id } = useParams()
   const projectId = Number(id)
   const nav = useNavigate()
+  const { t, m } = useI18n()
   const [project, setProject] = useState<Project | null>(null)
   const [activeShotId, setActiveShotId] = useState<number | null>(null)
-  const [tab, setTab] = useState<(typeof PANEL_TABS)[number]>(SCRIPT_TAB)
+  const [tab, setTab] = useState<PanelTab>('script')
   const [narration, setNarration] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -57,8 +62,8 @@ export default function EditorPage() {
           setNarration(first.narration || '')
         }
       })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Không tải được dự án.'))
-  }, [nav, projectId])
+      .catch((err) => setError(err instanceof Error ? err.message : t('studio.shared.loadProjectFailed')))
+  }, [nav, projectId, t])
 
   const orderedShots = useMemo(() => shotsByNo(project?.shots), [project?.shots])
   const shot: Shot | undefined = useMemo(
@@ -85,7 +90,7 @@ export default function EditorPage() {
       await api.updateShot(project.id, shot.id, { narration })
       setProject(await api.getProject(project.id))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Lưu lời dẫn thất bại.')
+      setError(err instanceof Error ? err.message : t('studio.editor.saveNarrationFailed'))
     } finally {
       setBusy(false)
     }
@@ -98,7 +103,7 @@ export default function EditorPage() {
       await api.regenImage(project.id, shot.id)
       setProject(await api.getProject(project.id))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Tạo lại hình ảnh thất bại.')
+      setError(err instanceof Error ? err.message : t('studio.editor.regenImageFailed'))
     } finally {
       setBusy(false)
     }
@@ -116,7 +121,7 @@ export default function EditorPage() {
       const s = next.shots.find((x) => x.id === created.id)
       if (s) selectShot(s)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Thêm cảnh quay thất bại.')
+      setError(err instanceof Error ? err.message : t('studio.editor.addShotFailed'))
     } finally {
       setBusy(false)
     }
@@ -136,7 +141,7 @@ export default function EditorPage() {
     try {
       setProject(await api.reorderShots(project.id, ids))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Đổi thứ tự thất bại.')
+      setError(err instanceof Error ? err.message : t('studio.editor.reorderFailed'))
     } finally {
       setBusy(false)
     }
@@ -150,7 +155,7 @@ export default function EditorPage() {
     try {
       setProject(await api.uploadShotImage(project.id, shot.id, file))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Tải ảnh lên thất bại.')
+      setError(err instanceof Error ? err.message : t('studio.editor.uploadImageFailed'))
     } finally {
       setBusy(false)
       if (shotFileRef.current) shotFileRef.current.value = ''
@@ -169,7 +174,7 @@ export default function EditorPage() {
         url: api.assetUrl(project.final_video_url, project.updated_at),
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Xuất video thất bại.')
+      setError(err instanceof Error ? err.message : t('studio.editor.exportFailed'))
     } finally {
       setBusy(false)
     }
@@ -182,7 +187,7 @@ export default function EditorPage() {
       await api.regenAudio(project.id, shot.id)
       setProject(await api.getProject(project.id))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Lồng tiếng lại thất bại.')
+      setError(err instanceof Error ? err.message : t('studio.editor.regenAudioFailed'))
     } finally {
       setBusy(false)
     }
@@ -192,7 +197,7 @@ export default function EditorPage() {
     return (
       <AppShell active="studio" flush>
         <p className="pf-muted" style={{ padding: '2rem' }}>
-          Đang tải…
+          {t('studio.shared.loading')}
         </p>
       </AppShell>
     )
@@ -219,20 +224,20 @@ export default function EditorPage() {
         <div className="studio-editor-bar">
           <div className="studio-editor-bar-id">
             <button type="button" className="pf-link" onClick={() => nav(`/studio/${project.id}`)}>
-              ← Quay lại dự án
+              {t('studio.editor.back')}
             </button>
             <strong>{project.title}</strong>
             <span className="studio-status-chip">{STATUS_CN[project.status] || project.status}</span>
           </div>
           <div className="studio-editor-bar-ops">
             <button type="button" className="pf-btn pf-btn-ghost pf-btn-sm" disabled>
-              Hoàn tác <ComingSoon />
+              {t('studio.editor.undo')} <ComingSoon />
             </button>
             <button type="button" className="pf-btn pf-btn-ghost pf-btn-sm" disabled>
-              Làm lại <ComingSoon />
+              {t('studio.editor.redo')} <ComingSoon />
             </button>
             <button type="button" className="pf-btn pf-btn-ghost pf-btn-sm" disabled>
-              Lưu nháp <ComingSoon />
+              {t('studio.editor.saveDraft')} <ComingSoon />
             </button>
             <button
               type="button"
@@ -249,7 +254,7 @@ export default function EditorPage() {
                 }
               }}
             >
-              Xem thử
+              {t('studio.editor.preview')}
             </button>
             <button
               type="button"
@@ -257,7 +262,7 @@ export default function EditorPage() {
               disabled={busy || !project.final_video_url}
               onClick={() => void exportFilm()}
             >
-              Xuất video
+              {t('studio.editor.exportVideo')}
             </button>
           </div>
         </div>
@@ -269,14 +274,14 @@ export default function EditorPage() {
         <div className="pf-editor">
           <aside>
             <div className="studio-panel-head">
-              <strong>Danh sách cảnh quay</strong>
+              <strong>{t('studio.editor.shotListHeading')}</strong>
               <button
                 type="button"
                 className="pf-link"
                 disabled={busy}
                 onClick={() => void addShot()}
               >
-                + Thêm cảnh quay
+                {t('studio.editor.addShot')}
               </button>
             </div>
             {orderedShots.map((s) => (
@@ -299,7 +304,8 @@ export default function EditorPage() {
                 )}
                 <div>
                   <strong style={{ fontSize: '0.82rem' }}>
-                    {String(s.shot_no).padStart(2, '0')} {s.overlay_title || 'Cảnh quay'}
+                    {String(s.shot_no).padStart(2, '0')}{' '}
+                    {s.overlay_title || t('studio.editor.shotFallbackTitle')}
                   </strong>
                   <div className="pf-muted" style={{ fontSize: '0.72rem' }}>
                     {(s.narration || '').slice(0, 28)}
@@ -308,7 +314,7 @@ export default function EditorPage() {
               </button>
             ))}
             <p className="pf-muted studio-total-time">
-              Tổng thời lượng{' '}
+              {t('studio.editor.totalDuration')}{' '}
               {Math.floor(totalDuration / 60)
                 .toString()
                 .padStart(2, '0')}
@@ -324,7 +330,7 @@ export default function EditorPage() {
                 disabled={busy || !shot || shotIndex <= 0}
                 onClick={() => void moveShot(-1)}
               >
-                Lên
+                {t('studio.editor.moveUp')}
               </button>
               <button
                 type="button"
@@ -332,7 +338,7 @@ export default function EditorPage() {
                 disabled={busy || !shot || shotIndex < 0 || shotIndex >= orderedShots.length - 1}
                 onClick={() => void moveShot(1)}
               >
-                Xuống
+                {t('studio.editor.moveDown')}
               </button>
             </div>
           </aside>
@@ -340,8 +346,10 @@ export default function EditorPage() {
           <section>
             <div className="studio-panel-head">
               <strong>
-                {shot ? `Cảnh quay ${shot.shot_no}` : 'Xem trước'} ·{' '}
-                {isPortrait ? '9:16' : '16:9'}
+                {shot
+                  ? t('studio.editor.shotHeading', { no: shot.shot_no })
+                  : t('studio.editor.previewHeading')}{' '}
+                · {isPortrait ? '9:16' : '16:9'}
               </strong>
               <div className="studio-panel-ops">
                 <input
@@ -357,7 +365,7 @@ export default function EditorPage() {
                   disabled={busy || !shot}
                   onClick={() => shotFileRef.current?.click()}
                 >
-                  Tải ảnh lên
+                  {t('studio.editor.uploadImage')}
                 </button>
                 <button
                   type="button"
@@ -365,7 +373,7 @@ export default function EditorPage() {
                   disabled={busy}
                   onClick={regenImage}
                 >
-                  AI vẽ lại
+                  {t('studio.editor.regenImage')}
                 </button>
               </div>
             </div>
@@ -390,8 +398,8 @@ export default function EditorPage() {
                   />
                   <span className="studio-still-note">
                     {shot
-                      ? 'Cảnh này chưa có hình. Tạo ảnh hoặc tải ảnh của bạn lên.'
-                      : 'Chọn một cảnh quay ở cột bên trái để xem trước.'}
+                      ? t('studio.editor.previewEmptyShot')
+                      : t('studio.editor.previewEmptyPick')}
                   </span>
                 </div>
               )}
@@ -411,7 +419,7 @@ export default function EditorPage() {
                   type="button"
                   className={activeShotId === s.id ? 'is-active' : ''}
                   onClick={() => selectShot(s)}
-                  aria-label={`Cảnh quay ${s.shot_no}`}
+                  aria-label={t('studio.editor.stripAria', { no: s.shot_no })}
                   aria-pressed={activeShotId === s.id}
                 >
                   {s.image_url ? (
@@ -436,20 +444,20 @@ export default function EditorPage() {
 
             <div className="studio-dropzone">
               <p>
-                Bạn có thể dùng <strong>“Tải ảnh lên”</strong> để thay ảnh của cảnh này, hoặc dùng{' '}
-                <strong>“AI vẽ lại”</strong> để tạo lại từ prompt.
+                {t('studio.editor.dropzone', {
+                  upload: t('studio.editor.uploadImage'),
+                  regen: t('studio.editor.regenImage'),
+                })}
               </p>
             </div>
 
             <div style={{ marginTop: '1rem' }}>
               <div className="pf-panel-tabs">
-                {['Thư viện tư liệu', 'Tư liệu đã lưu', 'Tư liệu AI tạo', 'Tư liệu tôi tải lên'].map(
-                  (t) => (
-                    <button key={t} type="button" disabled>
-                      {t}
-                    </button>
-                  ),
-                )}
+                {m.studio.editor.libraryTabs.map((label) => (
+                  <button key={label} type="button" disabled>
+                    {label}
+                  </button>
+                ))}
               </div>
               <div className="studio-library-teaser">
                 <span className="studio-library-art" aria-hidden>
@@ -459,32 +467,29 @@ export default function EditorPage() {
                     loading="lazy"
                   />
                 </span>
-                <p className="pf-muted">
-                  Thư viện tư liệu sắp có. Hiện tại bạn dùng “Tải ảnh lên” hoặc “AI vẽ lại” ở phía
-                  trên để thay ảnh cho cảnh này.
-                </p>
+                <p className="pf-muted">{t('studio.editor.libraryTeaser')}</p>
               </div>
             </div>
           </section>
 
           <aside>
             <div className="pf-panel-tabs">
-              {PANEL_TABS.map((t) => (
+              {PANEL_TABS.map((key) => (
                 <button
-                  key={t}
+                  key={key}
                   type="button"
-                  className={tab === t ? 'active' : ''}
-                  onClick={() => setTab(t)}
+                  className={tab === key ? 'active' : ''}
+                  onClick={() => setTab(key)}
                 >
-                  {t}
+                  {t(`studio.editor.tab${PANEL_TAB_SUFFIX[key]}`)}
                 </button>
               ))}
             </div>
 
-            {tab === SCRIPT_TAB ? (
+            {tab === 'script' ? (
               <>
                 <label className="pf-muted studio-panel-label">
-                  Nội dung lời dẫn
+                  {t('studio.editor.narrationLabel')}
                   <textarea
                     value={narration}
                     onChange={(e) => setNarration(e.target.value)}
@@ -498,14 +503,14 @@ export default function EditorPage() {
                   style={{ marginTop: 8 }}
                   disabled
                 >
-                  AI tối ưu cảnh này <ComingSoon />
+                  {t('studio.editor.aiOptimizeSoon')} <ComingSoon />
                 </button>
                 <div style={{ marginTop: '0.85rem' }}>
                   <strong style={{ fontSize: '0.88rem' }}>
-                    Trang trí chữ <ComingSoon />
+                    {t('studio.editor.textOverlay')} <ComingSoon />
                   </strong>
                   <p className="pf-muted" style={{ fontSize: '0.8rem' }}>
-                    Font chữ / cỡ chữ / màu / căn lề — đang phát triển
+                    {t('studio.editor.textOverlayHint')}
                   </p>
                 </div>
                 <button
@@ -515,16 +520,15 @@ export default function EditorPage() {
                   disabled={busy}
                   onClick={saveNarration}
                 >
-                  Lưu lời dẫn
+                  {t('studio.editor.saveNarration')}
                 </button>
               </>
             ) : null}
 
-            {tab === VISUAL_TAB ? (
+            {tab === 'visual' ? (
               <>
                 <p className="pf-muted" style={{ fontSize: '0.88rem' }}>
-                  Dùng “Tải ảnh lên” ở vùng xem trước để thay ảnh cho cảnh này, hoặc “AI vẽ lại” để
-                  tạo lại từ prompt.
+                  {t('studio.editor.visualHint')}
                 </p>
                 <button
                   type="button"
@@ -532,15 +536,15 @@ export default function EditorPage() {
                   disabled={busy}
                   onClick={regenImage}
                 >
-                  Tạo lại cảnh quay này
+                  {t('studio.editor.regenThisShot')}
                 </button>
               </>
             ) : null}
 
-            {tab === VOICE_TAB ? (
+            {tab === 'voice' ? (
               <>
                 <p className="pf-muted" style={{ fontSize: '0.88rem' }}>
-                  Lồng tiếng lại cho cảnh quay này, vẫn dùng giọng đã chọn cho dự án.
+                  {t('studio.editor.voiceHint')}
                 </p>
                 <button
                   type="button"
@@ -548,16 +552,13 @@ export default function EditorPage() {
                   disabled={busy}
                   onClick={regenAudio}
                 >
-                  Lồng tiếng lại
+                  {t('studio.editor.regenVoice')}
                 </button>
               </>
             ) : null}
 
-            {tab === TRANSITION_TAB ? (
-              <div className="pf-hint">
-                Hiệu ứng chuyển cảnh (mờ dần, chớp sáng, nối bằng cử động máy…) sẽ có ở bản cập nhật
-                sau.
-              </div>
+            {tab === 'transition' ? (
+              <div className="pf-hint">{t('studio.editor.transitionHint')}</div>
             ) : null}
 
             <button
@@ -566,7 +567,7 @@ export default function EditorPage() {
               style={{ marginTop: '1rem' }}
               disabled
             >
-              Áp dụng cho mọi cảnh cùng loại <ComingSoon />
+              {t('studio.editor.applyToAllSoon')} <ComingSoon />
             </button>
           </aside>
         </div>

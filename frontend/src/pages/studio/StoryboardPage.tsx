@@ -19,6 +19,7 @@ import { scenePromptForDisplay } from '../../promptDisplay'
 import { dialog } from '../../lib/dialog'
 import { handleBillingError } from '../../lib/billingError'
 import BillingErrorNotice from '../../components/billing/BillingErrorNotice'
+import { useI18n, type TFunction } from '../../i18n'
 import {
   effectiveStatus,
   formatMmSs,
@@ -51,15 +52,20 @@ import { getDramaImageStylePreviewUrl } from '../../lib/dramaImageStylePreviews'
 import type { ImageStyleId } from '../../lib/dramaImageStyles'
 import './studio.css'
 
-const IMAGE_TEXT_LABEL = 'Ảnh tĩnh'
-const FULL_LABEL = 'AI video'
-
-/** Ảnh trang trí cho các ô trống, đổi theo ngữ cảnh */
 const EMPTY_ART: Record<'cover' | 'shot' | 'board', ImageStyleId> = {
   cover: 'ghibli-handdrawn-anime',
   shot: 'wuxia-realistic-photo',
   board: 'pixel-art',
 }
+
+/** Nhãn tiến trình cốt trúc; số đếm được nối vào sau bằng {done}/{total} */
+const STRUCTURE_KEYS = [
+  'studio.storyboard.structureOpening',
+  'studio.storyboard.structureRising',
+  'studio.storyboard.structureTurn',
+  'studio.storyboard.structureClimax',
+  'studio.storyboard.structureEnding',
+] as const
 
 function csvEscape(value: string | number | null | undefined) {
   const s = String(value ?? '')
@@ -67,8 +73,7 @@ function csvEscape(value: string | number | null | undefined) {
   return s
 }
 
-function downloadStoryboardCsv(project: Project) {
-  const header = ['Số cảnh', 'Lời dẫn', 'Mô tả hình ảnh', 'Thời lượng (giây)', 'Trạng thái', 'Tiêu đề cảnh quay']
+function downloadStoryboardCsv(project: Project, header: readonly string[]) {
   const rows = (project.shots || [])
     .slice()
     .sort((a, b) => a.shot_no - b.shot_no)
@@ -107,11 +112,13 @@ type PreviewState =
   | { kind: 'final'; url: string; title: string; bust?: string }
   | null
 
-function shotCaption(shot: Shot) {
+function shotCaption(shot: Shot, t: TFunction) {
   if (shot.overlay_title) {
     return `${shot.overlay_title}${
       shot.overlay_subtitle ? ` · ${shot.overlay_subtitle}` : ''
-    }${shot.narration ? `｜Lời dẫn: ${shot.narration}` : ''}`
+    }${
+      shot.narration ? t('studio.storyboard.shotCaptionNarration', { text: shot.narration }) : ''
+    }`
   }
   return shot.narration
 }
@@ -139,6 +146,7 @@ export default function StoryboardPage() {
   const { id } = useParams()
   const projectId = Number(id)
   const nav = useNavigate()
+  const { t, m } = useI18n()
   const [project, setProject] = useState<Project | null>(null)
   const [template, setTemplate] = useState<Template | null>(null)
   const [busy, setBusy] = useState(false)
@@ -179,8 +187,8 @@ export default function StoryboardPage() {
           setTemplate(list.find((t) => t.id === p.template_id) || null)
         })
       })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Không tải được dự án.'))
-  }, [nav, projectId])
+      .catch((err) => setError(err instanceof Error ? err.message : t('studio.shared.loadProjectFailed')))
+  }, [nav, projectId, t])
 
   useEffect(() => {
     if (!project) return
@@ -220,6 +228,7 @@ export default function StoryboardPage() {
     [editScriptText],
   )
 
+  const csvHeader = m.studio.storyboard.csvHeader
   const shots = useMemo(() => shotsByNo(project?.shots), [project?.shots])
   /** Khi trường của dự án rỗng thì hiện giá trị mặc định của mẫu (khớp với _effective_* ở backend) */
   const promptDefaults = useMemo(
@@ -257,16 +266,16 @@ export default function StoryboardPage() {
         ? 'compose'
         : 'generate'
 
-  const BUSY_LABEL = 'Đang tạo…'
+  const BUSY_LABEL = t('studio.storyboard.busyLabel')
   const generateLabel = running
     ? BUSY_LABEL
     : shots.length === 0
-      ? 'Đi tới trang phong cách để tạo storyboard'
+      ? t('studio.storyboard.generateNoShots')
       : needsScriptConfirm
-        ? 'Duyệt storyboard, tạo ảnh và lồng tiếng từng cảnh'
+        ? t('studio.storyboard.generateConfirm')
         : needsVideos
-          ? 'Tạo video từng cảnh'
-          : 'Tiếp tục tạo'
+          ? t('studio.storyboard.generateVideos')
+          : t('studio.storyboard.generateContinue')
 
   // Tiến độ bàn làm việc: chế độ đầy đủ cần video từng cảnh + TTS ngoài; chế độ ảnh tĩnh chỉ cần lồng tiếng rồi ghép
   const progressItems = useMemo(() => {
@@ -279,16 +288,19 @@ export default function StoryboardPage() {
     const stage = effectiveStatus(project)
     type ProgressItem = { label: string; done: boolean; run?: boolean; pct?: number }
     const items: ProgressItem[] = [
-      { label: 'Phân tích chủ đề', done: true },
-      { label: 'Kịch bản storyboard', done: list.length > 0 || !['DRAFT', 'SCRIPTING'].includes(project.status) },
+      { label: t('studio.storyboard.progressAnalyze'), done: true },
       {
-        label: `Tạo ảnh (${imgs}/${list.length || 0})`,
+        label: t('studio.storyboard.progressScript'),
+        done: list.length > 0 || !['DRAFT', 'SCRIPTING'].includes(project.status),
+      },
+      {
+        label: t('studio.storyboard.progressImages', { done: imgs, total: list.length || 0 }),
         done: list.length > 0 && imgs === list.length,
       },
     ]
     if (full) {
       items.push({
-        label: `Video từng cảnh (${vids}/${list.length || 0})`,
+        label: t('studio.storyboard.progressVideos', { done: vids, total: list.length || 0 }),
         done:
           list.length > 0 &&
           (vids === list.length ||
@@ -298,19 +310,19 @@ export default function StoryboardPage() {
       })
     }
     items.push({
-      label: `Lồng tiếng (${auds}/${list.length || 0})`,
+      label: t('studio.storyboard.progressAudio', { done: auds, total: list.length || 0 }),
       done: list.length > 0 && auds === list.length,
       run: stage === 'AUDIOING',
       pct: stage === 'AUDIOING' ? project.progress : undefined,
     })
     items.push({
-      label: full ? 'Ghép các cảnh lại' : 'Dựng phim',
+      label: full ? t('studio.storyboard.progressComposeFull') : t('studio.storyboard.progressComposeImage'),
       done: Boolean(project.final_video_url) || project.status === 'DONE',
       run: stage === 'COMPOSING',
       pct: stage === 'COMPOSING' ? project.progress : undefined,
     })
     return items
-  }, [project])
+  }, [project, t])
 
   function openFinalPreview() {
     if (!project?.final_video_url) return
@@ -329,13 +341,13 @@ export default function StoryboardPage() {
     try {
       setProject(await api.generate(project.id))
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Không tiếp tục tạo được.'
+      const msg = err instanceof Error ? err.message : t('studio.storyboard.continueFailed')
       if (msg.includes('合成成片')) {
         try {
           setError('')
           setProject(await api.compose(project.id))
         } catch (e2) {
-          setError(e2 instanceof Error ? e2.message : 'Không ghép được phim.')
+          setError(e2 instanceof Error ? e2.message : t('studio.shared.composeFailed'))
         }
         return
       }
@@ -349,10 +361,10 @@ export default function StoryboardPage() {
   async function restartGenerate() {
     if (!project) return
     const ok = await dialog.confirm({
-      title: 'Làm lại từ đầu',
-      message: 'Xoá storyboard và tư liệu hiện tại, rồi chia lại các cảnh quay. Sau khi tạo bạn vẫn có thể duyệt rồi mới tiếp tục.',
-      confirmText: 'Làm lại',
-      cancelText: 'Để sau',
+      title: t('studio.storyboard.restartTitle'),
+      message: t('studio.storyboard.restartMessage'),
+      confirmText: t('studio.storyboard.restartConfirm'),
+      cancelText: t('studio.storyboard.restartLater'),
       tone: 'danger',
     })
     if (!ok) return
@@ -361,7 +373,7 @@ export default function StoryboardPage() {
     try {
       setProject(await api.generate(project.id, { restart: true }))
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Không làm lại được.'
+      const msg = err instanceof Error ? err.message : t('studio.storyboard.restartFailed')
       setError(msg)
       await handleBillingError(err, nav)
     } finally {
@@ -372,10 +384,10 @@ export default function StoryboardPage() {
   async function deleteProject() {
     if (!project) return
     const ok = await dialog.confirm({
-      title: 'Xoá dự án',
-      message: 'Xoá dự án này? Tư liệu và phim hoàn chỉnh sẽ mất luôn, thao tác này không hoàn tác được.',
-      confirmText: 'Xoá',
-      cancelText: 'Huỷ',
+      title: t('studio.storyboard.deleteTitle'),
+      message: t('studio.storyboard.deleteMessage'),
+      confirmText: t('studio.storyboard.deleteConfirm'),
+      cancelText: t('studio.shared.cancel'),
       tone: 'danger',
     })
     if (!ok) return
@@ -384,7 +396,7 @@ export default function StoryboardPage() {
       await api.deleteProject(project.id)
       nav('/history')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Xoá dự án thất bại.')
+      setError(err instanceof Error ? err.message : t('studio.storyboard.deleteFailed'))
     } finally {
       setBusy(false)
     }
@@ -396,7 +408,7 @@ export default function StoryboardPage() {
     try {
       setProject(await api.compose(project.id))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không ghép được phim.')
+      setError(err instanceof Error ? err.message : t('studio.shared.composeFailed'))
     } finally {
       setBusy(false)
     }
@@ -409,7 +421,7 @@ export default function StoryboardPage() {
     try {
       setProject(await api.uploadCover(project.id, file))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Tải ảnh bìa lên thất bại.')
+      setError(err instanceof Error ? err.message : t('studio.storyboard.coverUploadFailed'))
     } finally {
       setBusy(false)
       if (coverInputRef.current) coverInputRef.current.value = ''
@@ -422,7 +434,7 @@ export default function StoryboardPage() {
       .sort((a, b) => a.shot_no - b.shot_no)
       .find((s) => s.image_url)
     if (!first?.image_url) {
-      setError('Chưa có cảnh quay nào có hình để làm ảnh bìa.')
+      setError(t('studio.storyboard.noShotImageForCover'))
       return
     }
     setBusy(true)
@@ -430,7 +442,7 @@ export default function StoryboardPage() {
     try {
       setProject(await api.updateProject(project.id, { cover_url: first.image_url }))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Đặt ảnh bìa thất bại.')
+      setError(err instanceof Error ? err.message : t('studio.storyboard.setCoverFailed'))
     } finally {
       setBusy(false)
     }
@@ -448,11 +460,11 @@ export default function StoryboardPage() {
     if (!project || batchSelected.length === 0) return
     const durationVal = batchDuration.trim() === '' ? null : Number(batchDuration)
     if (durationVal != null && (!Number.isFinite(durationVal) || durationVal <= 0)) {
-      setError('Hãy nhập thời lượng hợp lệ (giây).')
+      setError(t('studio.storyboard.batchDurationInvalid'))
       return
     }
     if (durationVal == null && !batchRegenAudio) {
-      setError('Hãy đặt thời lượng, hoặc tích lồng tiếng lại.')
+      setError(t('studio.storyboard.batchNeedSomething'))
       return
     }
     setBusy(true)
@@ -469,7 +481,7 @@ export default function StoryboardPage() {
       setProject(await api.getProject(project.id))
       setBatchOpen(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Chỉnh hàng loạt thất bại.')
+      setError(err instanceof Error ? err.message : t('studio.storyboard.batchFailed'))
       try {
         setProject(await api.getProject(project.id))
       } catch {
@@ -487,7 +499,7 @@ export default function StoryboardPage() {
       await api.publish(project.id)
       nav('/history')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Phát hành thất bại.')
+      setError(err instanceof Error ? err.message : t('studio.storyboard.publishFailed'))
     } finally {
       setBusy(false)
     }
@@ -513,7 +525,7 @@ export default function StoryboardPage() {
     try {
       setProject(await api.regenImage(project.id, shot.id))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Tạo ảnh thất bại.')
+      setError(err instanceof Error ? err.message : t('studio.storyboard.regenImageFailed'))
     } finally {
       markShotIdle(shot.id)
     }
@@ -525,7 +537,7 @@ export default function StoryboardPage() {
     try {
       setProject(await api.regenVideo(project.id, shot.id))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Tạo video thất bại.')
+      setError(err instanceof Error ? err.message : t('studio.storyboard.regenVideoFailed'))
     } finally {
       markShotIdle(shot.id)
     }
@@ -538,7 +550,7 @@ export default function StoryboardPage() {
     try {
       setProject(await api.regenAudio(project.id, shot.id))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Lồng tiếng lại thất bại.')
+      setError(err instanceof Error ? err.message : t('studio.editor.regenAudioFailed'))
     } finally {
       setBusy(false)
     }
@@ -606,7 +618,7 @@ export default function StoryboardPage() {
     // durationCheck: kết quả kiểm tra thời lượng
     const durationCheck = validateSegmentScriptDuration(scriptText)
     if (!durationCheck.valid) {
-      setError(durationCheck.message || 'Thời lượng storyboard không hợp lệ.')
+      setError(durationCheck.message || t('studio.storyboard.durationInvalid'))
       return
     }
     setBusy(true)
@@ -624,7 +636,7 @@ export default function StoryboardPage() {
       closeShotEdit()
       setProject(await api.getProject(project.id))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Lưu thất bại.')
+      setError(err instanceof Error ? err.message : t('studio.storyboard.saveShotFailed'))
     } finally {
       setBusy(false)
     }
@@ -647,7 +659,7 @@ export default function StoryboardPage() {
       setProject(updated)
       setPromptEdit(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Lưu prompt thất bại.')
+      setError(err instanceof Error ? err.message : t('studio.storyboard.savePromptFailed'))
     } finally {
       setBusy(false)
     }
@@ -666,7 +678,7 @@ export default function StoryboardPage() {
       setProject(updated)
       setPromptEdit(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không khôi phục được mẫu.')
+      setError(err instanceof Error ? err.message : t('studio.storyboard.restoreTemplateFailed'))
     } finally {
       setBusy(false)
     }
@@ -675,7 +687,7 @@ export default function StoryboardPage() {
   if (!project && !error) {
     return (
       <AppShell active="studio">
-        <p className="pf-muted">Đang tải…</p>
+        <p className="pf-muted">{t('studio.storyboard.loading')}</p>
       </AppShell>
     )
   }
@@ -689,8 +701,11 @@ export default function StoryboardPage() {
   }
 
   const structure = (project.shots || []).slice(0, 5).map((s, i) => {
-    const labels = ['Mở đầu', 'Phát triển', 'Bước ngoặt', 'Đỉnh cao', 'Kết']
-    return { label: labels[i] || `Đoạn ${i + 1}`, text: s.narration || s.overlay_title || '—' }
+    const key = STRUCTURE_KEYS[i]
+    return {
+      label: key ? t(key) : t('studio.storyboard.structurePart', { no: i + 1 }),
+      text: s.narration || s.overlay_title || t('studio.shared.dash'),
+    }
   })
 
   return (
@@ -700,7 +715,7 @@ export default function StoryboardPage() {
           <div>
             <button type="button" className="pf-back" onClick={() => nav(`/studio/${project.id}/style`)}>
               <IconChevronLeft size={18} />
-              AI tạo storyboard / Bàn dựng storyboard
+              {t('studio.storyboard.back')}
             </button>
             <h1 className="pf-page-title">{project.title}</h1>
           </div>
@@ -713,7 +728,7 @@ export default function StoryboardPage() {
                 onClick={openFinalPreview}
               >
                 <IconMonitor size={14} />
-                Xem phim
+                {t('studio.storyboard.watchFilm')}
               </button>
             ) : primaryAction === 'compose' ? (
               <button
@@ -723,7 +738,7 @@ export default function StoryboardPage() {
                 onClick={composeOnly}
               >
                 <IconPlay size={14} />
-                Ghép phim
+                {t('studio.storyboard.compose')}
               </button>
             ) : (
               <button
@@ -745,7 +760,7 @@ export default function StoryboardPage() {
               onClick={openBatchAdjust}
             >
               <IconSliders size={15} />
-              Chỉnh hàng loạt
+              {t('studio.storyboard.batchAdjust')}
             </button>
             <button
               type="button"
@@ -754,12 +769,12 @@ export default function StoryboardPage() {
               onClick={restartGenerate}
             >
               <IconRefresh size={15} />
-              Làm lại từ đầu
+              {t('studio.storyboard.restartAll')}
             </button>
             {primaryAction !== 'preview' && hasFinal ? (
               <button type="button" className="pf-btn-text" onClick={openFinalPreview}>
                 <IconMonitor size={15} />
-                Xem phim
+                {t('studio.storyboard.watchFilm')}
               </button>
             ) : null}
             {primaryAction === 'preview' && readyToCompose ? (
@@ -768,9 +783,9 @@ export default function StoryboardPage() {
                 className="pf-btn-text"
                 disabled={busy || running}
                 onClick={composeOnly}
-                title="Ghép lại bằng các cảnh quay hiện tại"
+                title={t('studio.storyboard.composeAgainTitle')}
               >
-                Ghép lại
+                {t('studio.storyboard.composeAgain')}
               </button>
             ) : null}
             {primaryAction !== 'generate' && !readyToCompose ? (
@@ -780,7 +795,7 @@ export default function StoryboardPage() {
                 disabled={busy || running}
                 onClick={continueGenerate}
               >
-                {generateLabel === BUSY_LABEL ? 'Tiếp tục tạo' : generateLabel}
+                {generateLabel === BUSY_LABEL ? t('studio.storyboard.generateContinue') : generateLabel}
               </button>
             ) : null}
             <button
@@ -789,7 +804,7 @@ export default function StoryboardPage() {
               onClick={() => nav(`/studio/${project.id}/editor`)}
             >
               <IconEdit size={14} />
-              Mở trình soạn thảo
+              {t('studio.storyboard.openEditor')}
             </button>
           </div>
         </div>
@@ -808,7 +823,7 @@ export default function StoryboardPage() {
 
       <div className="pf-board studio-scoped">
         <aside className="pf-create-col">
-          <h3>Thiết lập dự án</h3>
+          <h3>{t('studio.storyboard.projectSetupHeading')}</h3>
           {project.cover_url || template?.preview_cover ? (
             <img
               className="studio-cover"
@@ -819,7 +834,7 @@ export default function StoryboardPage() {
           ) : (
             <div className="studio-still studio-still--placeholder studio-cover-empty">
               <img src={getDramaImageStylePreviewUrl(EMPTY_ART.cover)} alt="" />
-              <span className="studio-still-note">Chưa có ảnh bìa cho dự án</span>
+              <span className="studio-still-note">{t('studio.storyboard.noCover')}</span>
             </div>
           )}
           <input
@@ -837,43 +852,43 @@ export default function StoryboardPage() {
               onClick={() => coverInputRef.current?.click()}
             >
               <IconImage size={14} />
-              Đổi ảnh bìa
+              {t('studio.storyboard.changeCover')}
             </button>
             <button
               type="button"
               className="pf-btn pf-btn-ghost pf-btn-sm pf-btn-icon"
               disabled={busy || running || !shots.some((s) => s.image_url)}
               onClick={useFirstShotCover}
-              title="Lấy cảnh quay đầu tiên có hình làm ảnh bìa"
+              title={t('studio.storyboard.useFirstShotCoverTitle')}
             >
               <IconImage size={14} />
-              Dùng ảnh cảnh đầu
+              {t('studio.storyboard.useFirstShotCover')}
             </button>
             <button
               type="button"
               className="pf-btn pf-btn-ghost pf-btn-sm pf-btn-icon"
               disabled={shots.length === 0}
-              onClick={() => downloadStoryboardCsv(project)}
+              onClick={() => downloadStoryboardCsv(project, csvHeader)}
             >
               <IconDownload size={14} />
-              Xuất nháp
+              {t('studio.storyboard.exportDraft')}
             </button>
           </div>
           <ul className="pf-meta-list" style={{ marginTop: '0.85rem' }}>
             <li>
-              <span>Tên dự án</span>
+              <span>{t('studio.storyboard.summaryName')}</span>
               <span>{project.title}</span>
             </li>
             <li>
-              <span>Trạng thái</span>
+              <span>{t('studio.storyboard.summaryStatus')}</span>
               <span>{statusLabel(project)}</span>
             </li>
             <li>
-              <span>Tiến độ</span>
+              <span>{t('studio.storyboard.summaryProgress')}</span>
               <span>{project.progress}%</span>
             </li>
             <li>
-              <span>Thời lượng</span>
+              <span>{t('studio.storyboard.summaryDuration')}</span>
               <span>
                 {Math.floor(totalDuration / 60)
                   .toString()
@@ -885,17 +900,21 @@ export default function StoryboardPage() {
               </span>
             </li>
             <li>
-              <span>Tỉ lệ khung hình</span>
+              <span>{t('studio.storyboard.summaryRatio')}</span>
               <span>
                 {project.output_ratio || (project.pipeline_mode === 'image_text' ? '9:16' : '16:9')}
               </span>
             </li>
             <li>
-              <span>Cách dựng phim</span>
-              <span>{project.pipeline_mode === 'image_text' ? IMAGE_TEXT_LABEL : FULL_LABEL}</span>
+              <span>{t('studio.storyboard.summaryMode')}</span>
+              <span>
+                {project.pipeline_mode === 'image_text'
+                  ? t('studio.shared.modeImageLabel')
+                  : t('studio.shared.modeFullLabel')}
+              </span>
             </li>
             <li>
-              <span>Phong cách</span>
+              <span>{t('studio.storyboard.summaryStyle')}</span>
               <span>{template?.name || project.template_id}</span>
             </li>
           </ul>
@@ -905,19 +924,18 @@ export default function StoryboardPage() {
             onClick={() => nav(`/studio/${project.id}/style`)}
             disabled={running}
           >
-            Sửa thiết lập dự án
+            {t('studio.storyboard.editProjectSettings')}
           </button>
           <div className="pf-prompt-panel">
-            <h4>Prompt tích hợp</h4>
+            <h4>{t('studio.storyboard.promptPanelHeading')}</h4>
             <p className="pf-muted" style={{ fontSize: '0.72rem', margin: '0 0 0.45rem' }}>
-              Phong cách hình ảnh đến từ mẫu. Có nhân vật xuất hiện hay không do AI quyết theo mẫu và
-              chủ đề; chỉ khi bạn sửa ở đây thì dự án này mới dùng bản riêng.
+              {t('studio.storyboard.promptPanelHint')}
             </p>
             {(
               [
-                ['Phong cách', displayPrompts.style_prompt],
-                ['Nhân vật', displayPrompts.character_prompt],
-                ['Bổ sung', displayPrompts.extra_prompt],
+                [t('studio.storyboard.promptChipStyle'), displayPrompts.style_prompt],
+                [t('studio.storyboard.promptChipCharacter'), displayPrompts.character_prompt],
+                [t('studio.storyboard.promptChipExtra'), displayPrompts.extra_prompt],
               ] as const
             ).map(([label, value]) => (
               <button
@@ -934,29 +952,33 @@ export default function StoryboardPage() {
                 }
               >
                 <strong>{label}</strong>
-                <span>{(value || '').trim() || '(trống — bấm để sửa)'}</span>
+                <span>{(value || '').trim() || t('studio.storyboard.promptChipEmpty')}</span>
               </button>
             ))}
           </div>
           <p className="pf-muted" style={{ fontSize: '0.75rem', marginTop: '0.75rem' }}>
-            Nội dung do AI tạo ra, hãy kiểm tra lại độ chính xác trước khi dùng.
+            {t('studio.storyboard.aiDisclaimer')}
           </p>
         </aside>
 
         <div className="pf-board-main">
           <div className="pf-outline-grid">
             <article className="pf-create-col">
-              <h3>Dàn ý do AI tạo</h3>
+              <h3>{t('studio.storyboard.outlineHeading')}</h3>
               <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.65 }}>
                 {project.source_text}
               </p>
               <div className="pf-tags">
-                <span>Chủ đề chính</span>
-                <span>{project.source_type === 'script' ? 'Lời dẫn đầy đủ' : 'Chủ đề một câu'}</span>
+                <span>{t('studio.storyboard.tagMainTopic')}</span>
+                <span>
+                  {project.source_type === 'script'
+                    ? t('studio.storyboard.tagFullScript')
+                    : t('studio.storyboard.tagOneLineTopic')}
+                </span>
               </div>
             </article>
             <article className="pf-create-col">
-              <h3>Tóm tắt cấu trúc</h3>
+              <h3>{t('studio.storyboard.structureHeading')}</h3>
               <ul className="pf-meta-list">
                 {structure.length ? (
                   structure.map((s) => (
@@ -967,8 +989,8 @@ export default function StoryboardPage() {
                   ))
                 ) : (
                   <li>
-                    <span>Chờ storyboard</span>
-                    <span>—</span>
+                    <span>{t('studio.storyboard.structureWaiting')}</span>
+                    <span>{t('studio.shared.dash')}</span>
                   </li>
                 )}
               </ul>
@@ -977,16 +999,16 @@ export default function StoryboardPage() {
 
           <section className="pf-shot-card">
             <div className="pf-shot-card-head">
-              <h3>Danh sách storyboard (tổng {project.shots.length} cảnh)</h3>
+              <h3>{t('studio.storyboard.shotListHeading', { count: project.shots.length })}</h3>
               <div className="pf-toolbar">
                 {project.status === 'DONE' && hasFinal ? (
                   <button type="button" className="pf-btn pf-btn-lime pf-btn-sm" disabled={busy} onClick={publish}>
-                    Phát hành
+                    {t('studio.storyboard.publish')}
                   </button>
                 ) : null}
                 {hasFinal ? (
                   <button type="button" className="pf-btn pf-btn-ghost pf-btn-sm" onClick={openFinalPreview}>
-                    Xem phim
+                    {t('studio.storyboard.watchFilm')}
                   </button>
                 ) : (
                   <button
@@ -995,7 +1017,7 @@ export default function StoryboardPage() {
                     disabled={busy || running || !readyToCompose}
                     onClick={composeOnly}
                   >
-                    Ghép phim
+                    {t('studio.storyboard.compose')}
                   </button>
                 )}
               </div>
@@ -1006,17 +1028,12 @@ export default function StoryboardPage() {
                   <img src={getDramaImageStylePreviewUrl(EMPTY_ART.board)} alt="" />
                 </span>
                 <p className="pf-muted">
-                  {running
-                    ? 'Đang chia các cảnh quay…'
-                    : 'Chưa có storyboard. Bắt đầu tạo ở trang cấu hình phong cách, duyệt và sửa xong bạn mới bấm tạo ảnh.'}
+                  {running ? t('studio.storyboard.boardEmptyRunning') : t('studio.storyboard.boardEmpty')}
                 </p>
               </div>
             ) : needsScriptConfirm ? (
               <p className="pf-muted" style={{ margin: '0 0 1rem' }}>
-                Storyboard đã sẵn sàng. Bấm cột “Lời dẫn” để sửa lời đọc (kịch bản sẽ đồng bộ và
-                ảnh hưởng tới lồng tiếng cả phim), bấm cột “Storyboard theo đoạn” để chỉnh nhịp hình
-                và @duration. Duyệt xong hãy bấm: phí trừ theo từng bước — ảnh + lồng tiếng → video
-                từng cảnh → ghép phim.
+                {t('studio.storyboard.confirmHint')}
               </p>
             ) : null}
             {project.shots.length === 0 ? null : (
@@ -1024,13 +1041,13 @@ export default function StoryboardPage() {
                 <table className="pf-shot-table">
                   <thead>
                     <tr>
-                      <th className="col-no">Cảnh</th>
-                      <th className="col-thumb">Hình ảnh</th>
-                      <th className="col-narr">Lời dẫn / thoại</th>
-                      <th className="col-seg">Storyboard theo đoạn</th>
-                      <th className="col-dur">Thời lượng</th>
-                      <th className="col-status">Trạng thái</th>
-                      <th className="col-ops">Thao tác</th>
+                      <th className="col-no">{t('studio.storyboard.colNo')}</th>
+                      <th className="col-thumb">{t('studio.storyboard.colThumb')}</th>
+                      <th className="col-narr">{t('studio.storyboard.colNarr')}</th>
+                      <th className="col-seg">{t('studio.storyboard.colSeg')}</th>
+                      <th className="col-dur">{t('studio.storyboard.colDur')}</th>
+                      <th className="col-status">{t('studio.storyboard.colStatus')}</th>
+                      <th className="col-ops">{t('studio.storyboard.colOps')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1052,7 +1069,10 @@ export default function StoryboardPage() {
                       const done = shotDisplayDone(displayKind)
                       const failed = displayKind === 'failed'
                       const sceneTitle =
-                        shot.overlay_title?.trim() || `Cảnh ${String(shot.shot_no).padStart(2, '0')}`
+                        shot.overlay_title?.trim() ||
+                        t('studio.storyboard.shotFallbackTitle', {
+                          no: String(shot.shot_no).padStart(2, '0'),
+                        })
                       const narration = (shot.narration || '').trim()
                       const script = shot.segment_script || shot.video_prompt || ''
                       const { cues, beats } = parseSegmentScript(script)
@@ -1064,7 +1084,7 @@ export default function StoryboardPage() {
                             <button
                               type="button"
                               className="pf-shot-thumb-btn"
-                              aria-label={`Xem trước ${sceneTitle}`}
+                              aria-label={t('studio.storyboard.previewShotAria', { title: sceneTitle })}
                               onClick={() =>
                                 setPreview({
                                   kind: 'shot',
@@ -1072,7 +1092,7 @@ export default function StoryboardPage() {
                                   imageUrl: shot.image_url,
                                   videoUrl: shot.video_url,
                                   audioUrl: shot.audio_url,
-                                  caption: shotCaption(shot),
+                                  caption: shotCaption(shot, t),
                                 })
                               }
                             >
@@ -1099,7 +1119,9 @@ export default function StoryboardPage() {
                                     loading="lazy"
                                   />
                                   <span className="studio-still-note">
-                                    {shotGenerating ? 'Đang tạo' : 'Chờ tạo ảnh'}
+                                    {shotGenerating
+                                      ? t('studio.storyboard.cellGenerating')
+                                      : t('studio.storyboard.cellWaitImage')}
                                   </span>
                                 </span>
                               )}
@@ -1110,7 +1132,7 @@ export default function StoryboardPage() {
                               type="button"
                               className="pf-shot-narration pf-shot-editable"
                               disabled={rowBusy}
-                              title="Bấm để sửa lời dẫn và tiêu đề"
+                              title={t('studio.storyboard.narrationEditTitle')}
                               onClick={() => openShotEdit(shot, 'narration')}
                             >
                               <span className="title">{sceneTitle}</span>
@@ -1124,7 +1146,7 @@ export default function StoryboardPage() {
                               type="button"
                               className="pf-shot-desc pf-shot-editable"
                               disabled={rowBusy}
-                              title="Bấm để sửa kịch bản storyboard theo từng đoạn"
+                              title={t('studio.storyboard.segmentEditTitle')}
                               onClick={() => openShotEdit(shot, 'segment_script')}
                               style={{ textAlign: 'left', width: '100%' }}
                             >
@@ -1161,12 +1183,12 @@ export default function StoryboardPage() {
                                   ))}
                                   {beats.length > 4 ? (
                                     <span className="pf-muted" style={{ fontSize: '0.75rem' }}>
-                                      Còn {beats.length - 4} đoạn…
+                                      {t('studio.storyboard.moreSegments', { count: beats.length - 4 })}
                                     </span>
                                   ) : null}
                                 </div>
                               ) : (
-                                desc || '(bấm để điền storyboard theo đoạn)'
+                                desc || t('studio.storyboard.segmentEmpty')
                               )}
                             </button>
                           </td>
@@ -1192,7 +1214,7 @@ export default function StoryboardPage() {
                                 disabled={rowBusy}
                                 onClick={() => openShotEdit(shot)}
                               >
-                                Sửa
+                                {t('studio.storyboard.opEdit')}
                               </button>
                               <button
                                 type="button"
@@ -1200,23 +1222,29 @@ export default function StoryboardPage() {
                                 disabled={rowBusy}
                                 onClick={() => regenImage(shot)}
                               >
-                                {shot.image_url ? 'Vẽ lại ảnh' : 'Tạo ảnh'}
+                                {shot.image_url
+                                  ? t('studio.storyboard.opRedraw')
+                                  : t('studio.storyboard.opCreateImage')}
                               </button>
                               {isFullPipeline ? (
                                 <button
                                   type="button"
                                   className="op op-video"
                                   disabled={rowBusy || !shot.image_url}
-                                  title={!shot.image_url ? 'Hãy tạo ảnh cho cảnh này trước' : undefined}
+                                  title={
+                                    !shot.image_url ? t('studio.storyboard.needImageFirst') : undefined
+                                  }
                                   onClick={() => regenVideo(shot)}
                                 >
-                                  {shot.video_url ? 'Tạo lại video' : 'Tạo video'}
+                                  {shot.video_url
+                                    ? t('studio.storyboard.opRegenVideo')
+                                    : t('studio.storyboard.opCreateVideo')}
                                 </button>
                               ) : null}
                               <button
                                 type="button"
                                 className="more"
-                                aria-label="Thao tác khác"
+                                aria-label={t('studio.storyboard.moreOpsAria')}
                                 disabled={rowBusy}
                                 onClick={(e) => {
                                   e.stopPropagation()
@@ -1235,7 +1263,7 @@ export default function StoryboardPage() {
                                       regenAudio(shot)
                                     }}
                                   >
-                                    Lồng tiếng lại
+                                    {t('studio.storyboard.menuRegenAudio')}
                                   </button>
                                 </div>
                               ) : null}
@@ -1250,19 +1278,21 @@ export default function StoryboardPage() {
             )}
             <div className="pf-shot-footer">
               <span className="pf-muted" style={{ fontSize: '0.82rem' }}>
-                Tổng thời lượng: {formatMmSs(totalDuration)} | Ảnh: {project.shots.length} | Âm
-                thanh: {project.shots.filter((s) => s.audio_url).length} đoạn | Độ phân giải: xem
-                trước
+                {t('studio.storyboard.footerTotals', {
+                  duration: formatMmSs(totalDuration),
+                  images: project.shots.length,
+                  audio: project.shots.filter((s) => s.audio_url).length,
+                })}
               </span>
               <div className="pf-toolbar">
                 <button
                   type="button"
                   className="pf-btn pf-btn-ghost pf-btn-sm pf-btn-icon"
                   disabled={shots.length === 0}
-                  onClick={() => downloadStoryboardCsv(project)}
+                  onClick={() => downloadStoryboardCsv(project, csvHeader)}
                 >
                   <IconDownload size={15} />
-                  Xuất kịch bản storyboard
+                  {t('studio.storyboard.exportScript')}
                 </button>
                 <button
                   type="button"
@@ -1271,7 +1301,7 @@ export default function StoryboardPage() {
                   onClick={deleteProject}
                 >
                   <IconTrash size={15} />
-                  Xoá dự án
+                  {t('studio.storyboard.deleteProject')}
                 </button>
               </div>
             </div>
@@ -1279,7 +1309,7 @@ export default function StoryboardPage() {
         </div>
 
         <aside className="pf-create-col pf-board-settings">
-          <h3>Tiến độ tạo</h3>
+          <h3>{t('studio.storyboard.progressHeading')}</h3>
           <ul className="pf-progress-list">
             {progressItems.map((item) => (
               <li key={item.label}>
@@ -1308,9 +1338,12 @@ export default function StoryboardPage() {
       {batchOpen && project ? (
         <div className="modal-backdrop" onClick={() => !busy && setBatchOpen(false)}>
           <div className="modal studio-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Chỉnh hàng loạt storyboard</h3>
+            <h3>{t('studio.storyboard.batchTitle')}</h3>
             <p className="pf-muted" style={{ marginTop: 0 }}>
-              Đã chọn {batchSelected.length} / {project.shots.length} cảnh quay
+              {t('studio.storyboard.batchSelected', {
+                selected: batchSelected.length,
+                total: project.shots.length,
+              })}
             </p>
             <div className="studio-pick-list">
               <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
@@ -1321,7 +1354,7 @@ export default function StoryboardPage() {
                     setBatchSelected(e.target.checked ? project.shots.map((s) => s.id) : [])
                   }
                 />
-                Chọn tất cả
+                {t('studio.storyboard.batchSelectAll')}
               </label>
               {project.shots
                 .slice()
@@ -1340,18 +1373,20 @@ export default function StoryboardPage() {
                         )
                       }
                     />
-                    Cảnh quay {String(s.shot_no).padStart(2, '0')} ·{' '}
-                    {formatMmSs(shotDisplayDurationSec(s))}
+                    {t('studio.storyboard.batchShotRow', {
+                      no: String(s.shot_no).padStart(2, '0'),
+                    })}{' '}
+                    · {formatMmSs(shotDisplayDurationSec(s))}
                   </label>
                 ))}
             </div>
             <label>
-              Thời lượng đồng nhất (giây, để trống nếu không đổi)
+              {t('studio.storyboard.batchDurationLabel')}
               <input
                 type="number"
                 min={1}
                 step={0.5}
-                placeholder="Ví dụ 6"
+                placeholder={t('studio.storyboard.batchDurationPlaceholder')}
                 value={batchDuration}
                 onChange={(e) => setBatchDuration(e.target.value)}
               />
@@ -1362,7 +1397,7 @@ export default function StoryboardPage() {
                 checked={batchRegenAudio}
                 onChange={(e) => setBatchRegenAudio(e.target.checked)}
               />
-              Lồng tiếng lại cho các cảnh đã chọn
+              {t('studio.storyboard.batchRegenAudio')}
             </label>
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
               <button
@@ -1371,7 +1406,7 @@ export default function StoryboardPage() {
                 disabled={busy || batchSelected.length === 0}
                 onClick={applyBatchAdjust}
               >
-                Áp dụng
+                {t('studio.storyboard.apply')}
               </button>
               <button
                 type="button"
@@ -1379,7 +1414,7 @@ export default function StoryboardPage() {
                 disabled={busy}
                 onClick={() => setBatchOpen(false)}
               >
-                Huỷ
+                {t('studio.shared.cancel')}
               </button>
             </div>
           </div>
@@ -1401,39 +1436,37 @@ export default function StoryboardPage() {
           >
             <h3>
               {editMode === 'narration'
-                ? `Sửa cảnh quay ${editing.shot_no} · Lời dẫn và tiêu đề`
+                ? t('studio.storyboard.editShotNarrationTitle', { no: editing.shot_no })
                 : editMode === 'segment'
-                  ? `Sửa cảnh quay ${editing.shot_no} · Storyboard theo đoạn`
-                  : `Sửa cảnh quay ${editing.shot_no} · Toàn bộ prompt`}
+                  ? t('studio.storyboard.editShotSegmentTitle', { no: editing.shot_no })
+                  : t('studio.storyboard.editShotFullTitle', { no: editing.shot_no })}
             </h3>
             <div className="pf-prompt-modal-scroll">
               {editMode === 'narration' || editMode === 'full' ? (
                 <>
                   <label>
-                    Tiêu đề cảnh quay
+                    {t('studio.storyboard.fieldOverlayTitle')}
                     <input
                       autoFocus={editFocus === 'title' || editMode === 'narration'}
                       value={editing.overlay_title || ''}
                       onChange={(e) => setEditing({ ...editing, overlay_title: e.target.value })}
                     />
                     <span className="pf-muted pf-prompt-hint">
-                      Tên hiển thị trong danh sách storyboard; chế độ ảnh tĩnh sẽ đè lên đầu khung
-                      hình
+                      {t('studio.storyboard.fieldOverlayTitleHint')}
                     </span>
                   </label>
                   <label>
-                    Tiêu đề phụ
+                    {t('studio.storyboard.fieldOverlaySubtitle')}
                     <input
                       value={editing.overlay_subtitle || ''}
                       onChange={(e) => setEditing({ ...editing, overlay_subtitle: e.target.value })}
                     />
                     <span className="pf-muted pf-prompt-hint">
-                      Dòng chữ đè trong chế độ ảnh tĩnh; chế độ AI video không khắc dòng này, nó chỉ
-                      làm ghi chú cho storyboard
+                      {t('studio.storyboard.fieldOverlaySubtitleHint')}
                     </span>
                   </label>
                   <label>
-                    Lời dẫn
+                    {t('studio.storyboard.fieldNarration')}
                     <textarea
                       autoFocus={editFocus === 'narration'}
                       value={editing.narration}
@@ -1441,15 +1474,14 @@ export default function StoryboardPage() {
                       rows={editMode === 'narration' ? 6 : 3}
                     />
                     <span className="pf-muted pf-prompt-hint">
-                      Đồng bộ vào đoạn lời dẫn của kịch bản và ảnh hưởng tới lồng tiếng cả phim (sửa
-                      xong cần tạo lại lồng tiếng hoặc ghép lại phim)
+                      {t('studio.storyboard.fieldNarrationHint')}
                     </span>
                   </label>
                 </>
               ) : null}
               {editMode === 'full' ? (
                 <label>
-                  Prompt hình ảnh (khung mở đầu)
+                  {t('studio.storyboard.fieldImgPrompt')}
                   <textarea
                     autoFocus={editFocus === 'img_prompt'}
                     value={editing.img_prompt}
@@ -1457,15 +1489,14 @@ export default function StoryboardPage() {
                     rows={3}
                   />
                   <span className="pf-muted pf-prompt-hint">
-                    Đồng bộ vào đoạn hình ảnh đầu tiên của kịch bản; cả tạo ảnh lẫn tạo video đều
-                    dùng đoạn này
+                    {t('studio.storyboard.fieldImgPromptHint')}
                   </span>
                 </label>
               ) : null}
               {editMode === 'segment' || editMode === 'full' ? (
                 <>
                   <label>
-                    Kịch bản storyboard theo đoạn (nhịp hình và @duration)
+                    {t('studio.storyboard.fieldSegmentScript')}
                     <textarea
                       className="pf-prompt-segment"
                       autoFocus={editFocus === 'segment_script' || editMode === 'segment'}
@@ -1484,7 +1515,7 @@ export default function StoryboardPage() {
                       ))
                     ) : (
                       <span className="pf-muted" style={{ fontSize: '0.8rem' }}>
-                        Chưa có nhãn @duration nào
+                        {t('studio.storyboard.noDurationTags')}
                       </span>
                     )}
                     <span
@@ -1495,14 +1526,17 @@ export default function StoryboardPage() {
                         color: editDurationCheck.valid ? undefined : 'var(--pf-danger, #c0392b)',
                       }}
                     >
-                      Tổng {editDurationCheck.total}s / {SHOT_DURATION_MAX}s
+                      {t('studio.storyboard.durationTotal', {
+                        total: editDurationCheck.total,
+                        max: SHOT_DURATION_MAX,
+                      })}
                     </span>
                   </div>
                   {!editDurationCheck.valid && editDurationCheck.message ? (
                     <p className="pf-error pf-prompt-duration-error">{editDurationCheck.message}</p>
                   ) : null}
                   <label>
-                    Ghi chú cử động máy
+                    {t('studio.storyboard.fieldCamera')}
                     <input
                       value={editing.camera || ''}
                       onChange={(e) => setEditing({ ...editing, camera: e.target.value })}
@@ -1510,7 +1544,7 @@ export default function StoryboardPage() {
                   </label>
                   <div className="pf-prompt-modal-row">
                     <label>
-                      Thời lượng (giây, sau khi lưu sẽ tính lại theo @duration)
+                      {t('studio.storyboard.fieldDuration')}
                       <input
                         type="number"
                         value={editing.duration}
@@ -1531,7 +1565,7 @@ export default function StoryboardPage() {
                     setEditFocus('segment_script')
                   }}
                 >
-                  Storyboard theo đoạn…
+                  {t('studio.storyboard.switchSegment')}
                 </button>
               ) : null}
               {editMode !== 'narration' ? (
@@ -1543,7 +1577,7 @@ export default function StoryboardPage() {
                     setEditFocus('narration')
                   }}
                 >
-                  Lời dẫn và tiêu đề…
+                  {t('studio.storyboard.switchNarration')}
                 </button>
               ) : null}
               {editMode !== 'full' ? (
@@ -1555,7 +1589,7 @@ export default function StoryboardPage() {
                     setEditFocus('')
                   }}
                 >
-                  Toàn bộ trường
+                  {t('studio.storyboard.switchFull')}
                 </button>
               ) : null}
               <span className="pf-prompt-modal-foot-spacer" />
@@ -1565,10 +1599,10 @@ export default function StoryboardPage() {
                 disabled={busy || !editDurationCheck.valid}
                 onClick={saveShot}
               >
-                Lưu
+                {t('studio.shared.save')}
               </button>
               <button type="button" className="pf-btn pf-btn-ghost" onClick={closeShotEdit}>
-                Huỷ
+                {t('studio.shared.cancel')}
               </button>
             </div>
           </div>
@@ -1578,13 +1612,12 @@ export default function StoryboardPage() {
       {promptEdit ? (
         <div className="modal-backdrop" onClick={() => setPromptEdit(null)}>
           <div className="modal pf-prompt-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Prompt tích hợp của dự án</h3>
+            <h3>{t('studio.storyboard.projectPromptTitle')}</h3>
             <p className="pf-muted" style={{ fontSize: '0.8rem', marginTop: 0 }}>
-              Mặc định theo mẫu ở trang quản trị. Lưu nội dung trùng với mẫu sẽ tự xoá lớp ghi đè;
-              các cảnh đã tạo phải bấm tạo lại mới cập nhật.
+              {t('studio.storyboard.projectPromptHint')}
             </p>
             <label>
-              Prompt phong cách
+              {t('studio.storyboard.fieldStylePrompt')}
               <textarea
                 value={promptEdit.style_prompt}
                 onChange={(e) => setPromptEdit({ ...promptEdit, style_prompt: e.target.value })}
@@ -1592,7 +1625,7 @@ export default function StoryboardPage() {
               />
             </label>
             <label>
-              Prompt nhân vật
+              {t('studio.storyboard.fieldCharacterPrompt')}
               <textarea
                 autoFocus
                 value={promptEdit.character_prompt}
@@ -1601,7 +1634,7 @@ export default function StoryboardPage() {
               />
             </label>
             <label>
-              Yêu cầu bổ sung
+              {t('studio.storyboard.fieldExtraPrompt')}
               <textarea
                 value={promptEdit.extra_prompt}
                 onChange={(e) => setPromptEdit({ ...promptEdit, extra_prompt: e.target.value })}
@@ -1615,7 +1648,7 @@ export default function StoryboardPage() {
                 disabled={busy}
                 onClick={saveProjectPrompts}
               >
-                Lưu
+                {t('studio.shared.save')}
               </button>
               <button
                 type="button"
@@ -1623,10 +1656,10 @@ export default function StoryboardPage() {
                 disabled={busy}
                 onClick={() => void restoreTemplatePrompts()}
               >
-                Khôi phục mẫu gốc
+                {t('studio.storyboard.restoreTemplate')}
               </button>
               <button type="button" className="pf-btn pf-btn-ghost" onClick={() => setPromptEdit(null)}>
-                Huỷ
+                {t('studio.shared.cancel')}
               </button>
             </div>
           </div>
@@ -1638,10 +1671,12 @@ export default function StoryboardPage() {
           <div className="modal preview-modal" onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0 }}>
-                {preview.kind === 'final' ? preview.title : `Cảnh quay ${preview.shotNo}`}
+                {preview.kind === 'final'
+                  ? preview.title
+                  : t('studio.storyboard.previewShotTitle', { no: preview.shotNo })}
               </h3>
               <button type="button" className="pf-btn pf-btn-ghost pf-btn-sm" onClick={() => setPreview(null)}>
-                Đóng
+                {t('studio.shared.close')}
               </button>
             </div>
             {preview.kind === 'final' ? (
@@ -1659,7 +1694,7 @@ export default function StoryboardPage() {
             ) : (
               <div className="studio-still studio-still--placeholder studio-preview-none">
                 <img src={getDramaImageStylePreviewUrl(EMPTY_ART.shot)} alt="" />
-                <span className="studio-still-note">Cảnh này chưa có hình để xem trước</span>
+                <span className="studio-still-note">{t('studio.storyboard.previewNoImage')}</span>
               </div>
             )}
             {preview.kind === 'shot' && preview.audioUrl ? (
