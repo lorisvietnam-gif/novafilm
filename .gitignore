@@ -28,14 +28,17 @@ backend/.venv/
 .venv/
 venv/
 
-# Secrets & local env（仅允许 *.example 与 frontend/.env.production）
+# Secrets & local env — chỉ *.example được commit.
+# LƯU Ý: biến VITE_* của Vite được nướng thẳng vào bundle trình duyệt,
+# tức là công khai theo thiết kế. Đừng bao giờ đặt khoá API thật vào đây.
 .env
 .env.*
+**/.env
+**/.env.*
 !.env.example
 !.env.*.example
 !**/.env.example
 !**/.env.*.example
-!frontend/.env.production
 deploy/scripts/deploy_kepu.py
 deploy/scripts/deploy_kepu_8136.py
 deploy/scripts/deploy_kepu*.py
