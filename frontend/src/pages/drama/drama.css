@@ -7046,8 +7046,8 @@
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(120% 90% at 50% 20%, transparent 0%, var(--drama-still-veil, rgba(9, 12, 20, 0.55)) 100%),
-    linear-gradient(180deg, rgba(9, 12, 20, 0.18) 0%, rgba(9, 12, 20, 0.62) 100%);
+    radial-gradient(120% 90% at 50% 20%, transparent 0%, var(--pf-veil) 100%),
+    linear-gradient(180deg, rgb(var(--pf-scrim-rgb) / 0.18) 0%, var(--pf-veil-strong) 100%);
 }
 
 .drama-still-content {
@@ -7073,8 +7073,8 @@
   z-index: 1;
   padding: 4px 10px;
   border-radius: 999px;
-  background: var(--drama-still-chip, rgba(9, 12, 20, 0.62));
-  color: var(--drama-still-chip-ink, #f4f6fb);
+  background: var(--pf-on-media-chip);
+  color: var(--pf-on-media);
   font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -7101,6 +7101,29 @@
   filter: saturate(0.7);
 }
 
+/* Veil bắt buộc: chữ đặt trên ảnh phải đi qua --pf-veil, không đặt trực tiếp lên ảnh */
+.drama-episodes-empty::after,
+.drama-project-empty::after,
+.drama-episode-dir-empty::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    120% 100% at 50% 30%,
+    transparent 0%,
+    var(--pf-veil) 78%,
+    var(--pf-veil-strong) 100%
+  );
+}
+
+.drama-episodes-empty > *:not(img),
+.drama-project-empty > *:not(img),
+.drama-episode-dir-empty > *:not(img) {
+  position: relative;
+  z-index: 1;
+}
+
 .drama-episodes-empty > p,
 .drama-project-empty > p {
   max-width: 34ch;
@@ -7123,7 +7146,8 @@
   opacity: 0.26;
   filter: saturate(0.78);
 }
-
+/* Hero này giữ chữ bằng thang ink bình thường, nên lớp phủ phải nghiêng về
+   màu surface chứ không phải scrim tối — nếu phủ tối thì tiêu đề sẽ chết. */
 .drama-step-hero::after {
   content: '';
   position: absolute;
@@ -7131,9 +7155,9 @@
   pointer-events: none;
   background: linear-gradient(
     100deg,
-    var(--drama-card) 0%,
-    rgba(9, 12, 20, 0.58) 46%,
-    rgba(9, 12, 20, 0.34) 100%
+    color-mix(in srgb, var(--pf-surface) 94%, transparent) 0%,
+    color-mix(in srgb, var(--pf-surface) 80%, transparent) 46%,
+    color-mix(in srgb, var(--pf-surface) 62%, transparent) 100%
   );
 }
 

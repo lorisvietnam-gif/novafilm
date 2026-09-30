@@ -83,7 +83,8 @@ retints automatically in dark mode, which is how the 39 alpha-accent values in
 | `--pf-accent-hover` | `#ebb81e` (500) | `#ebb81e` (500) | hover fill |
 | `--pf-accent-active` | `#c19315` (600) | `#c19315` (600) | pressed fill |
 | `--pf-on-accent` | `#1c1c1a` | `#0e0e11` | text **on** the fill — 10.76 / 12.15:1 |
-| `--pf-accent-ink` | `#6a5116` (800) | `#f8dc87` (300) | accent-toned text on a surface — 7.50 / 13.39:1 |
+| `--pf-accent-on-fill` | `#1c1c1a` | `#0e0e11` | **the only token for text on the yellow fill** — aliases `--pf-on-accent`, so it is correct in both themes by construction |
+| `--pf-accent-ink` | `#6a5116` (800) | `#f8dc87` (300) | accent-toned text on a surface — 7.50 / 13.39:1. **Never on the fill in dark** |
 | `--pf-accent-ink-soft` | `#926f16` (700) | `#f2c94c` (400) | large text only |
 | `--pf-accent-soft` | `#fef6dc` (100) | `#363229` (100) | tinted accent background |
 | `--pf-accent-soft-strong` | `#fceab6` (200) | `#484232` (200) | stronger tint |
@@ -106,6 +107,29 @@ and `/ 0.22` in dark. Those are alpha values, so they resolve to a
 `--pf-surface` but `#2f2b22` over `--pf-bg`. They now point at 100 and 200, the
 same relationship they have in light. The dark appearance is unchanged to the
 byte; what changed is that the wash no longer depends on its backdrop.
+
+### 2c. The one pairing that is illegal in dark, named so it cannot recur
+
+`--pf-accent-ink` and `--pf-accent` are both theme-aware, so putting one on the
+other reads fine in light and is unreadable in dark:
+
+| `--pf-accent-ink` on `--pf-accent` | Light | Dark |
+|---|---|---|
+| measured | **4.72:1 — pass** | **1.18:1 — total failure** |
+
+The cause is structural, not a bad value: in dark the ramp is *inverted* at the
+ink end (300 is the light step) while the fill stays 400. Two light steps on top
+of each other. `--pf-accent-on-fill` was added for exactly this reason — it
+aliases `--pf-on-accent`, which is near-black in both themes, so there is no
+theme in which it can fail. Measured on the fill: 10.76:1 light, 12.15:1 dark.
+
+An audit on 2026-09-30 confirmed no stylesheet currently pairs them: every
+`--pf-accent-ink` foreground in `printfilm.css` sits on `accent-50/100/200`,
+`--pf-accent-soft`, `--pf-lime-soft`, or a `color-mix` against a surface — all of
+which are dark-tinted in dark mode. So this is a guard, not a repair. The
+failure mode it prevents is the one that appears the moment someone writes
+`background: var(--pf-accent); color: var(--pf-accent-ink)`, which is a
+perfectly reasonable line to write and silently breaks only in dark.
 
 ### 2b. Why a fixed `color-mix` percentage is the same bug in disguise
 
@@ -138,14 +162,36 @@ yellow is a mid-tone, and a mid-tone is a colour that is illegible with
 | `--pf-line-hairline` | `#e4e5e9` | `#2a2a32` | decorative separator, 1.26:1 — **not** meaningful |
 | `--pf-line` | `#dcdee2` | `#32323b` | decorative border, 1.35:1 |
 | `--pf-line-strong` | `#b3b5bd` | `#45454f` | scrollbar thumbs, secondary borders |
-| `--pf-line-control` | `#8b8c94` | `#6a6b78` | **the only border allowed on a form control** — 3.35:1 / 3.66:1 |
+| `--pf-line-control` | `#84858d` | `#6a6b78` | **the only border allowed on a form control** — 3.67:1 on `#ffffff`, 3.45:1 on `#f7f8fa`, **3.28:1 on `#f1f2f5`** / 3.43:1 on `#16161a` |
 | `--pf-ink` | `#1c1c1a` | `#f5f5f7` | body text |
 | `--pf-ink-secondary` | `#55565c` | `#a9aab2` | supporting text |
 | `--pf-ink-tertiary` | `#6b6c74` | `#8d8e97` | metadata, helper text |
-| `--pf-ink-disabled` | `#8b8c94` | `#5c5d6a` | **inactive controls only**, 3.35:1 |
+| `--pf-ink-disabled` | `#8b8c94` | `#666773` | **inactive controls only**, 3.35:1 light / **3.22:1** dark |
 | `--pf-ink-inverse` | `#ffffff` | `#0e0e11` | text on an inverse surface |
 | `--pf-scrim-rgb` | `17 19 24` | `17 19 24` | scrims and media overlays — fixed dark in both themes |
 | `--pf-on-media` | `rgb(255 255 255 / 0.92)` | same | text on top of an image or video |
+
+### 3a. Text over photography — the veil tokens
+
+A still can be any brightness, so text sitting on an image is carried by an
+explicit darkening wash rather than by the surface ramp. The foreground is
+always `--pf-on-media`; the washes behind it are these three steps.
+
+| Token | Light | Dark | Use |
+|---|---|---|---|
+| `--pf-veil-soft` | `rgb(17 19 24 / 0.34)` | `rgb(6 7 10 / 0.42)` | a large decorative image behind a heading; content stays on `--pf-surface` |
+| `--pf-veil` | `rgb(17 19 24 / 0.56)` | `rgb(6 7 10 / 0.62)` | **default for any text over media** — the level at which `--pf-on-media` holds ≥4.5:1 across the whole tonal range of the still |
+| `--pf-veil-strong` | `rgb(17 19 24 / 0.74)` | `rgb(6 7 10 / 0.8)` | text over a bright still, or a caption strip that must not compete with the picture |
+| `--pf-on-media-chip` | `rgb(9 12 20 / 0.62)` | `rgb(6 7 10 / 0.68)` | the small pill that labels a placeholder image; paired with `--pf-on-media`, not with `--pf-ink` |
+
+The dark steps are *heavier*, not lighter, because the photograph underneath is
+already dark there — a 0.56 wash over an already-dark still would crush the
+picture without buying any contrast.
+
+Rule: **never put an empty-state label directly on an un-veiled image.** Pick a
+veil first. `drama.css` uses `--pf-veil` for every still it introduces, which is
+why the asset cards, the episode empty state and the canvas waiting frame read
+at the same weight as each other.
 
 ---
 
@@ -362,6 +408,45 @@ inks, and 600 is the only step that clears 3:1 on both — which is exactly why
 The focus ring clears 3:1 against every surface a control can land on in either
 theme, including all three accent tints it was previously never measured
 against.
+
+### 7b. Re-measurement after the Wave 2 token changes — two real failures fixed
+
+The Wave 2 brief required the contrast table to be produced from measurement
+rather than from the numbers already written here. Re-running the measurement
+over `tokens.css` found **two cells that the prose in this document asserted but
+the values did not deliver.** Both are fixed; nothing above this section needed
+revising, because neither token is a column in the 7a matrix.
+
+| Pair | Before | After | Threshold |
+|---|---|---|---|
+| `--pf-line-control` on `--pf-surface-sunken` (light) | `#8b8c94` → **2.99:1** | `#84858d` → **3.28:1** | 3:1 — WCAG 1.4.11 non-text |
+| `--pf-ink-disabled` on `--pf-surface` (dark) | `#5c5d6a` → **2.77:1** | `#666773` → **3.22:1** | 3:1 — WCAG 1.4.11 non-text |
+
+The first is the more interesting one, because the token's own comment claimed it
+"clears 3:1 against surface and surface-sunken". It cleared surface (3.35:1) and
+missed sunken by 0.01:1. `#f1f2f5` is the surface used for wells, table stripes
+and empty states, which is precisely where an input's border ends up — so this
+was a live failure, not a theoretical one, and it was invisible because
+`#8b8c94` looks fine on white at a glance.
+
+The replacement, `#84858d`, was found by walking the same hue down in 1% steps
+and taking the first value that clears 3:1 on the *worst* of the three light
+surfaces, so the token is now correct on all of them at once rather than on two:
+
+| `#84858d` on | Ratio |
+|---|---|
+| `#ffffff` `--pf-surface` | 3.67:1 |
+| `#f7f8fa` `--pf-bg` | 3.45:1 |
+| `#f1f2f5` `--pf-surface-sunken` | **3.28:1** |
+
+The second fix is a deliberate trade rather than a straight repair.
+`--pf-ink-disabled` is a *disabled* token, and WCAG 1.4.3 exempts inactive
+components from contrast minimums — so the original 2.77:1 was defensible as
+written (see section 8). It was raised anyway because the token is also used for
+disabled control **borders**, which fall under 1.4.11 and get no exemption. The
+new `#666773` still reads clearly as inactive against `--pf-ink-tertiary`
+(5.54:1, a clear two-step drop from 16.57:1 body ink), so the state is preserved
+while the component stops failing.
 
 ### Every accent background site, verified
 
