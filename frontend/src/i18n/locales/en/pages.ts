@@ -193,14 +193,14 @@ export const enPages = {
       {
         title: 'Enterprise / wire transfer',
         desc: 'For bulk credits, API partnerships, or invoices, email your company name and request.',
-        href: 'mailto:support@printfilm.com?subject=PRINTFILM%20Enterprise',
+        href: 'mailto:support@printfilm.com?subject=NOVAFILM%20Enterprise',
         actionLabel: 'Email partnerships',
       },
       {
         title: 'Open source',
         desc: 'Source, issues, and deployment docs are on GitHub. Stars, issues, and PRs welcome.',
-        href: 'https://github.com/yi1108/printfilm',
-        actionLabel: 'github.com/yi1108/printfilm',
+        href: 'https://github.com/lorisvietnam-gif/novafilm',
+        actionLabel: 'github.com/lorisvietnam-gif/novafilm',
       },
     ],
     topics: [

@@ -193,14 +193,14 @@ export const zhPages = {
       {
         title: '企业合作 / 对公转账',
         desc: '企业批量充值、API 合作或发票需求，请邮件说明公司名称与需求，我们会安排对接。',
-        href: 'mailto:support@printfilm.com?subject=PRINTFILM%20Enterprise',
+        href: 'mailto:support@printfilm.com?subject=NOVAFILM%20Enterprise',
         actionLabel: '发送合作邮件',
       },
       {
         title: '开源仓库',
         desc: '源码、Issue 与部署说明见 GitHub。欢迎 Star、提问题或贡献。',
-        href: 'https://github.com/yi1108/printfilm',
-        actionLabel: 'github.com/yi1108/printfilm',
+        href: 'https://github.com/lorisvietnam-gif/novafilm',
+        actionLabel: 'github.com/lorisvietnam-gif/novafilm',
       },
     ],
     topics: ['账号与登录', '充值与到账', '创作任务异常', '下载与素材', '隐私与账号注销', '其他'],

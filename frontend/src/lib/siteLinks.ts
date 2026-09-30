@@ -1,3 +1,3 @@
-/** 站外固定链接（开源仓库等） */
+/** Liên kết cố định ra ngoài site (kho mã nguồn mở, v.v.) */
 
-export const GITHUB_REPO_URL = 'https://github.com/yi1108/printfilm'
+export const GITHUB_REPO_URL = 'https://github.com/lorisvietnam-gif/novafilm'

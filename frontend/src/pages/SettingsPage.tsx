@@ -13,7 +13,7 @@ import ComingSoon from '../components/ui/ComingSoon'
 import { dramaProjectEntryPath, formatDramaCardMeta } from '../lib/dramaWorkflow'
 import { STATUS_CN } from '../lib/status'
 import SettingsToolRunsPanel from './SettingsToolRunsPanel'
-import { formatDateTime, useI18n } from '../i18n'
+import { formatDateTime, useI18n, type Locale } from '../i18n'
 
 type SettingsTab =
   | 'account'
@@ -61,7 +61,7 @@ function parseTab(raw: string | null): SettingsTab {
 }
 
 // 格式化相对时间展示
-function formatWhen(iso: string | undefined, locale: 'zh' | 'en') {
+function formatWhen(iso: string | undefined, locale: Locale) {
   return formatDateTime(iso, locale)
 }
 
