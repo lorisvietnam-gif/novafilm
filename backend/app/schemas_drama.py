@@ -16,7 +16,7 @@ class DramaProjectCreate(BaseModel):
     source: str = Field(default="", description="原始创意文案")
     episode_count: int = Field(default=12, ge=1, le=120)
     image_style_id: str = Field(default="")
-    # script=大纲分集流程；canvas=自由画布
+    # script = outline/episode flow; canvas = free canvas
     workflow: str = Field(default="script", description="script | canvas")
     params: dict[str, Any] | None = None
 
@@ -56,7 +56,7 @@ class DramaAssetOut(BaseModel):
 
 
 class DramaProjectUsageStats(BaseModel):
-    """单部漫剧累计用量：费用与生图/生视频次数。"""
+    """Cumulative usage for one drama: cost plus image/video generation counts."""
 
     charge_fen: int = 0
     charge_yuan: float = 0.0
@@ -69,7 +69,7 @@ class DramaProjectUsageStats(BaseModel):
 
 
 class SeedAssetsFromScriptOut(BaseModel):
-    """从剧本抽取/刷新资产的结果统计。"""
+    """Result statistics from extracting or refreshing assets out of a script."""
 
     assets: list[DramaAssetOut] = Field(default_factory=list)
     created_count: int = 0
@@ -158,16 +158,16 @@ class DramaScriptSummaryRequest(BaseModel):
 
 class DramaEpisodeScriptRequest(BaseModel):
     project_id: int
-    # 与原项目一致：默认逐集生成，降低超时/截断导致「只出一半」的风险
+    # Same as the original project: generate one episode at a time by default, to reduce the risk of a timeout or truncation producing "only half"
     batch_size: int = Field(default=1, ge=1, le=12)
-    # 强制重写：清空已有正文（保留集名），再按新提示词生成
+    # Force a rewrite: clear the existing body (keeping the episode title), then regenerate with the new prompt
     force: bool = False
-    # 只优化/生成这一集；与 draft 一起用于「粘贴剧本 → AI 优化」
+    # Optimise or generate only this one episode; used together with draft for "paste a script -> AI optimise"
     episode_number: int | None = Field(default=None, ge=1, le=120)
     draft: str | None = Field(default=None, max_length=50000)
-    # optimize=草稿优化；summary=创意→摘要；body=创意+摘要→正文；full=一键摘要+正文；brief=正文→创意+摘要
+    # optimize = refine the draft; summary = idea -> summary; body = idea + summary -> body; full = one-click summary + body; brief = body -> idea + summary
     generate_mode: str | None = Field(default=None, max_length=32)
-    # 可选：生成前写入本集创意（并保存）
+    # Optional: store this episode's idea before generating (and persist it)
     creative: str | None = Field(default=None, max_length=20000)
     title: str | None = Field(default=None, max_length=40)
 
@@ -213,13 +213,13 @@ class DramaImageGenerateRequest(BaseModel):
     prompt: str
     name: str | None = None
     asset_type_kind: str = "character"
-    # 内置风格 ID（可缺省，回退项目/剧本 params.image_style_id）
+    # Built-in style id (optional; falls back to the project's or the script's params.image_style_id)
     image_style_id: str | None = None
-    # 前端模型 ID：seedream-5.0 / seedream-4.5
+    # Front-end model id: seedream-5.0 / seedream-4.5
     model_id: str | None = None
-    # 输出比例，角色默认 3:4
+    # Output aspect ratio; 3:4 is the default for characters
     aspect_ratio: str | None = None
-    # 清晰度 3K / 4K
+    # Resolution 3K / 4K
     resolution: str | None = None
 
 
@@ -227,13 +227,13 @@ class DramaVideoGenerateRequest(BaseModel):
     project_id: int
     asset_id: int
     prompt: str
-    # 前端短名 seedance-2.5 / seedance-1.5，或完整接入点
+    # Front-end short name seedance-2.5 / seedance-1.5, or the full endpoint name
     model_id: str | None = None
     aspect_ratio: str | None = None
     resolution: str | None = None
     duration_sec: int | None = None
     image_style_id: str | None = None
-    # 画布连线带入的参考资产（与正文 @asset:id 合并）
+    # Reference assets dragged in on the canvas (merged with @asset:id in the body)
     reference_asset_ids: list[int] = Field(default_factory=list)
 
 
@@ -272,33 +272,33 @@ class DramaSaveFragmentsRequest(BaseModel):
 
 class DramaGenerateRequest(BaseModel):
     fragment_ids: list[int] | None = None
-    # 视频模型：后台 TokenFree 目录 id
+    # Video model: a catalogue id from the admin-configured TokenFree list
     model_id: str | None = Field(default=None, max_length=64)
 
 
 class DramaComposeEpisodeRequest(BaseModel):
-    # fragment_ids 仅拼接指定分镜；None 表示本集全部已有视频的分镜
+    # fragment_ids only concatenates the listed fragments; None means every fragment in this episode that already has a video
     fragment_ids: list[int] | None = None
 
 
 class DramaPlanFragmentsRequest(BaseModel):
-    # force 是否覆盖已有视频/手改分镜（单集 AI 重切默认 true）
+    # force whether to overwrite existing videos and hand-edited fragments (defaults to true for a per-episode AI re-split)
     force: bool = True
-    # fallback_rules LLM 失败时是否回退规则切分
+    # fallback_rules whether to fall back to rule-based splitting when the LLM fails
     fallback_rules: bool = True
-    # skill_ids 本次注入的 Agent Skill；None 表示全部启用，[] 表示不注入
+    # skill_ids the Agent Skills to inject this time; None means every enabled one, [] means inject nothing
     skill_ids: list[int] | None = None
-    # subtitle_enabled 是否为本次分镜注入字幕提示；None 表示沿用分集当前设置
+    # subtitle_enabled whether to inject subtitle hints into this storyboard; None keeps the episode's current setting
     subtitle_enabled: bool | None = None
 
 
 class DramaActivateVideoVersionRequest(BaseModel):
-    # version_id 历史成片版本 id（params.video_versions[].id）
+    # version_id the archived film version id (params.video_versions[].id)
     version_id: str = Field(..., min_length=1, max_length=128)
 
 
 class DramaActivateImageVersionRequest(BaseModel):
-    # version_id 资产形象历史版本 id（params.image_versions[].id）
+    # version_id the archived asset-look version id (params.image_versions[].id)
     version_id: str = Field(..., min_length=1, max_length=128)
 
 

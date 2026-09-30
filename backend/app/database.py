@@ -1,4 +1,4 @@
-"""Async SQLAlchemy engine / session for API and task runtime（仅 PostgreSQL）。"""
+"""Async SQLAlchemy engine / session for API and task runtime (PostgreSQL only)."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ class Base(DeclarativeBase):
 
 
 def _require_postgres(url: str) -> None:
-    """拒绝非 Postgres 连接串，避免误连 SQLite。"""
+    """Refuse a non-Postgres connection string so we cannot accidentally point at SQLite."""
     if not (url or "").startswith("postgresql"):
         raise RuntimeError(
             "仅支持 PostgreSQL。请设置 DATABASE_URL=postgresql+asyncpg://..."

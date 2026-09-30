@@ -11,7 +11,7 @@ security = HTTPBearer(auto_error=False)
 
 
 async def _user_from_bearer(db: AsyncSession, token: str) -> User | None:
-    """Bearer 令牌换用户：pf_ 前缀走 API Key，否则按 JWT 解析。"""
+    """Resolve a user from a Bearer token: the pf_ prefix means an API key, otherwise parse it as a JWT."""
     if token.startswith(API_KEY_PREFIX):
         return await user_from_api_key(db, token)
     sub = decode_token(token)
@@ -41,7 +41,7 @@ async def get_api_user(
     db: AsyncSession = Depends(get_db),
     x_api_key: str | None = Header(default=None, alias="X-Api-Key"),
 ) -> User:
-    """对外 API：支持 JWT 或 pf_live_ API Key（Bearer / X-Api-Key）。"""
+    """Public API: accepts a JWT or a pf_live_ API key (Bearer / X-Api-Key)."""
     token = (x_api_key or "").strip()
     if not token and creds:
         token = creds.credentials

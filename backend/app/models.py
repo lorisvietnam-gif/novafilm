@@ -47,9 +47,9 @@ class User(Base):
     # user | admin
     role: Mapped[str] = mapped_column(String(16), default="user")
     avatar_url: Mapped[str] = mapped_column(String(512), default="")
-    # 联系手机，仅记录，不走短信验证
+    # Contact phone number, recorded only, no SMS verification
     phone: Mapped[str] = mapped_column(String(32), default="")
-    # 用户消费里程碑告警：上次已提醒的累计扣费档位（分）
+    # User spending milestone alert: the cumulative charge bracket (in fen) last notified
     billing_alert_last_milestone_fen: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -57,7 +57,7 @@ class User(Base):
 
 
 class BillingAlertNotification(Base):
-    """待展示的用户额度告警（弹窗）。"""
+    """A user quota alert awaiting display (as a popup)."""
 
     __tablename__ = "billing_alert_notifications"
 
@@ -109,10 +109,10 @@ class Project(Base):
     cover_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     final_video_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     resolution_mode: Mapped[str] = mapped_column(String(16), default="preview")  # preview | hd
-    # full = 图→视频→配音→合成；image_text = 静图+叠字+配音+Ken Burns（跳过 AI 视频）
-    # 由用户选择，不由模板锁定
+    # full = image -> video -> narration -> compose; image_text = stills + overlay text + narration + Ken Burns (skips AI video)
+    # Chosen by the user, not locked by the template
     pipeline_mode: Mapped[str] = mapped_column(String(32), default="full")
-    # 输出画幅，如 16:9 / 9:16；空则回退模板 default_ratio
+    # Output aspect ratio, e.g. 16:9 / 9:16; empty falls back to the template's default_ratio
     output_ratio: Mapped[str] = mapped_column(String(16), default="")
     # TTS voice id (openspeech speaker or preset alias); empty → template default
     voice_id: Mapped[str] = mapped_column(String(128), default="")
@@ -120,13 +120,13 @@ class Project(Base):
     character_bible: Mapped[str] = mapped_column(Text, default="")
     # Project-level BGM mood lock (same across shots)
     bgm_lock: Mapped[str] = mapped_column(Text, default="")
-    # 科普成片字幕预设：standard | large | split
+    # Explainer film subtitle preset: standard | large | split
     subtitle_preset: Mapped[str] = mapped_column(String(32), default="")
     # User overrides from studio (optional)
     style_prompt: Mapped[str] = mapped_column(Text, default="")
     character_prompt: Mapped[str] = mapped_column(Text, default="")
     extra_prompt: Mapped[str] = mapped_column(Text, default="")
-    # 科普图/视频模型；空则走后台 TokenFree 默认
+    # Explainer image/video model; empty uses the admin-configured TokenFree default
     image_model: Mapped[str] = mapped_column(String(64), default="")
     video_model: Mapped[str] = mapped_column(String(64), default="")
     ref_image_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
@@ -152,9 +152,9 @@ class Shot(Base):
     project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), index=True)
     shot_no: Mapped[int] = mapped_column(Integer)
     duration: Mapped[float] = mapped_column(Float, default=4.0)
-    narration: Mapped[str] = mapped_column(Text, default="")  # TTS 旁白
-    overlay_title: Mapped[str] = mapped_column(String(128), default="")  # 图文顶部大标题
-    overlay_subtitle: Mapped[str] = mapped_column(String(256), default="")  # 图文顶部副标题（叠字）
+    narration: Mapped[str] = mapped_column(Text, default="")  # TTS narration
+    overlay_title: Mapped[str] = mapped_column(String(128), default="")  # Large title at the top of a stills film
+    overlay_subtitle: Mapped[str] = mapped_column(String(256), default="")  # Burned-in subtitle at the top of a stills film
     img_prompt: Mapped[str] = mapped_column(Text, default="")
     video_prompt: Mapped[str] = mapped_column(Text, default="")
     # Manju-style timed segment script (@duration + production cues)
@@ -166,7 +166,7 @@ class Shot(Base):
     video_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     last_frame_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     audio_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
-    # 跳过 AI 视频的原因（privacy=真人隐私拦截，静图合成）；NULL 表示正常出视频
+    # Why AI video was skipped (privacy = real-person privacy block, compose from stills); NULL means video is being generated normally
     video_skip_reason: Mapped[str | None] = mapped_column(String(32), nullable=True)
     status: Mapped[str] = mapped_column(String(32), default=ShotStatus.PENDING)
     version: Mapped[int] = mapped_column(Integer, default=1)
@@ -234,7 +234,7 @@ class UsageEvent(Base):
 
 
 class UpstreamUsageDaily(Base):
-    """TokenFree / New API 官方日用量快照，用于与本地 usage_events 对照。"""
+    """Daily usage snapshot from the TokenFree / New API console, for reconciling against local usage_events."""
 
     __tablename__ = "upstream_usage_daily"
 
@@ -279,7 +279,7 @@ class Order(Base):
 
 
 class ToolRun(Base):
-    """独立创作工具一次生成记录，供个人中心回看。"""
+    """One generation run from the standalone tool centre, shown again in the personal centre."""
 
     __tablename__ = "tool_runs"
 
