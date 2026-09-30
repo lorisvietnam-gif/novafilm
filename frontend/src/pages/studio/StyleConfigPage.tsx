@@ -9,8 +9,12 @@ import { IconChevronLeft, IconPlay } from '../../components/ui/Icons'
 import BillingErrorNotice from '../../components/billing/BillingErrorNotice'
 import { useI18n } from '../../i18n'
 import { handleBillingError } from '../../lib/billingError'
+import { homeCategoryLabel } from '../../lib/categories'
+import { mediaModelDescription } from '../../lib/mediaModelLabels'
 import { kepuStepIndex, kepuSteps } from '../../lib/status'
 import { getDramaImageStylePreviewUrl } from '../../lib/dramaImageStylePreviews'
+import { templateNameLabel } from '../../lib/templateLabels'
+import { voiceLabel } from '../../lib/voiceLabels'
 import './studio.css'
 
 /** Chỉ giữ giá trị API của chế độ dựng; nhãn và mô tả lấy từ gói i18n */
@@ -276,10 +280,12 @@ export default function StyleConfigPage() {
               >
                 <img src={api.assetUrl(currentTpl.preview_cover)} alt="" />
               </div>
-              <p style={{ margin: '0.5rem 0 0', fontWeight: 600 }}>{currentTpl.name}</p>
+              <p style={{ margin: '0.5rem 0 0', fontWeight: 600 }}>
+                {templateNameLabel(currentTpl)}
+              </p>
               <div className="pf-tags">
                 {currentTpl.category.map((c) => (
-                  <span key={c}>{c}</span>
+                  <span key={c}>{homeCategoryLabel(c)}</span>
                 ))}
               </div>
             </div>
@@ -328,7 +334,7 @@ export default function StyleConfigPage() {
                     <span className="pf-style-opt-ratio">{currentTpl.default_ratio}</span>
                   ) : null}
                 </span>
-                <div className="cap">{currentTpl.name}</div>
+                <div className="cap">{templateNameLabel(currentTpl)}</div>
                 <div className="cap-sub">{t('studio.style.templateStyleCaption')}</div>
               </div>
             ) : null}
@@ -371,7 +377,7 @@ export default function StyleConfigPage() {
                       }
                     }}
                   >
-                    <strong className="pf-voice-name">{v.label}</strong>
+                    <strong className="pf-voice-name">{voiceLabel(v)}</strong>
                     <span className="pf-voice-meta">
                       {v.gender === 'female'
                         ? t('studio.style.voiceFemale')
@@ -408,7 +414,7 @@ export default function StyleConfigPage() {
             </div>
             {selectedVoice ? (
               <p className="pf-muted" style={{ fontSize: '0.78rem', margin: '0.55rem 0 0' }}>
-                {t('studio.style.voiceSelected', { name: selectedVoice.label })}
+                {t('studio.style.voiceSelected', { name: voiceLabel(selectedVoice) })}
               </p>
             ) : null}
           </div>
@@ -463,7 +469,7 @@ export default function StyleConfigPage() {
                         <span className="pf-model-badge">{t('studio.style.recommended')}</span>
                       ) : null}
                     </div>
-                    <div className="pf-model-opt-desc">{opt.description}</div>
+                    <div className="pf-model-opt-desc">{mediaModelDescription(opt)}</div>
                     <div className="pf-model-opt-provider">TokenFree</div>
                   </button>
                 ))}
@@ -491,7 +497,7 @@ export default function StyleConfigPage() {
                         <span className="pf-model-badge">{t('studio.style.recommended')}</span>
                       ) : null}
                     </div>
-                    <div className="pf-model-opt-desc">{opt.description}</div>
+                    <div className="pf-model-opt-desc">{mediaModelDescription(opt)}</div>
                     <div className="pf-model-opt-provider">TokenFree</div>
                   </button>
                 ))}
@@ -544,7 +550,7 @@ export default function StyleConfigPage() {
           <ul className="pf-meta-list">
             <li>
               <span>{t('studio.style.summaryStyle')}</span>
-              <span>{currentTpl?.name || t('studio.shared.dash')}</span>
+              <span>{currentTpl ? templateNameLabel(currentTpl) : t('studio.shared.dash')}</span>
             </li>
             <li>
               <span>{t('studio.style.summaryCharacter')}</span>
@@ -552,7 +558,9 @@ export default function StyleConfigPage() {
             </li>
             <li>
               <span>{t('studio.style.summaryVoice')}</span>
-              <span>{selectedVoice?.label || t('studio.style.summaryVoiceDefault')}</span>
+              <span>
+                {selectedVoice ? voiceLabel(selectedVoice) : t('studio.style.summaryVoiceDefault')}
+              </span>
             </li>
             <li>
               <span>{t('studio.style.summaryRatio')}</span>
@@ -578,7 +586,7 @@ export default function StyleConfigPage() {
               <IconPlay size={14} />
               {playingId === voiceKey(selectedVoice)
                 ? t('studio.style.stopPreview')
-                : t('studio.style.previewNamed', { name: selectedVoice.label })}
+                : t('studio.style.previewNamed', { name: voiceLabel(selectedVoice) })}
             </button>
           ) : null}
           {error ? <BillingErrorNotice message={error} style={{ marginTop: '0.75rem' }} /> : null}
