@@ -11,6 +11,7 @@
  */
 
 import { mkdirSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -100,6 +101,16 @@ async function getToken() {
   }
 }
 
+/** Backend trả `{ items: [...] }` chứ không phải mảng thuần. Quên chỗ này thì `ensureData()`
+ *  không bao giờ tái dùng được dữ liệu cũ và cứ tạo project mới mỗi lần chạy audit. */
+function asList(payload) {
+  if (Array.isArray(payload)) return payload
+  if (payload && Array.isArray(payload.items)) return payload.items
+  if (payload && Array.isArray(payload.data)) return payload.data
+  if (payload && Array.isArray(payload.results)) return payload.results
+  return []
+}
+
 /**
  * Tạo dữ liệu thật để các route có `:id` render được. Không có bước này thì storyboard,
  * trình soạn, chi tiết tập và canvas đều trống, và audit sẽ báo "0 ký tự Trung" một cách
@@ -109,11 +120,11 @@ async function ensureData(token) {
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
   const out = { studio: null, drama: null, episode: null }
 
-  const existing = await api('/api/projects', { headers })
-  if (Array.isArray(existing) && existing.length) out.studio = existing[0].id
+  const existing = asList(await api('/api/projects', { headers }))
+  if (existing.length) out.studio = existing[0].id
 
   if (!out.studio) {
-    const templates = await api('/api/templates', { headers })
+    const templates = asList(await api('/api/templates', { headers }))
     const t = templates[0]
     if (!t) throw new Error('khong co template nao de tao project')
     const created = await api('/api/projects', {
@@ -131,11 +142,11 @@ async function ensureData(token) {
   }
 
   const dramas = await api('/api/drama/projects', { headers })
-  if (Array.isArray(dramas) && dramas.length) {
+  if (asList(dramas).length) {
     out.drama = dramas[0].id
     try {
-      const eps = await api(`/api/drama/projects/${out.drama}/episodes`, { headers })
-      if (Array.isArray(eps) && eps.length) out.episode = eps[0].id
+      const eps = asList(await api(`/api/drama/projects/${out.drama}/episodes`, { headers }))
+      if (asList(eps).length) out.episode = eps[0].id
     } catch { /* chua co tap */ }
   }
 
@@ -154,8 +165,8 @@ async function ensureData(token) {
     })
     out.drama = created.id
     try {
-      const eps = await api(`/api/drama/projects/${out.drama}/episodes`, { headers })
-      if (Array.isArray(eps) && eps.length) out.episode = eps[0].id
+      const eps = asList(await api(`/api/drama/projects/${out.drama}/episodes`, { headers }))
+      if (asList(eps).length) out.episode = eps[0].id
     } catch { /* can co script moi co tap */ }
   }
 
@@ -182,6 +193,23 @@ async function main() {
   ]
 
   const { spawn } = await import('node:child_process')
+
+  // Chặn trước: nếu cổng debug còn bị chiếm bởi phiên Edge cũ, `/json/version` sẽ trả về
+  // phiên CŨ và mọi thứ ta làm sau đó đều nói với sai trình duyệt — trang trắng, không lỗi JS,
+  // đo ra số bịa. Thà báo lỗi còn hơn báo cáo sai.
+  try {
+    const stale = await fetch(`http://127.0.0.1:${PORT}/json/version`)
+    if (stale.ok) {
+      throw new Error(
+        `cong debug ${PORT} dang bi chiem boi mot Edge khac. `
+          + `Dong Edge cu: taskkill /F /IM msedge.exe /FI "WINDOWTITLE eq *headless*" `
+          + `roi chay lai. KHONG bo qua loi nay — ket qua se do sai.`,
+      )
+    }
+  } catch (e) {
+    if (e instanceof Error && e.message.startsWith('cong debug')) throw e
+  }
+
   const edge = spawn(EDGE, [
     '--headless=new',
     `--remote-debugging-port=${PORT}`,
@@ -323,7 +351,24 @@ async function main() {
     }
   }
 
-  edge.kill()
+  // Phải giết CẢ CÂY tiến trình. `edge.kill()` chỉ giết tiến trình cha; Edge còn hàng chục
+  // tiến trình con và tự giữ cổng debug. Lần đầu chỉ `kill()` cha nên script rò Edge mỗi lần
+  // chạy — tới lúc có 580 tiến trình mồ côi, cổng debug bị phiên Edge cũ chiếm, và audit
+  // nối nhầm vào phiên cũ: trang trắng hàng loạt mà KHÔNG có lỗi JS nào để bắt.
+  taskkillTree(edge.pid)
+}
+
+function taskkillTree(pid) {
+  if (!pid) return
+  try {
+    execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' })
+  } catch {
+    try {
+      process.kill(pid)
+    } catch {
+      /* da chet */
+    }
+  }
 }
 
 main().catch((e) => {
