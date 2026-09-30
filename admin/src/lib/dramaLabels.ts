@@ -1,3 +1,6 @@
+import { getActiveLocale } from "@/i18n/detect";
+import { messages } from "@/i18n/messages";
+
 /** 漫剧资产生成状态（与 params.generation.status 一致） */
 export const DRAMA_GENERATION_STATUSES = [
   "queued",
@@ -8,18 +11,16 @@ export const DRAMA_GENERATION_STATUSES = [
   "cancelled",
 ] as const;
 
-/** 漫剧生成状态中文标签（idle 仅用于分镜等无 params.generation 时的展示回退） */
+/**
+ * 漫剧生成状态标签（idle 仅用于分镜等无 params.generation 时的展示回退）。
+ *
+ * Mã trạng thái nằm trong cây pack dưới `labels.dramaGeneration` nên một mã mới
+ * phải có mặt ở cả ba ngôn ngữ thì mới biên dịch được. Tra trượt thì trả về
+ * chính mã, đúng như trước: trạng thái lạ từ backend vẫn phải hiện ra.
+ */
 export function dramaGenerationStatusLabel(status: string): string {
-  const map: Record<string, string> = {
-    queued: "排队中",
-    running: "生成中",
-    generating: "生成中",
-    done: "已完成",
-    failed: "失败",
-    cancelled: "已取消",
-    idle: "未开始",
-  };
-  return map[status] ?? status;
+  const m = messages[getActiveLocale()];
+  return m.labels.dramaGeneration[status as keyof typeof m.labels.dramaGeneration] ?? status;
 }
 
 /** 列表/详情展示：空值显示 — */
@@ -28,18 +29,8 @@ export function formatDramaGenerationStatus(status: string | null | undefined): 
   return dramaGenerationStatusLabel(status);
 }
 
-/** 漫剧资产类型中文标签 */
+/** 漫剧资产类型标签 */
 export function dramaAssetTypeLabel(type: string): string {
-  const map: Record<string, string> = {
-    character: "角色",
-    scene: "场景",
-    prop: "道具",
-    material: "素材",
-    narration: "旁白",
-    video: "视频",
-    audio: "音频",
-    text: "文本",
-    none: "未分类",
-  };
-  return map[type] ?? type;
+  const m = messages[getActiveLocale()];
+  return m.labels.dramaAssetType[type as keyof typeof m.labels.dramaAssetType] ?? type;
 }
