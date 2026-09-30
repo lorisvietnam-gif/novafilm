@@ -120,19 +120,13 @@ def client_credentials(spec: ProviderSpec, settings: Settings | None = None) -> 
 
 
 def require_provider(provider_id: str, settings: Settings | None = None) -> ProviderSpec:
-    """Trả về provider đã cấu hình, nếu không thì ném OAuthConfigError."""
-    spec = oauth_provider_spec(provider_id)
-    cfg = settings if settings is not None else get_settings()
-    if not all(client_credentials(spec, cfg)):
-        raise OAuthConfigError(f"{spec.label} 登录未配置")
-    return spec
-
-
-def oauth_provider_spec(provider_id: str) -> ProviderSpec:
-    """Tra registry, chỉ nhận provider bản dựng này thực sự chạy được."""
+    """Tra registry rồi đòi đủ cấu hình; thiếu thì ném OAuthConfigError."""
     spec = find_spec(provider_id)
     if spec is None or not spec.implemented:
         raise OAuthConfigError(f"未知的第三方登录方式: {provider_id}")
+    cfg = settings if settings is not None else get_settings()
+    if not all(client_credentials(spec, cfg)):
+        raise OAuthConfigError(f"{spec.label} 登录未配置")
     return spec
 
 

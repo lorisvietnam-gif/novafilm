@@ -8,7 +8,7 @@ import httpx
 import pytest
 
 from app.services import oauth, oauth_accounts
-from tests.oauth_fakes import fake_session, fake_settings, mock_transport, query_of
+from tests.oauth_fakes import fake_settings, mock_transport, query_of
 
 SETTINGS = fake_settings(facebook_client_id="fid", facebook_client_secret="fsecret")
 
