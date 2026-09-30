@@ -25,7 +25,7 @@
 }
 
 .auth-panel h1 {
-  font-family: 'Space Grotesk', 'Noto Sans SC', sans-serif;
+  font-family: 'Space Grotesk', 'Noto Sans', 'Noto Sans SC', sans-serif;
   font-size: 2rem;
   letter-spacing: 0.04em;
   margin: 0.5rem 0 0;

@@ -239,7 +239,7 @@
   position: relative;
   z-index: 1;
   margin: 0 0 0.65rem;
-  font-family: 'Space Grotesk', 'Noto Sans SC', sans-serif;
+  font-family: 'Space Grotesk', 'Noto Sans', 'Noto Sans SC', sans-serif;
   font-size: clamp(2.4rem, 5vw, 3.4rem);
   font-weight: 700;
   letter-spacing: -0.03em;
@@ -393,7 +393,7 @@
 /* ??? Official landing home ??? */
 .pf-land-kicker {
   margin: 0 0 0.55rem;
-  font-family: 'Space Grotesk', 'Noto Sans SC', sans-serif;
+  font-family: 'Space Grotesk', 'Noto Sans', 'Noto Sans SC', sans-serif;
   font-size: 0.78rem;
   font-weight: 600;
   letter-spacing: 0.16em;
@@ -689,7 +689,7 @@
 .pf-land-step-no {
   display: block;
   margin-bottom: 0.55rem;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Space Grotesk', 'Noto Sans', 'Noto Sans SC', sans-serif;
   font-size: 0.82rem;
   font-weight: 650;
   letter-spacing: 0.08em;
@@ -824,7 +824,7 @@
 }
 
 .pf-land-foot-brand strong {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Space Grotesk', 'Noto Sans', 'Noto Sans SC', sans-serif;
   letter-spacing: 0.08em;
 }
 
@@ -2923,7 +2923,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
-  font-family: 'Space Grotesk', 'Noto Sans SC', sans-serif;
+  font-family: 'Space Grotesk', 'Noto Sans', 'Noto Sans SC', sans-serif;
   font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -4028,7 +4028,7 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--pf-ink);
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Space Grotesk', 'Noto Sans', 'Noto Sans SC', sans-serif;
   white-space: nowrap;
 }
 
@@ -4651,7 +4651,7 @@ button.pf-shot-editable:disabled {
   font-size: 1.85rem;
   font-weight: 800;
   margin: 0.45rem 0 0.15rem;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Space Grotesk', 'Noto Sans', 'Noto Sans SC', sans-serif;
   line-height: 1;
 }
 
@@ -6706,7 +6706,7 @@ button.pf-shot-editable:disabled {
   border-radius: 14px;
   background: var(--pf-lime-soft);
   border: 1px solid rgba(182, 255, 0, 0.45);
-  font-family: 'Space Grotesk', 'Noto Sans SC', sans-serif;
+  font-family: 'Space Grotesk', 'Noto Sans', 'Noto Sans SC', sans-serif;
   font-weight: 700;
   font-size: 0.95rem;
   color: #3d6500;

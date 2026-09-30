@@ -24,7 +24,7 @@
   --shadow: var(--pf-shadow);
   --hero-ink: #e8eef2;
 
-  font-family: 'Noto Sans SC', 'PingFang SC', sans-serif;
+  font-family: 'Noto Sans', 'Noto Sans SC', 'PingFang SC', sans-serif;
   color: var(--pf-ink);
   background: var(--pf-bg);
   line-height: 1.5;
