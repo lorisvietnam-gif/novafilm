@@ -13,7 +13,7 @@ import { homeCategoryLabel } from '../../lib/categories'
 import { mediaModelDescription } from '../../lib/mediaModelLabels'
 import { kepuStepIndex, kepuSteps } from '../../lib/status'
 import { getDramaImageStylePreviewUrl } from '../../lib/dramaImageStylePreviews'
-import { templateNameLabel } from '../../lib/templateLabels'
+import { templateName } from '../../lib/templateLabels'
 import { voiceLabel } from '../../lib/voiceLabels'
 import './studio.css'
 
@@ -281,7 +281,7 @@ export default function StyleConfigPage() {
                 <img src={api.assetUrl(currentTpl.preview_cover)} alt="" />
               </div>
               <p style={{ margin: '0.5rem 0 0', fontWeight: 600 }}>
-                {templateNameLabel(currentTpl)}
+                {templateName(currentTpl.id, currentTpl.name)}
               </p>
               <div className="pf-tags">
                 {currentTpl.category.map((c) => (
@@ -334,7 +334,7 @@ export default function StyleConfigPage() {
                     <span className="pf-style-opt-ratio">{currentTpl.default_ratio}</span>
                   ) : null}
                 </span>
-                <div className="cap">{templateNameLabel(currentTpl)}</div>
+                <div className="cap">{templateName(currentTpl.id, currentTpl.name)}</div>
                 <div className="cap-sub">{t('studio.style.templateStyleCaption')}</div>
               </div>
             ) : null}
@@ -469,7 +469,9 @@ export default function StyleConfigPage() {
                         <span className="pf-model-badge">{t('studio.style.recommended')}</span>
                       ) : null}
                     </div>
-                    <div className="pf-model-opt-desc">{mediaModelDescription(opt)}</div>
+                    <div className="pf-model-opt-desc">
+                      {mediaModelDescription(opt.id, opt.description)}
+                    </div>
                     <div className="pf-model-opt-provider">TokenFree</div>
                   </button>
                 ))}
@@ -497,7 +499,9 @@ export default function StyleConfigPage() {
                         <span className="pf-model-badge">{t('studio.style.recommended')}</span>
                       ) : null}
                     </div>
-                    <div className="pf-model-opt-desc">{mediaModelDescription(opt)}</div>
+                    <div className="pf-model-opt-desc">
+                      {mediaModelDescription(opt.id, opt.description)}
+                    </div>
                     <div className="pf-model-opt-provider">TokenFree</div>
                   </button>
                 ))}
@@ -550,7 +554,11 @@ export default function StyleConfigPage() {
           <ul className="pf-meta-list">
             <li>
               <span>{t('studio.style.summaryStyle')}</span>
-              <span>{currentTpl ? templateNameLabel(currentTpl) : t('studio.shared.dash')}</span>
+              <span>
+                {currentTpl
+                  ? templateName(currentTpl.id, currentTpl.name)
+                  : t('studio.shared.dash')}
+              </span>
             </li>
             <li>
               <span>{t('studio.style.summaryCharacter')}</span>

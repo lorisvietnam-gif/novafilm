@@ -46,9 +46,11 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     (path, vars) => {
       const raw = lookupMessage(m, path)
       // Chỉ khi **khoá thiếu** mới trả về đường dẫn, để lỗi lộ ra giao diện như một
-      // lỗi nhìn thấy được. Chuỗi rỗng là một lựa chọn có chủ đích — `common.pageSizeBefore`
-      // để rỗng ở `en` và `vi` nghĩa là "không hiện", và `if (!raw)` từng biến nó thành
-      // chuỗi `common.pageSizeBefore` in thẳng ra giao diện.
+      // lỗi nhìn thấy được. Chuỗi rỗng là một lựa chọn có chủ đích — nó được dùng để
+      // giấu một mảnh câu trong ngôn ngữ này (`common.pageSizeBefore` để rỗng ở `en`
+      // và `vi` nghĩa là "không hiện"), nên phải trả về chuỗi rỗng. Nếu kiểm tra bằng
+      // `!raw` thì `''` bị coi là thiếu, `t()` trả về chính đường dẫn key và giao diện
+      // in ra `common.pageSizeBefore`.
       if (raw === undefined) return path
       return interpolate(raw, vars)
     },

@@ -27,7 +27,7 @@ import {
 } from '../lib/clientDownload'
 import { hasActiveTasks, isRunning, STATUS_CN, statusTone } from '../lib/status'
 import { pageCountOf } from '../lib/pagination'
-import { templateNameLabel } from '../lib/templateLabels'
+import { templateName } from '../lib/templateLabels'
 import { formatDateTime, useI18n } from '../i18n'
 
 type HistoryItem = Omit<Project, 'shots'> & {
@@ -387,9 +387,9 @@ export default function HistoryPage() {
               const badge = statusBadgeClass(p.status)
               const ratio =
                 p.output_ratio || (p.pipeline_mode === 'image_text' ? '9:16' : '16:9')
-              const tplName = templates[p.template_id]
-                ? templateNameLabel(templates[p.template_id])
-                : p.template_id
+              // `templates` chỉ lưu tên thô từ API; nhãn hiển thị phải tra lại theo
+              // ngôn ngữ đang dùng, không giữ một bản dịch cũ trong state.
+              const tplName = templateName(p.template_id, templates[p.template_id]?.name || p.template_id)
               return (
                 <article key={p.id} className="pf-project-card">
                   <label className="pf-project-check">

@@ -50,7 +50,7 @@ import {
 } from '../../lib/segmentDuration'
 import { getDramaImageStylePreviewUrl } from '../../lib/dramaImageStylePreviews'
 import type { ImageStyleId } from '../../lib/dramaImageStyles'
-import { templateNameLabel } from '../../lib/templateLabels'
+import { templateName } from '../../lib/templateLabels'
 import './studio.css'
 
 const EMPTY_ART: Record<'cover' | 'shot' | 'board', ImageStyleId> = {
@@ -916,7 +916,7 @@ export default function StoryboardPage() {
             </li>
             <li>
               <span>{t('studio.storyboard.summaryStyle')}</span>
-              <span>{template ? templateNameLabel(template) : project.template_id}</span>
+              <span>{templateName(project.template_id, template?.name || project.template_id)}</span>
             </li>
           </ul>
           <button

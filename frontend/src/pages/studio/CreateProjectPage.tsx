@@ -9,8 +9,8 @@ import PillTabs from '../../components/ui/PillTabs'
 import { IconChevronLeft, IconRefresh, IconSparkles } from '../../components/ui/Icons'
 import { useI18n, type Messages } from '../../i18n'
 import { CATEGORY_ORDER, homeCategoryLabel } from '../../lib/categories'
-import { templateDescriptionLabel, templateNameLabel } from '../../lib/templateLabels'
 import { kepuStepIndex, kepuSteps } from '../../lib/status'
+import { templateDescription, templateName } from '../../lib/templateLabels'
 import { getDramaImageStylePreviewUrl } from '../../lib/dramaImageStylePreviews'
 import './studio.css'
 
@@ -92,7 +92,9 @@ export default function CreateProjectPage() {
     return [ALL_CATEGORY, FEATURED_CATEGORY, ...CATEGORY_ORDER.filter((c) => found.has(c))]
   }, [templates])
 
-  // PillTabs dùng chính chuỗi nhãn làm value, nên phải dịch nhãn rồi tra ngược về khoá
+  // PillTabs dùng chính chuỗi nhãn làm value, nên phải dịch nhãn rồi tra ngược về khoá.
+  // Khoá danh mục do API trả về là tiếng Trung, nên phải qua homeCategoryLabel —
+  // nếu in thẳng `key` thì chip sẽ hiện tiếng Trung ở cả `en` lẫn `vi`.
   const categoryOptions = useMemo(
     () =>
       categories.slice(0, 6).map((key) => ({
@@ -112,7 +114,9 @@ export default function CreateProjectPage() {
       // Tìm trên cả tên gốc lẫn tên đang hiển thị: tên gốc tiếng Trung không ai gõ, nhưng
       // mẫu cũ trong DB vẫn còn tên gốc nên không bỏ hẳn đi cũng không.
       list = list.filter(
-        (t) => t.name.toLowerCase().includes(s) || templateNameLabel(t).toLowerCase().includes(s),
+        (t) =>
+          templateName(t.id, t.name).toLowerCase().includes(s) ||
+          t.name.toLowerCase().includes(s),
       )
     }
     return list
@@ -242,7 +246,7 @@ export default function CreateProjectPage() {
               >
                 <img src={api.assetUrl(tpl.preview_cover)} alt="" loading="lazy" />
                 <div>
-                  <strong>{templateNameLabel(tpl)}</strong>
+                  <strong>{templateName(tpl.id, tpl.name)}</strong>
                   <span>
                     {tpl.default_ratio} ·{' '}
                     {tpl.category?.length
@@ -378,8 +382,8 @@ export default function CreateProjectPage() {
             <figure className="studio-summary-figure">
               <img src={api.assetUrl(selected.preview_cover)} alt="" />
               <figcaption>
-                <strong>{templateNameLabel(selected)}</strong>
-                <p className="pf-muted">{templateDescriptionLabel(selected)}</p>
+                <strong>{templateName(selected.id, selected.name)}</strong>
+                <p className="pf-muted">{templateDescription(selected.id, selected.description)}</p>
               </figcaption>
             </figure>
           ) : (

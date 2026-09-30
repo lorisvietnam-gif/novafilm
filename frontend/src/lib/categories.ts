@@ -89,13 +89,14 @@ const CATEGORY_LABELS: Record<string, LocalizedText> = {
    * Danh mục chỉ template mới dùng, KHÔNG có trong `CATEGORY_ORDER` nên không xuất hiện
    * ở thanh lọc — chúng chỉ hiện trên thẻ mẫu và trong khối thông tin bên trái trang phong
    * cách. Thêm nhãn ở đây thay vì đưa vào `CATEGORY_ORDER` để không đổi thanh lọc.
+   * (Khoá vẫn là chuỗi Trung vì backend trả về đúng giá trị đó.)
    */
   故事: { zh: '故事', en: 'Story', vi: 'Câu chuyện' },
   摄影: { zh: '摄影', en: 'Photography', vi: 'Nhiếp ảnh' },
   胶片: { zh: '胶片', en: 'Film', vi: 'Film' },
   剪纸: { zh: '剪纸', en: 'Paper cut', vi: 'Cắt giấy' },
   绘本: { zh: '绘本', en: 'Picture book', vi: 'Truyện tranh' },
-  手绘: { zh: '手绘', en: 'Hand drawn', vi: 'Vẽ tay' },
+  手绘: { zh: '手绘', en: 'Hand-drawn', vi: 'Vẽ tay' },
   赛博: { zh: '赛博', en: 'Cyber', vi: 'Cyber' },
   拼贴: { zh: '拼贴', en: 'Collage', vi: 'Collage' },
   极简: { zh: '极简', en: 'Minimal', vi: 'Tối giản' },

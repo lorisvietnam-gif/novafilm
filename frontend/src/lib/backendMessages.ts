@@ -39,6 +39,11 @@ const BACKEND_MESSAGES: Record<string, LocalizedText> = {
     en: 'The episodes were written but could not be reloaded',
     vi: 'Đã ghi tập nhưng không tải lại được',
   },
+  '未解析到可用文字模型。请在管理后台填写 TokenFree API Key，拉取并选择文本模型。': {
+    zh: '未解析到可用文字模型。请在管理后台填写 TokenFree API Key，拉取并选择文本模型。',
+    en: 'No usable text model is configured. Add a TokenFree API key in the admin console, then fetch and pick a text model.',
+    vi: 'Chưa có mô hình văn bản nào dùng được. Hãy điền khoá API TokenFree trong trang quản trị, rồi tải về và chọn một mô hình văn bản.',
+  },
 }
 
 /**
