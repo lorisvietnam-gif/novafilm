@@ -1,4 +1,4 @@
-﻿/* PRINTFILM SaaS shell & page layouts */
+/* PRINTFILM SaaS shell & page layouts */
 
 @import './media.css';
 
@@ -25,7 +25,7 @@
    inline margins, and an `overflow-x: clip` on this box would cut it off at
    the 1280px column instead. The horizontal scrollbar that would otherwise
    appear is prevented one level up, in base.css, with `html { overflow-x:
-   clip }` â€” which clips without creating a scroll container, so it does not
+   clip }` — which clips without creating a scroll container, so it does not
    break `position: sticky` on the nav. */
 
 .pf-shell-main.wide {
@@ -37,20 +37,35 @@
   padding: 0;
 }
 
-/* ---------- Thanh điều hướng ---------- */
+/* ---------- Thanh điều hướng ----------
+   Glass, because a sticky bar is the canonical case for it: it floats over flat
+   content that moves underneath. It reads the glass tokens rather than a
+   hand-rolled rgba, so the 0.86 alpha that keeps a secondary label at 5.1:1 in
+   dark mode, and the 1px edge, both come from one place. base.css section 7
+   has the same @supports shape; it is repeated here because App.css loads
+   after this file and would otherwise win the unsupported-engine fallback. */
 .pf-nav {
   position: sticky;
   top: 0;
-  z-index: 40;
+  z-index: var(--pf-z-nav);
   height: var(--pf-nav-h);
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 1rem;
-  padding: 0 1.5rem;
-  background: rgb(var(--pf-focus-halo-rgb) / 0.92);
-  border-bottom: 1px solid var(--pf-line);
-  backdrop-filter: blur(10px);
+  padding: 0 var(--pf-gutter);
+  background: var(--pf-glass-fallback);
+  border-bottom: 1px solid var(--pf-glass-edge);
+  box-shadow: var(--pf-shadow-1);
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .pf-nav {
+    background: var(--pf-glass-bg);
+    -webkit-backdrop-filter: blur(var(--pf-glass-blur)) saturate(var(--pf-glass-sat));
+    backdrop-filter: blur(var(--pf-glass-blur)) saturate(var(--pf-glass-sat));
+    box-shadow: none;
+  }
 }
 
 .pf-nav-left {
@@ -226,7 +241,7 @@
   color: var(--pf-muted);
 }
 
-/* ---------- Trang chá»§ workspace (khÃ´ng gian lÃ m viá»‡c) ---------- */
+/* ---------- Trang chủ workspace (không gian làm việc) ---------- */
 /* A second full-bleed band, on a different frame, so a workspace page never
    looks like the landing page re-skinned. Vertical scrim because the copy here
    is a single left-aligned column with no competing column beside it. */
@@ -338,7 +353,7 @@
 }
 
 .pf-ws-product-drama {
-  /* Same dark-mode wash as .pf-land-product.is-drama â€” see the note there. */
+  /* Same dark-mode wash as .pf-land-product.is-drama — see the note there. */
   background: linear-gradient(135deg, var(--pf-accent-soft) 0%, var(--pf-accent-soft) 100%);
   border-color: rgb(var(--pf-accent-rgb) / 0.35);
 }
@@ -419,21 +434,21 @@
   box-shadow: var(--pf-shadow);
 }
 
-/* ---------- Trang chá»§ chÃ­nh thá»©c (landing) ---------- */
+/* ---------- Trang chủ chính thức (landing) ---------- */
 /* .pf-land-kicker is defined with the hero block below. */
 
 /* --------------------------------------------------------------------------
-   Landing hero â€” a full-bleed cinematic band.
+   Landing hero — a full-bleed cinematic band.
 
    The photograph is the composition: `retro-narrative-film` is a night
    exterior, wet asphalt, one car under a canopy, the subject right of centre
    and an unlit tree line filling the left third. So the band bleeds to the
    viewport edges, the scrim is weighted hard to the left, and the copy column
-   is the left one â€” the gradient never crosses a face.
+   is the left one — the gradient never crosses a face.
 
    Contrast: copy sits on --pf-media-scrim-strong (0.78) to
    --pf-media-scrim-full (0.86). White @ 0.92 on that over a PURE WHITE pixel
-   â€” the brightest thing a JPEG can hold â€” measures 8.19:1 and 10.80:1, so the
+   — the brightest thing a JPEG can hold — measures 8.19:1 and 10.80:1, so the
    verdict holds over any frame, not just this one. The copy therefore uses
    --pf-on-media-strong, never --pf-ink.
 
@@ -499,9 +514,14 @@
   text-wrap: balance;
 }
 
+/* A thin gold rule under the emphasised phrase, not a highlight wash. The
+   previous gradient filled the bottom 40% of the line box, which at a 4.25rem
+   display size is 30px of solid gold across the descenders and reads as a
+   rendering fault rather than as emphasis. */
 .pf-land-hero h1 em {
   font-style: normal;
-  background: linear-gradient(180deg, transparent 60%, rgb(var(--pf-accent-rgb) / 0.85) 60%);
+  border-bottom: 0.055em solid rgb(var(--pf-accent-rgb) / 0.9);
+  padding-bottom: 0.04em;
 }
 
 .pf-land-kicker {
@@ -710,7 +730,7 @@
   display: block;
 }
 
-/* åŽŸæœ¬ 48px çš„å›¾æ ‡ç¼©æˆç¼©ç•¥å›¾å·¦ä¸‹è§’çš„å¾½æ ‡ */
+/* Icon 48px thu nhỏ thành huy hiệu ở góc dưới trái của ảnh thu nhỏ */
 .pf-land-product-art .pf-land-product-icon {
   position: absolute;
   left: 6px;
@@ -1324,7 +1344,7 @@
 }
 
 /* The empty tile gets a still: an empty list is the one screen a user is
-   guaranteed to look at. `domestic-suspense-cold` is a dark stairwell â€”
+   guaranteed to look at. `domestic-suspense-cold` is a dark stairwell —
    suspense, and the frame it uses is dark, so the icon goes white on a
    --pf-media-scrim (0.66) wash: 5.38:1 even against a pure white pixel. */
 .pf-empty-illust {
@@ -2433,8 +2453,8 @@
 }
 
 .pf-help-cats-lg .pf-help-cat {
-  /* å¡ç‰‡è‡ªèº«ç•™ç™½ï¼Œåª’ä½“æ¡é è´Ÿå¤–è¾¹è·å‡ºè¡€åˆ°å¡ç‰‡ä¸Šæ²¿ï¼›åªåœ¨è¿™ä¸€å¤„æ”¹ paddingï¼Œ
-     å¸®åŠ©å¼¹çª—é‡Œçš„ç´§å‡‘ç‰ˆ .pf-help-cat ä¿æŒåŽŸæ ·ã€‚ */
+/* Card tự để lề; thanh ảnh tràn lên mép trên bằng margin âm.
+   Chỉ đổi padding ở đây; bản .pf-help-cat gọn trong hộp thoại giữ nguyên. */
   --pf-help-cat-pad: 0.65rem;
   padding: 0 var(--pf-help-cat-pad) var(--pf-help-cat-pad);
   text-decoration: none;
@@ -2448,7 +2468,7 @@
   aspect-ratio: 16 / 7;
   margin: 0 calc(-1 * var(--pf-help-cat-pad, 0.65rem));
   border-radius: 13px 13px 0 0;
-  /* æ²¡æœ‰é…å›¾çš„åˆ†ç±»ï¼ˆä¸ªäººä¸­å¿ƒ / å……å€¼è¯´æ˜Žï¼‰è½åœ¨è¿™é‡Œï¼Œç”¨ä¸­æ€§é¢è€Œä¸æ˜¯ç•™ç©º */
+/* Danh mục không có ảnh (trung tâm cá nhân / hướng dẫn nạp tiền) rơi vào đây: dùng mặt phẳng trung tính thay vì để trống */
   background: var(--pf-surface-sunken);
   overflow: hidden;
 }
@@ -2460,7 +2480,7 @@
   display: block;
 }
 
-/* åº•éƒ¨æ¸éšåˆ°å¡ç‰‡åº•è‰²ï¼Œå›¾ç‰‡ä¸Žæ ‡é¢˜ä¹‹é—´ä¸ç•™ç¡¬è¾¹ */
+/* Ẩn dần xuống màu nền card, để ảnh và tiêu đề không có cạnh cứng */
 .pf-help-cat-media::after {
   content: '';
   position: absolute;
@@ -2536,7 +2556,7 @@
   text-decoration: underline;
 }
 
-/* ?? Legal / contact pages ?? */
+/* ---------- Trang pháp lý / liên hệ ---------- */
 .pf-legal-page {
   width: min(760px, 100%);
   margin: 0 auto;
@@ -2813,7 +2833,7 @@
 }
 
 .pf-tools-card {
-  /* å¡ç‰‡è‡ªèº«ç•™ç™½ï¼Œåª’ä½“æ¡é è´Ÿå¤–è¾¹è·å‡ºè¡€åˆ°å¡ç‰‡ä¸Šæ²¿ */
+/* Card tự để lề; thanh ảnh tràn lên mép trên bằng margin âm */
   --pf-tools-card-pad: var(--pf-space-5);
   background: var(--pf-surface);
   border: 1px solid var(--pf-line);
@@ -2861,7 +2881,7 @@
   }
 }
 
-/* åº•éƒ¨æ¸éšåˆ°å¡ç‰‡åº•è‰²ï¼Œå›¾ç‰‡ä¸Žæ ‡é¢˜ä¹‹é—´ä¸ç•™ç¡¬è¾¹ */
+/* Ẩn dần xuống màu nền card, để ảnh và tiêu đề không có cạnh cứng */
 .pf-tools-card-media::after {
   content: '';
   position: absolute;
@@ -3293,7 +3313,7 @@
   letter-spacing: 0.12em;
 }
 
-/* ---------- Dùng chung ---------- */
+/* ---------- Dụng chung ---------- */
 .pf-card {
   background: var(--pf-card);
   border: 1px solid var(--pf-line);
@@ -3469,9 +3489,9 @@
   color: var(--pf-accent-ink);
 }
 
-/* ---------- Hero trang chá»§ (giá»¯ láº¡i; hiá»‡n chÆ°a cÃ³ trang gá»i tá»›i) ----------
+/* ---------- Hero trang chủ (giữ lại; hiện chưa có trang gọi tới) ----------
    Wired to the same full-bleed treatment as the landing hero but on a
-   different frame â€” wuxia-realistic-photo â€” so if it is ever used it reads as
+   different frame — wuxia-realistic-photo — so if it is ever used it reads as
    a second hero treatment rather than the first one re-skinned. */
 .pf-home-hero {
   position: relative;
@@ -3527,7 +3547,7 @@
 }
 
 /* The three step cards sit ON the band, so they become dark glass chips rather
-   than light surfaces â€” a white card on a night photograph reads as a hole. */
+   than light surfaces — a white card on a night photograph reads as a hole. */
 .pf-home-step {
   position: relative;
   isolation: isolate;
@@ -4091,7 +4111,7 @@
   overflow: hidden;
 }
 
-/* ---------- Khung áº£nh phong cÃ¡ch: img hoáº·c Ã´ trá»‘ng ---------- */
+/* ---------- Khung ảnh phong cách: img hoặc ô trống ---------- */
 /* The grey rectangle these used to be is now a cool, desaturated city plate:
    "no style chosen" should feel undecided, and grey read as unfinished. The
    label inside sits on --pf-media-scrim-strong (0.78), which measures 8.19:1
@@ -4127,7 +4147,7 @@
   display: block;
 }
 
-/* ---------- áº¢nh dá»c giá»¯ nguyÃªn khung, khÃ´ng cáº¯t mÃ©p ---------- */
+/* ---------- Ảnh dọc giữ nguyên khung, không cắt mép ---------- */
 .pf-style-opt.portrait .pf-style-opt-media {
   background: rgb(var(--pf-scrim-rgb));
 }
@@ -4941,7 +4961,7 @@ button.pf-shot-editable:disabled {
 }
 
 /* A 56x36 chip carries no text at this size, so it only has to stop reading as
-   a grey rectangle. The label inside is hidden rather than made illegible â€”
+   a grey rectangle. The label inside is hidden rather than made illegible —
    at 56px wide there is no way to put text on a photograph and keep it AA. */
 .pf-scene-item img,
 .pf-scene-item .ph {
@@ -5198,10 +5218,7 @@ button.pf-shot-editable:disabled {
   border-radius: 12px;
 }
 
-/* "ChÆ°a cÃ³ áº£nh bÃ¬a" on the history page. Warm and human â€” a woman with a
-   bicycle outside a shop â€” because this slot means "your work", not "nothing
-   selected". The 168x94 box is a 16:9 crop, and the plate is already 16:9,
-   so nothing is thrown away. Label on the strong rung: 8.19:1. */
+/* "Chưa có ảnh bìa" ở trang lịch sử. Ấm áp và con người — một cô gái đứng cạnh xe đạp trước cửa hàng — vì ô này có nghĩa là "việc của bạn", không phải "chưa chọn gì". Khung 168x94 đúng tỉ lệ 16:9 và tấm ảnh vốn đã là 16:9, nên không mất gì. Chữ đặt trên bậc mạnh: 8.19:1. */
 .pf-project-thumb .ph {
   display: grid;
   place-items: center;
@@ -5299,7 +5316,7 @@ button.pf-shot-editable:disabled {
   color: var(--pf-muted);
 }
 
-/* Status badges carry a SHAPE as well as a colour (WCAG 1.4.1 â€” colour must
+/* Status badges carry a SHAPE as well as a colour (WCAG 1.4.1 — colour must
    never be the only signal), so the state survives greyscale, colour-blindness
    and forced-colours mode. Glyphs come from tokens.css section 6b. */
 .pf-badge::before {
@@ -5780,22 +5797,24 @@ button.pf-shot-editable:disabled {
   color: var(--pf-muted);
 }
 
-/* ?? Pricing / top-up page ?? */
+/* ---------- Trang bảng giá / nạp tiền ---------- */
 .pf-pricing-page {
   width: 100%;
   margin: 0 auto;
   padding: 0 0 2rem;
 }
 
-/* The pricing band replaces a cyan-and-lime radial wash â€” the single most
+/* The pricing band replaces a cyan-and-lime radial wash — the single most
    "template" surface in the product. It is now the loudest frame in the image
    set, which is honest for a science-explainer product, and because it is loud
    the scrim under the copy is the strong rung, not the body-text one. */
 .pf-pricing-hero-band {
   position: relative;
   isolation: isolate;
-  margin: 0 calc(-1 * var(--pf-shell-pad, 1.5rem)) 0;
-  padding: 2.5rem var(--pf-shell-pad, 1.5rem) 3.25rem;
+  margin-block-end: 0;
+  margin-inline: calc(50% - 50vw);
+  padding: 2.5rem 0 3.25rem;
+  padding-inline: max(var(--pf-gutter), calc(50vw - (var(--pf-shell-max) - 3rem) / 2));
   color: var(--pf-on-media-strong);
   background-color: var(--pf-scrim-rgb);
   background-image:
@@ -5891,9 +5910,9 @@ button.pf-shot-editable:disabled {
   font-weight: 700;
 }
 
-/* ---------- VÃ­ tiá»n (Ä‘áº£o tá»‘i cÅ©, nay Ä‘Ã£ chuyá»ƒn sang surface ná»•i) ----------
+/* ---------- Ví tiền (đảo tối cũ, nay đã chuyển sang surface nổi) ----------
    This used to be a fixed #243041 -> #151c26 -> #111820 gradient with
-   near-white text â€” a deliberate dark island that read as a hole in the
+   near-white text — a deliberate dark island that read as a hole in the
    product, and on the new photographic pricing band it read as a patch. It is
    now --pf-surface-overlay in light and --pf-surface-float in dark, i.e. the
    same depth the rest of the app uses, and every text colour is a token.
@@ -6484,7 +6503,7 @@ button.pf-shot-editable:disabled {
   }
 }
 
-/* ?? Payment QR modal ?? */
+/* ---------- Hộp thoại QR thanh toán ---------- */
 .pf-modal-panel.pf-pay-modal {
   width: min(400px, 94vw);
   background: var(--pf-surface);
@@ -6765,7 +6784,7 @@ button.pf-shot-editable:disabled {
   font-size: 0.76rem;
 }
 
-/* ?? Global dialog / modal system ?? */
+/* ---------- Hệ thống hộp thoại / modal toàn cục ---------- */
 .pf-dialog-root {
   position: fixed;
   inset: 0;
@@ -6777,7 +6796,7 @@ button.pf-shot-editable:disabled {
 }
 
 /* A still behind the veil, blurred to the point where it reads as depth rather
-   than as an image â€” an identifiable photograph behind a dialog competes with
+   than as an image — an identifiable photograph behind a dialog competes with
    the dialog. It is a 640px file and the veil only mounts when a dialog is
    actually open, so a normal page never pays for it. */
 .pf-dialog-veil {
@@ -7131,7 +7150,7 @@ button.pf-shot-editable:disabled {
   gap: 0.55rem;
 }
 
-/* ?? Help center ?? */
+/* ---------- Trung tâm trợ giúp ---------- */
 .pf-help-modal.pf-modal-panel--drawer {
   width: min(440px, 100vw);
 }
@@ -7335,7 +7354,7 @@ button.pf-shot-editable:disabled {
   }
 }
 
-/* legacy modal reuse ? share new veil look */
+/* legacy modal dùng lại lớp veil mới */
 .modal-backdrop {
   position: fixed;
   inset: 0;

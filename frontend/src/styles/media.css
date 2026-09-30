@@ -230,6 +230,25 @@
   background-repeat: no-repeat, no-repeat, no-repeat;
 }
 
+/* The sign-in headline joins the serif voice used by every other large
+   heading in the product. App.css sets Space Grotesk on `.auth-panel h1`; this
+   rule is one level more specific, so it wins without an !important and
+   without editing a file outside the styles layer. */
+.auth-panel h1 {
+  font-family: var(--pf-font-serif);
+  font-weight: var(--pf-weight-bold);
+  letter-spacing: var(--pf-tracking-tightest);
+  line-height: var(--pf-leading-display);
+}
+
+/* And the lede under it: prose leading, held to the serif measure. */
+.auth-panel .lede {
+  font-family: var(--pf-font-serif);
+  font-size: var(--pf-text-base);
+  line-height: var(--pf-leading-prose);
+  max-width: var(--pf-measure-tight);
+}
+
 /* --------------------------------------------------------------------------
    4. Status shape vocabulary.
 
