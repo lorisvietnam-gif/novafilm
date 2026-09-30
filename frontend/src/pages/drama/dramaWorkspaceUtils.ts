@@ -87,7 +87,7 @@ export function buildOutlineDirectory(
     const ep = byNumber.get(episodeNumber)
     return {
       episodeNumber,
-      title: ep?.title || `第 ${episodeNumber} 集`,
+      title: ep?.title || `Tập ${episodeNumber}`,
       creative: ep?.creative,
       summary: ep?.summary,
       body: ep?.body,

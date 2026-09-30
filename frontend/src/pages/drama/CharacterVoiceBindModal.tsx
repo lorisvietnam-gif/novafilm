@@ -53,7 +53,7 @@ export function readAssetVoiceBinding(asset: DramaAsset): VoiceBinding | null {
       return {
         sourceAssetId,
         url,
-        label: typeof data.label === 'string' ? data.label : '音色',
+        label: typeof data.label === 'string' ? data.label : 'Giọng',
         voicePrompt: typeof data.voicePrompt === 'string' ? data.voicePrompt : undefined,
       }
     }
@@ -66,7 +66,7 @@ export function readAssetVoiceBinding(asset: DramaAsset): VoiceBinding | null {
       const sourceAssetId = typeof data.sourceAssetId === 'number' ? data.sourceAssetId : null
       const url = typeof data.url === 'string' ? data.url : ''
       if (sourceAssetId && url) {
-        return { sourceAssetId, url, label: '音色' }
+        return { sourceAssetId, url, label: 'Giọng' }
       }
     }
   }
@@ -79,7 +79,7 @@ export function buildBoundParams(asset: DramaAsset, voice: DramaAsset): Record<s
   const binding: VoiceBinding = {
     sourceAssetId: voice.id,
     url,
-    label: voice.name || '音色',
+    label: voice.name || 'Giọng',
     voicePrompt: readVoicePrompt(voice) || undefined,
   }
   const prev = (asset.params || {}) as Record<string, unknown>
@@ -160,7 +160,7 @@ export function CharacterVoiceBindModal({
     setSelectedId(bound?.sourceAssetId ?? null)
     setNewPrompt('')
     setSuggestedSpeaker('')
-    setNewName(`${asset.name || '角色'}音色`)
+    setNewName(`Giọng của ${asset.name || 'nhân vật'}`)
     setMode('pick')
     promptRequestedRef.current = false
 

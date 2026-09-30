@@ -23,7 +23,7 @@ function readNarrationVoiceBinding(project: DramaProject): VoiceBinding | null {
   const data = raw as Record<string, unknown>
   const sourceAssetId = typeof data.sourceAssetId === 'number' ? data.sourceAssetId : null
   const url = typeof data.url === 'string' ? data.url : ''
-  const label = typeof data.label === 'string' ? data.label : '旁白音色'
+  const label = typeof data.label === 'string' ? data.label : 'Giọng dẫn chuyện'
   if (!sourceAssetId || !url) return null
   return {
     sourceAssetId,
@@ -75,7 +75,7 @@ export function NarratorVoiceBindModal({ project, open, onClose, onUpdated, onEr
       const binding: VoiceBinding = {
         sourceAssetId: selectedVoice.id,
         url: selectedVoice.url,
-        label: selectedVoice.name || '旁白音色',
+        label: selectedVoice.name || 'Giọng dẫn chuyện',
         // Phía Narrator hiện chưa cần voicePrompt, nhưng giữ lại trường để mở rộng sau
         voicePrompt:
           selectedVoice.params && typeof selectedVoice.params === 'object' && typeof (selectedVoice.params as any).voicePrompt === 'string'

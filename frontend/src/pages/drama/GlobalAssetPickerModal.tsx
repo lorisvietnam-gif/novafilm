@@ -240,7 +240,7 @@ export async function importGlobalAssetToProject(
     project_id: projectId,
     type: source.type || 'none',
     asset_type: source.asset_type || 'image',
-    name: source.name || '未命名',
+    name: source.name || 'Chưa đặt tên',
     cover: source.cover || source.url,
     url: source.url || source.cover,
     params,

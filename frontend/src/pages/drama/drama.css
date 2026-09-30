@@ -234,7 +234,7 @@
   background: transparent;
 }
 
-/* WebKit 滚动条：贴合面板，避免默认粗条抢戏 */
+/* Thanh cuộn WebKit: ôm sát bảng, tránh thanh mặc định quá thô chiếm sân */
 .drama-agent-ai textarea::-webkit-scrollbar {
   width: 10px;
 }
@@ -1009,7 +1009,7 @@
   color: var(--drama-ink);
 }
 
-/* 大纲页：项目风格字段触发器（缩略图 + 文案） */
+/* Trang dàn ý: nút mở trường phong cách của dự án (ảnh thu nhỏ + chữ) */
 .drama-style-picker-field {
   display: inline-flex;
   align-items: center;
@@ -1556,7 +1556,7 @@
 .drama-lightbox-backdrop {
   position: fixed;
   inset: 0;
-  /* 高于 pf-dialog-root (1000)，避免在 Modal 内放大时被遮挡 */
+  /* Cao hơn pf-dialog-root (1000), tránh bị che khi phóng to bên trong Modal */
   z-index: 1100;
   background: rgba(10, 10, 10, 0.86);
   display: grid;
@@ -2340,7 +2340,7 @@
   padding-bottom: 48px;
 }
 
-/* Outline — 对齐截图：左目录卡片 + 右大白底三区 */
+/* Dàn ý — căn theo ảnh chụp: thẻ danh mục bên trái + ba vùng nền trắng bên phải */
 .drama-outline-page {
   display: flex;
   flex-direction: column;
@@ -4344,7 +4344,7 @@
   grid-column: 1 / -1;
 }
 
-/* 用 padding 占位保证缩略图高度：button + overflow 下 aspect-ratio 易塌成细条 */
+/* Dùng padding để chừa chỗ, đảm bảo chiều cao ảnh thu nhỏ: button + overflow khiến aspect-ratio dễ xẹp thành sợi mảnh */
 .drama-ep-asset-thumb {
   position: relative;
   width: 100%;
@@ -5920,7 +5920,7 @@
 .drama-ep-fail-reason-pop {
   position: fixed;
   right: 24px;
-  /* 在生成队列 FAB（bottom:96）与微信加群钮之上 */
+  /* Nằm trên nút FAB của hàng đợi sinh (bottom:96) và nút mời tham gia nhóm WeChat */
   bottom: 168px;
   z-index: 80;
   width: min(380px, calc(100vw - 32px));
@@ -6401,7 +6401,7 @@
 .drama-gen-fab-root {
   position: fixed;
   right: 20px;
-  /* 抬高，避免挡住全站微信加群浮钮 */
+  /* Nâng lên để không che nút mời tham gia nhóm WeChat trên toàn site */
   bottom: 96px;
   z-index: 90;
   display: flex;
@@ -6960,7 +6960,7 @@
   color: var(--pf-danger);
 }
 
-/* 批量角色音色生成进度 */
+/* Tiến trình sinh giọng cho nhiều nhân vật */
 .drama-batch-voice-list {
   display: flex;
   flex-direction: column;

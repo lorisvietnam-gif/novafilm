@@ -33,7 +33,7 @@ import './drama.css'
 const CREATIVE_MIN_LENGTH = 20
 const CREATIVE_MAX_LENGTH = 2000
 const CANVAS_PLACEHOLDER =
-  '自由画布创作项目，稍后在画布中完善故事与资产。'
+  'Dự án sáng tạo tự do trên canvas, sau sẽ hoàn thiện cốt truyện và tư liệu ngay trên canvas.'
 
 type AgentTab = 'ai' | 'canvas'
 
@@ -160,7 +160,7 @@ function DramaListInner() {
       const project = await dramaApi.createProject({
         source: CANVAS_PLACEHOLDER,
         episode_count: 1,
-        title: '自由画布项目',
+        title: 'Dự án canvas tự do',
         workflow: 'canvas',
       })
       navigate(`/drama/projects/${project.id}/canvas`)
