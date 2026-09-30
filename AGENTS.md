@@ -188,3 +188,24 @@ lỗi mới**. Đừng deploy lại để "kiểm tra". Hãy kiểm tra ở loca
 
 Một tác vụ chỉ được coi là **xong** khi đã kiểm chứng ở localhost, hoặc khi đã ghi rõ trong
 báo cáo rằng phần nào không kiểm chứng local được và vì sao.
+
+### `npm run build` KHÔNG chứng minh được code chạy được
+Sự cố thật đã xảy ra ở đây. `dramaImageStyles.ts` có `IMAGE_STYLE_OPTIONS` khai báo **trên**
+`IMAGE_STYLE_LABELS`, và dòng đó là:
+
+```ts
+IMAGE_STYLE_IDS.map((id) => ({ id, ...styleOption(id) }))
+```
+
+Object spread **gọi thẳng getter** `label`, mà getter đọc `IMAGE_STYLE_LABELS` — một `const`
+chưa khởi tạo. Dev server giữ nguyên thứ tự ESM nên ném
+`ReferenceError: Cannot access 'IMAGE_STYLE_LABELS' before initialization` và **trắng trang**.
+Rollup xếp lại thứ tự khi bundle nên `npm run build` vẫn **xanh**.
+
+Bài học:
+- **Build xanh không có nghĩa là trang chạy được.**
+- Luôn kiểm tra bằng cách **thực sự mở app** ở `localhost` sau khi sửa, không chỉ chạy build.
+- Khi báo "đã sửa", phải kèm bằng chứng đã mở trang và nhìn thấy, hoặc ghi rõ là **chưa** mở
+  kiểm tra.
+- Cẩn trọng với getter + object spread ở cấp module, và với `const` được đọc trong hàm nhưng
+  khai báo sau nơi gọi.
