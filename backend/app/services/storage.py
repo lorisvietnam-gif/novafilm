@@ -20,7 +20,7 @@ from typing import Any, Callable, Iterator, TypeVar
 
 import httpx
 
-from app.config import get_settings
+from app.config import get_settings, parse_host_list
 
 # Explainer final film name: the only file that still reaches OSS under skip_oss_intermediates
 _KEPU_FINAL_NAMES = frozenset({"final.mp4"})
@@ -169,15 +169,17 @@ def is_local_static_url(url: str | None) -> bool:
     base = settings.public_base_url.rstrip("/")
     if url.startswith(f"{base}/static/"):
         return True
-    # The main site / the old site / a historic misspelled domain / local debug addresses
-    for host in (
-        "www.printfilm.com",
-        "printfilm.com",
-        "kepu.printfilm.com",
-        "kepu.printtfilm.com",
+    # Loopback debug addresses are hard-coded so local dev needs no configuration;
+    # every real site host is opt-in through STATIC_HOST_ALLOWLIST, with no
+    # third-party domain baked in as a default.
+    hosts = [
         "127.0.0.1:8000",
         "localhost:8000",
-    ):
+        *parse_host_list(
+            settings.static_host_allowlist, variable="STATIC_HOST_ALLOWLIST"
+        ),
+    ]
+    for host in hosts:
         for scheme in ("https://", "http://"):
             if url.startswith(f"{scheme}{host}/static/"):
                 return True

@@ -236,13 +236,13 @@ export function AdminLayout() {
 
         <div className="admin-brand">
 
-          <div className="admin-brand-mark">PF</div>
+          <div className="admin-brand-mark">NF</div>
 
           {!collapsed && (
 
             <div>
 
-              <div className="admin-brand-name">PRINTFILM</div>
+              <div className="admin-brand-name">NOVAFILM</div>
 
               <div className="admin-brand-sub">管理后台</div>
 
@@ -356,7 +356,7 @@ export function AdminLayout() {
 
               <div className="admin-topbar-title">{title}</div>
 
-              <div className="admin-topbar-crumb">PRINTFILM · 运营管理</div>
+              <div className="admin-topbar-crumb">NOVAFILM · 运营管理</div>
 
             </div>
 

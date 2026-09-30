@@ -59,8 +59,11 @@ def test_upload_local_url_sync_accepts_oss_https_even_if_local_file_exists(tmp_p
     assert out == oss_https
 
 
-def test_is_local_static_url_rejects_oss_https():
+def test_is_local_static_url_rejects_oss_https(monkeypatch):
     """OSS https 不应因本地副本存在而被判为本地。"""
+    from types import SimpleNamespace
+
+    from app.services import storage as storage_mod
     from app.services.storage import is_local_static_url
 
     assert is_local_static_url("/static/generated/p1/a.png") is True
@@ -68,4 +71,12 @@ def test_is_local_static_url_rejects_oss_https():
         is_local_static_url("https://lsj-cc.oss-cn-beijing.aliyuncs.com/kepu/generated/p1/a.png")
         is False
     )
-    assert is_local_static_url("https://www.printfilm.com/static/generated/p1/a.png") is True
+    # 站点域名不再内置默认白名单，未配置时任何站点域名都判为远端
+    assert is_local_static_url("https://example.com/static/generated/p1/a.png") is False
+
+    monkeypatch.setattr(
+        storage_mod,
+        "get_settings",
+        lambda: SimpleNamespace(public_base_url="", static_host_allowlist="example.com"),
+    )
+    assert is_local_static_url("https://example.com/static/generated/p1/a.png") is True

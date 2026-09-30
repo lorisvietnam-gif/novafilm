@@ -69,7 +69,7 @@ export function SiteSettingsPanel() {
           <div className="settings-field-grid">
             <LabeledControl
               label="后端公网基址"
-              hint="例：https://www.printfilm.com"
+              hint="例：https://your-site.example.com"
               className="settings-field-span-full"
             >
               <input

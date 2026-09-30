@@ -109,7 +109,7 @@ async def test_request_password_reset_cooldown_skips_resend():
         patch.object(pr, "send_email", AsyncMock(return_value=True)) as send,
         patch.object(pr, "get_settings") as settings,
     ):
-        settings.return_value.public_base_url = "https://www.printfilm.com"
+        settings.return_value.public_base_url = "https://example.com"
         first = await pr.request_password_reset(db, "A@Example.com")
         assert first["ok"] is True
         assert send.await_count == 1
