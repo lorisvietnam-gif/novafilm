@@ -115,6 +115,12 @@
   min-width: 0;
 }
 
+/* Two words must not become two lines. The cluster is a single row of controls;
+   letting "Sign in" wrap is what pushed the CTA off a 1280px viewport. */
+.pf-nav-login {
+  white-space: nowrap;
+}
+
 .pf-nav-help-btn {
   display: inline-flex;
   align-items: center;
@@ -1208,11 +1214,12 @@
   font-weight: 600;
 }
 
-/* A drama with no cover art yet. This one goes PALE, deliberately, where every
-   other plate in the file goes dark: the fallback writes the title vertically
-   in --pf-ink-secondary, and an ink-wash landscape gives that dark text
-   something to sit on. A white wash at 0.5-0.68 keeps the darkest part of the
-   plate near #c6c6c6, where --pf-ink-secondary measures 5.2:1. */
+/* A drama with no cover art yet. The wash and its ink move toward the theme's
+   own surface colour, so the plate is pale with dark ink in light mode and deep
+   with light ink in dark. The fallback writes the title vertically, which is
+   the constraint that forces the treatment in the first place: the text has to
+   be dark ink on a pale field, and it has to stay dark ink there in a dark UI
+   too, or the card becomes a glaring white rectangle in a black list. */
 .pf-drama-card-cover {
   position: relative;
   display: block;
@@ -1224,7 +1231,7 @@
   overflow: hidden;
   background-color: var(--pf-surface-media);
   background-image:
-    linear-gradient(180deg, rgb(255 255 255 / 0.5), rgb(255 255 255 / 0.68)),
+    linear-gradient(var(--pf-media-wash-soft), var(--pf-media-wash)),
     var(--pf-media-plate-myth);
   background-size: cover, cover;
   background-position: center, 45%;
@@ -1276,8 +1283,8 @@
   padding: 1rem;
   font-weight: 700;
   font-size: 1.05rem;
-  color: var(--pf-ink-secondary);
-  text-shadow: 0 1px 0 rgb(255 255 255 / 0.6);
+  color: var(--pf-media-ink);
+  text-shadow: 0 1px 0 var(--pf-media-ink-halo);
   writing-mode: vertical-rl;
   letter-spacing: 0.12em;
 }

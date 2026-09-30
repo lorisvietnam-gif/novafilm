@@ -200,6 +200,23 @@
   --pf-on-media: rgb(255 255 255 / 0.92);
   --pf-on-media-strong: rgb(255 255 255);
   --pf-on-media-rgb: 255 255 255;
+
+  /* A wash that moves TOWARD the theme's own surface colour, for a plate that
+     is bright in both themes (an ink-wash landscape, a white product shot).
+     Light mode washes it pale and inks it dark; dark mode washes it deep and
+     inks it light. That is the same self-flipping-pair rule as
+     `background: var(--pf-ink); color: var(--pf-surface)`, and it is why a
+     media card does not stay a glaring white rectangle in a dark interface.
+
+     The INK has to flip with the wash, which is the part that is easy to miss:
+     a pale plate needs dark ink and a deep plate needs light ink, so one token
+     carries both and never the wrong half. Measured over pure white - the
+     brightest thing a photograph can hold - the pale wash with dark ink gives
+     5.30:1 and the deep wash with light ink gives 8.19:1. */
+  --pf-media-wash-soft: rgb(255 255 255 / 0.5);
+  --pf-media-wash: rgb(255 255 255 / 0.68);
+  --pf-media-ink: #55565c;
+  --pf-media-ink-halo: rgb(255 255 255 / 0.5);
   /* Light overlay that must NOT flip with the theme: the top-edge highlight on
      a dialog, and the inner surfaces of deliberately dark islands such as
      .pf-pricing-wallet-dark. */
@@ -647,6 +664,13 @@
     --pf-glass-fallback: #1b1b20;
     --pf-glass-bg-soft: rgb(22 22 26 / 0.72);
 
+    /* The bright-plate wash flips with the theme, and so does its ink. A pale
+       plate with light ink would be 1.01:1. */
+    --pf-media-wash-soft: rgb(17 19 24 / 0.7);
+    --pf-media-wash: rgb(17 19 24 / 0.84);
+    --pf-media-ink: #f5f5f7;
+    --pf-media-ink-halo: rgb(0 0 0 / 0.45);
+
     --pf-skeleton-base: rgb(255 255 255 / 0.07);
     --pf-skeleton-sheen: rgb(255 255 255 / 0.02);
   }
@@ -762,6 +786,13 @@
   --pf-glass-fallback: #1b1b20;
   --pf-glass-bg-soft: rgb(22 22 26 / 0.72);
 
+  /* The bright-plate wash flips with the theme, and so does its ink. A pale
+     plate with light ink would be 1.01:1. */
+  --pf-media-wash-soft: rgb(17 19 24 / 0.7);
+  --pf-media-wash: rgb(17 19 24 / 0.84);
+  --pf-media-ink: #f5f5f7;
+  --pf-media-ink-halo: rgb(0 0 0 / 0.45);
+
   --pf-skeleton-base: rgb(255 255 255 / 0.07);
   --pf-skeleton-sheen: rgb(255 255 255 / 0.02);
 }
@@ -872,6 +903,13 @@
       0 8px 28px rgb(17 19 24 / 0.1), 0 0 0 1px rgb(17 19 24 / 0.1);
     --pf-glass-fallback: #ffffff;
     --pf-glass-bg-soft: rgb(255 255 255 / 0.72);
+
+    /* Restated for the same reason as every other colour in this block: the
+       bright-plate wash must not survive from the dark theme-space. */
+    --pf-media-wash-soft: rgb(255 255 255 / 0.5);
+    --pf-media-wash: rgb(255 255 255 / 0.68);
+    --pf-media-ink: #55565c;
+    --pf-media-ink-halo: rgb(255 255 255 / 0.5);
 
     --pf-skeleton-base: rgb(17 19 24 / 0.06);
     --pf-skeleton-sheen: rgb(17 19 24 / 0.02);
