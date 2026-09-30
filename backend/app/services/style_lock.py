@@ -164,13 +164,13 @@ def template_is_photoreal(tpl) -> bool:
 
 
 def _seedream_cfg(tpl) -> dict:
-    """取出模板 seedream_config，缺省或类型不对时返回空 dict。"""
+    """Read the template's seedream_config; return an empty dict when it is missing or the wrong type."""
     cfg = getattr(tpl, "seedream_config", None) or {}
     return cfg if isinstance(cfg, dict) else {}
 
 
 def template_shot_range(tpl) -> tuple[int, int] | None:
-    """模板锁定的分镜数量区间；未配置则返回 None，走字数默认 6–10 镜。"""
+    """The shot-count range locked by the template; None when unconfigured, which falls back to the word-count default of 6-10 shots."""
     if tpl is None:
         return None
     cfg = _seedream_cfg(tpl)
@@ -184,7 +184,7 @@ def template_shot_range(tpl) -> tuple[int, int] | None:
 
 
 def template_allow_source_names(tpl) -> bool:
-    """获客类模板：旁白保留用户文案里的店名/产品名。"""
+    """Lead-gen templates: keep the shop and product names from the user's copy in the narration."""
     if tpl is None:
         return False
     return bool(_seedream_cfg(tpl).get("allow_source_names"))
@@ -193,7 +193,7 @@ def template_allow_source_names(tpl) -> bool:
 def template_prompt_defaults(tpl) -> dict[str, str]:
     """Canonical style / character / extra prompts from a template.
 
-    style ← style_prefix；角色/额外 ← seedream_config。
+    style <- style_prefix; character/extra <- seedream_config.
     """
     if tpl is None:
         return {"style_prompt": "", "character_prompt": "", "extra_prompt": ""}
@@ -212,7 +212,7 @@ def seedream_ref_urls(*candidates: str | None, limit: int = 2) -> list[str]:
 
     Skip data: URIs (multi‑MB base64 often hangs Seedream) and LAN/localhost URLs
     (Ark cloud cannot fetch them). Prefer prior shot `image_ark_url` CDN links.
-    limit 默认 2（科普锚点镜）；漫剧主体+画风板走 split_seedream_subject_style_refs。
+    limit defaults to 2 (explainer anchor shots); drama subject + style board use split_seedream_subject_style_refs.
     """
     out: list[str] = []
     seen: set[str] = set()
@@ -243,7 +243,7 @@ def split_seedream_subject_style_refs(
     *,
     max_total: int = 6,
 ) -> tuple[list[str], list[str]]:
-    """主体参考优先，但为画风板预留 1 个名额。"""
+    """Prioritise subject references, but reserve one slot for the style board."""
     cap = max(1, int(max_total))
     style_refs = seedream_ref_urls(*(style_urls or []), limit=1)
     budget = cap - len(style_refs)

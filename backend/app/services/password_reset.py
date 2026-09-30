@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""邮箱找回密码：Redis 一次性 token + SMTP 重置链接。"""
+"""Password recovery by e-mail: a one-shot Redis token plus an SMTP reset link."""
 from __future__ import annotations
 
 import hashlib
@@ -15,7 +15,7 @@ from app.services.email import send_email
 
 logger = logging.getLogger(__name__)
 
-# token TTL / 同邮箱冷却
+# token TTL / per-e-mail cooldown
 TOKEN_TTL_SECONDS = 30 * 60
 COOLDOWN_SECONDS = 60
 
@@ -23,19 +23,19 @@ GENERIC_OK_MESSAGE = "若该邮箱已注册，将收到重置邮件"
 
 
 class PasswordResetError(Exception):
-    """找回/重置密码业务错误。"""
+    """A business error during password recovery or reset."""
 
 
 class RedisUnavailableError(PasswordResetError):
-    """Redis 不可用，无法签发或校验重置 token。"""
+    """Redis is unavailable, so a reset token cannot be issued or validated."""
 
 
 class InvalidTokenError(PasswordResetError):
-    """重置 token 无效或已过期。"""
+    """The reset token is invalid or has expired."""
 
 
 def _token_hash(token: str) -> str:
-    # 只存 sha256，明文 token 仅出现在邮件链接里
+    # Store only the sha256; the plaintext token appears solely in the e-mail link
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
@@ -52,7 +52,7 @@ def _cooldown_key(email: str) -> str:
 
 
 def get_redis_client() -> Any:
-    """连接 Redis；失败则抛 RedisUnavailableError（不做内存回退）。"""
+    """Connect to Redis; raise RedisUnavailableError on failure (no in-memory fallback)."""
     try:
         import redis
 
@@ -70,7 +70,7 @@ def get_redis_client() -> Any:
 
 
 def create_reset_token(redis_client: Any, user_id: int) -> str:
-    """签发一次性 token，并使该用户旧 token 失效。"""
+    """Issue a one-shot token and invalidate that user's previous tokens."""
     old_hash = redis_client.get(_user_key(user_id))
     if old_hash:
         redis_client.delete(_token_key(str(old_hash)))
@@ -85,13 +85,13 @@ def create_reset_token(redis_client: Any, user_id: int) -> str:
 
 
 def consume_reset_token(redis_client: Any, token: str) -> int:
-    """校验并删除 token，返回 user_id；无效则抛 InvalidTokenError。"""
+    """Validate and delete the token, returning user_id; raises InvalidTokenError when it is not valid."""
     raw = (token or "").strip()
     if not raw:
         raise InvalidTokenError("重置链接无效或已过期")
     th = _token_hash(raw)
     key = _token_key(th)
-    # GETDEL 原子取删：并发的两次重置请求只有一次能拿到 user_id
+    # GETDEL is atomic: of two concurrent reset requests, only one gets the user_id
     user_id_raw = redis_client.getdel(key)
     if not user_id_raw:
         raise InvalidTokenError("重置链接无效或已过期")
@@ -105,21 +105,21 @@ def consume_reset_token(redis_client: Any, token: str) -> int:
 
 
 def build_reset_link(token: str) -> str:
-    # 用户端 Auth 页：?mode=reset&token=...
+    # The user-facing Auth page: ?mode=reset&token=...
     base = str(get_settings().public_base_url or "").rstrip("/")
     return f"{base}/auth?mode=reset&token={token}"
 
 
 async def request_password_reset(db: AsyncSession, email: str) -> dict[str, Any]:
     """
-    发起找回：写 Redis token 并尝试发信。
-    始终返回统一成功文案（防枚举）；Redis 不可用时抛错。
+    Start a recovery: write the Redis token and try to send the e-mail. Always returns the
+    same generic success message (defeats account enumeration); raises when Redis is unavailable.
     """
     redis_client = get_redis_client()
     email_norm = str(email or "").strip().lower()
     cd_key = _cooldown_key(email_norm)
 
-    # 60 秒冷却：重复请求直接成功、不重发
+    # 60 second cooldown: a repeat request succeeds without sending another mail
     if redis_client.get(cd_key):
         return {"ok": True, "message": GENERIC_OK_MESSAGE}
 
@@ -156,7 +156,7 @@ async def apply_password_reset(
     token: str,
     new_password: str,
 ) -> None:
-    """校验 token 后更新密码；token 一次性消费。"""
+    """Validate the token, then update the password; the token is consumed once."""
     redis_client = get_redis_client()
     user_id = consume_reset_token(redis_client, token)
     user = await get_user_by_id(db, user_id)

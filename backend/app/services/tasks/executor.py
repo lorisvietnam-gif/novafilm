@@ -15,7 +15,7 @@ from app.services.tasks.service import append_task_event, get_task_for_runtime, 
 logger = logging.getLogger(__name__)
 
 
-# 执行单个任务并回写平台状态。
+# Execute a single task and write the platform status back.
 async def execute_task_run(task_id: int) -> None:
     async with AsyncSessionLocal() as db:
         task = await get_task_for_runtime(db, task_id)
@@ -30,7 +30,7 @@ async def execute_task_run(task_id: int) -> None:
             task.error_code = "handler_missing"
             task.error_message = f"未注册任务处理器: {task.domain}/{task.task_type}"
             task.finished_at = datetime.now(UTC)
-            # 未进入预扣，保持 none
+            # Not pre-held, so leave the status as none
             task.billing_status = "none"
             await append_task_event(
                 db,
@@ -43,20 +43,20 @@ async def execute_task_run(task_id: int) -> None:
             await db.commit()
             return
 
-        # 在 freeze_for_task 之前读取 steps：_lock_task(populate_existing=True)
-        # 会卸掉已预加载的关系，之后访问 task.steps 会触发异步懒加载抛 MissingGreenlet。
+        # Read steps before freeze_for_task: _lock_task(populate_existing=True)
+        # evicts the preloaded relationships, after which touching task.steps raises MissingGreenlet on the async lazy load.
         step = task.steps[0] if task.steps else None
 
         try:
             await freeze_for_task(db, task)
         except ValueError as exc:
-            # 余额不足：可预期失败，专用错误码便于前端引导充值
+            # Insufficient balance: an expected failure, with a dedicated error code so the front end can point the user at top-up
             await _fail_task_before_start(
                 db, task, step, error_code="insufficient_balance", message=str(exc)
             )
             return
         except Exception as exc:  # noqa: BLE001
-            # DB 瞬断等非 ValueError 不能裸逃：否则任务永久卡 leased，只能等 watchdog 周期兜底
+            # A transient DB failure that is not a ValueError must not escape bare: the task would otherwise stay leased forever, waiting only for the watchdog cycle as a backstop
             logger.exception("freeze_for_task failed task_id=%s", task.id)
             from app.services.exc_format import format_exception_message
 
@@ -93,7 +93,7 @@ async def execute_task_run(task_id: int) -> None:
                     return
                 handler = get_task_handler(task.domain, task.task_type)
                 result = await handler.executor(task) if handler else {"ok": False, "error": "missing_handler"}
-                # 重新加载（含 selectinload steps）；勿 refresh，会卸掉关系再触发懒加载。
+                # Reload including selectinload steps; do not use refresh, which evicts the relationships and then triggers a lazy load.
                 task = await get_task_for_runtime(db, task_id)
                 if not task:
                     return
@@ -106,7 +106,7 @@ async def execute_task_run(task_id: int) -> None:
                 if isinstance(result, dict) and result.get("cancelled"):
                     await _mark_cancelled(db, task)
                     return
-                # handler 返回 ok:False 时必须失败收敛（勿当成 succeeded）
+                # A handler returning ok:False must converge to a failure (never treat it as succeeded)
                 if isinstance(result, dict) and result.get("ok") is False:
                     err_text = str(result.get("error") or "任务执行失败").strip()[:500] or "任务执行失败"
                     await _fail_task(db, task, RuntimeError(err_text))
@@ -128,7 +128,7 @@ async def execute_task_run(task_id: int) -> None:
                 await _fail_task(db, task, exc)
 
 
-# 把任务收敛到成功态。
+# Converge the task to the succeeded state.
 async def _complete_task(db, task, result: dict) -> None:
     now = datetime.now(UTC)
     step = task.steps[0] if task.steps else None
@@ -155,8 +155,8 @@ async def _complete_task(db, task, result: dict) -> None:
     await db.commit()
 
 
-# 预扣阶段（handler 尚未执行）失败收敛：此时 _lock_task(populate_existing) 已卸掉
-# task.steps 关系，不能像 _fail_task 那样再访问 task.steps[0]，step 由调用方预读传入。
+    # Failure during the pre-hold phase (the handler has not run yet): _lock_task(populate_existing) has already evicted the
+    # task.steps relationship, so unlike _fail_task we cannot reach task.steps[0]; the caller pre-reads the step and passes it in.
 async def _fail_task_before_start(db, task, step, *, error_code: str, message: str) -> None:
     now = datetime.now(UTC)
     set_task_step_state(task, step, status="failed", now=now)
@@ -164,7 +164,7 @@ async def _fail_task_before_start(db, task, step, *, error_code: str, message: s
     task.error_code = error_code
     task.error_message = message[:500]
     task.finished_at = now
-    # frozen 之后的异常（如落流水失败）保留 frozen 交 settle_task 对账；未预扣成功保持 none
+    # An exception after frozen (e.g. failing to write the usage row) keeps frozen so settle_task can reconcile; if the pre-hold never succeeded the status stays none
     if task.billing_status != "frozen":
         task.billing_status = "none"
     await append_task_event(
@@ -175,7 +175,7 @@ async def _fail_task_before_start(db, task, step, *, error_code: str, message: s
         phase=task.current_step_key,
         message=task.error_message,
     )
-    # 资产生图/视频：同步写回 asset.params.generation，避免前端只看到空的「生图失败」
+    # Asset image/video: write back to asset.params.generation synchronously, so the front end is not left with only an empty "generation failed"
     await _fail_drama_asset_generation_if_needed(db, task, task.error_message)
     try:
         await settle_task(db, task.id)
@@ -184,7 +184,7 @@ async def _fail_task_before_start(db, task, step, *, error_code: str, message: s
     await db.commit()
 
 
-# 把任务收敛到失败态。
+# Converge the task to the failed state.
 async def _fail_task(db, task, exc: Exception) -> None:
     from app.services.exc_format import format_exception_message
 
@@ -203,7 +203,7 @@ async def _fail_task(db, task, exc: Exception) -> None:
         phase=task.current_step_key,
         message=task.error_message,
     )
-    # 资产生图/视频：同步写回 asset.params.generation，避免前端只看到空的「生图失败」
+    # Asset image/video: write back to asset.params.generation synchronously, so the front end is not left with only an empty "generation failed"
     await _fail_drama_asset_generation_if_needed(db, task, task.error_message or str(exc))
     if task.fragment_id:
         from app.models_drama import DramaEpisodeFragment
@@ -213,7 +213,7 @@ async def _fail_task(db, task, exc: Exception) -> None:
         if frag:
             params = dict(frag.params or {})
             prev_gen = params.get("generation") if isinstance(params.get("generation"), dict) else None
-            # 保留 root_error（避免「内部重试超限」盖掉真人审核等真实原因）
+            # Keep root_error, so a generic "internal retries exhausted" cannot mask a real cause such as a human-content rejection
             params["generation"] = build_failed_generation_params(
                 prev_gen if isinstance(prev_gen, dict) else None,
                 task.error_message or str(exc),
@@ -252,11 +252,11 @@ async def _fail_task(db, task, exc: Exception) -> None:
     await db.commit()
 
 
-# 把任务收敛到取消态。
+# Converge the task to the cancelled state.
 async def _mark_cancelled(db, task) -> None:
-    # finalizing 收尾窗口内让位：poller 协程可能正在下载成片并落真实用量，
-    # 此时全额退款会导致 usage_events 悬空、钱货两失；协程会按实结算或退回 polling。
-    # 任务保持 cancel_requested，scheduler 下轮重试，窗口 TTL（10 分钟）兜底。
+    # Yield inside the finalizing close-out window: the poller coroutine may be downloading the film and
+    # writing real usage, and a full refund now would leave usage_events orphaned, money for nothing. The task
+    # stays cancel_requested and the scheduler retries next round; the window TTL (10 min) is the backstop.
     from app.services.tasks.service import task_finalizing_window_open
 
     if task_finalizing_window_open(task):
@@ -288,7 +288,7 @@ async def _mark_cancelled(db, task) -> None:
 
 
 async def _fail_drama_asset_generation_if_needed(db, task, error: str) -> None:
-    """任务未开始执行时失败，同步更新漫剧资产 generation 状态。"""
+    """Fail a task that never started executing, updating the drama asset generation status in step."""
     if (task.domain or "") != "drama" or not task.asset_id:
         return
     if (task.task_type or "") not in {"asset_image", "asset_video"}:
@@ -304,7 +304,7 @@ async def _fail_drama_asset_generation_if_needed(db, task, error: str) -> None:
     asset.params = params
 
 
-# 应用重启或热更新中断时，把任务重新放回待执行状态。
+# Interrupted by an application restart or hot reload: put the task back into the pending state.
 async def _requeue_interrupted_task(db, task) -> None:
     now = datetime.now(UTC)
     step = task.steps[0] if task.steps else None
