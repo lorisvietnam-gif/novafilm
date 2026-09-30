@@ -1,5 +1,5 @@
 /** Quy trình dự án Drama: dàn ý cốt truyện → storyboard → tạo video; thư viện tài nguyên là lối vào riêng */
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Boxes, ChevronLeft } from 'lucide-react'
 import BillingErrorNotice from '../../components/billing/BillingErrorNotice'
@@ -52,6 +52,16 @@ function WorkspaceInner() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const locationApplied = useRef(false)
+
+  /*
+   * Mọi bước con (`AssetsStep`, `OutlineStep`, `OutlineEpisodePanel`) đều tự bóc
+   * `err.message` rồi đẩy lên đây, nên đây là chỗ duy nhất phải tra bảng nhãn — bọc ở
+   * từng `catch` bên trong con thì không bắt được, và thông báo tiếng Trung của backend
+   * sẽ lọt thẳng ra giao diện. Chuỗi lạ trả về nguyên văn nên không nuốt thông báo.
+   */
+  const reportError = useCallback((message: string) => {
+    setError(localizeBackendMessage(message))
+  }, [])
 
   // Áp dụng state của route: bước assets / bước kiểu storyboard sẽ điều hướng
   function applyLocationState(state: WorkspaceLocationState | null) {
@@ -106,7 +116,7 @@ function WorkspaceInner() {
           locationApplied.current = true
         }
       })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Tải thất bại'))
+      .catch((err) => setError(err instanceof Error ? localizeBackendMessage(err.message) : 'Tải thất bại'))
       .finally(() => setLoading(false))
   }, [id])
 
@@ -139,7 +149,7 @@ function WorkspaceInner() {
       setProject(updated)
       setTitleDraft(updated.title)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Lưu tiêu đề thất bại')
+      setError(err instanceof Error ? localizeBackendMessage(err.message) : 'Lưu tiêu đề thất bại')
     } finally {
       setEditingTitle(false)
     }
@@ -232,7 +242,7 @@ function WorkspaceInner() {
         {error ? <BillingErrorNotice message={error} className="drama-error drama-workspace-banner" /> : null}
 
         <main className="drama-workspace-main">
-          {assetsOpen ? <AssetsStep projectId={id} onError={setError} /> : null}
+          {assetsOpen ? <AssetsStep projectId={id} onError={reportError} /> : null}
           {!assetsOpen && activeStep === 'outline' ? (
             <OutlineStep
               projectId={id}
@@ -241,7 +251,7 @@ function WorkspaceInner() {
                 setProject(p)
                 setTitleDraft(p.title)
               }}
-              onError={setError}
+              onError={reportError}
             />
           ) : null}
         </main>
