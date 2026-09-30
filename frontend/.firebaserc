@@ -1,0 +1,11 @@
+{
+  // PLACEHOLDER — this is not a real Firebase project id and must be replaced
+  // before running any `firebase` command. No real project id is stored in this
+  // repo, by design.
+  //
+  // To target a different project (e.g. staging vs production) use
+  // `firebase use --add`, which writes to ~/.firebaserc instead of this file.
+  "projects": {
+    "default": "REPLACE_WITH_FIREBASE_PROJECT_ID"
+  }
+}
