@@ -13,7 +13,13 @@ import { join } from 'node:path'
 
 const EDGE = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
 const PORT = 9333
-const BASE = 'http://127.0.0.1:5173'
+/**
+ * Dev server to audit. Defaults to 5173, but that port is shared with the other
+ * lanes and is regularly held by one that is not this worktree — auditing it
+ * silently measures someone else's code. Set AUDIT_BASE to point at your own
+ * dev server:  set AUDIT_BASE=http://127.0.0.1:5271
+ */
+const BASE = process.env.AUDIT_BASE || 'http://127.0.0.1:5173'
 const API = 'http://127.0.0.1:8000'
 const OUT = 'C:\\Users\\NOVAST~1\\AppData\\Local\\Temp\\kilo\\audit'
 const PROFILE = 'C:\\Users\\NOVAST~1\\AppData\\Local\\Temp\\kilo\\edge-profile'
