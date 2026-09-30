@@ -356,7 +356,7 @@
   border: 1px solid var(--pf-line);
   display: grid;
   place-items: center;
-  font-size: 1rem;
+  font-size: var(--pf-text-base);
   flex-shrink: 0;
 }
 
@@ -1087,7 +1087,7 @@
   text-align: left;
   font: inherit;
   font-weight: 700;
-  font-size: 1rem;
+  font-size: var(--pf-text-base);
   cursor: pointer;
   color: var(--pf-ink);
 }
@@ -1124,7 +1124,7 @@
 
 .pf-empty-state h2 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: var(--pf-text-xl);
 }
 
 .pf-empty-illust {
@@ -1285,7 +1285,7 @@
 }
 
 .pf-plan-price strong {
-  font-size: 2rem;
+  font-size: var(--pf-text-3xl);
   letter-spacing: -0.03em;
 }
 
@@ -1350,7 +1350,7 @@
 }
 
 .pf-help-cat span {
-  font-size: 0.75rem;
+  font-size: var(--pf-text-xs);
   color: var(--pf-muted);
 }
 
@@ -1554,19 +1554,19 @@
 .pf-user-avatar--sm {
   width: 34px;
   height: 34px;
-  font-size: 0.75rem;
+  font-size: var(--pf-text-xs);
 }
 
 .pf-user-avatar--md {
   width: 48px;
   height: 48px;
-  font-size: 1rem;
+  font-size: var(--pf-text-base);
 }
 
 .pf-user-avatar--lg {
   width: 48px;
   height: 48px;
-  font-size: 1rem;
+  font-size: var(--pf-text-base);
 }
 
 .pf-user-avatar--xl {
@@ -1577,7 +1577,7 @@
 
 .pf-settings-profile strong {
   display: block;
-  font-size: 1rem;
+  font-size: var(--pf-text-base);
 }
 
 .pf-settings-profile p {
@@ -1927,7 +1927,7 @@
 }
 
 .pf-create-choice-card strong {
-  font-size: 1rem;
+  font-size: var(--pf-text-base);
 }
 
 .pf-create-choice-foot {
@@ -2167,7 +2167,7 @@
 
 .pf-help-page-hero h1 {
   margin: 0 0 0.4rem;
-  font-size: 2rem;
+  font-size: var(--pf-text-3xl);
 }
 
 .pf-help-search-lg input {
@@ -2498,7 +2498,7 @@
   background: var(--pf-lime-soft);
   display: grid;
   place-items: center;
-  font-size: 1.25rem;
+  font-size: var(--pf-text-xl);
   color: var(--pf-accent-ink);
 }
 
@@ -2643,7 +2643,7 @@
   border: 1px solid var(--pf-line);
   display: grid;
   place-items: center;
-  font-size: 0.75rem;
+  font-size: var(--pf-text-xs);
   font-weight: 700;
   color: var(--pf-ink);
   padding: 0;
@@ -2763,7 +2763,7 @@
 
 .pf-btn-lg {
   padding: 0.75rem 1.35rem;
-  font-size: 1rem;
+  font-size: var(--pf-text-base);
   border-radius: var(--pf-radius-md);
 }
 
@@ -3051,7 +3051,7 @@
   border: 2px solid var(--pf-line-strong);
   display: grid;
   place-items: center;
-  font-size: 0.75rem;
+  font-size: var(--pf-text-xs);
   font-weight: 700;
   background: var(--pf-surface);
 }
@@ -3091,7 +3091,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.75rem;
+  font-size: var(--pf-text-xs);
   color: var(--pf-muted);
   background: var(--pf-bg);
   border: 1px dashed var(--pf-line);
@@ -3402,7 +3402,7 @@
 
 .pf-create-col h3 {
   margin: 0 0 0.85rem;
-  font-size: 1rem;
+  font-size: var(--pf-text-base);
 }
 
 .pf-search {
@@ -3458,7 +3458,7 @@
 }
 
 .pf-tpl-mini span {
-  font-size: 0.75rem;
+  font-size: var(--pf-text-xs);
   color: var(--pf-muted);
 }
 
@@ -3535,7 +3535,7 @@
   position: absolute;
   right: 0.75rem;
   bottom: 0.65rem;
-  font-size: 0.75rem;
+  font-size: var(--pf-text-xs);
   color: var(--pf-muted);
 }
 
@@ -3669,7 +3669,7 @@
 
 .pf-style-block h3 {
   margin: 0 0 0.65rem;
-  font-size: 1rem;
+  font-size: var(--pf-text-base);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3869,7 +3869,7 @@
 }
 
 .pf-voice-meta {
-  font-size: 0.75rem;
+  font-size: var(--pf-text-xs);
   color: var(--pf-muted);
   margin-bottom: 0.35rem;
 }
@@ -4236,7 +4236,7 @@ button.pf-shot-editable:disabled {
 }
 
 .pf-prompt-hint {
-  font-size: 0.75rem;
+  font-size: var(--pf-text-xs);
   margin-top: 4px;
   display: block;
   font-weight: 400;
@@ -5001,7 +5001,7 @@ button.pf-shot-editable:disabled {
 
 .pf-side-box h3 {
   margin: 0 0 0.35rem;
-  font-size: 1rem;
+  font-size: var(--pf-text-base);
   font-weight: 700;
 }
 
@@ -5134,7 +5134,7 @@ button.pf-shot-editable:disabled {
 
 .pf-usage-records-head h3 {
   margin: 0 0 0.2rem;
-  font-size: 1rem;
+  font-size: var(--pf-text-base);
 }
 
 .pf-usage-records-head p {
@@ -5209,7 +5209,7 @@ button.pf-shot-editable:disabled {
 
 .pf-api-docs h3 {
   margin: 0 0 0.75rem;
-  font-size: 1rem;
+  font-size: var(--pf-text-base);
 }
 
 .pf-api-docs pre {
@@ -5218,7 +5218,7 @@ button.pf-shot-editable:disabled {
   border-radius: var(--pf-radius-sm);
   background: var(--pf-ink);
   color: var(--pf-line);
-  font-size: 0.75rem;
+  font-size: var(--pf-text-xs);
   line-height: 1.45;
   overflow-x: auto;
   white-space: pre-wrap;
@@ -5231,7 +5231,7 @@ button.pf-shot-editable:disabled {
 
 .pf-usage-card-head h3 {
   margin: 0 0 0.3rem;
-  font-size: 1rem;
+  font-size: var(--pf-text-base);
   font-weight: 700;
 }
 
@@ -5848,7 +5848,7 @@ button.pf-shot-editable:disabled {
 
 .pf-pricing-info-card h3 {
   margin: 0 0 0.7rem;
-  font-size: 1rem;
+  font-size: var(--pf-text-base);
   font-weight: 800;
 }
 
@@ -6066,7 +6066,7 @@ button.pf-shot-editable:disabled {
 
 .pf-pay-amount em {
   font-style: normal;
-  font-size: 2rem;
+  font-size: var(--pf-text-3xl);
   font-weight: 800;
   letter-spacing: -0.03em;
 }
@@ -6580,7 +6580,7 @@ button.pf-shot-editable:disabled {
 
 .pf-modal-head h3 {
   margin: 0;
-  font-family: 'Noto Serif', 'Noto Serif SC', Georgia, serif;
+  font-family: var(--pf-font-serif);
   font-size: 1.2rem;
   font-weight: 500;
 }
@@ -6592,7 +6592,7 @@ button.pf-shot-editable:disabled {
   border-radius: 999px;
   background: rgb(var(--pf-ink-rgb) / 0.05);
   color: var(--pf-muted);
-  font-size: 1.25rem;
+  font-size: var(--pf-text-xl);
   line-height: 1;
 }
 
@@ -7242,7 +7242,7 @@ button.pf-shot-editable:disabled {
 }
 
 .pf-wx-fab-id-label {
-  font-size: 0.75rem;
+  font-size: var(--pf-text-xs);
   color: var(--pf-muted);
 }
 
@@ -7275,7 +7275,7 @@ button.pf-shot-editable:disabled {
 
 .pf-wx-fab-tip {
   margin: 0.65rem 0 0;
-  font-size: 0.75rem;
+  font-size: var(--pf-text-xs);
   line-height: 1.4;
   color: var(--pf-muted);
   text-align: center;

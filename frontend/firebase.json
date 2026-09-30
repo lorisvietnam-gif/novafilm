@@ -1,0 +1,57 @@
+{
+  // Firebase Hosting config for the novafilm user-facing SPA.
+  //
+  // No domain is declared here on purpose. Custom domains live in the Firebase
+  // console (Hosting > Add custom domain), so the same repo serves a staging
+  // project and a production project without any code change.
+  //
+  // Not handled by this file: /api, /static and /epay/notify. Those were
+  // same-origin nginx reverse proxies (see nginx.conf, kept for the Docker
+  // path). Firebase Hosting cannot proxy to an arbitrary VPS origin, so the
+  // frontend must reach the backend cross-origin via VITE_API_BASE.
+  "hosting": {
+    // Vite default output dir; vite.config.ts sets no build.outDir.
+    "public": "dist",
+    "ignore": [
+      "firebase.json",
+      ".firebaserc",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "headers": [
+      {
+        // The SPA shell must never be cached, otherwise a deploy strands users
+        // on a stale index.html that references deleted asset hashes.
+        "source": "/index.html",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
+        // Vite emits content-hashed filenames under /assets, so these are safe
+        // to cache immutably.
+        "source": "/assets/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=31536000, immutable"
+          }
+        ]
+      }
+    ],
+    "rewrites": [
+      {
+        // SPA fallback. react-router-dom serves routes such as /drama/xxx, which
+        // have no file behind them and would 404 on a hard reload or a shared
+        // link. Firebase Hosting serves existing static files first and only
+        // falls through to this rewrite on a miss, so hashed assets and files
+        // copied from public/ still resolve normally.
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}
