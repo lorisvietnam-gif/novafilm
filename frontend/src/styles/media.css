@@ -1,0 +1,289 @@
+/* ==========================================================================
+   novafilm / PRINTFILM — image layer
+   --------------------------------------------------------------------------
+   The photographs the product shows, and the reasoning behind where each one
+   went. This file owns two things:
+
+     1. The image set (section 1) — one custom property per frame, so a
+        component swaps a variable instead of restating a url() list.
+     2. Behaviour that has no single home (sections 2+): the responsive
+        stacking of the bands, the sign-in wall, and the status-shape
+        vocabulary.
+
+   Everything that restyles an EXISTING component lives with that component in
+   printfilm.css, next to the rule it replaces, so no selector is defined
+   twice and no cascade fight has to be won by order. Each block below points
+   at the rule it works with.
+
+   RULES THIS LAYER ENFORCES
+   ----------------------
+   1. A photograph never carries text on its own. Text on imagery is always on
+      a measured rung of the ladder in tokens.css section 5b. The floor is
+      --pf-media-scrim (0.66), which measures 5.38:1 for white @ 0.92 over a
+      PURE WHITE pixel — the brightest thing a JPEG can hold. There is no
+      safe thin scrim.
+   2. Glass never sits on a photograph. base.css section 7 is for surfaces
+      floating over flat content; imagery uses a scrim. A blurred, moving
+      background makes contrast unmeasurable, which is a different problem
+      from a hard-to-read one.
+   3. Every image box reserves its space with aspect-ratio before the bytes
+      arrive, so replacing a placeholder with a photograph never reflows.
+   4. Art below the fold is small on purpose. The originals in
+      public/image-styles are 2560x1440 at 230KB-2.8MB and are sized for the
+      style picker, not for a 300px card. Derivatives live in public/img/ and
+      are declared through image-set(), so the browser downloads the smallest
+      candidate that matches the device pixel ratio of the rendered box.
+
+   Derivative sizes, all JPEG, all measured (see docs/IMAGE_MANIFEST.md):
+     512  card art, 16-41KB          640  modal veil, 39-47KB
+     1024 half-bleed art, 59-145KB  1280 full-bleed band, 108-210KB
+     1920 hero at 2x, 317KB
+
+   Why JPEG and not WebP/AVIF: the only encoder available in this repository's
+   toolchain is the .NET imaging codec, which writes JPEG and PNG and nothing
+   else — no cwebp, no ImageMagick, no ffmpeg on this machine. image-set()
+   accepts type("image/webp") entries, so adding them later is one line per
+   image, but shipping a WebP path with no way to verify it locally would be
+   worse than shipping a known-good JPEG.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. The image set.
+
+   -webkit-image-set is declared first for engines that only shipped the
+   prefix. Custom properties are unvalidated, so the later standard
+   declaration simply wins where both are understood.
+   -------------------------------------------------------------------------- */
+:root {
+  /* Hero band — night, wet asphalt, one car under a canopy. The left third is
+     unlit trees with no detail, which is exactly where the copy sits, and the
+     subject is right of centre so the gradient never crosses a face. */
+  --pf-media-hero: -webkit-image-set(
+    url('/img/retro-narrative-film-640.jpg') 1x,
+    url('/img/retro-narrative-film-1280.jpg') 2x
+  );
+  --pf-media-hero: image-set(
+    url('/img/retro-narrative-film-640.jpg') 1x,
+    url('/img/retro-narrative-film-1280.jpg') 2x
+  );
+
+  /* Secondary band — a wuxia figure on a cliff, misty ranges behind. Used
+     where the hero band is already carrying a page: the workspace header, the
+     sign-in wall, and the retained .pf-home-hero. */
+  --pf-media-band-wuxia: -webkit-image-set(
+    url('/img/wuxia-realistic-photo-640.jpg') 1x,
+    url('/img/wuxia-realistic-photo-1280.jpg') 2x
+  );
+  --pf-media-band-wuxia: image-set(
+    url('/img/wuxia-realistic-photo-640.jpg') 1x,
+    url('/img/wuxia-realistic-photo-1280.jpg') 2x
+  );
+
+  /* Pricing band — the science-explainer product. The loudest frame we own. */
+  --pf-media-band-neon: image-set(url('/img/neon-cyberpunk-film-1280.jpg') 1x);
+
+  /* Closing band — golden-hour hills. The only warm daylight frame in the set,
+     so the exhale after a dark hero reads as a change of light rather than as
+     another dark slab. */
+  --pf-media-band-hills: image-set(url('/img/ghibli-handdrawn-anime-1280.jpg') 1x);
+
+  /* Calm ink-wash plates for the utility pages. Pale, so the ink tokens stay
+     legal under a surface-coloured wash with no scrim at all. */
+  --pf-media-plate-myth: image-set(url('/img/ancient-chinese-mythology-1024.jpg') 1x);
+  --pf-media-plate-river: image-set(url('/img/shanghai-animation-1024.jpg') 1x);
+
+  /* Small plates, each chosen for what its slot MEANS rather than for variety. */
+  --pf-media-plate-suspense: -webkit-image-set(
+    url('/img/domestic-suspense-cold-512.jpg') 1x,
+    url('/img/domestic-suspense-cold-1024.jpg') 2x
+  );
+  --pf-media-plate-suspense: image-set(
+    url('/img/domestic-suspense-cold-512.jpg') 1x,
+    url('/img/domestic-suspense-cold-1024.jpg') 2x
+  );
+  --pf-media-plate-bokeh: -webkit-image-set(
+    url('/img/american-retro-hollywood-512.jpg') 1x,
+    url('/img/american-retro-hollywood-1024.jpg') 2x
+  );
+  --pf-media-plate-bokeh: image-set(
+    url('/img/american-retro-hollywood-512.jpg') 1x,
+    url('/img/american-retro-hollywood-1024.jpg') 2x
+  );
+  --pf-media-plate-city: -webkit-image-set(
+    url('/img/chinese-urban-realistic-512.jpg') 1x,
+    url('/img/chinese-urban-realistic-1024.jpg') 2x
+  );
+  --pf-media-plate-city: image-set(
+    url('/img/chinese-urban-realistic-512.jpg') 1x,
+    url('/img/chinese-urban-realistic-1024.jpg') 2x
+  );
+  --pf-media-plate-everyday: -webkit-image-set(
+    url('/img/90s-realistic-film-512.jpg') 1x,
+    url('/img/90s-realistic-film-1024.jpg') 2x
+  );
+  --pf-media-plate-everyday: image-set(
+    url('/img/90s-realistic-film-512.jpg') 1x,
+    url('/img/90s-realistic-film-1024.jpg') 2x
+  );
+  --pf-media-plate-court: image-set(url('/img/palace-intrigue-cold-512.jpg') 1x);
+  --pf-media-plate-soft: image-set(url('/img/korean-urban-soft-512.jpg') 1x);
+
+  /* Behind an open dialog. 640px is deliberate: the veil is blurred to 8px,
+     so anything larger is paid for and thrown away. The veil is only mounted
+     while a dialog is open, so a normal page never fetches it. */
+  --pf-media-veil: image-set(url('/img/retro-narrative-film-640.jpg') 1x);
+}
+
+/* --------------------------------------------------------------------------
+   2. Bands at narrow widths.
+
+   Below 768 the two-column hero stacks and the copy takes the full width. A
+   left-weighted gradient over a stacked layout leaves the lede sitting on the
+   brightest part of the photograph, so the scrim has to rotate with the
+   layout: it becomes vertical and covers the whole height.
+
+   Works with the .pf-land-hero / .pf-ws-hero / .pf-home-hero /
+   .pf-land-close blocks in printfilm.css.
+   -------------------------------------------------------------------------- */
+@media (max-width: 767px) {
+  .pf-land-hero {
+    grid-template-columns: minmax(0, 1fr);
+    background-image: linear-gradient(
+        180deg,
+        var(--pf-media-scrim-full) 0%,
+        var(--pf-media-scrim-strong) 44%,
+        var(--pf-media-scrim) 74%,
+        var(--pf-media-scrim-soft) 100%
+      ),
+      var(--pf-media-hero);
+    background-position: center, 55% 45%;
+  }
+
+  .pf-ws-hero,
+  .pf-home-hero,
+  .pf-land-close {
+    background-image: linear-gradient(
+        180deg,
+        var(--pf-media-scrim-full) 0%,
+        var(--pf-media-scrim-strong) 44%,
+        var(--pf-media-scrim) 74%,
+        var(--pf-media-scrim-soft) 100%
+      ),
+      var(--pf-media-band-wuxia);
+    background-position: center, 55% 40%;
+  }
+
+  .pf-land-hero h1,
+  .pf-home-hero h1 {
+    font-size: clamp(2.125rem, 1.2rem + 4.4vw, 3rem);
+  }
+
+  /* The two style frames stop being a staggered pair and become a plain pair,
+     because the stagger only reads when there is height to spare. */
+  .pf-land-frames {
+    min-height: 0;
+  }
+
+  .pf-land-frame.is-kepu {
+    margin-bottom: 0;
+  }
+}
+
+/* Below 1024 the pricing band copy column narrows enough that the copy would
+   run into the bright right half of the frame, so the scrim widens. */
+@media (max-width: 1023px) {
+  .pf-pricing-hero-band {
+    background-image: linear-gradient(
+        180deg,
+        var(--pf-media-scrim-full) 0%,
+        var(--pf-media-scrim-strong) 46%,
+        var(--pf-media-scrim) 76%,
+        var(--pf-media-scrim-soft) 100%
+      ),
+      var(--pf-media-band-neon);
+    background-position: center, 50% 50%;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   3. The sign-in wall.
+
+   `.auth-visual` is the whole right half of the login page and it was a
+   generated accent/teal gradient — the flattest surface in the product. It now
+   carries a still, with the accent bloom kept as light falling on the frame
+   rather than as the subject. App.css owns the element; this rule is scoped
+   under `.auth-shell` so it wins without an !important and without editing a
+   file outside the styles layer.
+
+   The illustration column carries no text, so --pf-media-scrim-soft is legal
+   here — it is the one place in the app where the decorative rung is used.
+   -------------------------------------------------------------------------- */
+.auth-shell .auth-visual {
+  isolation: isolate;
+  background-color: var(--pf-scrim-rgb);
+  background-image:
+    linear-gradient(200deg, var(--pf-media-scrim-soft), rgb(var(--pf-scrim-rgb) / 0.78)),
+    radial-gradient(90% 70% at 22% 18%, rgb(var(--pf-accent-rgb) / 0.22), transparent 58%),
+    var(--pf-media-band-neon);
+  background-size: cover, cover, cover;
+  background-position: center, center, center;
+  background-repeat: no-repeat, no-repeat, no-repeat;
+}
+
+/* --------------------------------------------------------------------------
+   4. Status shape vocabulary.
+
+   WCAG 1.4.1: colour must never be the only signal. Every status badge carries
+   a glyph from tokens.css section 6b in addition to its colour, so the state
+   survives greyscale, colour-blindness and forced-colours mode. `.pf-badge` is
+   defined in printfilm.css; these are the variants it was missing.
+   -------------------------------------------------------------------------- */
+.pf-badge.is-accent {
+  background: var(--pf-accent-soft);
+  color: var(--pf-accent-ink);
+  border-color: rgb(var(--pf-accent-rgb) / 0.45);
+}
+
+.pf-badge.is-accent::before {
+  content: var(--pf-shape-glyph-brand);
+}
+
+.pf-badge.is-info {
+  background: var(--pf-info-soft);
+  color: var(--pf-info-ink);
+  border-color: rgb(var(--pf-info-ink) / 0.35);
+}
+
+.pf-badge.is-info::before {
+  content: var(--pf-shape-glyph-info);
+}
+
+.pf-badge.is-warning {
+  background: var(--pf-warning-soft);
+  color: var(--pf-warning-ink);
+  border-color: rgb(var(--pf-warning-ink) / 0.35);
+}
+
+.pf-badge.is-warning::before {
+  content: var(--pf-shape-glyph-warning);
+}
+
+.pf-badge.is-danger {
+  background: var(--pf-danger-soft);
+  color: var(--pf-danger-ink);
+  border-color: rgb(var(--pf-danger-ink) / 0.35);
+}
+
+.pf-badge.is-danger::before {
+  content: var(--pf-shape-glyph-error);
+}
+
+.pf-badge.is-success {
+  background: var(--pf-success-soft);
+  color: var(--pf-success-ink);
+  border-color: rgb(var(--pf-success-ink) / 0.35);
+}
+
+.pf-badge.is-success::before {
+  content: var(--pf-shape-glyph-success);
+}
