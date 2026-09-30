@@ -1,4 +1,4 @@
-/** 资产库「音色」Tab 单卡：描述编辑、试听与合成 */
+/** Một thẻ ở tab «giọng đọc» của thư viện tài nguyên: sửa mô tả, nghe thử và tổng hợp */
 import { AudioLines, Trash2, Volume2 } from 'lucide-react'
 import { resolveDramaMediaUrl, type DramaAsset } from '../../api/drama'
 import { CharacterVoicePreviewButton } from '../../components/drama/CharacterVoicePreviewButton'
@@ -14,7 +14,7 @@ type Props = {
   onError: (message: string) => void
 }
 
-// 渲染音色资产卡片
+// Render thẻ tài nguyên giọng đọc
 export function DramaVoiceAssetCard({
   asset,
   promptValue,
@@ -35,15 +35,15 @@ export function DramaVoiceAssetCard({
           <AudioLines size={18} strokeWidth={1.75} />
         </div>
         <div className="drama-voice-card-title">
-          <h3>{asset.name || '未命名音色'}</h3>
+          <h3>{asset.name || 'Chưa đặt tên'}</h3>
           <span className={`drama-voice-card-status${hasAudio ? ' is-ready' : ' is-pending'}`}>
-            {hasAudio ? '已合成' : '待合成'}
+            {hasAudio ? 'Đã tổng hợp' : 'Chờ tổng hợp'}
           </span>
         </div>
         <button
           type="button"
           className="drama-voice-card-delete"
-          aria-label={`删除 ${asset.name || '音色'}`}
+          aria-label={`Xoá ${asset.name || 'giọng đọc'}`}
           disabled={synthBusy}
           onClick={onDelete}
         >
@@ -53,14 +53,14 @@ export function DramaVoiceAssetCard({
 
       <div className="drama-voice-card-body">
         <label className="drama-voice-card-field">
-          <span>音色描述</span>
+          <span>Mô tả giọng đọc</span>
           <textarea
             rows={3}
             value={promptValue}
             disabled={synthBusy}
             onChange={(e) => onPromptChange(e.target.value)}
             onBlur={onPromptBlur}
-            placeholder="描述音色：年龄、性别、语气、语速…"
+            placeholder="Mô tả giọng đọc: độ tuổi, giới tính, cách nói, tốc độ nói…"
           />
         </label>
 
@@ -79,7 +79,7 @@ export function DramaVoiceAssetCard({
           ) : (
             <>
               <Volume2 size={16} strokeWidth={1.75} aria-hidden />
-              <span>填写描述后合成试听</span>
+              <span>Nhập mô tả rồi tổng hợp bản nghe thử</span>
             </>
           )}
         </div>
@@ -92,7 +92,7 @@ export function DramaVoiceAssetCard({
           disabled={synthBusy || !promptValue.trim()}
           onClick={onSynth}
         >
-          {synthBusy ? '合成中…' : hasAudio ? '重新合成' : '按提示词合成'}
+          {synthBusy ? 'Đang tổng hợp…' : hasAudio ? 'Tổng hợp lại' : 'Tổng hợp theo prompt'}
         </button>
       </footer>
     </article>

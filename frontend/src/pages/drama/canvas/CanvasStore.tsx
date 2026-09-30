@@ -1,4 +1,4 @@
-/** 画布状态上下文：节点/边、历史、UI 开关与增删操作 */
+/** Context trạng thái canvas: node/edge, lịch sử, công tắc UI và thao tác thêm/xoá */
 import {
   useCallback,
   useEffect,
@@ -75,13 +75,13 @@ type CanvasStoreValue = {
   ensureNodeAsset: (nodeId: string) => Promise<number>
   uploadNodeMedia: (nodeId: string, file: File) => Promise<void>
   applyLibraryMediaToNode: (nodeId: string, source: DramaAsset) => Promise<void>
-  /** 用最新资产字段同步节点（音色绑定等） */
+  /** Đồng bộ node theo field asset mới nhất (gắn giọng đọc…) */
   syncNodeFromAsset: (nodeId: string, asset: DramaAsset) => void
-  /** 写回节点提示词（本地） */
+  /** Ghi lại prompt của node (cục bộ) */
   updateNodePrompt: (nodeId: string, prompt: string) => void
-  /** 写回视频节点生成参数 */
+  /** Ghi lại tham số tạo của node video */
   updateNodeVideoOptions: (nodeId: string, options: Record<string, unknown>) => void
-  /** 重命名节点（同步资产 name） */
+  /** Đổi tên node (đồng bộ luôn name của asset) */
   renameNode: (nodeId: string, name: string) => Promise<void>
   generateNodeImage: (
     nodeId: string,
@@ -94,7 +94,7 @@ type CanvasStoreValue = {
     options?: Partial<VideoGenerationOptions>,
   ) => Promise<void>
   updateNodeTextContent: (nodeId: string, textContent: string) => void
-  /** 可供 @ 引用的画布节点（角色/场景/图片等） */
+  /** Các node canvas có thể tham chiếu bằng @ (nhân vật / bối cảnh / ảnh…) */
   mentionableNodes: Array<{
     nodeId: string
     assetId: number
@@ -102,9 +102,9 @@ type CanvasStoreValue = {
     label: string
     mediaUrl?: string | null
   }>
-  /** 项目级内置画面风格 ID */
+  /** ID phong cách hình ảnh dựng sẵn ở cấp dự án */
   projectImageStyleId: string
-  /** 是否自由画布工作流（非大纲分集） */
+  /** Dự án có dùng quy trình canvas tự do hay không (không phải chia tập theo dàn ý) */
   freeCanvasMode: boolean
 }
 
@@ -113,7 +113,7 @@ type CanvasStoreProviderProps = {
   children: ReactNode
 }
 
-/** 提供画布受控状态与历史操作 */
+/** Cung cấp trạng thái canvas có kiểm soát và các thao tác lịch sử */
 export function CanvasStoreProvider({ projectId, children }: CanvasStoreProviderProps) {
   const [nodes, setNodes] = useState<Node<CanvasAssetNodeData>[]>([])
   const [edges, setEdges] = useState<Edge[]>([])
@@ -125,8 +125,8 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
   const [snapToGrid, setSnapToGrid] = useState(false)
   const [showMinimap, setShowMinimap] = useState(false)
   const [focusNodeId, setFocusNodeId] = useState<string | null>(null)
-  // projectImageStyleId 项目内置画面风格
-  // freeCanvasMode 是否自由画布项目
+  // projectImageStyleId phong cách hình ảnh dựng sẵn của dự án
+  // freeCanvasMode dự án có dùng canvas tự do hay không
   const [projectImageStyleId, setProjectImageStyleId] = useState('')
   const [freeCanvasMode, setFreeCanvasMode] = useState(false)
   const readyRef = useRef(false)
@@ -134,7 +134,7 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
   const edgesRef = useRef(edges)
   const historyRef = useRef(history)
   const freeCanvasModeRef = useRef(freeCanvasMode)
-  /** 串行化新建节点，避免连点并发同名命中去重 */
+  /** Xử lý tuần tự việc tạo node, tránh bấm liên tục sinh trùng tên */
   const addNodeChainRef = useRef(Promise.resolve())
   const flushRef = useRef<
     (override?: { nodes: Node<CanvasAssetNodeData>[]; edges: Edge[] }) => Promise<void>
@@ -205,7 +205,7 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
       })
       .catch((err) => {
         if (cancelled) return
-        setErrorMessage(err instanceof Error ? err.message : '加载画布失败')
+        setErrorMessage(err instanceof Error ? err.message : 'Không tải được canvas.')
         readyRef.current = true
       })
       .finally(() => {
@@ -238,8 +238,8 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
       const removeChanges = changes.filter((c) => c.type === 'remove')
       const hasRemove = removeChanges.length > 0
       /*
-       * removedAssetIds 待删后端资产
-       * nextNodes / nextEdges 删除后的布局（立刻落盘，避免刷新复现）
+       * removedAssetIds các asset backend cần xoá
+       * nextNodes / nextEdges bố cục sau khi xoá (lưu ngay để refresh không hiện lại)
        */
       const removedAssetIds: number[] = []
       if (hasRemove) {
@@ -262,7 +262,7 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
       nodesRef.current = nextNodes
       setNodes(nextNodes)
 
-      /* 同步剪掉指向已删节点的边，避免布局脏边刷新后异常 */
+      /* Cắt luôn các edge trỏ tới node đã xoá, tránh để edge rác trong layout sau khi refresh */
       let nextEdges = edgesRef.current
       if (hasRemove) {
         const removedIds = new Set(removeChanges.map((c) => c.id))
@@ -340,7 +340,7 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
   const addNodeOfKind = useCallback(
     async (kind: CanvasNodeKind, position: { x: number; y: number }) => {
       const run = async () => {
-        /* 唯一名避免同类型同名去重复用资产；错开落点避免叠在同一位置 */
+        /* Tên duy nhất tránh tái dùng nhầm asset khi trùng tên cùng loại; lệch điểm đặt để không chồng lên nhau */
         let label = nextCanvasNodeLabel(kind, nodesRef.current)
         const stagger = nodesRef.current.length * 24
         const placed = { x: position.x + stagger, y: position.y + stagger }
@@ -354,7 +354,7 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
             params: { on_canvas: true },
           })
           assetId = asset.id
-          /* 若仍命中旧资产（兼容库内同名卡），换名再试一次 */
+          /* Nếu vẫn trúng asset cũ (thẻ trùng tên sẵn có trong thư viện), đổi tên rồi thử lại */
           const usedIds = new Set(
             nodesRef.current
               .map((n) => n.data.assetId)
@@ -370,13 +370,13 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
               params: { on_canvas: true },
             })
             if (usedIds.has(retry.id)) {
-              setErrorMessage('创建节点失败：资产已存在于画布')
+              setErrorMessage('Không tạo được nút: tài nguyên đã tồn tại trên canvas.')
               return
             }
             assetId = retry.id
           }
         } catch (err) {
-          setErrorMessage(err instanceof Error ? err.message : '创建资产失败')
+          setErrorMessage(err instanceof Error ? err.message : 'Không tạo được tài nguyên.')
           return
         }
 
@@ -393,7 +393,7 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
             mediaUrl: null,
           },
         }
-        /* 回写 canvas_node_id，刷新后仍能识别为画布节点 */
+        /* Ghi lại canvas_node_id để sau khi refresh vẫn nhận ra là node canvas */
         void dramaApi
           .updateAsset(assetId, { params: { canvas_node_id: id, on_canvas: true } })
           .catch(() => undefined)
@@ -408,7 +408,7 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
         nodesRef.current = nextNodes
         setNodes(nextNodes)
         markDirty()
-        /* 立刻落盘，避免刷新丢失新建节点 */
+        /* Lưu ngay xuống để refresh không mất node vừa tạo */
         void flushRef.current({
           nodes: nextNodes,
           edges: edgesRef.current,
@@ -430,11 +430,11 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
     [markDirty, projectId],
   )
 
-  /** 确保节点已绑定后端资产，返回 assetId */
+  /** Bảo đảm node đã gắn asset backend, trả về assetId */
   const ensureNodeAsset = useCallback(
     async (nodeId: string) => {
       const node = nodesRef.current.find((n) => n.id === nodeId)
-      if (!node) throw new Error('节点不存在')
+      if (!node) throw new Error('Nút không tồn tại.')
       if (typeof node.data.assetId === 'number' && node.data.assetId > 0) {
         return node.data.assetId
       }
@@ -458,7 +458,7 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
     [markDirty, projectId],
   )
 
-  /** 本地上传图片到节点 */
+  /** Tải ảnh lên node từ máy */
   const uploadNodeMedia = useCallback(
     async (nodeId: string, file: File) => {
       pushSnapshot()
@@ -477,15 +477,15 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
     [ensureNodeAsset, markDirty, pushSnapshot],
   )
 
-  /** 从全局资产库选用图片并写回节点，保留可编辑提示词以便再次生成 */
+  /** Chọn ảnh từ thư viện tài nguyên rồi ghi lại vào node, giữ prompt sửa được để tạo lại */
   const applyLibraryMediaToNode = useCallback(
     async (nodeId: string, source: DramaAsset) => {
       if (!source.url && !source.cover) {
-        throw new Error('所选资产没有可用图片')
+        throw new Error('Tài nguyên đã chọn không có ảnh dùng được.')
       }
       pushSnapshot()
       const node = nodesRef.current.find((n) => n.id === nodeId)
-      if (!node) throw new Error('节点不存在')
+      if (!node) throw new Error('Nút không tồn tại.')
       const assetId = await ensureNodeAsset(nodeId)
       const promptHint = readEditableVisualPrompt(source)
       const nextName = (source.name || '').trim() || node.data.label
@@ -547,7 +547,7 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
     [ensureNodeAsset, markDirty, pushSnapshot],
   )
 
-  /** 用最新资产字段同步节点展示（音色、封面、提示词等） */
+  /** Đồng bộ hiển thị node theo field asset mới nhất (giọng đọc, ảnh bìa, prompt…) */
   const syncNodeFromAsset = useCallback(
     (nodeId: string, asset: DramaAsset) => {
       const next = buildNodeDataFromAsset(asset)
@@ -559,7 +559,7 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
                 data: {
                   ...n.data,
                   ...next,
-                  // 保留本地 generating 状态，避免绑定时闪断
+                  // Giữ trạng thái generating cục bộ để tránh nhấp nháy lúc gắn
                   generating: n.data.generating,
                 },
               }
@@ -571,15 +571,15 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
     [markDirty],
   )
 
-  /** AI 生图并写回节点 */
+  /** Tạo ảnh bằng AI rồi ghi lại vào node */
   const generateNodeImage = useCallback(
     async (nodeId: string, prompt: string, options?: Partial<ImageGenerationOptions>) => {
       const trimmed = prompt.trim()
-      if (!trimmed) throw new Error('请输入提示词')
+      if (!trimmed) throw new Error('Vui lòng nhập prompt.')
       pushSnapshot()
       const node = nodesRef.current.find((n) => n.id === nodeId)
-      if (!node) throw new Error('节点不存在')
-      if (node.data.kind === 'video') throw new Error('视频节点请使用视频生成')
+      if (!node) throw new Error('Nút không tồn tại.')
+      if (node.data.kind === 'video') throw new Error('Nút video phải dùng chức năng tạo video.')
 
       setNodes((current) =>
         current.map((n) =>
@@ -591,7 +591,7 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
 
       try {
         const assetId = await ensureNodeAsset(nodeId)
-        /* 把 @asset:id 展开为可读名称再送生图 API；本地仍保留 token */
+        /* Mở rộng @asset:id thành tên đọc được trước khi gửi API tạo ảnh; local vẫn giữ token */
         const expandedPrompt = trimmed.replace(/@asset:(\d+)/g, (token, idStr: string) => {
           const refId = Number(idStr)
           const ref = nodesRef.current.find((n) => n.data.assetId === refId)
@@ -644,7 +644,7 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
           },
         })
         const mediaUrl = latest.url || latest.cover || ''
-        if (!mediaUrl) throw new Error('生图超时，请重试')
+        if (!mediaUrl) throw new Error('Tạo ảnh bị quá thời gian, vui lòng thử lại.')
         setNodes((current) =>
           current.map((n) =>
             n.id === nodeId
@@ -674,7 +674,7 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
     [ensureNodeAsset, markDirty, projectId, projectImageStyleId, pushSnapshot],
   )
 
-  /** 收集连入当前节点的参考资产 ID */
+  /** Gom các ID tài nguyên tham chiếu nối vào node hiện tại */
   const collectIncomingAssetIds = useCallback((nodeId: string) => {
     const ids: number[] = []
     const seen = new Set<number>()
@@ -689,14 +689,14 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
     return ids
   }, [])
 
-  /** AI 生视频并写回节点（Seedance，保留 @asset:id） */
+  /** Tạo video bằng AI rồi ghi lại vào node (Seedance, giữ nguyên @asset:id) */
   const generateNodeVideo = useCallback(
     async (nodeId: string, prompt: string, options?: Partial<VideoGenerationOptions>) => {
       const trimmed = prompt.trim()
-      if (!trimmed) throw new Error('请输入提示词')
+      if (!trimmed) throw new Error('Vui lòng nhập prompt.')
       pushSnapshot()
       const node = nodesRef.current.find((n) => n.id === nodeId)
-      if (!node) throw new Error('节点不存在')
+      if (!node) throw new Error('Nút không tồn tại.')
 
       setNodes((current) =>
         current.map((n) =>
@@ -731,7 +731,7 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
           referenceAssetIds: collectIncomingAssetIds(nodeId),
         })
         const mediaUrl = resolveDramaMediaUrl(latest.url || latest.cover || '')
-        if (!mediaUrl) throw new Error('生视频超时，请重试')
+        if (!mediaUrl) throw new Error('Tạo video bị quá thời gian, vui lòng thử lại.')
         setNodes((current) =>
           current.map((n) =>
             n.id === nodeId
@@ -768,7 +768,7 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
     ],
   )
 
-  /** 更新节点提示词（不触发生成） */
+  /** Cập nhật prompt của node (không kích hoạt tạo) */
   const updateNodePrompt = useCallback(
     (nodeId: string, prompt: string) => {
       setNodes((current) =>
@@ -781,7 +781,7 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
     [markDirty],
   )
 
-  /** 更新视频节点 Seedance 参数 */
+  /** Cập nhật tham số Seedance của node video */
   const updateNodeVideoOptions = useCallback(
     (nodeId: string, options: Record<string, unknown>) => {
       setNodes((current) =>
@@ -794,7 +794,7 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
     [markDirty],
   )
 
-  /** 重命名节点并同步资产 name */
+  /** Đổi tên node và đồng bộ name của asset */
   const renameNode = useCallback(
     async (nodeId: string, name: string) => {
       const trimmed = name.trim()
@@ -828,7 +828,7 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
     [ensureNodeAsset, markDirty, pushSnapshot],
   )
 
-  /** 更新文本节点内容 */
+  /** Cập nhật nội dung node văn bản */
   const updateNodeTextContent = useCallback(
     (nodeId: string, textContent: string) => {
       setNodes((current) =>
@@ -881,7 +881,7 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
   })
   flushRef.current = flush
 
-  /* 页面关闭前尽量刷一次保存 */
+  /* Cố gắng lưu thêm một lần trước khi đóng trang */
   useEffect(() => {
     const onBeforeUnload = () => {
       if (dirty) void flush()
@@ -990,7 +990,7 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
   return <CanvasStoreContext.Provider value={value}>{children}</CanvasStoreContext.Provider>
 }
 
-/** 读取画布状态上下文 */
+/** Đọc context trạng thái canvas */
 export function useCanvasStore() {
   return useCanvasStoreBase<CanvasStoreValue>()
 }

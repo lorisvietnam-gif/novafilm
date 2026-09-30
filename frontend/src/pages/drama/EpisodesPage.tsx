@@ -1,4 +1,4 @@
-/** 旧分集中间页：自动跳到首集分镜编辑 */
+/** Trang trung gian cũ của phần tập: tự chuyển tới màn sửa storyboard của tập đầu tiên */
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import AppShell from '../../components/layout/AppShell'
@@ -16,7 +16,7 @@ export default function EpisodesPage() {
   )
 }
 
-// 加载后跳转首集编辑，不再展示中间页
+// Sau khi tải xong thì nhảy sang sửa tập đầu, không hiện trang trung gian nữa
 function EpisodesRedirect() {
   const { projectId } = useParams()
   const pid = Number(projectId)
@@ -37,7 +37,7 @@ function EpisodesRedirect() {
         const path = await resolveStoryboardPath(pid)
         if (!cancelled) navigate(path, { replace: true })
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : '无法进入分镜')
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Không mở được trang storyboard')
       }
     })()
     return () => {
@@ -48,7 +48,7 @@ function EpisodesRedirect() {
   return (
     <AppShell active="drama" flush>
       <div className="drama-workspace-status">
-        {error || '正在进入分镜…'}
+        {error || 'Đang mở trang storyboard…'}
       </div>
     </AppShell>
   )

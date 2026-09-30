@@ -1,4 +1,4 @@
-/** 分集分镜故事板全屏画布：按分镜连线，节点含视频 / 出境资产 / 提示词 */
+/** Canvas storyboard toàn màn hình cho một tập: nối theo thứ tự cảnh quay, mỗi nút có video / tài nguyên trong cảnh / prompt */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Background,
@@ -40,7 +40,7 @@ import './episodeCanvas.css'
 
 const SAVE_DEBOUNCE_MS = 800
 
-// 正文补上 @asset 提及
+// Thêm mention @asset vào nội dung
 function ensureAssetMention(content: string, assetId: number): string {
   const token = `@asset:${assetId}`
   if ((content || '').includes(token)) return content || ''
@@ -48,7 +48,7 @@ function ensureAssetMention(content: string, assetId: number): string {
   return trimmed ? `${trimmed} ${token}` : token
 }
 
-// 正文去掉 @asset 提及
+// Bỏ mention @asset khỏi nội dung
 function removeAssetMention(content: string, assetId: number): string {
   return (content || '')
     .replace(new RegExp(`\\s*@asset:${assetId}\\b`, 'g'), ' ')
@@ -57,7 +57,7 @@ function removeAssetMention(content: string, assetId: number): string {
     .trim()
 }
 
-// 鉴权后进入分镜故事板
+// Sau khi đăng nhập thì mở storyboard của tập
 export default function EpisodeStoryboardPage() {
   return (
     <RequireAuth>
@@ -68,7 +68,7 @@ export default function EpisodeStoryboardPage() {
   )
 }
 
-// 加载分集并渲染全屏故事板
+// Tải tập rồi render storyboard toàn màn hình
 function EpisodeStoryboardInner() {
   const { projectId, episodeId } = useParams()
   const pid = Number(projectId)
@@ -77,9 +77,9 @@ function EpisodeStoryboardInner() {
   const { fitView } = useReactFlow()
 
   /*
-   * episode / fragments / assets 数据
-   * linkTargetFragId 正在选资产关联的分镜
-   * dirty / busy / error / status 状态
+   * episode / fragments / assets: dữ liệu
+   * linkTargetFragId: cảnh quay đang chọn tài nguyên để liên kết
+   * dirty / busy / error / status: trạng thái
    */
   const [episode, setEpisode] = useState<DramaEpisode | null>(null)
   const [fragments, setFragments] = useState<DramaFragment[]>([])
@@ -105,7 +105,7 @@ function EpisodeStoryboardInner() {
     assetsRef.current = assets
   }, [assets])
 
-  // 结构键：成片 + 关联资产变化时重建；提示词编辑走局部更新
+  // Khoá cấu trúc: dựng lại khi bản dựng hoặc tài nguyên liên kết đổi; sửa prompt thì cập nhật tại chỗ
   const structureKey = fragments
     .map((f) => {
       const aids = collectFragmentAssetIds(f).join(',')
@@ -129,7 +129,7 @@ function EpisodeStoryboardInner() {
     void fitView({ padding: 0.22, duration: 280 })
   }, [nodes.length, fitView])
 
-  // 拉取分集 + 项目资产
+  // Tải tập + tài nguyên của dự án
   useEffect(() => {
     if (!eid || !pid) return
     let cancelled = false
@@ -143,7 +143,7 @@ function EpisodeStoryboardInner() {
         setAssets(assetList || [])
       })
       .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : '加载分集失败')
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Tải tập thất bại')
       })
       .finally(() => {
         if (!cancelled) setBusy(false)
@@ -154,7 +154,7 @@ function EpisodeStoryboardInner() {
     }
   }, [eid, pid])
 
-  // 持久化全部分镜（保序，保留成片与引用）
+  // Lưu toàn bộ cảnh quay (giữ thứ tự, giữ bản dựng và các tham chiếu)
   const persistFragments = useCallback(
     async (next: DramaFragment[]) => {
       if (!eid) return
@@ -183,10 +183,10 @@ function EpisodeStoryboardInner() {
         setEpisode(saved)
         setFragments(saved.fragments || [])
         setDirty(false)
-        setStatus('已保存')
+        setStatus('Đã lưu')
         window.setTimeout(() => setStatus(''), 1600)
       } catch (err) {
-        setError(err instanceof Error ? err.message : '保存失败')
+        setError(err instanceof Error ? err.message : 'Lưu thất bại')
       } finally {
         setBusy(false)
       }
@@ -194,7 +194,7 @@ function EpisodeStoryboardInner() {
     [eid],
   )
 
-  // 防抖保存
+  // Lưu sau debounce
   const scheduleSave = useCallback(() => {
     setDirty(true)
     if (saveTimer.current) window.clearTimeout(saveTimer.current)
@@ -203,7 +203,7 @@ function EpisodeStoryboardInner() {
     }, SAVE_DEBOUNCE_MS)
   }, [persistFragments])
 
-  // 刷新单个分镜节点提示词（关联资产变化靠 structureKey 重建）
+  // Làm mới prompt của một nút cảnh quay (đổi tài nguyên liên kết thì dựng lại qua structureKey)
   const patchFragmentPrompt = useCallback(
     (fragmentId: number, content: string) => {
       setNodes((prev) =>
@@ -218,7 +218,7 @@ function EpisodeStoryboardInner() {
     [setNodes],
   )
 
-  // 改提示词
+  // Sửa prompt
   const handlePromptChange = useCallback(
     (fragmentId: number, content: string) => {
       setFragments((prev) =>
@@ -234,7 +234,7 @@ function EpisodeStoryboardInner() {
     [patchFragmentPrompt, scheduleSave],
   )
 
-  // 取消关联出境资产
+  // Bỏ liên kết tài nguyên khỏi cảnh quay
   const handleUnlinkAsset = useCallback(
     (fragmentId: number, assetId: number) => {
       setFragments((prev) =>
@@ -250,12 +250,12 @@ function EpisodeStoryboardInner() {
     [scheduleSave],
   )
 
-  // 打开关联选择
+  // Mở bảng chọn tài nguyên
   const handleRequestLinkAsset = useCallback((fragmentId: number) => {
     setLinkTargetFragId(fragmentId)
   }, [])
 
-  // 确认关联资产
+  // Xác nhận liên kết tài nguyên
   const handlePickAsset = useCallback(
     (asset: DramaAsset) => {
       if (linkTargetFragId == null) return
@@ -306,17 +306,17 @@ function EpisodeStoryboardInner() {
           <button
             type="button"
             className="ep-storyboard-back"
-            aria-label="返回分集"
-            title="返回分集"
+            aria-label="Quay lại tập phim"
+            title="Quay lại tập phim"
             onClick={() => navigate(backHref)}
           >
             <ChevronLeft size={20} strokeWidth={1.8} />
           </button>
           <div className="ep-storyboard-title">
-            <strong>{episode?.name || `分集 ${eid}`}</strong>
+            <strong>{episode?.name || `Tập ${eid}`}</strong>
             <span>
-              分镜故事板 · {fragments.length} 镜
-              {dirty ? ' · 未保存' : status ? ` · ${status}` : ''}
+              Storyboard · {fragments.length} cảnh quay
+              {dirty ? ' · Chưa lưu' : status ? ` · ${status}` : ''}
             </span>
           </div>
         </div>
@@ -326,7 +326,7 @@ function EpisodeStoryboardInner() {
             className="ep-storyboard-btn ghost"
             onClick={() => navigate(`/drama/projects/${pid}/canvas`)}
           >
-            资产画布
+            Canvas tài nguyên
           </button>
           <button
             type="button"
@@ -334,7 +334,7 @@ function EpisodeStoryboardInner() {
             disabled={busy || !dirty}
             onClick={() => void persistFragments(fragments)}
           >
-            {busy ? '保存中…' : '保存'}
+            {busy ? 'Đang lưu…' : 'Lưu'}
           </button>
         </div>
       </header>
@@ -342,8 +342,8 @@ function EpisodeStoryboardInner() {
       <div className="ep-storyboard-flow">
         {fragments.length === 0 && !busy ? (
           <div className="ep-storyboard-empty">
-            <strong>暂无分镜</strong>
-            <span>请先回分集编辑页添加分镜</span>
+            <strong>Chưa có cảnh quay nào</strong>
+            <span>Hãy quay lại trang sửa tập để thêm cảnh quay</span>
           </div>
         ) : null}
         <ReactFlow
@@ -368,19 +368,19 @@ function EpisodeStoryboardInner() {
           </p>
         ) : null}
         {busy && fragments.length === 0 ? (
-          <p className="ep-storyboard-toast">加载中…</p>
+          <p className="ep-storyboard-toast">Đang tải…</p>
         ) : null}
       </div>
 
       <Modal
         open={linkTargetFragId != null}
         onClose={() => setLinkTargetFragId(null)}
-        title="关联出境资产"
+        title="Liên kết tài nguyên trong cảnh quay"
         size="lg"
       >
-        <p className="ep-storyboard-picker-hint">选择本镜出场的角色 / 场景 / 道具</p>
+        <p className="ep-storyboard-picker-hint">Chọn nhân vật / bối cảnh / đạo cụ xuất hiện trong cảnh quay này</p>
         {pickerAssets.length === 0 ? (
-          <p className="ep-storyboard-picker-empty">暂无可选资产，请先到资产画布生成</p>
+          <p className="ep-storyboard-picker-empty">Chưa có tài nguyên nào để chọn, hãy tạo trong Canvas tài nguyên trước</p>
         ) : (
           <div className="ep-storyboard-picker-grid">
             {pickerAssets.map((asset) => {
@@ -395,8 +395,8 @@ function EpisodeStoryboardInner() {
                   <div className="ep-storyboard-picker-thumb">
                     {cover ? <img src={cover} alt="" /> : <span>{(asset.name || '?')[0]}</span>}
                   </div>
-                  <strong>{asset.name || `资产 ${asset.id}`}</strong>
-                  <em>{normalizeAssetTab(asset.type || '') || asset.type || '资产'}</em>
+                  <strong>{asset.name || `Tài nguyên ${asset.id}`}</strong>
+                  <em>{normalizeAssetTab(asset.type || '') || asset.type || 'tài nguyên'}</em>
                 </button>
               )
             })}

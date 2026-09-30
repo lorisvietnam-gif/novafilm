@@ -1,4 +1,4 @@
-/** 分镜正文只读渲染：把 @asset:id 显示为带缩略图的关联标签 */
+/** Render chế độ chỉ đọc cho nội dung storyboard: hiện @asset:id thành thẻ liên kết có ảnh nhỏ */
 import { Fragment, useMemo } from 'react'
 import { resolveDramaMediaUrl, type DramaAsset } from '../../api/drama'
 
@@ -14,7 +14,7 @@ type Part =
 
 const ASSET_TOKEN = /@asset:(\d+)/g
 
-// 将正文拆成文本与资产引用片段
+// Tách nội dung thành các phần text và tham chiếu tài nguyên
 function splitContentParts(content: string): Part[] {
   const parts: Part[] = []
   let last = 0
@@ -33,13 +33,13 @@ function splitContentParts(content: string): Part[] {
   return parts
 }
 
-// 渲染只读正文（关联标签可视化）
+// Render nội dung chỉ đọc (thẻ liên kết có hình ảnh)
 export function EpisodeEditContentView({ content, assets, onOpenAsset }: Props) {
   const byId = useMemo(() => new Map(assets.map((a) => [a.id, a])), [assets])
   const parts = useMemo(() => splitContentParts(content || ''), [content])
 
   if (!content.trim()) {
-    return <p className="drama-ep-content-empty">暂无脚本内容，点击「编辑」开始填写</p>
+    return <p className="drama-ep-content-empty">Chưa có nội dung kịch bản, bấm “Sửa” để bắt đầu nhập</p>
   }
 
   return (
@@ -59,7 +59,7 @@ export function EpisodeEditContentView({ content, assets, onOpenAsset }: Props) 
         }
         const asset = byId.get(part.assetId)
         const preview = asset ? resolveDramaMediaUrl(asset.cover || asset.url) : ''
-        const label = asset?.name || `资产 ${part.assetId}`
+        const label = asset?.name || `Tài nguyên ${part.assetId}`
         return (
           <button
             key={`a-${idx}-${part.assetId}`}

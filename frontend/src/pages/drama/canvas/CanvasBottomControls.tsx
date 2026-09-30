@@ -1,10 +1,10 @@
-/** 画布左下角缩放与撤销控制条 */
+/** Thanh zoom và Hoàn tác ở góc dưới bên trái canvas */
 import { useCallback, useState } from 'react'
 import { LocateFixed, Magnet, Map, Minus, Plus, Redo2, Scan, Undo2 } from 'lucide-react'
 import { useOnViewportChange, useReactFlow } from '@xyflow/react'
 import { useCanvasStore } from './CanvasStore'
 
-/** 渲染画布左下角控制条 */
+/** Render thanh điều khiển ở góc dưới bên trái canvas */
 export function CanvasBottomControls() {
   const {
     snapToGrid,
@@ -36,8 +36,8 @@ export function CanvasBottomControls() {
         <button
           type="button"
           className="fc-icon-btn is-sm"
-          aria-label="撤销"
-          title="撤销"
+          aria-label="Hoàn tác"
+          title="Hoàn tác"
           disabled={!canUndo}
           onClick={undo}
         >
@@ -46,8 +46,8 @@ export function CanvasBottomControls() {
         <button
           type="button"
           className="fc-icon-btn is-sm"
-          aria-label="重做"
-          title="重做"
+          aria-label="Làm lại"
+          title="Làm lại"
           disabled={!canRedo}
           onClick={redo}
         >
@@ -59,8 +59,8 @@ export function CanvasBottomControls() {
         <button
           type="button"
           className="fc-icon-btn is-sm"
-          aria-label="定位到内容"
-          title="定位到内容"
+          aria-label="Đưa về nội dung"
+          title="Đưa về nội dung"
           onClick={() => void fitView({ duration: 200 })}
         >
           <LocateFixed size={16} strokeWidth={1.8} />
@@ -68,8 +68,8 @@ export function CanvasBottomControls() {
         <button
           type="button"
           className="fc-icon-btn is-sm"
-          aria-label="适应画布"
-          title="适应画布"
+          aria-label="Vừa khung canvas"
+          title="Vừa khung canvas"
           onClick={() => void fitView({ duration: 200, padding: 0.2 })}
         >
           <Scan size={16} strokeWidth={1.8} />
@@ -80,8 +80,8 @@ export function CanvasBottomControls() {
         <button
           type="button"
           className={`fc-icon-btn is-sm${snapToGrid ? ' is-active' : ''}`}
-          aria-label={snapToGrid ? '关闭网格吸附' : '开启网格吸附'}
-          title={snapToGrid ? '关闭网格吸附' : '开启网格吸附'}
+          aria-label={snapToGrid ? 'Tắt căn vào lưới' : 'Bật căn vào lưới'}
+          title={snapToGrid ? 'Tắt căn vào lưới' : 'Bật căn vào lưới'}
           aria-pressed={snapToGrid}
           onClick={toggleSnapToGrid}
         >
@@ -90,8 +90,8 @@ export function CanvasBottomControls() {
         <button
           type="button"
           className={`fc-icon-btn is-sm${showMinimap ? ' is-active' : ''}`}
-          aria-label={showMinimap ? '关闭小地图' : '开启小地图'}
-          title={showMinimap ? '关闭小地图' : '开启小地图'}
+          aria-label={showMinimap ? 'Tắt bản đồ nhỏ' : 'Bật bản đồ nhỏ'}
+          title={showMinimap ? 'Tắt bản đồ nhỏ' : 'Bật bản đồ nhỏ'}
           aria-pressed={showMinimap}
           onClick={toggleMinimap}
         >
@@ -103,8 +103,8 @@ export function CanvasBottomControls() {
         <button
           type="button"
           className="fc-icon-btn is-sm"
-          aria-label="缩小"
-          title="缩小"
+          aria-label="Thu nhỏ"
+          title="Thu nhỏ"
           onClick={() => zoomOut({ duration: 150 })}
         >
           <Minus size={16} strokeWidth={1.8} />
@@ -112,8 +112,8 @@ export function CanvasBottomControls() {
         <button
           type="button"
           className="fc-zoom-label"
-          aria-label="重置缩放"
-          title="重置缩放"
+          aria-label="Đặt lại tỉ lệ"
+          title="Đặt lại tỉ lệ"
           onClick={handleResetZoom}
         >
           {zoomPercent}%
@@ -121,8 +121,8 @@ export function CanvasBottomControls() {
         <button
           type="button"
           className="fc-icon-btn is-sm"
-          aria-label="放大"
-          title="放大"
+          aria-label="Phóng to"
+          title="Phóng to"
           onClick={() => zoomIn({ duration: 150 })}
         >
           <Plus size={16} strokeWidth={1.8} />

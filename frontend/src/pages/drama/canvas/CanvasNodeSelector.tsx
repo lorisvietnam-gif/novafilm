@@ -1,4 +1,4 @@
-/** 空画布居中展示的默认节点选择器 */
+/** Bộ chọn nút mặc định hiện giữa canvas khi canvas còn trống */
 import { MousePointer2 } from 'lucide-react'
 import { CANVAS_NODE_OPTIONS, type CanvasNodeKind } from './canvasTypes'
 
@@ -6,7 +6,7 @@ type CanvasNodeSelectorProps = {
   onSelect: (kind: CanvasNodeKind) => void
 }
 
-/** 渲染快速新建节点类型选择器 */
+/** Render bộ chọn loại nút để tạo nhanh */
 export function CanvasNodeSelector({ onSelect }: CanvasNodeSelectorProps) {
   return (
     <div className="fc-overlay fc-node-selector">
@@ -31,7 +31,7 @@ export function CanvasNodeSelector({ onSelect }: CanvasNodeSelectorProps) {
         </div>
         <p className="fc-node-hint">
           <MousePointer2 size={16} strokeWidth={1.8} />
-          点击快速添加 · 空白处双击也可新建
+          Bấm để thêm nhanh · Cũng có thể double-click vùng trống để tạo
         </p>
       </div>
     </div>

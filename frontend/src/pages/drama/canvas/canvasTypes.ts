@@ -1,4 +1,4 @@
-/** 画布节点类型与选择器选项定义 */
+/** Định nghĩa loại nút canvas và các lựa chọn */
 import type { LucideIcon } from 'lucide-react'
 import {
   AudioLines,
@@ -24,12 +24,12 @@ export type CanvasAssetNodeData = {
   mediaUrl?: string | null
   textContent?: string
   generating?: boolean
-  /** 视频节点 Seedance 生成参数 */
+  /** Tham số tạo Seedance của nút video */
   videoOptions?: Record<string, unknown>
   [key: string]: unknown
 }
 
-/** 支持本地图片上传的节点类型 */
+/** Các loại nút hỗ trợ tải ảnh lên từ máy */
 export const CANVAS_UPLOADABLE_KINDS = new Set<CanvasNodeKind>([
   'character',
   'scene',
@@ -37,7 +37,7 @@ export const CANVAS_UPLOADABLE_KINDS = new Set<CanvasNodeKind>([
   'video',
 ])
 
-/** 支持提示词 + AI 生成的节点类型 */
+/** Các loại nút hỗ trợ prompt + tạo bằng AI */
 export const CANVAS_GENERATABLE_KINDS = new Set<CanvasNodeKind>([
   'character',
   'scene',
@@ -45,7 +45,7 @@ export const CANVAS_GENERATABLE_KINDS = new Set<CanvasNodeKind>([
   'video',
 ])
 
-/** 节点类型对应的 Drama asset_type */
+/** asset_type của Drama tương ứng với loại nút */
 export function canvasKindToAssetType(kind: CanvasNodeKind): string {
   if (kind === 'video') return 'video'
   if (kind === 'audio') return 'audio'
@@ -53,31 +53,31 @@ export function canvasKindToAssetType(kind: CanvasNodeKind): string {
   return 'image'
 }
 
-/** 空画布居中快速新建选项（顺序与设计稿一致） */
+/** Lựa chọn tạo nhanh giữa canvas trống (thứ tự khớp bản thiết kế) */
 export const CANVAS_NODE_OPTIONS: CanvasNodeOption[] = [
-  { id: 'character', label: '角色', icon: UserRound },
-  { id: 'scene', label: '场景', icon: Landmark },
-  { id: 'video', label: '视频', icon: PlaySquare },
-  { id: 'image', label: '图片', icon: ImageIcon },
-  { id: 'text', label: '文本', icon: Text },
-  { id: 'audio', label: '音频', icon: AudioLines },
+  { id: 'character', label: 'Nhân vật', icon: UserRound },
+  { id: 'scene', label: 'Bối cảnh', icon: Landmark },
+  { id: 'video', label: 'Video', icon: PlaySquare },
+  { id: 'image', label: 'Ảnh', icon: ImageIcon },
+  { id: 'text', label: 'Văn bản', icon: Text },
+  { id: 'audio', label: 'Âm thanh', icon: AudioLines },
 ]
 
-/** 左侧添加面板选项 */
+/** Lựa chọn cho bảng thêm nút bên trái */
 export const ADD_NODE_OPTIONS: CanvasNodeOption[] = [
-  { id: 'character', label: '角色', icon: UserRound },
-  { id: 'scene', label: '场景', icon: Landmark },
-  { id: 'text', label: '文本', icon: Text },
-  { id: 'image', label: '图片', icon: ImageIcon },
-  { id: 'video', label: '视频', icon: PlaySquare },
-  { id: 'audio', label: '音频', icon: AudioLines },
+  { id: 'character', label: 'Nhân vật', icon: UserRound },
+  { id: 'scene', label: 'Bối cảnh', icon: Landmark },
+  { id: 'text', label: 'Văn bản', icon: Text },
+  { id: 'image', label: 'Ảnh', icon: ImageIcon },
+  { id: 'video', label: 'Video', icon: PlaySquare },
+  { id: 'audio', label: 'Âm thanh', icon: AudioLines },
 ]
 
 export const CANVAS_NODE_OPTION_BY_KIND = Object.fromEntries(
   CANVAS_NODE_OPTIONS.map((option) => [option.id, option]),
 ) as Record<CanvasNodeKind, CanvasNodeOption>
 
-/** 各类型默认展示名 */
+/** Tên hiển thị mặc định của từng loại */
 export const CANVAS_NODE_DEFAULT_LABEL: Record<CanvasNodeKind, string> = {
   character: '新角色',
   scene: '新场景',
@@ -88,8 +88,8 @@ export const CANVAS_NODE_DEFAULT_LABEL: Record<CanvasNodeKind, string> = {
 }
 
 /**
- * 为新建画布节点生成不与现有节点冲突的名称。
- * 后端同类型同名会去重复用资产，导致 asset-{id} 冲突并覆盖旧节点。
+ * Sinh tên không trùng cho node canvas mới.
+ * Backend sẽ tái dùng asset khi cùng loại và trùng tên, gây đụng `asset-{id}` và ghi đè node cũ.
  */
 export function nextCanvasNodeLabel(
   kind: CanvasNodeKind,
@@ -107,7 +107,7 @@ export function nextCanvasNodeLabel(
   return `${base} ${i}`
 }
 
-/** 节点卡片尺寸（宽 × 高，用于落点居中；含页脚约 +40） */
+/** Kích thước thẻ nút (rộng × cao, dùng để canh giữa điểm đặt; tính cả footer khoảng +40) */
 export const CANVAS_NODE_SIZE: Record<CanvasNodeKind, { width: number; height: number }> = {
   character: { width: 200, height: 280 },
   scene: { width: 200, height: 280 },
@@ -117,7 +117,7 @@ export const CANVAS_NODE_SIZE: Record<CanvasNodeKind, { width: number; height: n
   audio: { width: 200, height: 100 },
 }
 
-/** 预览区默认尺寸（不含页脚；无媒体时用竖屏占位） */
+/** Kích thước mặc định của vùng xem trước (không tính footer; không có media thì dùng khung dọc) */
 export const CANVAS_MEDIA_BODY_SIZE: Record<
   Exclude<CanvasNodeKind, 'text' | 'audio'>,
   { width: number; height: number }
@@ -129,7 +129,7 @@ export const CANVAS_MEDIA_BODY_SIZE: Record<
 }
 
 /**
- * 按媒体宽高比计算预览框尺寸：横屏变宽、竖屏保持竖向。
+ * Tính kích thước khung xem trước theo tỉ lệ media: khung ngang thì rộng ra, khung dọc thì giữ dọc.
  * aspect = naturalWidth / naturalHeight
  */
 export function canvasMediaFrameSize(
@@ -146,22 +146,22 @@ export function canvasMediaFrameSize(
   const maxLong = kind === 'character' || kind === 'scene' ? 320 : 280
 
   if (a >= 1) {
-    // 横屏 / 正方形：以短边为高
+    // Ngang / vuông: lấy cạnh ngắn làm chiều cao
     const height = shortSide
     const width = Math.min(maxLong, Math.round(height * a))
     return { width, height: Math.max(120, Math.round(width / a)) }
   }
-  // 竖屏：以短边为宽
+  // Dọc: lấy cạnh ngắn làm chiều rộng
   const width = shortSide
   const height = Math.min(maxLong, Math.round(width / a))
   return { width, height: Math.max(140, height) }
 }
 
-/** 网格吸附步长 */
+/** Bước lưới */
 export const CANVAS_SNAP_GRID: [number, number] = [20, 20]
 
-/** 自动保存防抖毫秒 */
+/** Debounce tự động lưu (ms) */
 export const CANVAS_AUTO_SAVE_MS = 2000
 
-/** 历史栈最大深度 */
+/** Độ sâu tối đa của ngăn lịch sử */
 export const MAX_CANVAS_HISTORY = 50

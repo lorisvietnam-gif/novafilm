@@ -1,4 +1,4 @@
-/** 全局资产库选择弹窗：跨项目挑选图片资产（导入或应用到节点） */
+/** Modal chọn tài nguyên từ thư viện toàn cục: chọn ảnh giữa các dự án (nhập hoặc áp dụng vào node) */
 import { useEffect, useMemo, useState } from 'react'
 import { dramaApi, resolveDramaMediaUrl, type DramaAsset } from '../../api/drama'
 import { filterDramaLibraryAssets, isDramaLibraryAsset } from '../../lib/dramaLibraryAssets'
@@ -12,27 +12,27 @@ export type GlobalAssetTabKey = 'character' | 'scene' | 'prop' | 'voice' | 'all'
 type Props = {
   open: boolean
   onClose: () => void
-  /** 当前项目 ID，用于标注来源与可选排除本项 */
+  /** ID dự án hiện tại, dùng để đánh dấu nguồn và cho phép bỏ qua mục này */
   projectId: number
-  /** 默认 Tab；canvas 场景可传 all */
+  /** Tab mặc định; ở canvas có thể truyền all */
   defaultTab?: GlobalAssetTabKey
-  /** 限定可选资产 type 列表；不传则按 Tab 筛选 */
+  /** Giới hạn danh sách type tài nguyên được chọn; không truyền thì lọc theo Tab */
   allowedTypes?: string[]
-  /** 标题 */
+  /** Tiêu đề */
   title?: string
-  /** 确认按钮文案 */
+  /** Chữ trên nút xác nhận */
   confirmLabel?: string
   onPick: (asset: DramaAsset) => void | Promise<void>
 }
 
 const TABS: Array<{ key: GlobalAssetTabKey; label: string }> = [
-  { key: 'character', label: '角色' },
-  { key: 'scene', label: '场景' },
-  { key: 'prop', label: '道具' },
-  ...(DRAMA_VOICE_BINDING_ENABLED ? [{ key: 'voice' as const, label: '音色' }] : []),
+  { key: 'character', label: 'Nhân vật' },
+  { key: 'scene', label: 'Bối cảnh' },
+  { key: 'prop', label: 'Đạo cụ' },
+  ...(DRAMA_VOICE_BINDING_ENABLED ? [{ key: 'voice' as const, label: 'Giọng đọc' }] : []),
 ]
 
-// 资产是否匹配 Tab
+// Tài nguyên có khớp Tab không
 function matchAssetTab(asset: DramaAsset, tab: GlobalAssetTabKey): boolean {
   if (!isDramaLibraryAsset(asset)) return false
   if (tab === 'all') return true
@@ -47,25 +47,25 @@ function hasMedia(asset: DramaAsset): boolean {
   return Boolean(asset.url || asset.cover)
 }
 
-// 渲染全局资产库选择弹窗（使用全局 Modal）
+// Render modal chọn tài nguyên toàn cục (dùng Modal chung)
 export function GlobalAssetPickerModal({
   open,
   onClose,
   projectId,
   defaultTab = 'character',
   allowedTypes,
-  title = '从资产库选择',
-  confirmLabel = '确认使用',
+  title = 'Chọn từ thư viện tài nguyên',
+  confirmLabel = 'Dùng tài nguyên này',
   onPick,
 }: Props) {
   /*
-   * allAssets 用户全部项目资产
-   * tab 当前分类
-   * query 搜索词
-   * selectedId 选中资产
-   * loading 加载中
-   * busy 提交中
-   * error 错误文案
+   * allAssets tài nguyên của toàn bộ dự án người dùng
+   * tab tab hiện tại
+   * query từ khoá tìm kiếm
+   * selectedId tài nguyên đang chọn
+   * loading đang tải
+   * busy đang gửi
+   * error nội dung lỗi
    */
   const [allAssets, setAllAssets] = useState<DramaAsset[]>([])
   const [tab, setTab] = useState<GlobalAssetTabKey>(
@@ -89,7 +89,7 @@ export function GlobalAssetPickerModal({
     dramaApi
       .listAssets(undefined, { libraryOnly: true })
       .then((rows) => setAllAssets(filterDramaLibraryAssets(rows)))
-      .catch((err) => setError(err instanceof Error ? err.message : '加载资产库失败'))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Tải thư viện tài nguyên thất bại'))
       .finally(() => setLoading(false))
   }, [open, defaultTab])
 
@@ -111,7 +111,7 @@ export function GlobalAssetPickerModal({
     })
   }, [allAssets, allowedTypes, query, tab])
 
-  // 确认选用资产
+  // Xác nhận dùng tài nguyên đã chọn
   async function handleConfirm() {
     const picked = allAssets.find((a) => a.id === selectedId)
     if (!picked || busy) return
@@ -121,7 +121,7 @@ export function GlobalAssetPickerModal({
       await onPick(picked)
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : '应用失败')
+      setError(err instanceof Error ? err.message : 'Áp dụng thất bại')
     } finally {
       setBusy(false)
     }
@@ -140,7 +140,7 @@ export function GlobalAssetPickerModal({
       footer={
         <>
           <button type="button" className="pf-btn" onClick={onClose} disabled={busy}>
-            取消
+            Huỷ
           </button>
           <button
             type="button"
@@ -148,13 +148,13 @@ export function GlobalAssetPickerModal({
             disabled={!selectedId || busy}
             onClick={() => void handleConfirm()}
           >
-            {busy ? '处理中…' : confirmLabel}
+            {busy ? 'Đang xử lý…' : confirmLabel}
           </button>
         </>
       }
     >
       <p className="drama-muted drama-global-picker-lead">
-        展示你名下全部漫剧项目的已生成图片，选中后可导入或应用到当前节点
+        Hiển thị ảnh đã tạo của toàn bộ dự án trong tài khoản của bạn, chọn xong có thể nhập hoặc áp dụng vào node hiện tại
       </p>
 
       {showTabs ? (
@@ -179,11 +179,11 @@ export function GlobalAssetPickerModal({
         className="pf-dialog-input drama-global-picker-search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="搜索名称或项目 ID"
+        placeholder="Tìm theo tên hoặc ID dự án"
       />
 
       {error ? <BillingErrorNotice message={error} className="drama-error" /> : null}
-      {loading ? <p className="drama-muted">加载资产库…</p> : null}
+      {loading ? <p className="drama-muted">Đang tải thư viện tài nguyên…</p> : null}
 
       <div className="drama-global-picker-grid">
         {filtered.map((asset) => {
@@ -205,10 +205,10 @@ export function GlobalAssetPickerModal({
                 <img src={src} alt={asset.name || ''} />
               ) : null}
               <div className="drama-global-picker-card-meta">
-                <strong>{asset.name || '未命名'}</strong>
+                <strong>{asset.name || 'Chưa đặt tên'}</strong>
                 <span>
-                  {fromCurrent ? '本项目' : `项目 #${asset.project_id}`}
-                  {isVoice && audioSrc ? ' · 已合成' : isVoice ? ' · 未合成' : ''}
+                  {fromCurrent ? 'Dự án này' : `Dự án #${asset.project_id}`}
+                  {isVoice && audioSrc ? ' · Đã tổng hợp' : isVoice ? ' · Chưa tổng hợp' : ''}
                 </span>
               </div>
               {selected ? <span className="drama-global-picker-check">✓</span> : null}
@@ -217,19 +217,19 @@ export function GlobalAssetPickerModal({
         })}
       </div>
       {!loading && filtered.length === 0 ? (
-        <p className="drama-muted">当前分类下暂无可用图片，请先在其它项目生成资产</p>
+        <p className="drama-muted">Chưa có ảnh dùng được trong tab này, hãy tạo tài nguyên ở dự án khác trước</p>
       ) : null}
     </Modal>
   )
 }
 
-// 将外部资产复制到当前项目（导入）
+// Sao chép tài nguyên từ nơi khác vào dự án hiện tại (nhập)
 export async function importGlobalAssetToProject(
   projectId: number,
   source: DramaAsset,
 ): Promise<DramaAsset> {
   if (!source.url && !source.cover) {
-    throw new Error('所选资产没有可用图片')
+    throw new Error('Tài nguyên đã chọn không có ảnh dùng được')
   }
   const params = {
     ...(source.params || {}),
@@ -247,7 +247,7 @@ export async function importGlobalAssetToProject(
   })
 }
 
-// 画布 kind → 资产 type 筛选
+// Ánh xạ kind của canvas → danh sách type tài nguyên
 export function canvasKindToLibraryTypes(kind: string): string[] {
   if (kind === 'character') return ['character']
   if (kind === 'scene') return ['scene']

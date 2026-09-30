@@ -1,7 +1,7 @@
 /** Shared helpers for drama project workspace steps. */
 import type { DramaEpisodeBody, DramaProject, DramaScript } from '../../api/drama'
 
-/** 与后端 MIN_EPISODE_CONTENT_CHARS 对齐：过短正文视为未完成 */
+/** Căn cứ MIN_EPISODE_CONTENT_CHARS của backend: nội dung quá ngắn bị coi là chưa hoàn thành */
 export const MIN_EPISODE_BODY_CHARS = 500
 export const MIN_EPISODE_CREATIVE_CHARS = 20
 
@@ -14,7 +14,7 @@ export type OutlineDirectoryEpisode = {
   origin?: string
 }
 
-// 解析 episode_content 为分集数组
+// Phân tích episode_content thành mảng tập
 export function parseEpisodeBodies(script: DramaScript | null | undefined): DramaEpisodeBody[] {
   const raw = script?.episode_content
   if (!raw) return []
@@ -23,17 +23,17 @@ export function parseEpisodeBodies(script: DramaScript | null | undefined): Dram
   return []
 }
 
-// 去空白后的正文字数
+// Số ký tự nội dung sau khi đã bỏ khoảng trắng
 export function episodeBodyCharLen(text: string | undefined): number {
   return (text || '').replace(/\s/g, '').length
 }
 
-// 手动加集（等待用户贴剧本）不会被自动流水线填满
+// Tập thêm thủ công (chờ người dùng dán kịch bản) sẽ không được quy trình tự động lấp đầy
 export function isManualEpisode(ep: DramaEpisodeBody | undefined): boolean {
   return ep?.origin === 'manual'
 }
 
-// 正文是否达到可进入下一步的长度
+// Nội dung đã đủ dài để sang bước tiếp theo chưa
 export function isSubstantialEpisodeBody(body: string | undefined): boolean {
   return episodeBodyCharLen(body) >= MIN_EPISODE_BODY_CHARS
 }
@@ -42,12 +42,12 @@ export function isSubstantialEpisodeCreative(creative: string | undefined): bool
   return episodeBodyCharLen(creative) >= MIN_EPISODE_CREATIVE_CHARS
 }
 
-// 是否已有至少一集可用正文
+// Đã có ít nhất một tập có nội dung dùng được chưa
 export function hasSubstantialEpisode(bodies: DramaEpisodeBody[]): boolean {
   return bodies.some((ep) => isSubstantialEpisodeBody(ep.body))
 }
 
-// 自动流水线仍缺的集数（跳过手动空集）
+// Số tập quy trình tự động còn thiếu (bỏ qua tập thủ công trống)
 export function autoMissingEpisodeCount(bodies: DramaEpisodeBody[], target: number): number {
   const byNumber = new Map<number, DramaEpisodeBody>()
   for (const ep of bodies) {
@@ -69,7 +69,7 @@ export function autoMissingEpisodeCount(bodies: DramaEpisodeBody[], target: numb
   return missing
 }
 
-// 按目标集数铺满目录
+// Lấp đầy mục lục theo số tập mục tiêu
 export function buildOutlineDirectory(
   bodies: DramaEpisodeBody[],
   episodeCount: number,
@@ -96,7 +96,7 @@ export function buildOutlineDirectory(
   })
 }
 
-// 目录项与正文合并（保留 creative / summary）
+// Gộp mục mục lục với nội dung (giữ creative / summary)
 export function mergeDirectoryEpisodeBodies(
   directory: OutlineDirectoryEpisode[],
   bodies: DramaEpisodeBody[],
@@ -115,17 +115,17 @@ export function mergeDirectoryEpisodeBodies(
   })
 }
 
-// 读取摘要状态
+// Đọc trạng thái tóm tắt
 export function getSummaryStatus(script: DramaScript | null | undefined): string {
   return String((script?.params || {}).summary_status || (script?.summary ? 'completed' : 'pending'))
 }
 
-// 读取分集剧本状态
+// Đọc trạng thái kịch bản từng tập
 export function getEpisodeContentStatus(script: DramaScript | null | undefined): string {
   return String((script?.params || {}).episode_content_status || 'pending')
 }
 
-// 读取画面风格 ID
+// Đọc ID phong cách hình ảnh
 export function getImageStyleId(
   script: DramaScript | null | undefined,
   project: DramaProject | null,
@@ -135,7 +135,7 @@ export function getImageStyleId(
   return String(fromScript || fromProject || '')
 }
 
-// 写回分集正文时保持与原结构一致（数组或 { episodes }）
+// Giữ nguyên cấu trúc cũ khi ghi lại nội dung tập (mảng hoặc { episodes })
 export function buildEpisodeContentUpdate(
   script: DramaScript | null | undefined,
   bodies: DramaEpisodeBody[],

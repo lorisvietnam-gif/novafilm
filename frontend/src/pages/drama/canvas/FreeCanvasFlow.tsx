@@ -1,4 +1,4 @@
-/** React Flow 无限画布核心 */
+/** Lõi canvas vô hạn React Flow */
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import {
   Background,
@@ -23,7 +23,7 @@ type PaneAddMenuState = {
   flow: { x: number; y: number }
 }
 
-/** 渲染 React Flow 无限画布 */
+/** Render canvas vô hạn React Flow */
 export function FreeCanvasFlow({ projectId }: FreeCanvasFlowProps) {
   const nodeTypes = useMemo(() => ({ asset: CanvasAssetNode }), [])
   const {
@@ -42,10 +42,10 @@ export function FreeCanvasFlow({ projectId }: FreeCanvasFlowProps) {
   const { fitView, setCenter, getNode, screenToFlowPosition } = useReactFlow()
   const wrapperRef = useRef<HTMLDivElement>(null)
   const dragSnapshotPushed = useRef(false)
-  // paneAddMenu 空白双击后的新建菜单
+  // paneAddMenu menu tạo nút sau khi double-click vùng trống
   const [paneAddMenu, setPaneAddMenu] = useState<PaneAddMenuState | null>(null)
 
-  /* 聚焦文件夹选中的节点 */
+  /* Đưa node được chọn trong thư mục vào giữa màn hình */
   useEffect(() => {
     if (!focusNodeId) return
     const node = getNode(focusNodeId)
@@ -71,7 +71,7 @@ export function FreeCanvasFlow({ projectId }: FreeCanvasFlowProps) {
     setPaneAddMenu(null)
   }, [])
 
-  /** 空白处双击：在落点弹出新建节点菜单 */
+  /** Double-click vùng trống: bật menu tạo nút ngay tại điểm đặt */
   const handlePaneDoubleClick = useCallback(
     (event: MouseEvent) => {
       const target = event.target as HTMLElement | null
@@ -96,7 +96,7 @@ export function FreeCanvasFlow({ projectId }: FreeCanvasFlowProps) {
     [screenToFlowPosition],
   )
 
-  /** 从双击菜单创建节点，居中落在点击位置 */
+  /** Tạo nút từ menu double-click, canh giữa tại vị trí đã bấm */
   const handlePaneAddSelect = useCallback(
     (kind: CanvasNodeKind) => {
       if (!paneAddMenu) return
@@ -111,7 +111,7 @@ export function FreeCanvasFlow({ projectId }: FreeCanvasFlowProps) {
     [addNodeOfKind, paneAddMenu],
   )
 
-  /* 拖拽开始时压入历史快照（同一拖拽只压一次） */
+  /* Khi bắt đầu kéo thì đẩy snapshot lịch sử (một lần kéo chỉ đẩy một lần) */
   const handleNodeDragStart = useCallback(() => {
     if (!dragSnapshotPushed.current) {
       pushSnapshot()
@@ -123,7 +123,7 @@ export function FreeCanvasFlow({ projectId }: FreeCanvasFlowProps) {
     dragSnapshotPushed.current = false
   }, [])
 
-  /* 保证容器可聚焦；加载后有节点时适应视图 */
+  /* Bảo đảm container nhận focus; sau khi tải có node thì vừa khung */
   useEffect(() => {
     wrapperRef.current?.focus()
   }, [projectId])

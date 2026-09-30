@@ -1,4 +1,4 @@
-/** 分集 / 项目画幅与清晰度设置（写入 episode.params 或 project.params） */
+/** Cài đặt khung hình và độ phân giải cho tập / dự án (ghi vào episode.params hoặc project.params) */
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronDown, RectangleVertical } from 'lucide-react'
@@ -23,12 +23,12 @@ import './drama.css'
 
 type Props = {
   params: Record<string, unknown>
-  /** 分集模式下用于展示继承的项目默认 */
+  /** Ở chế độ theo tập: dùng để hiện giá trị mặc định kế thừa từ dự án */
   fallbackParams?: Record<string, unknown>
   scope?: 'episode' | 'project'
   disabled?: boolean
   compact?: boolean
-  /** 当前视频模型；用于过滤清晰度 / 比例 */
+  /** Mô hình video hiện tại; dùng để lọc độ phân giải / tỉ lệ */
   videoModelId?: string
   onChange: (
     nextParams: Record<string, unknown>,
@@ -36,7 +36,7 @@ type Props = {
   ) => void | Promise<void>
 }
 
-/** 渲染输出规格控件 */
+/** Render bộ điều khiển thông số đầu ra */
 export function DramaProjectOutputSettings({
   params,
   fallbackParams = {},
@@ -76,14 +76,14 @@ export function DramaProjectOutputSettings({
     videoModels,
   ) as DramaResolution
   const outputLabel = formatProjectOutputLabel(clampedAspect, clampedResolution)
-  const scopeHint = scope === 'episode' ? '本集' : '项目统一'
-  const panelTitle = scope === 'episode' ? '分集画幅' : '项目画幅'
+  const scopeHint = scope === 'episode' ? 'Tập này' : 'Chung dự án'
+  const panelTitle = scope === 'episode' ? 'Khung hình của tập' : 'Khung hình dự án'
   const panelNote =
     scope === 'episode'
-      ? '仅本集分镜使用；未单独设置时继承项目默认。比例与清晰度随当前视频模型过滤，可点选修改。'
-      : '全部分集共用同一规格；比例与清晰度随当前视频模型过滤。'
+      ? 'Chỉ dùng cho storyboard của tập này; chưa đặt riêng thì kế thừa mặc định của dự án. Tỉ lệ và độ phân giải được lọc theo mô hình video hiện tại, bấm vào là đổi được.'
+      : 'Mọi tập dùng chung một bộ thông số; tỉ lệ và độ phân giải được lọc theo mô hình video hiện tại.'
 
-  /* 仅在目录已匹配到模型白名单时静默钳制回写，避免 catalog/modelId 未就绪时把 1080p 写成 720p */
+  /* Chỉ ghi lại giá trị đã bị chạm ngưỡng khi catalog đã khớp danh sách model cho phép, tránh lúc catalog/modelId chưa sẵn sàng mà 1080p bị ghi thành 720p */
   useEffect(() => {
     if (disabled || saving) return
     if (!hasKnownVideoModelResolutions(videoModelId, catalog, videoModels)) return
@@ -92,7 +92,7 @@ export function DramaProjectOutputSettings({
       { ...params, aspect_ratio: clampedAspect, resolution: clampedResolution },
       { quiet: true },
     )
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅钳制驱动
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ chạy theo giá trị bị chạm ngưỡng
   }, [videoModelId, catalog, clampedAspect, clampedResolution, disabled])
 
   useLayoutEffect(() => {
@@ -146,7 +146,7 @@ export function DramaProjectOutputSettings({
     e.stopPropagation()
   }
 
-  /** 合并写回 params */
+  /** Gộp rồi ghi lại params */
   async function applyPatch(patch: Partial<{ aspect_ratio: string; resolution: string }>) {
     if (disabled || saving) return
     const nextParams = { ...params, ...patch }
@@ -172,8 +172,8 @@ export function DramaProjectOutputSettings({
         disabled={disabled || saving}
         title={
           scope === 'episode'
-            ? '本集画幅与清晰度；各镜生成后可直接拼接'
-            : '全项目统一画幅与清晰度，各分镜生成后可直接拼接'
+            ? 'Khung hình và độ phân giải của tập này; các cảnh quay tạo xong có thể nối thẳng'
+            : 'Khung hình và độ phân giải chung cho cả dự án, storyboard tạo xong có thể nối thẳng'
         }
         onClick={() => setOpen((c) => !c)}
       >
@@ -189,7 +189,7 @@ export function DramaProjectOutputSettings({
               className="fc-gen-opt-panel drama-ep-opt-panel fc-gen-opt-panel--portal"
               style={panelStyle}
               role="dialog"
-              aria-label={scope === 'episode' ? '分集画幅与清晰度' : '项目画幅与清晰度'}
+              aria-label={scope === 'episode' ? 'Khung hình và độ phân giải của tập' : 'Khung hình và độ phân giải của dự án'}
             >
               <div className="fc-gen-opt-panel-title">{panelTitle}</div>
               <p className="drama-project-output-note">{panelNote}</p>
@@ -208,7 +208,7 @@ export function DramaProjectOutputSettings({
                 ))}
               </div>
               <div className="fc-gen-opt-panel-title" style={{ marginTop: 12 }}>
-                清晰度
+                Độ phân giải
               </div>
               <div className="fc-gen-chip-row">
                 {resolutionOptions.map((r) => (

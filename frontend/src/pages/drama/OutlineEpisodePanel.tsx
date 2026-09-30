@@ -1,4 +1,4 @@
-/** 剧情大纲：左栏分集目录 + 右栏本集创意/摘要/剧本（对齐截图样式） */
+/** Dàn ý: cột trái là danh sách tập, cột phải là ý tưởng / tóm tắt / kịch bản của tập đang chọn (bám theo ảnh chụp màn hình) */
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -34,13 +34,13 @@ import { OutlineScriptParseModal, OutlineScriptPreview } from './outlineScriptPr
 
 type SectionKey = 'creative' | 'summary' | 'body'
 
-/** 分集目录用的镜头合计文案 */
+/** Cụm tổng thời lượng cảnh quay hiển thị trong danh sách tập */
 function formatOutlineShotDuration(sec: number): string {
   if (sec <= 0) return '—'
   if (sec < 60) return `${sec}s`
   const m = Math.floor(sec / 60)
   const s = sec % 60
-  return s ? `${m}分${s}秒` : `${m}分钟`
+  return s ? `${m} phút ${s} giây` : `${m} phút`
 }
 
 type OutlineEpisodePanelProps = {
@@ -68,7 +68,7 @@ type SectionCardProps = {
   draft: string
   open: boolean
   busy: boolean
-  /** 禁用「生成」按钮；其他集生成中时仍可编辑本集 */
+  /** Khoá nút "Tạo"; vẫn sửa được tập này khi tập khác đang tạo */
   generateBusy?: boolean
   placeholder: string
   regenerateLabel: string
@@ -79,11 +79,11 @@ type SectionCardProps = {
   onDraftChange: (v: string) => void
   onRegenerate: () => void
   onCopy: () => void
-  /** 剧本区：解析预览 + 分段编辑 */
+  /** Khu vực kịch bản: xem trước sau khi phân tích + sửa theo từng đoạn */
   scriptPreview?: ReactNode
 }
 
-// 分区卡片：图标标题 + 编辑/生成/复制/折叠
+// Thẻ khu vực: tiêu đề có biểu tượng + sửa / tạo / nhân bản / thu gọn
 function SectionCard({
   sectionKey,
   icon,
@@ -122,7 +122,7 @@ function SectionCard({
         <div className="drama-outline-section-actions">
           <button type="button" className="drama-outline-text-btn" disabled={busy} onClick={onEdit}>
             <Pencil size={14} strokeWidth={2} />
-            编辑
+            Sửa
           </button>
           <button type="button" className="drama-outline-text-btn" disabled={genBusy} onClick={onRegenerate}>
             <RefreshCw size={14} strokeWidth={2} />
@@ -130,13 +130,13 @@ function SectionCard({
           </button>
           <button type="button" className="drama-outline-text-btn" onClick={onCopy}>
             <Copy size={14} strokeWidth={2} />
-            复制
+            Nhân bản
           </button>
           <button
             type="button"
             className="drama-outline-text-btn drama-outline-text-btn-icon"
             onClick={onToggle}
-            aria-label={sectionKey === 'body' ? '弹窗解析' : open ? '收起' : '展开'}
+            aria-label={sectionKey === 'body' ? 'Mở cửa sổ phân tích' : open ? 'Thu gọn' : 'Mở rộng'}
           >
             {sectionKey === 'body' ? (
               <Maximize2 size={14} strokeWidth={2} />
@@ -145,7 +145,7 @@ function SectionCard({
             ) : (
               <ChevronDown size={14} strokeWidth={2} />
             )}
-            {sectionKey === 'body' ? '解析预览' : open ? '收起' : '展开'}
+            {sectionKey === 'body' ? 'Xem trước phân tích' : open ? 'Thu gọn' : 'Mở rộng'}
           </button>
         </div>
       </header>
@@ -163,10 +163,10 @@ function SectionCard({
               />
               <div className="drama-ep-section-edit-actions">
                 <button type="button" className="drama-btn-ghost" disabled={busy} onClick={onCancel}>
-                  取消
+                  Huỷ
                 </button>
                 <button type="button" className="drama-btn-primary" disabled={busy} onClick={onSave}>
-                  保存
+                  Lưu
                 </button>
               </div>
             </>
@@ -180,7 +180,7 @@ function SectionCard({
     </article>
   )
 }
-// 分集目录 + 本集三卡片
+// Danh sách tập + ba thẻ của tập đang chọn
 export function OutlineEpisodePanel({
   projectId,
   script,
@@ -239,7 +239,7 @@ export function OutlineEpisodePanel({
     setScriptModalOpen(false)
   }, [selected?.episodeNumber])
 
-  // 拉取已切分分集，用首镜封面/成片作目录缩略图
+  // Lấy các tập đã chia, dùng ảnh bìa / clip của cảnh quay đầu làm ảnh nhỏ cho danh sách
   useEffect(() => {
     let cancelled = false
     ;(async () => {
@@ -305,7 +305,7 @@ export function OutlineEpisodePanel({
     !confirming &&
     directoryEpisodes.length < 120
 
-  // 仅锁正在生成的那一集；其他集可浏览/编辑（单集任务全局串行，故禁止并行再点生成）
+  // Chỉ khoá đúng tập đang tạo; tập khác vẫn xem/sửa được (tác vụ một tập chạy tuần tự nên cấm bấm tạo song song)
   const busy = episodeGenerating || selectedGenerating || confirming || saving || adding
   const generateBusy = episodeGenerating || anyEpisodeGenerating || confirming || saving || adding
 
@@ -322,15 +322,15 @@ export function OutlineEpisodePanel({
         const num = Number((cur.params || {}).episode_optimize_number || 0)
         if (num === tokenEpisode && st === 'completed') return cur
         if (num === tokenEpisode && st === 'failed') {
-          throw new Error(String((cur.params || {}).episode_optimize_error || '生成失败'))
+          throw new Error(String((cur.params || {}).episode_optimize_error || 'Tạo thất bại'))
         }
         if (st !== 'generating') return cur
       } catch (err) {
-        // 瞬时网络失败不中断轮询，避免 Failed to fetch 把界面卡在「生成中」
-        lastErr = err instanceof Error ? err : new Error('轮询失败')
+        // Lỗi mạng tạm thời không ngắt vòng poll, tránh "Failed to fetch" làm giao diện kẹt ở "Đang tạo"
+        lastErr = err instanceof Error ? err : new Error('Poll thất bại')
       }
     }
-    throw lastErr || new Error('生成超时，请稍后刷新')
+    throw lastErr || new Error('Tạo quá thời gian, vui lòng tải lại sau')
   }
 
   async function saveBodies(nextBodies: DramaEpisodeBody[]) {
@@ -355,7 +355,7 @@ export function OutlineEpisodePanel({
       setSectionDraft('')
       onOpenEpisodes()
     } catch (err) {
-      const msg = err instanceof Error ? err.message : '加集失败'
+      const msg = err instanceof Error ? err.message : 'Thêm tập thất bại'
       setLocalError(msg)
       onError(msg)
     } finally {
@@ -378,7 +378,7 @@ export function OutlineEpisodePanel({
       await saveBodies(next)
       setEditingSection(null)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : '保存失败'
+      const msg = err instanceof Error ? err.message : 'Lưu thất bại'
       setLocalError(msg)
       onError(msg)
     } finally {
@@ -391,24 +391,24 @@ export function OutlineEpisodePanel({
     const creative = editingSection === 'creative' ? sectionDraft : selected.creative || ''
     const summary = editingSection === 'summary' ? sectionDraft : selected.summary || ''
     if ((mode === 'summary' || mode === 'full') && !isSubstantialEpisodeCreative(creative)) {
-      setLocalError(`本集原始创意至少 ${MIN_EPISODE_CREATIVE_CHARS} 字`)
+      setLocalError(`Ý tưởng gốc của tập này cần ít nhất ${MIN_EPISODE_CREATIVE_CHARS} ký tự`)
       return
     }
-    // 与后端 run_episode_body_from_brief 一致：创意≥10 或摘要≥40
+    // Khớp với run_episode_body_from_brief ở backend: ý tưởng ≥10 hoặc tóm tắt ≥40
     if (mode === 'body' && episodeBodyCharLen(creative) < 10 && episodeBodyCharLen(summary) < 40) {
-      setLocalError('请先填写本集创意或摘要，再生成剧本正文')
+      setLocalError('Vui lòng nhập ý tưởng hoặc tóm tắt cho tập này trước khi tạo nội dung kịch bản')
       return
     }
     if (mode === 'brief' && !isSubstantialEpisodeBody(selected.body)) {
-      setLocalError(`剧本内容需满 ${MIN_EPISODE_BODY_CHARS} 字后再补齐创意与摘要`)
+      setLocalError(`Nội dung kịch bản cần đủ ${MIN_EPISODE_BODY_CHARS} ký tự trước khi bổ sung ý tưởng và tóm tắt`)
       return
     }
     if (mode === 'full') {
       const ok = await dialog.confirm({
-        title: '重新生成整集',
+        title: 'Tạo lại toàn bộ tập',
         message:
-          '将按本集创意重写摘要与剧本正文。若本集已进入分镜，之后重新分镜会覆盖并清空已生成镜头。是否继续？',
-        confirmText: '重新生成',
+          'Sẽ viết lại tóm tắt và nội dung kịch bản dựa trên ý tưởng của tập này. Nếu tập đã vào storyboard, việc chia storyboard lại sẽ ghi đè và xoá các cảnh quay đã tạo. Bạn có muốn tiếp tục không?',
+        confirmText: 'Tạo lại',
         tone: 'danger',
       })
       if (!ok) return
@@ -419,7 +419,7 @@ export function OutlineEpisodePanel({
     setLocalError('')
     setLocalNotice('')
     try {
-      // 生成前落盘创意/摘要/标题草稿，避免 body 模式只读库内空字段
+      // Lưu ý tưởng / tóm tắt / tiêu đề trước khi tạo, tránh chế độ body đọc trống từ DB
       if (
         editingSection === 'creative' ||
         editingSection === 'summary' ||
@@ -448,10 +448,10 @@ export function OutlineEpisodePanel({
       const cur = await pollOptimize(targetEpisode)
       const created = Number((cur.params || {}).episode_optimize_assets_created || 0)
       if ((mode === 'body' || mode === 'full') && created > 0) {
-        setLocalNotice(`新建 ${created} 个角色/场景，已进资产库`)
+        setLocalNotice(`Đã tạo ${created} nhân vật/bối cảnh mới và đưa vào thư viện tài nguyên`)
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : '生成失败'
+      const msg = err instanceof Error ? err.message : 'Tạo thất bại'
       setLocalError(msg)
       onError(msg)
     } finally {
@@ -463,13 +463,13 @@ export function OutlineEpisodePanel({
   async function handleConfirmEnter() {
     if (!selected?.episodeNumber) return
     if (!isSubstantialEpisodeBody(selected.body)) {
-      setLocalError(`剧本内容需满 ${MIN_EPISODE_BODY_CHARS} 字后再进入分镜`)
+      setLocalError(`Nội dung kịch bản cần đủ ${MIN_EPISODE_BODY_CHARS} ký tự trước khi vào storyboard`)
       return
     }
     setLocalError('')
     setConfirming(true)
     try {
-      // 本集已有分镜：直接进入，不再弹 Skill / 重切
+      // Tập này đã có storyboard: vào thẳng, không bật Skill hay chia lại
       const rows = await dramaApi.listEpisodes(projectId)
       const existing = rows.find(
         (ep) => Number(ep.params?.episodeNumber) === Number(selected.episodeNumber),
@@ -480,7 +480,7 @@ export function OutlineEpisodePanel({
       }
       setEnterSkillOpen(true)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : '进入分镜失败'
+      const msg = err instanceof Error ? err.message : 'Vào storyboard thất bại'
       setLocalError(msg)
       onError(msg)
     } finally {
@@ -488,7 +488,7 @@ export function OutlineEpisodePanel({
     }
   }
 
-  // 首次进入：确认剧本 + 按所选 Skill 做 AI 分镜
+  // Lần đầu vào: xác nhận kịch bản + chia storyboard bằng AI theo các Skill đã chọn
   async function startEnterWithSkills(skillIds: number[]) {
     if (!selected?.episodeNumber) return
     setEnterSkillOpen(false)
@@ -507,11 +507,11 @@ export function OutlineEpisodePanel({
           skill_ids: skillIds,
         })
       } catch (planErr) {
-        onError(planErr instanceof Error ? planErr.message : 'AI 分镜入队失败，已进入规则分镜')
+        onError(planErr instanceof Error ? planErr.message : 'AI tạo storyboard vào hàng đợi thất bại, đã chuyển sang chia cảnh quay theo quy tắc')
       }
       navigate(`/drama/projects/${projectId}/episodes/${episodeId}`)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : '进入分镜失败'
+      const msg = err instanceof Error ? err.message : 'Vào storyboard thất bại'
       setLocalError(msg)
       onError(msg)
     } finally {
@@ -530,7 +530,7 @@ export function OutlineEpisodePanel({
       )
       await saveBodies(next)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : '保存失败'
+      const msg = err instanceof Error ? err.message : 'Lưu thất bại'
       setLocalError(msg)
       onError(msg)
       throw err
@@ -570,24 +570,24 @@ export function OutlineEpisodePanel({
     try {
       await navigator.clipboard.writeText(text || '')
     } catch {
-      setLocalError('复制失败')
+      setLocalError('Nhân bản thất bại')
     }
   }
 
   const metaTags = useMemo(() => {
     const tags: string[] = []
     if (storyType) tags.push(storyType)
-    if (selected?.origin === 'manual') tags.push('手动加集')
-    else if (selected?.body) tags.push('自动生成')
+    if (selected?.origin === 'manual') tags.push('Thêm thủ công')
+    else if (selected?.body) tags.push('Tạo tự động')
     return tags
   }, [storyType, selected])
 
   const bodyReady = isSubstantialEpisodeBody(selected?.body)
   const charHint = selected
     ? [
-        selected.creative ? `创意 ${episodeBodyCharLen(selected.creative)} 字` : null,
-        selected.summary ? `摘要 ${episodeBodyCharLen(selected.summary)} 字` : null,
-        selected.body ? `剧本 ${episodeBodyCharLen(selected.body)} 字` : null,
+        selected.creative ? `Ý tưởng ${episodeBodyCharLen(selected.creative)} ký tự` : null,
+        selected.summary ? `Tóm tắt ${episodeBodyCharLen(selected.summary)} ký tự` : null,
+        selected.body ? `Kịch bản ${episodeBodyCharLen(selected.body)} ký tự` : null,
       ]
         .filter(Boolean)
         .join(' · ')
@@ -597,8 +597,8 @@ export function OutlineEpisodePanel({
     <aside className="drama-outline-sidebar">
       <div className="drama-outline-sidebar-head">
         <div>
-          <h3>分集目录</h3>
-          <p>共 {directoryEpisodes.length} 集</p>
+          <h3>Danh sách tập</h3>
+          <p>Tổng {directoryEpisodes.length} tập</p>
         </div>
         {summaryReady ? (
           <button
@@ -608,7 +608,7 @@ export function OutlineEpisodePanel({
             onClick={() => void handleAddEpisode()}
           >
             <Plus size={14} strokeWidth={2.5} />
-            {adding ? '添加中' : '加集'}
+            {adding ? 'Đang thêm' : 'Thêm tập'}
           </button>
         ) : null}
       </div>
@@ -619,12 +619,12 @@ export function OutlineEpisodePanel({
           const active = activeEpisodeNumber === ep.episodeNumber
           const shot = episodeShotStats[ep.episodeNumber || 0]
           const statusLabel = shot && shot.fragmentCount > 0 && shot.totalSec > 0
-            ? `${shot.fragmentCount} 镜 · ${formatOutlineShotDuration(shot.totalSec)}`
+            ? `${shot.fragmentCount} cảnh quay · ${formatOutlineShotDuration(shot.totalSec)}`
             : ready
-              ? '正文已就绪'
+              ? 'Nội dung đã sẵn sàng'
               : body?.creative
-                ? '待生成剧本'
-                : '待填写创意'
+                ? 'Chờ tạo kịch bản'
+                : 'Chờ nhập ý tưởng'
           return (
             <li key={ep.episodeNumber}>
               <button
@@ -646,8 +646,8 @@ export function OutlineEpisodePanel({
                   })()}
                 </span>
                 <span className="drama-outline-ep-meta">
-                  <strong>第 {ep.episodeNumber} 集</strong>
-                  <small>{ep.title || '未命名'}</small>
+                  <strong>Tập {ep.episodeNumber}</strong>
+                  <small>{ep.title || 'Chưa đặt tên'}</small>
                   <em className={shot && shot.fragmentCount > 0 ? 'is-shot' : undefined}>
                     {statusLabel}
                   </em>
@@ -665,7 +665,7 @@ export function OutlineEpisodePanel({
 
   const bodies = !selected ? (
     <div className="drama-outline-detail-empty">
-      <p>{summaryReady ? '暂无分集，请点击「加集」或等待自动生成。' : '请先完成整剧创意与剧本摘要。'}</p>
+      <p>{summaryReady ? 'Chưa có tập nào, hãy bấm "Thêm tập" hoặc chờ tạo tự động.' : 'Vui lòng hoàn tất ý tưởng toàn phim và tóm tắt kịch bản trước.'}</p>
     </div>
   ) : (
     <section className="drama-outline-detail">
@@ -676,17 +676,17 @@ export function OutlineEpisodePanel({
               className="drama-title-input"
               value={titleDraft}
               onChange={(e) => setTitleDraft(e.target.value)}
-              placeholder="集名"
+              placeholder="Tên tập"
             />
           ) : (
             <h2>
-              第 {selected.episodeNumber} 集
-              {selected.title ? `：${selected.title}` : ''}
+              Tập {selected.episodeNumber}
+              {selected.title ? `: ${selected.title}` : ''}
             </h2>
           )}
           {imageStyleLabel ? <span className="drama-outline-style-badge">{imageStyleLabel}</span> : null}
           <div className="drama-outline-detail-meta">
-            {charHint ? <span>{charHint}</span> : <span>尚未填写本集内容</span>}
+            {charHint ? <span>{charHint}</span> : <span>Chưa nhập nội dung cho tập này</span>}
             {metaTags.map((tag) => (
               <span key={tag} className="drama-outline-tag">
                 {tag}
@@ -697,7 +697,7 @@ export function OutlineEpisodePanel({
         <div className="drama-outline-detail-actions">
           <span className={`drama-outline-saved${bodyReady ? ' is-ready' : ''}`}>
             <Check size={14} strokeWidth={2.5} />
-            {bodyReady ? '可进分镜' : saving ? '保存中' : '已同步'}
+            {bodyReady ? 'Vào storyboard được' : saving ? 'Đang lưu' : 'Đã đồng bộ'}
           </span>
           {bodyReady &&
           (!isSubstantialEpisodeCreative(selected.creative) ||
@@ -708,7 +708,7 @@ export function OutlineEpisodePanel({
               disabled={generateBusy}
               onClick={() => void handleGenerate('brief')}
             >
-              {selectedGenerating && generatingMode === 'brief' ? '补齐中…' : '补齐创意与摘要'}
+              {selectedGenerating && generatingMode === 'brief' ? 'Đang bổ sung…' : 'Bổ sung ý tưởng & tóm tắt'}
             </button>
           ) : null}
           <button
@@ -718,7 +718,7 @@ export function OutlineEpisodePanel({
             onClick={() => void handleGenerate('full')}
           >
             <RefreshCw size={15} strokeWidth={2.25} />
-            {selectedGenerating && generatingMode === 'full' ? '生成中…' : '重新生成整集'}
+            {selectedGenerating && generatingMode === 'full' ? 'Đang tạo…' : 'Tạo lại toàn bộ tập'}
           </button>
           <button
             type="button"
@@ -726,19 +726,19 @@ export function OutlineEpisodePanel({
             disabled={busy || !bodyReady}
             onClick={() => void handleConfirmEnter()}
           >
-            {confirming ? '进入中…' : '进入分镜'}
+            {confirming ? 'Đang vào…' : 'Vào storyboard'}
           </button>
         </div>
       </header>
 
       {localError ? <p className="drama-error">{localError}</p> : null}
       {localNotice ? <p className="drama-outline-notice">{localNotice}</p> : null}
-      {episodeGenerating ? <p className="drama-loader">全集剧本生成中，可先浏览已完成的集…</p> : null}
+      {episodeGenerating ? <p className="drama-loader">Đang tạo kịch bản toàn bộ tập, bạn có thể xem những tập đã xong…</p> : null}
       {selectedGenerating ? (
-        <p className="drama-loader">本集生成中（{generatingMode}）…</p>
+        <p className="drama-loader">Đang tạo tập này ({generatingMode})…</p>
       ) : anyEpisodeGenerating && generatingEpisodeNumber ? (
         <p className="drama-loader">
-          第 {generatingEpisodeNumber} 集生成中，可先浏览/编辑本集（生成请等该集完成）
+          Tập {generatingEpisodeNumber} đang tạo, bạn có thể xem/sửa tập này (hãy chờ tập đó xong rồi hãy tạo)
         </p>
       ) : null}
 
@@ -746,23 +746,23 @@ export function OutlineEpisodePanel({
         <SectionCard
           sectionKey="creative"
           icon={<Lightbulb size={18} strokeWidth={1.9} />}
-          title="原始创意"
-          subtitle="本集故事起点与核心冲突"
+          title="Ý tưởng gốc"
+          subtitle="Điểm khởi đầu câu chuyện và xung đột chính của tập"
           text={selected.creative || ''}
           editing={editingSection === 'creative'}
           draft={sectionDraft}
           open={openSections.has('creative')}
           busy={busy}
           generateBusy={generateBusy}
-          placeholder={`填写本集创意（至少 ${MIN_EPISODE_CREATIVE_CHARS} 字）`}
+          placeholder={`Nhập ý tưởng cho tập này (ít nhất ${MIN_EPISODE_CREATIVE_CHARS} ký tự)`}
           regenerateLabel={
             selectedGenerating && generatingMode === 'brief'
-              ? '补齐中…'
+              ? 'Đang bổ sung…'
               : selectedGenerating && generatingMode === 'summary'
-                ? '生成中…'
+                ? 'Đang tạo…'
                 : isSubstantialEpisodeCreative(selected.creative)
-                  ? '生成摘要'
-                  : '补齐创意与摘要'
+                  ? 'Tạo tóm tắt'
+                  : 'Bổ sung ý tưởng & tóm tắt'
           }
           onToggle={() => toggleSection('creative')}
           onEdit={() => startEdit('creative')}
@@ -779,23 +779,23 @@ export function OutlineEpisodePanel({
         <SectionCard
           sectionKey="summary"
           icon={<BookOpen size={18} strokeWidth={1.9} />}
-          title="剧情摘要"
-          subtitle="人物、冲突、转折与结尾钩子"
+          title="Tóm tắt nội dung"
+          subtitle="Nhân vật, xung đột, bước ngoặt và câu móc cuối tập"
           text={selected.summary || ''}
           editing={editingSection === 'summary'}
           draft={sectionDraft}
           open={openSections.has('summary')}
           busy={busy}
           generateBusy={generateBusy}
-          placeholder="本集剧情摘要"
+          placeholder="Tóm tắt nội dung của tập này"
           regenerateLabel={
             selectedGenerating && generatingMode === 'brief'
-              ? '补齐中…'
+              ? 'Đang bổ sung…'
               : selectedGenerating && generatingMode === 'summary'
-                ? '生成中…'
+                ? 'Đang tạo…'
                 : isSubstantialEpisodeCreative(selected.creative)
-                  ? '重新生成'
-                  : '补齐创意与摘要'
+                  ? 'Tạo lại'
+                  : 'Bổ sung ý tưởng & tóm tắt'
           }
           onToggle={() => toggleSection('summary')}
           onEdit={() => startEdit('summary')}
@@ -812,16 +812,16 @@ export function OutlineEpisodePanel({
         <SectionCard
           sectionKey="body"
           icon={<FileText size={18} strokeWidth={1.9} />}
-          title="剧本内容"
-          subtitle="含对白与画面描述的拍摄正文（按场次解析，可分段编辑）"
+          title="Nội dung kịch bản"
+          subtitle="Bản quay gồm thoại và mô tả hình ảnh (phân tích theo từng cảnh, sửa được theo đoạn)"
           text={selected.body || ''}
           editing={editingSection === 'body'}
           draft={sectionDraft}
           open={openSections.has('body')}
           busy={busy}
           generateBusy={generateBusy || !canGenerateBody}
-          placeholder={`拍摄剧本正文（进入分镜需满 ${MIN_EPISODE_BODY_CHARS} 字）`}
-          regenerateLabel={selectedGenerating && generatingMode === 'body' ? '生成中…' : '生成剧本'}
+          placeholder={`Nội dung kịch bản quay (cần đủ ${MIN_EPISODE_BODY_CHARS} ký tự để vào storyboard)`}
+          regenerateLabel={selectedGenerating && generatingMode === 'body' ? 'Đang tạo…' : 'Tạo kịch bản'}
           onToggle={() => toggleSection('body')}
           onEdit={() => startEdit('body')}
           onCancel={() => setEditingSection(null)}
@@ -832,7 +832,7 @@ export function OutlineEpisodePanel({
           scriptPreview={
             <OutlineScriptPreview
               text={selected.body || ''}
-              empty={`拍摄剧本正文（进入分镜需满 ${MIN_EPISODE_BODY_CHARS} 字）`}
+              empty={`Nội dung kịch bản quay (cần đủ ${MIN_EPISODE_BODY_CHARS} ký tự để vào storyboard)`}
               busy={busy}
               shotStats={episodeShotStats[selected.episodeNumber || 0] || null}
               onSaveScenes={handleSaveScenes}
@@ -843,7 +843,7 @@ export function OutlineEpisodePanel({
       <OutlineScriptParseModal
         open={scriptModalOpen}
         onClose={() => setScriptModalOpen(false)}
-        title={`第 ${selected.episodeNumber} 集 · 剧本解析`}
+        title={`Tập ${selected.episodeNumber} · Phân tích kịch bản`}
         text={selected.body || ''}
       />
     </section>
@@ -855,9 +855,9 @@ export function OutlineEpisodePanel({
         {children({ directory, bodies })}
         <FragmentPlanSkillModal
           open={enterSkillOpen}
-          title="进入分镜"
-          message="将确认本集剧本并切分分镜。可勾选本次使用的 Skill；确认后会覆盖该集已有分镜与已生成镜头（若有）。"
-          confirmText={confirming ? '进入中…' : '开始分镜'}
+          title="Vào storyboard"
+          message="Sẽ xác nhận kịch bản của tập này rồi chia cảnh quay. Bạn có thể chọn Skill dùng cho lần này; sau khi xác nhận, storyboard cùng các cảnh quay đã tạo của tập (nếu có) sẽ bị ghi đè."
+          confirmText={confirming ? 'Đang vào…' : 'Bắt đầu chia cảnh quay'}
           onCancel={() => {
             if (!confirming) setEnterSkillOpen(false)
           }}
@@ -872,9 +872,9 @@ export function OutlineEpisodePanel({
       <div className="drama-outline-main">{bodies}</div>
       <FragmentPlanSkillModal
         open={enterSkillOpen}
-        title="进入分镜"
-        message="将确认本集剧本并切分分镜。可勾选本次使用的 Skill；确认后会覆盖该集已有分镜与已生成镜头（若有）。"
-        confirmText={confirming ? '进入中…' : '开始分镜'}
+        title="Vào storyboard"
+        message="Sẽ xác nhận kịch bản của tập này rồi chia cảnh quay. Bạn có thể chọn Skill dùng cho lần này; sau khi xác nhận, storyboard cùng các cảnh quay đã tạo của tập (nếu có) sẽ bị ghi đè."
+        confirmText={confirming ? 'Đang vào…' : 'Bắt đầu chia cảnh quay'}
         onCancel={() => {
           if (!confirming) setEnterSkillOpen(false)
         }}
