@@ -111,8 +111,12 @@ export default function CreateProjectPage() {
     else if (category !== ALL_CATEGORY) list = list.filter((t) => (t.category || []).includes(category))
     if (q.trim()) {
       const s = q.trim().toLowerCase()
+      // Tìm trên cả tên gốc lẫn tên đang hiển thị: tên gốc tiếng Trung không ai gõ, nhưng
+      // mẫu cũ trong DB vẫn còn tên gốc nên không bỏ hẳn đi cũng không.
       list = list.filter(
-        (t) => templateName(t.id, t.name).toLowerCase().includes(s) || t.name.toLowerCase().includes(s),
+        (t) =>
+          templateName(t.id, t.name).toLowerCase().includes(s) ||
+          t.name.toLowerCase().includes(s),
       )
     }
     return list
@@ -244,7 +248,10 @@ export default function CreateProjectPage() {
                 <div>
                   <strong>{templateName(tpl.id, tpl.name)}</strong>
                   <span>
-                    {tpl.default_ratio} · {homeCategoryLabel((tpl.category || [])[0] || '') || t('studio.shared.categoryGeneral')}
+                    {tpl.default_ratio} ·{' '}
+                    {tpl.category?.length
+                      ? homeCategoryLabel(tpl.category[0])
+                      : t('studio.shared.categoryGeneral')}
                   </span>
                 </div>
               </button>

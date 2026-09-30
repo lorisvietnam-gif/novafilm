@@ -16,8 +16,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { PageHeader } from "@/components/ui/page";
 import { useAdminDetailQuery } from "@/hooks/useAdminDetailQuery";
 import { auditStatusLabel, visibilityLabel } from "@/lib/statusLabels";
+import { useI18n } from "@/i18n";
 
 type ListRes = { items: AdminWork[]; meta: PageMeta };
+
+/** Mã lọc gửi lên API nên để nguyên; nhãn lấy từ cây pack */
+const AUDIT_VALUES = ["pending", "passed", "rejected"] as const;
+const VISIBILITY_VALUES = ["public", "private", "unlisted"] as const;
 
 function coverSrc(url: string | null | undefined): string {
   const trimmed = (url || "").trim();
@@ -28,6 +33,7 @@ function coverSrc(url: string | null | undefined): string {
 
 // 作品审核：搜索、预览与只读详情
 export function WorksPage() {
+  const { m, t } = useI18n();
   const [auditStatus, setAuditStatus] = useState("");
   const [visibility, setVisibility] = useState("");
   const [q, setQ] = useState("");
@@ -46,7 +52,7 @@ export function WorksPage() {
       if (userId) params.set("user_id", String(userId));
       setData(await api<ListRes>(`/api/admin/works?${params}`));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "加载失败");
+      toast.error(err instanceof Error ? err.message : t("common.toast.loadFailed"));
     }
   }
 
@@ -64,10 +70,10 @@ export function WorksPage() {
   async function patchWork(id: number, body: { visibility?: string; audit_status?: string }) {
     try {
       await api(`/api/admin/works/${id}`, { method: "PATCH", body: JSON.stringify(body) });
-      toast.success("已更新");
+      toast.success(t("works.updated"));
       await load();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "更新失败");
+      toast.error(err instanceof Error ? err.message : t("works.updateFailed"));
     }
   }
 
@@ -78,12 +84,12 @@ export function WorksPage() {
 
   return (
     <div className="admin-list-page">
-      <PageHeader description="调整可见性与审核状态" />
+      <PageHeader description={m.works.description} />
       <AdminFilterBar>
         <AdminSearchInput
           value={q}
           onChange={setQ}
-          placeholder="搜索标题"
+          placeholder={m.works.searchPlaceholder}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               setPage(1);
@@ -93,16 +99,20 @@ export function WorksPage() {
         />
         <AdminUserSearchSelect value={userId} onChange={(id) => setUserId(id)} />
         <Select value={auditStatus} onChange={(e) => setAuditStatus(e.target.value)}>
-          <option value="">全部审核</option>
-          <option value="pending">待审核</option>
-          <option value="passed">已通过</option>
-          <option value="rejected">已拒绝</option>
+          <option value="">{m.labels.filter.allAudit}</option>
+          {AUDIT_VALUES.map((value) => (
+            <option key={value} value={value}>
+              {auditStatusLabel(value)}
+            </option>
+          ))}
         </Select>
         <Select value={visibility} onChange={(e) => setVisibility(e.target.value)}>
-          <option value="">全部可见性</option>
-          <option value="public">公开</option>
-          <option value="private">私密</option>
-          <option value="unlisted">不公开列出</option>
+          <option value="">{m.labels.filter.allVisibility}</option>
+          {VISIBILITY_VALUES.map((value) => (
+            <option key={value} value={value}>
+              {visibilityLabel(value)}
+            </option>
+          ))}
         </Select>
         <Button
           size="sm"
@@ -113,21 +123,21 @@ export function WorksPage() {
             void load(1);
           }}
         >
-          筛选
+          {m.common.action.filter}
         </Button>
       </AdminFilterBar>
       <div className="rounded-lg border bg-background">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>封面</TableHead>
-              <TableHead>ID</TableHead>
-              <TableHead>标题</TableHead>
-              <TableHead>用户</TableHead>
-              <TableHead>可见性</TableHead>
-              <TableHead>审核</TableHead>
-              <TableHead>发布时间</TableHead>
-              <TableHead>操作</TableHead>
+              <TableHead>{m.works.colCover}</TableHead>
+              <TableHead>{m.common.fields.id}</TableHead>
+              <TableHead>{m.common.fields.title}</TableHead>
+              <TableHead>{m.common.fields.user}</TableHead>
+              <TableHead>{m.works.colVisibility}</TableHead>
+              <TableHead>{m.works.colAudit}</TableHead>
+              <TableHead>{m.works.colPublishedAt}</TableHead>
+              <TableHead>{m.queues.colActions}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -173,17 +183,21 @@ export function WorksPage() {
                 <TableCell>
                   <div className="flex flex-wrap gap-1">
                     <Button size="sm" variant="outline" onClick={() => openWork(w)}>
-                      详情
+                      {m.common.action.detail}
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => void patchWork(w.id, { audit_status: "passed" })}>
-                      通过
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void patchWork(w.id, { audit_status: "passed" })}
+                    >
+                      {m.works.actionPass}
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => void patchWork(w.id, { audit_status: "rejected" })}
                     >
-                      拒绝
+                      {m.works.actionReject}
                     </Button>
                     <Button
                       size="sm"
@@ -194,7 +208,7 @@ export function WorksPage() {
                         })
                       }
                     >
-                      {w.visibility === "public" ? "设私密" : "设公开"}
+                      {w.visibility === "public" ? m.works.actionSetPrivate : m.works.actionSetPublic}
                     </Button>
                   </div>
                 </TableCell>
@@ -221,13 +235,13 @@ export function WorksPage() {
           }
         }}
         size="lg"
-        title={detail?.title ?? "作品详情"}
-        subtitle={detail ? `作品 #${detail.id}` : undefined}
+        title={detail?.title ?? m.works.detailTitle}
+        subtitle={detail ? t("works.detailSubtitle", { id: detail.id }) : undefined}
       >
         {detail ? (
           <>
             {(detail.cover_url || detail.video_url) ? (
-              <AdminDetailSection title="媒体预览">
+              <AdminDetailSection title={m.common.fields.mediaPreview}>
                 <div className="admin-detail-media">
                   {detail.cover_url ? (
                     <img src={coverSrc(detail.cover_url)} alt={detail.title} />
@@ -238,11 +252,11 @@ export function WorksPage() {
                 </div>
               </AdminDetailSection>
             ) : null}
-            <AdminDetailSection title="基本信息">
+            <AdminDetailSection title={m.common.fields.basicInfo}>
               <AdminDetailMeta
                 items={[
                   {
-                    label: "用户",
+                    label: m.common.fields.user,
                     value: (
                       <AdminEntityLink
                         kind="user"
@@ -252,17 +266,17 @@ export function WorksPage() {
                     ),
                   },
                   {
-                    label: "关联项目",
+                    label: m.works.colRelatedProject,
                     value: detail.project_id ? (
                       <AdminEntityLink kind="project" id={detail.project_id} />
                     ) : (
                       "—"
                     ),
                   },
-                  { label: "可见性", value: visibilityLabel(detail.visibility) },
-                  { label: "审核", value: auditStatusLabel(detail.audit_status) },
+                  { label: m.works.colVisibility, value: visibilityLabel(detail.visibility) },
+                  { label: m.works.colAudit, value: auditStatusLabel(detail.audit_status) },
                   {
-                    label: "发布时间",
+                    label: m.works.colPublishedAt,
                     value: new Date(detail.published_at).toLocaleString(),
                     full: true,
                   },
@@ -272,7 +286,7 @@ export function WorksPage() {
             {detail.video_url ? (
               <Button size="sm" variant="outline" asChild>
                 <a href={detail.video_url} target="_blank" rel="noreferrer">
-                  新窗口打开视频
+                  {m.works.openVideo}
                 </a>
               </Button>
             ) : null}

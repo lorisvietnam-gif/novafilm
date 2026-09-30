@@ -1,4 +1,6 @@
 import { clearAuth, getToken, setCachedUser, setToken, type AdminUser } from "@/lib/auth";
+import { getActiveLocale } from "@/i18n/detect";
+import { messages } from "@/i18n/messages";
 
 export type PageMeta = {
   page: number;
@@ -10,12 +12,18 @@ type ApiError = {
   detail?: string | { msg?: string }[];
 };
 
+// Thông báo lỗi chung, đọc từ cây pack theo ngôn ngữ đang dùng
+function apiText(key: "requestFailed" | "sessionExpired" | "notAdmin", vars?: { status?: number }): string {
+  const raw = messages[getActiveLocale()].api[key];
+  return vars?.status == null ? raw : raw.replace("{status}", String(vars.status));
+}
+
 // Parse FastAPI error detail into a string
 function errorMessage(data: ApiError, status: number): string {
   const detail = data?.detail;
   if (typeof detail === "string") return detail;
   if (Array.isArray(detail) && detail[0]?.msg) return detail[0].msg;
-  return `请求失败 (${status})`;
+  return apiText("requestFailed", { status });
 }
 
 // Authenticated JSON fetch against /api
@@ -40,7 +48,7 @@ export async function api<T>(
     if (!window.location.pathname.startsWith("/login")) {
       window.location.href = "/login";
     }
-    throw new Error("未登录或登录已失效");
+    throw new Error(apiText("sessionExpired"));
   }
   if (!res.ok) {
     throw new Error(errorMessage(data as ApiError, res.status));
@@ -58,7 +66,7 @@ export async function loginAsAdmin(email: string, password: string): Promise<Adm
   const me = await api<AdminUser>("/api/auth/me");
   if (me.role !== "admin") {
     clearAuth();
-    throw new Error("该账号没有管理员权限");
+    throw new Error(apiText("notAdmin"));
   }
   setCachedUser(me);
   return me;

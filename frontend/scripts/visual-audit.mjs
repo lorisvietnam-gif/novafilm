@@ -4,27 +4,64 @@
  * Không cài gì thêm: dùng Microsoft Edge có sẵn ở chế độ headless, điều khiển qua
  * Chrome DevTools Protocol bằng WebSocket của Node 24.
  *
- * Chạy:  node audit.mjs
- * Xem:   C:\Users\NOVAST~1\AppData\Local\Temp\kilo\audit\<locale>\<route>.png
+ * Chạy:  node scripts\visual-audit.mjs     (từ thư mục `frontend`)
+ * Xem:   frontend\.kilo\audit\<locale>\<route>.png
+ *
+ * Ảnh nằm trong workspace và trong `.gitignore` — lane đọc được, commit không bị bẩn.
  */
 
 import { mkdirSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { execFileSync } from 'node:child_process'
+import { join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const EDGE = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
-const PORT = 9333
 /**
- * Dev server to audit. Defaults to 5173, but that port is shared with the other
- * lanes and is regularly held by one that is not this worktree — auditing it
- * silently measures someone else's code. Set AUDIT_BASE to point at your own
- * dev server:  set AUDIT_BASE=http://127.0.0.1:5271
+ * Cổng debug **đổi mỗi lần chạy**. Cố định `:9333` thì một phiên Edge mồ côi nào đó chiếm
+ * cổng là mọi lần chạy sau đều hoặc bị chặn, hoặc âm thầm nối nhầm vào phiên cũ và đo ra số bịa.
+ * Chọn cổng theo pid nên hai lần chạy song song không đụng nhau.
+ */
+const PORT = 9400 + (process.pid % 400)
+/**
+ * `AUDIT_BASE` / `AUDIT_API` để một lane trỏ audit vào **dev server của chính nó**.
+ * Không có hai biến này thì mọi lane đều đang đo `main` ở `:5173` — tức là đo nhầm thứ mình
+ * vừa sửa. Chạy dev server lane ở cổng riêng rồi:
+ *   $env:AUDIT_BASE="http://127.0.0.1:5272"
+ *   $env:AUDIT_API="http://127.0.0.1:8014"
+ *   node scripts\visual-audit.mjs
  */
 const BASE = process.env.AUDIT_BASE || 'http://127.0.0.1:5173'
-const API = 'http://127.0.0.1:8000'
-const OUT = 'C:\\Users\\NOVAST~1\\AppData\\Local\\Temp\\kilo\\audit'
-const PROFILE = 'C:\\Users\\NOVAST~1\\AppData\\Local\\Temp\\kilo\\edge-profile'
+const API = process.env.AUDIT_API || 'http://127.0.0.1:8000'
+
+/**
+ * Ảnh phải nằm TRONG workspace thì các lane mới đọc được.
+ * Lần đầu script ghi vào `%TEMP%\kilo\audit` và rule `external_directory: deny *` chặn
+ * mọi lần đọc từ đó — tức là yêu cầu "mở ảnh ra nhìn" trong brief là không thực hiện được.
+ * `frontend/.kilo/` đã được `.gitignore` (dòng 95) nên ghi vào đây vừa đọc được vừa không
+ * làm bẩn commit. Muốn chỗ khác thì đặt biến môi trường `AUDIT_OUT`.
+ */
+const HERE = resolve(fileURLToPath(new URL('.', import.meta.url)))
+const OUT = process.env.AUDIT_OUT || resolve(HERE, '..', '.kilo', 'audit')
+const PROFILE = join(OUT, '..', `edge-profile-${process.pid}`)
 
 const CJK = /[\u4e00-\u9fff]/
+
+/**
+ * Bộ đếm ký tự Trung **bị lừa** bởi trang báo lỗi: khi API chết, trang vẫn render bằng tiếng Việt
+ * nhưng không có dữ liệu nào, nên ký tự Trung = 0 và trang **trông như đã sạch**.
+ * Đã xảy ra thật: `/templates` báo `cjk=1` trong khi ảnh chụp cho thấy
+ * *"Không kết nối được máy chủ"* và *"Không có template nào khớp"*.
+ *
+ * Vì vậy: route nào chứa một trong các chuỗi lỗi này thì **không được tính là đạt** — nó bị đánh
+ * dấu `apiDown` và phải báo ra, đồng thời số ký tự của nó không được góp vào tổng.
+ */
+const API_ERROR_MARKERS = [
+  'Không kết nối được máy chủ',
+  'Máy chủ trả về dữ liệu không hợp lệ',
+  'Connection failed',
+  'Failed to fetch',
+  'NetworkError',
+]
 const RAW_KEY = /\b(common|home|nav|auth|tools|pricing|help|legal|shell|drama|studio)\.[a-zA-Z][a-zA-Z0-9]*/g
 
 /** Route cần kiểm. `:id` sẽ thay bằng giá trị thật bên dưới. */
@@ -86,6 +123,16 @@ async function getToken() {
   }
 }
 
+/** Backend trả `{ items: [...] }` chứ không phải mảng thuần. Quên chỗ này thì `ensureData()`
+ *  không bao giờ tái dùng được dữ liệu cũ và cứ tạo project mới mỗi lần chạy audit. */
+function asList(payload) {
+  if (Array.isArray(payload)) return payload
+  if (payload && Array.isArray(payload.items)) return payload.items
+  if (payload && Array.isArray(payload.data)) return payload.data
+  if (payload && Array.isArray(payload.results)) return payload.results
+  return []
+}
+
 /**
  * Tạo dữ liệu thật để các route có `:id` render được. Không có bước này thì storyboard,
  * trình soạn, chi tiết tập và canvas đều trống, và audit sẽ báo "0 ký tự Trung" một cách
@@ -95,11 +142,11 @@ async function ensureData(token) {
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
   const out = { studio: null, drama: null, episode: null }
 
-  const existing = await api('/api/projects', { headers })
-  if (Array.isArray(existing) && existing.length) out.studio = existing[0].id
+  const existing = asList(await api('/api/projects', { headers }))
+  if (existing.length) out.studio = existing[0].id
 
   if (!out.studio) {
-    const templates = await api('/api/templates', { headers })
+    const templates = asList(await api('/api/templates', { headers }))
     const t = templates[0]
     if (!t) throw new Error('khong co template nao de tao project')
     const created = await api('/api/projects', {
@@ -117,11 +164,11 @@ async function ensureData(token) {
   }
 
   const dramas = await api('/api/drama/projects', { headers })
-  if (Array.isArray(dramas) && dramas.length) {
+  if (asList(dramas).length) {
     out.drama = dramas[0].id
     try {
-      const eps = await api(`/api/drama/projects/${out.drama}/episodes`, { headers })
-      if (Array.isArray(eps) && eps.length) out.episode = eps[0].id
+      const eps = asList(await api(`/api/drama/projects/${out.drama}/episodes`, { headers }))
+      if (asList(eps).length) out.episode = eps[0].id
     } catch { /* chua co tap */ }
   }
 
@@ -140,8 +187,8 @@ async function ensureData(token) {
     })
     out.drama = created.id
     try {
-      const eps = await api(`/api/drama/projects/${out.drama}/episodes`, { headers })
-      if (Array.isArray(eps) && eps.length) out.episode = eps[0].id
+      const eps = asList(await api(`/api/drama/projects/${out.drama}/episodes`, { headers }))
+      if (asList(eps).length) out.episode = eps[0].id
     } catch { /* can co script moi co tap */ }
   }
 
@@ -149,6 +196,7 @@ async function ensureData(token) {
 }
 
 async function main() {
+  console.log(`anh chup o: ${OUT}`)
   const token = await getToken()
   console.log('da lay token')
 
@@ -167,6 +215,23 @@ async function main() {
   ]
 
   const { spawn } = await import('node:child_process')
+
+  // Chặn trước: nếu cổng debug còn bị chiếm bởi phiên Edge cũ, `/json/version` sẽ trả về
+  // phiên CŨ và mọi thứ ta làm sau đó đều nói với sai trình duyệt — trang trắng, không lỗi JS,
+  // đo ra số bịa. Thà báo lỗi còn hơn báo cáo sai.
+  try {
+    const stale = await fetch(`http://127.0.0.1:${PORT}/json/version`)
+    if (stale.ok) {
+      throw new Error(
+        `cong debug ${PORT} dang bi chiem boi mot Edge khac. `
+          + `Dong Edge cu: taskkill /F /IM msedge.exe /FI "WINDOWTITLE eq *headless*" `
+          + `roi chay lai. KHONG bo qua loi nay — ket qua se do sai.`,
+      )
+    }
+  } catch (e) {
+    if (e instanceof Error && e.message.startsWith('cong debug')) throw e
+  }
+
   const edge = spawn(EDGE, [
     '--headless=new',
     `--remote-debugging-port=${PORT}`,
@@ -247,16 +312,34 @@ async function main() {
       })
       const text = textRes?.result?.value || ''
 
-      const cjk = (text.match(/[\u4e00-\u9fff]/g) || []).length
+      const apiDown = API_ERROR_MARKERS.some((m) => text.includes(m))
+      const cjk = apiDown ? -1 : (text.match(/[\u4e00-\u9fff]/g) || []).length
       const rawKeys = [...new Set(text.match(RAW_KEY) || [])]
       const visible = text.trim().length
 
-      const shot = await send('Page.captureScreenshot', { format: 'png' })
+      const metrics = await send('Page.getLayoutMetrics')
+      const shot = await send('Page.captureScreenshot', {
+        format: 'png',
+        captureBeyondViewport: true,
+        clip: {
+          x: 0,
+          y: 0,
+          width: Math.ceil(metrics?.cssContentSize?.width || 1280),
+          height: Math.min(Math.ceil(metrics?.cssContentSize?.height || 900), 4000),
+          scale: 1,
+        },
+      })
       if (shot?.data) {
         writeFileSync(join(dir, `${name}.png`), Buffer.from(shot.data, 'base64'))
       }
 
-      results.push({ locale, route, cjk, rawKeys, visible, errors: consoleErrors.length })
+      const cjkLines = text
+        .split('\n')
+        .map((l) => l.trim())
+        .filter((l) => CJK.test(l))
+        .slice(0, 40)
+
+      results.push({ locale, route, cjk, rawKeys, visible, apiDown, errors: consoleErrors.length, cjkLines })
 
       console.log(
         `${locale}  ${route.padEnd(34)} cjk=${String(cjk).padStart(4)}` +
@@ -264,9 +347,16 @@ async function main() {
           (consoleErrors.length ? `  JS_ERROR=${consoleErrors.length}` : '') +
           (visible < 40 ? '  <-- TRANG RONG' : ''),
       )
+      if (process.env.AUDIT_VERBOSE && cjk > 0) {
+        for (const line of cjkLines) console.log(`        | ${line.slice(0, 160)}`)
+      }
 
+      // KHÔNG gọi `/json/close` ngay sau `ws.close()`. Đóng socket và đóng tab cùng lúc làm
+      // libuv trên Windows văng `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)` và giết
+      // cả tiến trình node — audit chết giữa chừng, và các route chưa tới bị đọc là "0 ký tự
+      // Trung", tức là **báo sạch trong khi thật ra là trắng trang**. Đã xảy ra vài lần.
       ws.close()
-      await fetch(`http://127.0.0.1:${PORT}/json/close/${tab.id}`)
+      await sleep(200)
     }
   }
 
@@ -275,9 +365,17 @@ async function main() {
   console.log('\n===== TONG HOP =====')
   for (const locale of ['vi', 'en']) {
     const rows = results.filter((r) => r.locale === locale)
-    const bad = rows.filter((r) => r.cjk > 0 || r.rawKeys.length || r.errors || r.visible < 40)
-    const total = rows.reduce((a, r) => a + r.cjk, 0)
-    console.log(`${locale}: ${rows.length} route · ${total} ky tu Trung · ${bad.length} route van van`)
+    const broken = rows.filter((r) => r.apiDown)
+    const scored = rows.filter((r) => !r.apiDown)
+    const bad = scored.filter((r) => r.cjk > 0 || r.rawKeys.length || r.errors || r.visible < 40)
+    const total = scored.reduce((a, r) => a + r.cjk, 0)
+    console.log(
+      `${locale}: ${rows.length} route · ${total} ky tu Trung · ${bad.length} route van van` +
+        (broken.length ? ` · ${broken.length} route API CHET (khong duoc tinh vao tong)` : ''),
+    )
+    for (const r of broken) {
+      console.log(`   ${r.route.padEnd(34)} API_CHET — trang hien loi, so 0 ky tu Trung la SAI`)
+    }
     for (const r of bad) {
       console.log(
         `   ${r.route.padEnd(34)} cjk=${r.cjk}` +
@@ -288,7 +386,24 @@ async function main() {
     }
   }
 
-  edge.kill()
+  // Phải giết CẢ CÂY tiến trình. `edge.kill()` chỉ giết tiến trình cha; Edge còn hàng chục
+  // tiến trình con và tự giữ cổng debug. Lần đầu chỉ `kill()` cha nên script rò Edge mỗi lần
+  // chạy — tới lúc có 580 tiến trình mồ côi, cổng debug bị phiên Edge cũ chiếm, và audit
+  // nối nhầm vào phiên cũ: trang trắng hàng loạt mà KHÔNG có lỗi JS nào để bắt.
+  taskkillTree(edge.pid)
+}
+
+function taskkillTree(pid) {
+  if (!pid) return
+  try {
+    execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' })
+  } catch {
+    try {
+      process.kill(pid)
+    } catch {
+      /* da chet */
+    }
+  }
 }
 
 main().catch((e) => {

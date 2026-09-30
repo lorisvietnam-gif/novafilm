@@ -85,19 +85,23 @@ const CATEGORY_LABELS: Record<string, LocalizedText> = {
   商业: { zh: '商业营销', en: 'Marketing', vi: 'Tiếp thị thương mại' },
   复古: { zh: '复古', en: 'Retro', vi: 'Hoài niệm' },
   图文: { zh: '图文', en: 'Image and text', vi: 'Ảnh chữ' },
-  // Danh mục chỉ xuất hiện trên thẻ template, không nằm trong CATEGORY_ORDER nên
-  // không tạo chip lọc — nhưng thẻ vẫn in nhãn, nên vẫn phải có bản dịch.
-  像素: { zh: '像素', en: 'Pixel', vi: 'Pixel' },
-  剪纸: { zh: '剪纸', en: 'Papercut', vi: 'Giấy cắt' },
-  手绘: { zh: '手绘', en: 'Hand-drawn', vi: 'Vẽ tay' },
-  拼贴: { zh: '拼贴', en: 'Collage', vi: 'Collage' },
-  摄影: { zh: '摄影', en: 'Photography', vi: 'Nhiếp ảnh' },
+  /*
+   * Danh mục chỉ template mới dùng, KHÔNG có trong `CATEGORY_ORDER` nên không xuất hiện
+   * ở thanh lọc — chúng chỉ hiện trên thẻ mẫu và trong khối thông tin bên trái trang phong
+   * cách. Thêm nhãn ở đây thay vì đưa vào `CATEGORY_ORDER` để không đổi thanh lọc.
+   * (Khoá vẫn là chuỗi Trung vì backend trả về đúng giá trị đó.)
+   */
   故事: { zh: '故事', en: 'Story', vi: 'Câu chuyện' },
-  极简: { zh: '极简', en: 'Minimal', vi: 'Tối giản' },
-  水墨: { zh: '水墨', en: 'Ink wash', vi: 'Thủy mặc' },
-  绘本: { zh: '绘本', en: 'Picture book', vi: 'Sách tranh' },
+  摄影: { zh: '摄影', en: 'Photography', vi: 'Nhiếp ảnh' },
   胶片: { zh: '胶片', en: 'Film', vi: 'Film' },
+  剪纸: { zh: '剪纸', en: 'Paper cut', vi: 'Cắt giấy' },
+  绘本: { zh: '绘本', en: 'Picture book', vi: 'Truyện tranh' },
+  手绘: { zh: '手绘', en: 'Hand-drawn', vi: 'Vẽ tay' },
   赛博: { zh: '赛博', en: 'Cyber', vi: 'Cyber' },
+  拼贴: { zh: '拼贴', en: 'Collage', vi: 'Collage' },
+  极简: { zh: '极简', en: 'Minimal', vi: 'Tối giản' },
+  像素: { zh: '像素', en: 'Pixel', vi: 'Pixel' },
+  水墨: { zh: '水墨', en: 'Ink wash', vi: 'Thủy mặc' },
   '3D': { zh: '3D', en: '3D', vi: '3D' },
 }
 

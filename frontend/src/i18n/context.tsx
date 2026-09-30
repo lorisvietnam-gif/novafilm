@@ -45,10 +45,12 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const t = useCallback<TFunction>(
     (path, vars) => {
       const raw = lookupMessage(m, path)
-      // Chỉ coi là "thiếu key" khi thật sự không tồn tại. Một key có giá trị rỗng
-      // (`''`) là chủ ý — dùng để giấu một mảnh câu trong ngôn ngữ này — và phải
-      // trả về chuỗi rỗng. Nếu kiểm tra bằng `!raw` thì `''` bị coi là thiếu, `t()`
-      // trả về chính đường dẫn key và giao diện in ra `common.pageSizeBefore`.
+      // Chỉ khi **khoá thiếu** mới trả về đường dẫn, để lỗi lộ ra giao diện như một
+      // lỗi nhìn thấy được. Chuỗi rỗng là một lựa chọn có chủ đích — nó được dùng để
+      // giấu một mảnh câu trong ngôn ngữ này (`common.pageSizeBefore` để rỗng ở `en`
+      // và `vi` nghĩa là "không hiện"), nên phải trả về chuỗi rỗng. Nếu kiểm tra bằng
+      // `!raw` thì `''` bị coi là thiếu, `t()` trả về chính đường dẫn key và giao diện
+      // in ra `common.pageSizeBefore`.
       if (raw === undefined) return path
       return interpolate(raw, vars)
     },

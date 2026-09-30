@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import {
   LabeledControl,
   SettingsLoading,
@@ -11,9 +11,12 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { useAdminModelSettings } from "@/hooks/useAdminModelSettings";
 import { api } from "@/api/client";
+import { modelCapabilityLabel, type ModelCapability } from "@/lib/tokenfreeRecommendedModels";
+import { useI18n } from "@/i18n";
 
 // 易支付与 Token 计费配置
 export function PaymentSettingsPanel() {
+  const { m, t } = useI18n();
   const { form, loading, saving, patchField, save } = useAdminModelSettings();
   const [epayKeyInput, setEpayKeyInput] = useState("");
   const [clearEpayKey, setClearEpayKey] = useState(false);
@@ -96,7 +99,7 @@ export function PaymentSettingsPanel() {
         smtp_from: form.smtp_from,
         smtp_use_tls: form.smtp_use_tls,
       },
-      "支付与计费已保存",
+      t("settings.paymentSaved"),
     );
     setEpayKeyInput("");
     setClearEpayKey(false);
@@ -112,7 +115,7 @@ export function PaymentSettingsPanel() {
       setModelRates(res.items || []);
     } catch (err) {
       setModelRates([]);
-      setTokenfreeInfo(err instanceof Error ? err.message : "加载模型费率失败");
+      setTokenfreeInfo(err instanceof Error ? err.message : t("settings.modelRatesFailed"));
     } finally {
       setModelRatesBusy(false);
     }
@@ -134,11 +137,18 @@ export function PaymentSettingsPanel() {
       }>("/api/admin/settings/tokenfree/quota");
       const remainUsd = res.remain_usd != null ? `$${res.remain_usd.toFixed(4)}` : "—";
       setTokenfreeInfo(
-        `剩余 ${res.quota ?? "—"} quota ≈ ¥${res.remain_yuan}（${remainUsd} · ${res.usd_cny} CNY/USD）` +
-          `；已用 ${res.used_quota ?? "—"} ≈ ¥${res.used_yuan}。控制台 ${res.console_url}`,
+        t("settings.tokenfreeRemain", {
+          quota: res.quota ?? "—",
+          yuan: res.remain_yuan,
+          usd: remainUsd,
+          rate: res.usd_cny,
+          usedQuota: res.used_quota ?? "—",
+          usedYuan: res.used_yuan,
+          console: res.console_url,
+        }),
       );
     } catch (err) {
-      setTokenfreeInfo(err instanceof Error ? err.message : "查询 TokenFree 余额失败");
+      setTokenfreeInfo(err instanceof Error ? err.message : t("settings.tokenfreeQueryFailed"));
     } finally {
       setTokenfreeBusy(false);
     }
@@ -151,35 +161,35 @@ export function PaymentSettingsPanel() {
   return (
     <SettingsTabShell onSave={() => void handleSave()} saving={saving}>
       <SettingsStatusBar
-        title="支付就绪状态"
+        title={m.settings.paymentReadyTitle}
         items={[
           {
             id: "epay",
-            label: "易支付",
+            label: m.settings.epay,
             ready: epayReady,
-            readyText: "已配置",
-            pendingText: "未完整",
+            readyText: m.settings.epayReady,
+            pendingText: m.settings.epayIncomplete,
           },
           {
             id: "billing",
-            label: "Token 计费",
+            label: m.settings.tokenBilling,
             ready: form.billing_enabled,
-            readyText: "已开启",
-            pendingText: "已关闭",
+            readyText: m.settings.billingOn,
+            pendingText: m.settings.billingOff,
           },
           {
             id: "tokenfree",
-            label: "上游成本",
+            label: m.settings.upstreamCost,
             ready: tokenfreeReady,
-            readyText: "已配置 Key",
-            pendingText: "缺 TokenFree Key",
+            readyText: m.settings.keyConfigured,
+            pendingText: m.settings.keyMissing,
           },
           {
             id: "smtp",
             label: "SMTP",
             ready: smtpReady,
-            readyText: "已配置",
-            pendingText: form.smtp_enabled ? "不完整" : "未启用",
+            readyText: m.settings.epayReady,
+            pendingText: form.smtp_enabled ? m.settings.smtpIncomplete : m.settings.smtpNotEnabled,
           },
         ]}
       />
@@ -187,11 +197,11 @@ export function PaymentSettingsPanel() {
       <div className="settings-routing-grid">
         <SettingsPanel
           className="settings-panel--compact"
-          title="1. 易支付 Epay"
-          description="生产回调请用 /epay/notify，勿含 /api/"
+          title={m.settings.epayTitle}
+          description={m.settings.epayDesc}
         >
           <div className="settings-field-grid">
-            <LabeledControl label="网关地址">
+            <LabeledControl label={m.settings.epayGateway}>
               <input
                 className="settings-input"
                 placeholder="https://pay.gitcc.com"
@@ -199,7 +209,7 @@ export function PaymentSettingsPanel() {
                 onChange={(e) => patchField("epay_api_url", e.target.value)}
               />
             </LabeledControl>
-            <LabeledControl label="商户 PID">
+            <LabeledControl label={m.settings.epayPid}>
               <input
                 className="settings-input"
                 value={form.epay_pid}
@@ -207,7 +217,7 @@ export function PaymentSettingsPanel() {
               />
             </LabeledControl>
             <SecretField
-              label="商户密钥"
+              label={m.settings.epayKey}
               value={epayKeyInput}
               configured={form.has_epay_key && !clearEpayKey}
               onChange={setEpayKeyInput}
@@ -216,14 +226,14 @@ export function PaymentSettingsPanel() {
                 setClearEpayKey(true);
               }}
             />
-            <LabeledControl label="异步通知 URL" hint="生产：{域名}/epay/notify" className="settings-field-span-full">
+            <LabeledControl label={m.settings.epayNotifyUrl} hint={m.settings.epayNotifyHint} className="settings-field-span-full">
               <input
                 className="settings-input"
                 value={form.epay_notify_url}
                 onChange={(e) => patchField("epay_notify_url", e.target.value)}
               />
             </LabeledControl>
-            <LabeledControl label="同步跳转 URL" className="settings-field-span-full">
+            <LabeledControl label={m.settings.epayReturnUrl} className="settings-field-span-full">
               <input
                 className="settings-input"
                 value={form.epay_return_url}
@@ -235,18 +245,18 @@ export function PaymentSettingsPanel() {
 
         <SettingsPanel
           className="settings-panel--compact"
-          title="2. Token 计费"
-          description="按 TokenFree 官方成本 1:1 扣费，不再加价"
+          title={m.settings.billingTitle}
+          description={m.settings.billingDesc}
         >
           <div className="settings-toggle-row">
             <div>
-              <strong>启用 Token 计费</strong>
-              <span>关闭后生成不扣余额</span>
+              <strong>{m.settings.billingEnableTitle}</strong>
+              <span>{m.settings.billingEnableDesc}</span>
             </div>
             <Switch checked={form.billing_enabled} onCheckedChange={(v) => patchField("billing_enabled", v)} />
           </div>
           <div className="settings-field-grid mt-3">
-            <LabeledControl label="预估缓冲系数">
+            <LabeledControl label={m.settings.billingBuffer}>
               <input
                 className="settings-input"
                 type="number"
@@ -256,7 +266,7 @@ export function PaymentSettingsPanel() {
                 onChange={(e) => patchField("billing_estimate_buffer", Number(e.target.value))}
               />
             </LabeledControl>
-            <LabeledControl label="注册赠送（分）">
+            <LabeledControl label={m.settings.billingSignupGrant}>
               <input
                 className="settings-input"
                 type="number"
@@ -267,7 +277,7 @@ export function PaymentSettingsPanel() {
             </LabeledControl>
           </div>
 
-          <div className="settings-subsection-title">单价（元 / 百万 token）</div>
+          <div className="settings-subsection-title">{m.settings.billingUnitPrice}</div>
           <div className="settings-field-grid">
             <LabeledControl label="LLM">
               <input
@@ -278,7 +288,7 @@ export function PaymentSettingsPanel() {
                 onChange={(e) => patchField("billing_llm_per_m", Number(e.target.value))}
               />
             </LabeledControl>
-            <LabeledControl label="Seedream 生图">
+            <LabeledControl label={m.settings.billingEstimateImage}>
               <input
                 className="settings-input"
                 type="number"
@@ -286,8 +296,7 @@ export function PaymentSettingsPanel() {
                 value={form.billing_seedream_per_m}
                 onChange={(e) => patchField("billing_seedream_per_m", Number(e.target.value))}
               />
-            </LabeledControl>
-            <LabeledControl label="TTS 语音">
+            </LabeledControl>            <LabeledControl label={m.settings.billingTts}>
               <input
                 className="settings-input"
                 type="number"
@@ -316,7 +325,7 @@ export function PaymentSettingsPanel() {
             </LabeledControl>
           </div>
 
-          <div className="settings-subsection-title mt-3">TokenFree 上游与模型费率</div>
+          <div className="settings-subsection-title mt-3">{m.settings.billingUpstreamTitle}</div>
           <div className="flex flex-wrap items-center gap-2 mt-2">
             <Button
               type="button"
@@ -325,7 +334,7 @@ export function PaymentSettingsPanel() {
               disabled={tokenfreeBusy}
               onClick={() => void queryTokenfreeQuota()}
             >
-              {tokenfreeBusy ? "查询中…" : "查询 TokenFree 余额"}
+              {tokenfreeBusy ? m.settings.billingQuerying : m.settings.billingQuery}
             </Button>
             <Button
               type="button"
@@ -334,7 +343,7 @@ export function PaymentSettingsPanel() {
               disabled={modelRatesBusy}
               onClick={() => void loadModelRates()}
             >
-              {modelRatesBusy ? "加载中…" : "查看 TokenFree 官方价目"}
+              {modelRatesBusy ? m.settings.billingRatesLoading : m.settings.billingViewRates}
             </Button>
           </div>
           {tokenfreeInfo ? <p className="text-sm text-muted-foreground mt-2">{tokenfreeInfo}</p> : null}
@@ -343,11 +352,11 @@ export function PaymentSettingsPanel() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40 text-left">
-                    <th className="p-2">模型</th>
-                    <th className="p-2">能力</th>
-                    <th className="p-2">官方成本</th>
-                    <th className="p-2">用户价</th>
-                    <th className="p-2">口径</th>
+                    <th className="p-2">{m.common.fields.model}</th>
+                    <th className="p-2">{m.common.fields.capability}</th>
+                    <th className="p-2">{m.settings.rateOfficialCost}</th>
+                    <th className="p-2">{m.settings.rateUserPrice}</th>
+                    <th className="p-2">{m.settings.rateBasis}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -356,12 +365,12 @@ export function PaymentSettingsPanel() {
                       <td className="p-2">
                         <div className="font-medium">
                           {row.label}
-                          {row.recommended ? <span className="ml-1 text-xs text-[#409eff]">推荐</span> : null}
+                          {row.recommended ? <span className="ml-1 text-xs text-[#409eff]">{m.settings.billingRateRecommended}</span> : null}
                         </div>
                         <div className="text-xs text-muted-foreground font-mono">{row.id}</div>
                         {row.note ? <div className="text-xs text-muted-foreground">{row.note}</div> : null}
                       </td>
-                      <td className="p-2">{row.capability}</td>
+                      <td className="p-2">{modelCapabilityLabel(row.capability as ModelCapability)}</td>
                       <td className="p-2">
                         {row.official_cost_yuan ? `¥${row.official_cost_yuan}` : "—"}
                       </td>
@@ -372,7 +381,7 @@ export function PaymentSettingsPanel() {
                         <div>{row.rate_label}</div>
                         {row.verify_url ? (
                           <a className="text-xs text-[#409eff] hover:underline" href={row.verify_url} target="_blank" rel="noreferrer">
-                            去 TokenFree 核对
+                            {m.settings.billingRateVerify}
                           </a>
                         ) : null}
                       </td>
@@ -383,9 +392,9 @@ export function PaymentSettingsPanel() {
             </div>
           ) : null}
 
-          <div className="settings-subsection-title">估算 token（缺 usage 时）</div>
+          <div className="settings-subsection-title">{m.settings.billingEstimateTitle}</div>
           <div className="settings-field-grid">
-            <LabeledControl label="LLM 估算">
+            <LabeledControl label={m.settings.billingEstimateLlm}>
               <input
                 className="settings-input"
                 type="number"
@@ -393,7 +402,7 @@ export function PaymentSettingsPanel() {
                 onChange={(e) => patchField("billing_est_llm_tokens", Number(e.target.value))}
               />
             </LabeledControl>
-            <LabeledControl label="Seedream 估算">
+            <LabeledControl label={m.settings.billingEstimateSeedream}>
               <input
                 className="settings-input"
                 type="number"
@@ -401,7 +410,7 @@ export function PaymentSettingsPanel() {
                 onChange={(e) => patchField("billing_est_seedream_tokens", Number(e.target.value))}
               />
             </LabeledControl>
-            <LabeledControl label="TTS 估算">
+            <LabeledControl label={m.settings.billingEstimateTts}>
               <input
                 className="settings-input"
                 type="number"
@@ -409,7 +418,7 @@ export function PaymentSettingsPanel() {
                 onChange={(e) => patchField("billing_est_tts_tokens", Number(e.target.value))}
               />
             </LabeledControl>
-            <LabeledControl label="Seedance token/秒">
+            <LabeledControl label={m.settings.billingEstimateSeedance}>
               <input
                 className="settings-input"
                 type="number"
@@ -424,13 +433,13 @@ export function PaymentSettingsPanel() {
       <div className="settings-routing-grid">
         <SettingsPanel
           className="settings-panel--compact"
-          title="3. 额度告警与 SMTP"
-          description="用户消费提醒与平台费用邮件"
+          title={m.settings.alertTitle}
+          description={m.settings.alertDesc}
         >
           <div className="settings-toggle-row">
             <div>
-              <strong>用户弹窗提醒</strong>
-              <span>累计扣费达间隔档位时弹一次（跨多档也不连弹）</span>
+              <strong>{m.settings.userAlertTitle}</strong>
+              <span>{m.settings.userAlertDesc}</span>
             </div>
             <Switch
               checked={form.billing_user_alert_enabled}
@@ -438,7 +447,7 @@ export function PaymentSettingsPanel() {
             />
           </div>
           <div className="settings-field-grid mt-2">
-            <LabeledControl label="提醒间隔（分）" hint="10000 = ¥100；每笔结算最多弹一次">
+            <LabeledControl label={m.settings.userAlertInterval} hint={m.settings.userAlertIntervalHint}>
               <input
                 className="settings-input"
                 type="number"
@@ -451,8 +460,8 @@ export function PaymentSettingsPanel() {
 
           <div className="settings-toggle-row mt-3">
             <div>
-              <strong>管理员邮件告警</strong>
-              <span>按上游 cost 汇总达阈值后发信</span>
+              <strong>{m.settings.adminAlertTitle}</strong>
+              <span>{m.settings.adminAlertDesc}</span>
             </div>
             <Switch
               checked={form.billing_admin_cost_alert_enabled}
@@ -460,7 +469,7 @@ export function PaymentSettingsPanel() {
             />
           </div>
           <div className="settings-field-grid mt-2">
-            <LabeledControl label="告警阈值（分）">
+            <LabeledControl label={m.settings.adminAlertThreshold}>
               <input
                 className="settings-input"
                 type="number"
@@ -471,18 +480,18 @@ export function PaymentSettingsPanel() {
                 }
               />
             </LabeledControl>
-            <LabeledControl label="统计周期">
+            <LabeledControl label={m.settings.adminAlertPeriod}>
               <select
                 className="settings-select"
                 value={form.billing_admin_cost_alert_period}
                 onChange={(e) => patchField("billing_admin_cost_alert_period", e.target.value)}
               >
-                <option value="daily">每日</option>
-                <option value="monthly">每月</option>
-                <option value="all_time">累计</option>
+                <option value="daily">{m.settings.periodDaily}</option>
+                <option value="monthly">{m.settings.periodMonthly}</option>
+                <option value="all_time">{m.settings.periodAllTime}</option>
               </select>
             </LabeledControl>
-            <LabeledControl label="收件邮箱" hint="逗号分隔" className="settings-field-span-full">
+            <LabeledControl label={m.settings.adminAlertEmails} hint={m.settings.emailsHint} className="settings-field-span-full">
               <input
                 className="settings-input"
                 placeholder="admin@example.com"
@@ -494,13 +503,13 @@ export function PaymentSettingsPanel() {
 
           <div className="settings-toggle-row mt-3">
             <div>
-              <strong>启用 SMTP</strong>
-              <span>邮件告警依赖 SMTP</span>
+              <strong>{m.settings.smtpEnableTitle}</strong>
+              <span>{m.settings.smtpEnableDesc}</span>
             </div>
             <Switch checked={form.smtp_enabled} onCheckedChange={(v) => patchField("smtp_enabled", v)} />
           </div>
           <div className="settings-field-grid mt-2">
-            <LabeledControl label="SMTP 主机">
+            <LabeledControl label={m.settings.smtpHost}>
               <input
                 className="settings-input"
                 placeholder="smtp.example.com"
@@ -508,7 +517,7 @@ export function PaymentSettingsPanel() {
                 onChange={(e) => patchField("smtp_host", e.target.value)}
               />
             </LabeledControl>
-            <LabeledControl label="端口">
+            <LabeledControl label={m.settings.smtpPort}>
               <input
                 className="settings-input"
                 type="number"
@@ -517,14 +526,14 @@ export function PaymentSettingsPanel() {
                 onChange={(e) => patchField("smtp_port", Number(e.target.value))}
               />
             </LabeledControl>
-            <LabeledControl label="发件人">
+            <LabeledControl label={m.settings.smtpFrom}>
               <input
                 className="settings-input"
                 value={form.smtp_from}
                 onChange={(e) => patchField("smtp_from", e.target.value)}
               />
             </LabeledControl>
-            <LabeledControl label="用户名">
+            <LabeledControl label={m.settings.smtpUser}>
               <input
                 className="settings-input"
                 value={form.smtp_user}
@@ -532,7 +541,7 @@ export function PaymentSettingsPanel() {
               />
             </LabeledControl>
             <SecretField
-              label="SMTP 密码"
+              label={m.settings.smtpPassword}
               value={smtpPasswordInput}
               configured={form.has_smtp_password && !clearSmtpPassword}
               onChange={setSmtpPasswordInput}
@@ -541,7 +550,7 @@ export function PaymentSettingsPanel() {
                 setClearSmtpPassword(true);
               }}
             />
-            <LabeledControl label="使用 TLS">
+            <LabeledControl label={m.settings.smtpUseTls}>
               <div className="settings-inline-switch">
                 <Switch checked={form.smtp_use_tls} onCheckedChange={(v) => patchField("smtp_use_tls", v)} />
               </div>

@@ -1,14 +1,16 @@
 /**
- * Display labels for the media-model catalog and the voice presets.
+ * Nhãn hiển thị cho danh mục mô hình media lấy từ backend.
  *
- * Both come from the backend with Chinese `label` / `description` /
- * `pricing_hint` / `eta_hint` and the API has no locale parameter, so that text
- * reaches every interface language. The wire values (`id`, `speaker`, `gender`,
- * durations) are never touched — only the rendered strings are translated.
+ * `/api/media-models` trả `description`, `pricing_hint`, `eta_hint` bằng tiếng Trung cho mọi
+ * ngôn ngữ, vì API không có tham số locale. `id` mô hình là giá trị backend đối chiếu khi
+ * gọi API nhà cung cấp, nên **giữ nguyên**; chỉ phần mô tả hiển thị mới dịch. Cùng cơ chế
+ * với `templateLabels.ts` (nhãn giọng đọc nằm ở `voiceLabels.ts`).
  *
- * Same shape and same reasoning as `templateLabels.ts`: a plain
- * `Record<string, LocalizedText>` read through a function, never spread, so no
- * getter can be evaluated before its table is initialised (`AGENTS.md` §7).
+ * Chỉ những mô hình có mô tả tiếng Trung mới cần vào đây. Mô tả rỗng (ví dụ mô hình mới
+ * chưa có mô tả) thì không dịch gì cả, và giá trị gốc từ backend được dùng làm dự phòng.
+ *
+ * Bảng là `Record` thuần và chỉ được đọc qua các hàm bên dưới — không getter, không spread.
+ * Spread sẽ gọi getter lúc khởi tạo module, đúng loại lỗi đã ghi ở `AGENTS.md` §7.
  */
 
 import { localized, type LocalizedText } from './localeStrings'
@@ -19,6 +21,10 @@ type ModelText = {
   eta_hint: LocalizedText
 }
 
+/**
+ * Khoá hạ ạt chữ thường: backend gửi `MiniMax-H3` (hoa chữ cái lẫn lộn), nên tra cứu
+ * cũng hạ chữ thường. Cách này đúng với mọi biến thể viết hoa mà backend dùng.
+ */
 const MODEL_LABELS: Record<string, ModelText> = {
   'seedream-5-0-pro': {
     description: {
@@ -129,95 +135,28 @@ function modelKey(id: string | undefined | null): string {
   return (id || '').toLowerCase()
 }
 
-/** Localized model description, falling back to the backend string. */
+/**
+ * Mô tả của một mô hình, theo ngôn ngữ đang dùng.
+ *
+ * Mô hình không có trong bảng thì trả về đúng `description` gốc từ backend. Đây là dữ
+ * liệu admin nhập tay, nên bảng nhãn ở đây không thể bao phủ hết — giá trị gốc là dự
+ * phòng chấp nhận được, mục nào rơi vào đường này được liệt kê trong báo cáo.
+ */
 export function mediaModelDescription(id: string | undefined | null, fallback = ''): string {
   const entry = MODEL_LABELS[modelKey(id)]
   return entry ? localized(entry.description) : fallback
 }
 
-/** Localized pricing hint. Returns `''` when the backend sends none. */
+/** Gợi ý giá, theo ngôn ngữ đang dùng; không có thì trả `fallback`. */
 export function mediaModelPricingHint(id: string | undefined | null, fallback = ''): string {
   const entry = MODEL_LABELS[modelKey(id)]
   if (!entry) return fallback
-  const text = localized(entry.pricing_hint)
-  return text || fallback
+  return localized(entry.pricing_hint) || fallback
 }
 
-/** Localized turnaround hint. Returns `''` when the backend sends none. */
+/** Gợi ý thời gian chờ, theo ngôn ngữ đang dùng; không có thì trả `fallback`. */
 export function mediaModelEtaHint(id: string | undefined | null, fallback = ''): string {
   const entry = MODEL_LABELS[modelKey(id)]
   if (!entry) return fallback
-  const text = localized(entry.eta_hint)
-  return text || fallback
-}
-
-const VOICE_LABELS: Record<string, LocalizedText> = {
-  zh_female_cancan_uranus_bigtts: {
-    zh: '灿灿 · 女声旁白',
-    en: 'Cancan · Female narrator',
-    vi: 'Cancan · Nữ giọng dẫn chuyện',
-  },
-  zh_female_tianmeixiaoyuan_uranus_bigtts: {
-    zh: '甜美女声 · 故事',
-    en: 'Sweet female · Storytelling',
-    vi: 'Nữ giọng ngọt ngào · Kể chuyện',
-  },
-  zh_female_shuangkuaisisi_uranus_bigtts: {
-    zh: '爽快女声 · 都市',
-    en: 'Brisk female · Urban',
-    vi: 'Nữ giọng sắc gọn · Đô thị',
-  },
-  zh_female_vv_uranus_bigtts: {
-    zh: 'Vivi · 国风女声',
-    en: 'Vivi · Classical Chinese female',
-    vi: 'Vivi · Nữ giọng cổ điển',
-  },
-  zh_female_xiaohe_uranus_bigtts: {
-    zh: '小何 · 通用女声',
-    en: 'Xiaohe · General female',
-    vi: 'Xiaohe · Nữ giọng đa dụng',
-  },
-  zh_male_shaonianzixin_uranus_bigtts: {
-    zh: '少年梓辛 · 男声',
-    en: 'Shaonian Zixin · Male',
-    vi: 'Thiếu niên Tử Tân · Nam',
-  },
-  zh_male_m191_uranus_bigtts: {
-    zh: '云舟 · 稳重男声',
-    en: 'Yunzhou · Steady male',
-    vi: 'Vân Châu · Nam giọng điềm tĩnh',
-  },
-  zh_male_taocheng_uranus_bigtts: {
-    zh: '小天 · 年轻男声',
-    en: 'Xiaotian · Young male',
-    vi: 'Tiểu Thiên · Nam giọng trẻ',
-  },
-  zh_male_ruyayichen_uranus_bigtts: {
-    zh: '儒雅逸辰 · 男声',
-    en: 'Ruyai Yichen · Male',
-    vi: 'Nhã nhã Dật Thần · Nam',
-  },
-  zh_male_baqiqingshu_uranus_bigtts: {
-    zh: '霸气青叔 · 男声',
-    en: 'Baqi Qingshu · Male',
-    vi: 'Bá khí Thanh Thúc · Nam',
-  },
-}
-
-/**
- * Localized voice name, falling back to the backend string.
- *
- * `id` and `speaker` are the same value for every preset today, but the lookup
- * tries both so a preset that separates them still resolves.
- */
-export function voiceName(
-  voice: { id?: string; speaker?: string; label?: string } | null | undefined,
-): string {
-  if (!voice) return ''
-  const entry = VOICE_LABELS[voiceKeyOf(voice.id)] ?? VOICE_LABELS[voiceKeyOf(voice.speaker)]
-  return entry ? localized(entry) : voice.label || ''
-}
-
-function voiceKeyOf(value: string | undefined): string {
-  return (value || '').toLowerCase()
+  return localized(entry.eta_hint) || fallback
 }

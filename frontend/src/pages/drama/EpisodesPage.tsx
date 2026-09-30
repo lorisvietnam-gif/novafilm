@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import AppShell from '../../components/layout/AppShell'
+import { localizeBackendMessage } from '../../lib/backendMessages'
 import { isCanvasWorkflow } from '../../lib/dramaWorkflow'
 import { resolveStoryboardPath } from '../../lib/dramaStoryboardNav'
 import { dramaApi } from '../../api/drama'
@@ -37,7 +38,11 @@ function EpisodesRedirect() {
         const path = await resolveStoryboardPath(pid)
         if (!cancelled) navigate(path, { replace: true })
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Không mở được trang storyboard')
+        if (!cancelled) {
+          setError(
+            err instanceof Error ? localizeBackendMessage(err.message) : 'Không mở được trang storyboard',
+          )
+        }
       }
     })()
     return () => {

@@ -1,26 +1,30 @@
 /**
- * Display labels for backend-seeded templates.
+ * Nhãn hiển thị cho dữ liệu template lấy từ backend.
  *
- * `Template.name` / `Template.description` come from the database seed in
- * Chinese and the API has no locale parameter, so the Chinese reaches every
- * interface language. The wire values stay untouched — `id` and `category` are
- * matched against the backend — only the rendered text is translated, exactly
- * like `dramaImageStyles.ts` does for image styles.
+ * Template lưu trong database với `id` ASCII và tên/mô tả tiếng Trung, vì backend đối
+ * chiếu `id` và seed lại từ chính những chuỗi đó. **Giá trị đó không được sửa** — chỉ
+ * phần hiển thị mới dịch, và dịch ở đây chứ không ở trang, để mọi nơi render tên mẫu
+ * (danh sách mẫu, trang tạo dự án, trang phong cách, storyboard, lịch sử) đều dùng
+ * chung một bảng và không lệch nhau.
  *
- * Unknown ids fall back to the raw backend string so a newly seeded template is
- * still usable, just untranslated.
+ * Cùng cơ chế với `dramaImageStyles.ts`:
+ * - Thiếu **ngôn ngữ** là lỗi kiểu, vì mọi thành viên của `LocalizedText` đều bắt buộc.
+ *   Không ngôn ngữ nào lặng lẽ rơi về tiếng Trung.
+ * - Thiếu **mục** thì trả về nguyên văn giá trị gốc, chấp nhận được hơn là trả chuỗi
+ *   rỗng. Mục nào thiếu được liệt kê trong báo cáo.
  *
- * Declared as a plain `Record` of `LocalizedText` and read through
- * `templateName()` / `templateDescription()`. There is deliberately no getter
- * and no object spread over these entries: spreading a getter evaluates it at
- * module init, which is the class of bug documented in `AGENTS.md` §7.
+ * Bảng là `Record` thuần của `LocalizedText` và chỉ được đọc qua `templateName()` /
+ * `templateDescription()`. Cố ý KHÔNG dùng getter và KHÔNG spread các mục này: spread
+ * sẽ gọi getter ngay lúc khởi tạo module, đúng loại lỗi đã ghi ở `AGENTS.md` §7.
  */
 
 import { localized, type LocalizedText } from './localeStrings'
 
-type TemplateText = { name: LocalizedText; description: LocalizedText }
-
-const TEMPLATE_LABELS: Record<string, TemplateText> = {
+/**
+ * Khoá là `template.id` (ASCII, ổn định), KHÔNG phải tên tiếng Trung — tên có thể được
+ * admin sửa trong database, còn `id` thì không.
+ */
+const TEMPLATE_LABELS: Record<string, { name: LocalizedText; description: LocalizedText }> = {
   huoke_douyin_hook: {
     name: { zh: '获客·抖音钩子', en: 'Sales · TikTok hook', vi: 'Thu hút khách · Móc TikTok' },
     description: {
@@ -239,16 +243,29 @@ const TEMPLATE_LABELS: Record<string, TemplateText> = {
   },
 }
 
-/** Display name for a template id, falling back to the backend string. */
+/**
+ * Tên mẫu theo ngôn ngữ đang dùng.
+ *
+ * Khoá lạ (mẫu admin vừa thêm, bảng nhãn chưa kịp cập nhật) thì trả về đúng `fallback`
+ * từ backend — hiển thị tiếng Trung còn hơn hiển thị rỗng.
+ */
 export function templateName(id: string, fallback = ''): string {
   const entry = TEMPLATE_LABELS[id]
   return entry ? localized(entry.name) : fallback
 }
 
-/** Display description for a template id, falling back to the backend string. */
+/**
+ * Mô tả mẫu theo ngôn ngữ đang dùng; mẫu không có mô tả thì trả chuỗi rỗng.
+ */
 export function templateDescription(id: string, fallback = ''): string {
   const entry = TEMPLATE_LABELS[id]
-  return entry ? localized(entry.description) : fallback
+  if (!entry) return fallback || ''
+  return localized(entry.description)
+}
+
+/** Danh sách id đã có bảng nhãn — dùng để báo cáo mục nào còn thiếu. */
+export function labelledTemplateIds(): string[] {
+  return Object.keys(TEMPLATE_LABELS)
 }
 
 /** Ids that have a translated label. Used by tests and audits. */
