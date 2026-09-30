@@ -112,6 +112,7 @@
   display: flex;
   align-items: center;
   gap: 0.65rem;
+  min-width: 0;
 }
 
 .pf-nav-help-btn {
@@ -7828,5 +7829,110 @@ button.pf-shot-editable:disabled {
     width: 48px;
     padding: 0;
     justify-content: center;
+  }
+}
+
+/* ==========================================================================
+   Wave 2 — narrow-viewport corrections
+   --------------------------------------------------------------------------
+   Appended last on purpose: every rule here overrides something declared
+   earlier in this file, which is the point. They are grouped at the end so the
+   overrides are auditable in one place instead of scattered through the
+   responsive blocks.
+
+   What was wrong, measured at 390px in a headless browser rather than guessed:
+
+   1. The nav overflowed the viewport. The right cluster needs roughly 390px of
+      content - language switcher, help icon, "Sign in", the gold CTA and the
+      burger - inside 207px of space beside the wordmark. The CTA and the burger
+      were pushed off screen entirely, so a phone user had no menu at all.
+
+      The fix drops two affordances and lets the rest wrap:
+        - "Sign in" goes, because SiteNav's goCreate() already routes a logged
+          out visitor to /auth from the primary CTA. Nothing is unreachable.
+        - The help icon goes, because Help is in the footer on every page.
+      The right cluster may then wrap to two lines, so the bar's fixed 64px
+      height becomes a min-height. A two-line bar is honest; a clipped CTA is
+      not.
+
+   2. The landing product cards left the body ~160px wide. A 96px thumbnail, a
+      16px gap, a 36px arrow and 2rem of card padding eat 190px of a 358px
+      card, so a six-word sentence wrapped over six lines. Below 560px the
+      thumbnail becomes a banner the full card width, and the body gets the
+      whole column.
+   ========================================================================== */
+
+@media (max-width: 700px) {
+  .pf-nav {
+    height: auto;
+    min-height: var(--pf-nav-h);
+    padding-block: 0.55rem;
+    row-gap: 0.5rem;
+  }
+
+  .pf-nav-right {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    row-gap: 0.45rem;
+    gap: 0.5rem;
+  }
+
+  /* Reachable from the CTA when logged out, and duplicated in the footer. */
+  .pf-nav-login,
+  .pf-nav-help-btn {
+    display: none;
+  }
+
+  .pf-nav .pf-btn-lime {
+    padding: 0.5rem 0.8rem;
+    font-size: var(--pf-text-sm);
+  }
+
+  .pf-nav-lang button {
+    padding: 0 0.45rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .pf-land-product {
+    flex-wrap: wrap;
+    padding: var(--pf-space-4);
+    gap: var(--pf-space-3);
+  }
+
+  /* The thumbnail becomes a banner above the copy instead of a 96px square
+     beside it, so the description gets the full card width. */
+  .pf-land-product-art {
+    width: 100%;
+    height: 132px;
+    border-radius: var(--pf-radius-md);
+  }
+
+  .pf-land-product-art .pf-land-product-icon {
+    left: auto;
+    right: var(--pf-space-2);
+    top: var(--pf-space-2);
+    bottom: auto;
+  }
+
+  .pf-land-product-body strong {
+    font-size: var(--pf-text-xl);
+  }
+
+/* The whole card is already a <button>, so a chevron on a full-width card
+     adds nothing and would have to sit in the empty band above the banner.
+     The banner image carries the affordance instead. */
+  .pf-land-product-go {
+    display: none;
+  }
+}
+
+@media (max-width: 420px) {
+  .pf-land-frames {
+    max-width: none;
+  }
+
+  .pf-land-frame {
+    border-radius: var(--pf-radius-md);
   }
 }
