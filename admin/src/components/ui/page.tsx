@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 
 type PageHeaderProps = {
   title?: string;
@@ -27,15 +28,16 @@ type EmptyStateProps = {
 
 // 空列表占位
 export function EmptyState({
-  title = "暂无数据",
-  description = "换个筛选条件再试试",
+  title,
+  description,
   className,
 }: EmptyStateProps) {
+  const { t } = useI18n();
   return (
     <div className={cn("admin-empty", className)}>
       <div className="admin-empty-icon">∅</div>
-      <div className="admin-empty-title">{title}</div>
-      <div className="admin-empty-desc">{description}</div>
+      <div className="admin-empty-title">{title ?? t("common.empty.title")}</div>
+      <div className="admin-empty-desc">{description ?? t("common.empty.hint")}</div>
     </div>
   );
 }

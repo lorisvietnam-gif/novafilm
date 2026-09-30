@@ -1,6 +1,7 @@
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AdminModal } from "@/components/admin/AdminModal";
+import { useI18n } from "@/i18n";
 
 type AdminConfirmDialogProps = {
   open: boolean;
@@ -19,13 +20,14 @@ export function AdminConfirmDialog({
   open,
   title,
   description,
-  confirmLabel = "确认",
-  cancelLabel = "取消",
+  confirmLabel,
+  cancelLabel,
   loading = false,
   destructive = false,
   onOpenChange,
   onConfirm,
 }: AdminConfirmDialogProps) {
+  const { t } = useI18n();
   return (
     <AdminModal
       open={open}
@@ -36,7 +38,7 @@ export function AdminConfirmDialog({
       footer={
         <>
           <Button variant="outline" disabled={loading} onClick={() => onOpenChange(false)}>
-            {cancelLabel}
+            {cancelLabel ?? t("common.action.cancel")}
           </Button>
           <Button
             variant={destructive ? "destructive" : "default"}
@@ -44,7 +46,7 @@ export function AdminConfirmDialog({
             onClick={onConfirm}
           >
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            {confirmLabel}
+            {confirmLabel ?? t("common.action.confirm")}
           </Button>
         </>
       }
