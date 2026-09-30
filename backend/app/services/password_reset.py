@@ -132,13 +132,13 @@ async def request_password_reset(db: AsyncSession, email: str) -> dict[str, Any]
     token = create_reset_token(redis_client, int(user.id))
     link = build_reset_link(token)
     body = (
-        "您正在重置 PRINTFILM 账号密码。\n\n"
+        "您正在重置 NOVAFILM 账号密码。\n\n"
         f"请在 30 分钟内打开以下链接设置新密码：\n{link}\n\n"
         "如非本人操作，请忽略本邮件。"
     )
     sent = await send_email(
         to_addrs=[email_norm],
-        subject="PRINTFILM 密码重置",
+        subject="NOVAFILM 密码重置",
         body=body,
     )
     if not sent:
