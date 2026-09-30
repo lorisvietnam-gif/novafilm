@@ -1,16 +1,25 @@
 import { Link } from 'react-router-dom'
 import { PRICING_PATH } from '../../lib/billingError'
+import { useLocalizedText } from '../../lib/useLocalizedText'
+import type { LocalizedText } from '../../lib/localeStrings'
 
 type Props = {
   className?: string
   children?: string
 }
 
-/** 内联「去充值」快速跳转 */
-export default function BillingTopupLink({ className = 'pf-link pf-billing-topup-link', children = '去充值 →' }: Props) {
+const TOPUP_LABEL: LocalizedText = {
+  zh: '去充值 →',
+  en: 'Top up →',
+  vi: 'Nạp tiền →',
+}
+
+/** Liên kết nội tuyến "nạp tiền" */
+export default function BillingTopupLink({ className = 'pf-link pf-billing-topup-link', children }: Props) {
+  const lt = useLocalizedText()
   return (
     <Link to={PRICING_PATH} className={className}>
-      {children}
+      {children || lt(TOPUP_LABEL)}
     </Link>
   )
 }

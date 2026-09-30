@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import AppShell from '../components/layout/AppShell'
 import UserAvatar from '../components/UserAvatar'
@@ -36,8 +36,8 @@ type KepuItem = {
 }
 
 /*
- * SIDE_ITEMS 侧栏导航项
- * TAB_IDS 合法 tab 集合（用于 URL 校验）
+ * SIDE_ITEMS  các mục điều hướng ở thanh bên
+ * TAB_IDS     tập tab hợp lệ (dùng để kiểm tra URL)
  */
 const SIDE_ITEMS: { id: SettingsTab; soon?: boolean; group?: 'work' | 'account' }[] = [
   { id: 'account', group: 'account' },
@@ -54,13 +54,13 @@ const SIDE_ITEMS: { id: SettingsTab; soon?: boolean; group?: 'work' | 'account' 
 
 const TAB_IDS = new Set(SIDE_ITEMS.map((i) => i.id))
 
-// 解析 URL tab，非法时回落到账号信息
+// Đọc tab trên URL, tab lạ thì rơi về thông tin tài khoản
 function parseTab(raw: string | null): SettingsTab {
   if (raw && TAB_IDS.has(raw as SettingsTab)) return raw as SettingsTab
   return 'account'
 }
 
-// 格式化相对时间展示
+// Định dạng thời gian tương đối để hiển thị
 function formatWhen(iso: string | undefined, locale: Locale) {
   return formatDateTime(iso, locale)
 }
@@ -70,13 +70,13 @@ export default function SettingsPage() {
   const { t, locale } = useI18n()
   const [params, setParams] = useSearchParams()
   /*
-   * tab 当前侧栏分区
-   * user 当前登录用户
-   * wallet 钱包余额
-   * dramaItems 最近漫剧项目
-   * kepuItems 最近科普项目
-   * listError 列表加载错误
-   * listLoading 列表加载中
+   * tab         mục đang mở ở thanh bên
+   * user        người dùng đang đăng nhập
+   * wallet      số dư ví
+   * dramaItems  các dự án AI Drama gần đây
+   * kepuItems   các dự án video giải thích gần đây
+   * listError   lỗi khi tải danh sách
+   * listLoading đang tải danh sách
    */
   const [tab, setTab] = useState<SettingsTab>(() => parseTab(params.get('tab')))
   const [user, setUser] = useState<User | null>(null)
@@ -132,7 +132,7 @@ export default function SettingsPage() {
     }
   }, [tab])
 
-  // 切换侧栏并同步到 URL
+  // Đổi mục bên và đồng bộ vào URL
   function selectTab(next: SettingsTab) {
     setTab(next)
     const sp = new URLSearchParams(params)

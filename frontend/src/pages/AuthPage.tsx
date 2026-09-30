@@ -9,14 +9,14 @@ import { isValidAuthPassword, isValidEmailInput } from '../lib/validateAuthForm'
 
 type AuthMode = 'login' | 'register' | 'forgot' | 'reset'
 
-// 仅允许站内相对路径回跳，防止开放重定向
+// Chỉ cho phép quay lại bằng đường dẫn tương đối trong cùng site, để chặn open redirect
 function safeNextPath(raw: string | null, fallback = '/') {
   if (!raw) return fallback
   if (!raw.startsWith('/') || raw.startsWith('//') || raw.includes('://')) return fallback
   return raw
 }
 
-// 由 URL ?mode= / ?token= 决定初始 Auth 模式
+// Chế độ Auth khởi tạo lấy từ ?mode= / ?token= trên URL
 function modeFromParams(params: URLSearchParams): AuthMode {
   const mode = (params.get('mode') || '').toLowerCase()
   if (mode === 'reset' || params.get('token')) return 'reset'
@@ -31,10 +31,10 @@ export default function AuthPage() {
   const [params, setSearchParams] = useSearchParams()
   const nextPath = safeNextPath(params.get('next'), '/')
   /*
-   * mode 当前表单模式
-   * email / password / confirmPassword / nickname 表单字段
-   * notice 成功提示（找回已发送、重置成功）
-   * error / loading 提交态
+   * mode        chế độ form hiện tại
+   * email / password / confirmPassword / nickname  các trường của form
+   * notice      thông báo thành công (đã gửi email khôi phục, đã đặt lại mật khẩu)
+   * error / loading  trạng thái đang gửi
    */
   const [mode, setMode] = useState<AuthMode>(() => modeFromParams(params))
   const [email, setEmail] = useState('')
@@ -46,7 +46,7 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false)
   const resetToken = (params.get('token') || '').trim()
 
-  // 切换模式并同步 URL（保留 next）
+  // Đổi chế độ và đồng bộ URL, giữ lại tham số next
   function switchMode(next: AuthMode) {
     setMode(next)
     setError('')

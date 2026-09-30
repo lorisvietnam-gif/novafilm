@@ -1,3 +1,5 @@
+import { localized, type LocalizedText } from './localeStrings'
+
 export const CATEGORY_ORDER = [
   '开源',
   '科普',
@@ -60,4 +62,35 @@ export const HOME_CATEGORY_LABELS: Record<string, string> = {
   商业: '商业营销',
   复古: '复古',
   图文: '图文',
+}
+
+/** Khoá danh mục "tất cả": giữ nguyên vì nó cũng là khoá, không chỉ là nhãn. */
+export const ALL_CATEGORY_KEY = '全部'
+
+const CATEGORY_LABELS: Record<string, LocalizedText> = {
+  全部: { zh: '全部', en: 'All', vi: 'Tất cả' },
+  开源: { zh: '开源项目', en: 'Open source', vi: 'Dự án mã nguồn mở' },
+  科普: { zh: '知识科普', en: 'Explainer', vi: 'Kiến thức phổ thông' },
+  获客: { zh: '获客短视频', en: 'Sales video', vi: 'Video thu hút khách' },
+  纪录片: { zh: '纪录片', en: 'Documentary', vi: 'Phim tài liệu' },
+  写实感: { zh: '写实感', en: 'Realistic', vi: 'Phong cách hiện thực' },
+  真人感: { zh: '人物故事', en: 'Slice of life', vi: 'Câu chuyện đời thường' },
+  电影感: { zh: '电影解说', en: 'Film commentary', vi: 'Giải thích phim' },
+  儿童: { zh: '情感治愈', en: 'Heartwarming', vi: 'Chữa lành tinh thần' },
+  动漫: { zh: '动漫', en: 'Anime', vi: 'Hoạt hình' },
+  国风: { zh: '国风', en: 'Chinese classic', vi: 'Phong cách cổ điển' },
+  科幻: { zh: '科幻', en: 'Sci-fi', vi: 'Khoa huyền viễn' },
+  奇幻: { zh: '奇幻', en: 'Fantasy', vi: 'Giả tưởng' },
+  悬疑: { zh: '悬疑', en: 'Mystery', vi: 'Trinh thám' },
+  商业: { zh: '商业营销', en: 'Marketing', vi: 'Tiếp thị thương mại' },
+  复古: { zh: '复古', en: 'Retro', vi: 'Hoài niệm' },
+  图文: { zh: '图文', en: 'Image and text', vi: 'Ảnh chữ' },
+}
+
+/**
+ * Nhãn hiển thị của một khoá danh mục theo ngôn ngữ đang dùng. Khoá lạ (dữ liệu mới
+ * thêm mà chưa kịp khai báo) thì trả về nguyên văn thay vì để trống.
+ */
+export function homeCategoryLabel(key: string): string {
+  return localized(CATEGORY_LABELS[key] ?? { zh: key, en: key, vi: key })
 }

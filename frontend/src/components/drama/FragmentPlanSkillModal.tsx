@@ -1,8 +1,10 @@
-/** AI 重新分镜确认：可选本次注入的 Agent Skill */
+/** Xác nhận dựng lại storyboard bằng AI: cho chọn Agent Skill sẽ dùng cho lần này */
 import { useEffect } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import { AgentSkillPicker } from './AgentSkillPicker'
 import { useAgentSkillSelection } from '../../hooks/useAgentSkillSelection'
+import { useLocalizedText } from '../../lib/useLocalizedText'
+import type { LocalizedText } from '../../lib/localeStrings'
 
 type FragmentPlanSkillModalProps = {
   open: boolean
@@ -13,15 +15,24 @@ type FragmentPlanSkillModalProps = {
   onConfirm: (skillIds: number[]) => void
 }
 
-/** 覆盖分镜前让用户勾选 Skill */
+const COPY: Record<string, LocalizedText> = {
+  title: { zh: 'AI 重新分镜', en: 'Rebuild the storyboard with AI', vi: 'Dựng lại storyboard bằng AI' },
+  confirm: { zh: '开始分镜', en: 'Start storyboarding', vi: 'Bắt đầu dựng storyboard' },
+  skillLabel: { zh: '本次使用的 Skill', en: 'Skills for this run', vi: 'Skill dùng cho lần này' },
+  skillEmpty: { zh: '还没有 Skill，可上传 .md', en: 'No skills yet. You can upload a .md file.', vi: 'Chưa có Skill nào. Bạn có thể tải một file .md lên.' },
+  cancel: { zh: '取消', en: 'Cancel', vi: 'Huỷ' },
+}
+
+/** Cho người dùng chọn Skill trước khi ghi đè storyboard */
 export function FragmentPlanSkillModal({
   open,
-  title = 'AI 重新分镜',
+  title,
   message,
-  confirmText = '开始分镜',
+  confirmText,
   onCancel,
   onConfirm,
 }: FragmentPlanSkillModalProps) {
+  const lt = useLocalizedText()
   const { skills, selectedIds, toggleSkill, selectAll, selectNone, uploadSkill, uploading, uploadError } =
     useAgentSkillSelection()
 
@@ -61,13 +72,13 @@ export function FragmentPlanSkillModal({
           </div>
           <div className="pf-dialog-body">
             <h2 id="fragment-plan-skill-title" className="pf-dialog-title">
-              {title}
+              {title || lt(COPY.title)}
             </h2>
             <p className="pf-dialog-message">{message}</p>
           </div>
         </div>
         <div className="pf-dialog-skill-block">
-          <div className="pf-dialog-skill-label">本次使用的 Skill</div>
+          <div className="pf-dialog-skill-label">{lt(COPY.skillLabel)}</div>
           <AgentSkillPicker
             skills={skills}
             selectedIds={selectedIds}
@@ -77,15 +88,15 @@ export function FragmentPlanSkillModal({
             onUpload={(file) => void uploadSkill(file)}
             uploading={uploading}
             uploadError={uploadError}
-            emptyText="还没有 Skill，可上传 .md"
+            emptyText={lt(COPY.skillEmpty)}
           />
         </div>
         <div className="pf-dialog-actions">
           <button type="button" className="pf-dialog-btn pf-dialog-btn-ghost" onClick={onCancel}>
-            取消
+            {lt(COPY.cancel)}
           </button>
           <button type="submit" className="pf-dialog-btn pf-dialog-btn-danger">
-            {confirmText}
+            {confirmText || lt(COPY.confirm)}
           </button>
         </div>
       </form>

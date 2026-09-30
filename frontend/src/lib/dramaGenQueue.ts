@@ -1,6 +1,10 @@
-/** 漫剧全局生成队列：图片 / 视频等任务统一展示与恢复 */
+/**
+ * Hàng đợi sinh toàn cục của AI Drama: ảnh / video và các tác vụ khác dùng chung
+ * một chỗ để hiển thị và để khôi phục.
+ */
 import { useSyncExternalStore } from 'react'
 import type { DramaTaskBrief } from '../api/drama'
+import { localized, type LocalizedText } from './localeStrings'
 
 export type DramaGenJobKind = 'image' | 'video'
 
@@ -10,13 +14,19 @@ export type DramaGenJob = {
   id: string
   kind: DramaGenJobKind
   projectId: number
-  /** 资产 id 或分镜 id */
+  /** id của tài nguyên hoặc id của storyboard */
   targetId: number
   episodeId?: number
-  /** 统一任务平台 task_runs.id，用于打开详情 */
+  /** task_runs.id của nền tảng tác vụ thống nhất, dùng để mở chi tiết */
   taskId?: number
   title: string
-  /** 子类型文案：角色 / 场景 / 分镜视频 等 */
+  /**
+   * Nhãn phụ kiểu: nhân vật / bối cảnh / video storyboard…
+   *
+   * Đây là **giá trị so sánh**, không phải chữ hiển thị. `EpisodeEditPage.tsx`
+   * (ngoài lane này) cũng gán đúng hai token dưới đây, nên chúng phải giữ nguyên
+   * bằng tiếng Trung. Muốn hiển thị tiếng Việt thì dùng `dramaGenSubtypeLabel()`.
+   */
   subtype: string
   status: DramaGenJobStatus
   message?: string
@@ -25,28 +35,68 @@ export type DramaGenJob = {
   finishedAt?: number
 }
 
+/**
+ * Hai token phụ kiểu dưới đây là **hợp đồng dữ liệu**, không phải chữ hiển thị:
+ * `pages/drama/EpisodeEditPage.tsx` (ngoài lane này) gán đúng hai giá trị này vào
+ * `subtype`, và panel của ta tự so sánh với chúng. Giữ nguyên tiếng Trung; chữ hiển
+ * thị lấy qua `dramaGenSubtypeLabel`.
+ */
+export const FRAGMENT_VIDEO_SUBTYPE = '分镜视频'
+export const CANVAS_VIDEO_SUBTYPE = '画布视频'
+
+const SUBTYPE_LABEL: Record<string, LocalizedText> = {
+  [FRAGMENT_VIDEO_SUBTYPE]: { zh: '分镜视频', en: 'Storyboard clip', vi: 'Video storyboard' },
+  [CANVAS_VIDEO_SUBTYPE]: { zh: '画布视频', en: 'Canvas clip', vi: 'Video trên canvas' },
+}
+
+/** Dịch token `subtype` sang chữ hiển thị. Token lạ thì trả về nguyên văn. */
+export function dramaGenSubtypeLabel(subtype: string): string {
+  const known = SUBTYPE_LABEL[subtype]
+  return known ? localized(known) : subtype
+}
+
+/** Thông báo trạng thái do ta tự viết — tiếng Trung chỉ để giữ đúng khi chạy ở locale zh. */
+const MESSAGE: Record<string, LocalizedText> = {
+  renderingImage: { zh: '生图中', en: 'Rendering image', vi: 'Đang tạo ảnh' },
+  renderingVideo: { zh: '生视频中', en: 'Rendering video', vi: 'Đang tạo video' },
+  queued: { zh: '排队中', en: 'Queued', vi: 'Đang chờ' },
+  generating: { zh: '生成中', en: 'Generating', vi: 'Đang tạo' },
+  renderingRefs: { zh: '生成参考图…', en: 'Rendering reference images…', vi: 'Đang tạo ảnh tham chiếu…' },
+  enqueued: { zh: '已入队', en: 'Added to queue', vi: 'Đã thêm vào hàng đợi' },
+  cancelled: { zh: '已取消', en: 'Cancelled', vi: 'Đã huỷ' },
+  interrupted: {
+    zh: '任务已中断，请重新生成',
+    en: 'The task was interrupted. Please generate it again.',
+    vi: 'Tác vụ đã bị gián đoạn, vui lòng tạo lại.',
+  },
+  imageAsset: { zh: '资产', en: 'Asset', vi: 'Tài nguyên' },
+  videoAsset: { zh: '视频', en: 'Video', vi: 'Video' },
+  shot: { zh: '片段', en: 'Shot', vi: 'Cảnh' },
+  fragmentClip: { zh: '分镜视频', en: 'Storyboard clip', vi: 'Video storyboard' },
+}
+
 type Listener = () => void
 
 const DONE_RETENTION_MS = 10 * 60 * 1000
 const EMPTY: DramaGenJob[] = []
 
 /*
- * jobs 统一任务列表
- * cachedSnapshot 对外快照
- * listeners 订阅
+ * jobs       danh sách tác vụ thống nhất
+ * cachedSnapshot  ảnh chụp bên ngoài
+ * listeners  các subscriber
  */
 let jobs: DramaGenJob[] = []
 let cachedSnapshot: DramaGenJob[] = EMPTY
 const listeners = new Set<Listener>()
-// 用户手动清空后，不再被轮询/状态同步写回队列
+// Người dùng đã tự xoá thì tác vụ đó không bị ghi lại bởi vòng poll hay đồng bộ trạng thái
 const dismissedJobIds = new Set<string>()
 
-// 重新入队时取消「已清空」标记
+// Khi tác vụ vào hàng đợi lại thì bỏ cờ "đã bị xoá"
 function undismissJob(jobId: string): void {
   dismissedJobIds.delete(jobId)
 }
 
-// 是否跳过把已完成项写回（未跟踪或用户已清空）
+// Có bỏ qua việc ghi lại mục đã xong không (chưa theo dõi, hoặc người dùng đã xoá)
 function shouldSkipFinishedResync(
   jobId: string,
   rawStatus: string,
@@ -60,7 +110,7 @@ function shouldSkipFinishedResync(
   return ['done', 'failed', 'cancelled', 'idle'].includes(rawStatus)
 }
 
-// 快照是否等价
+// Hai ảnh chụp có tương đương không
 function snapshotsEqual(a: DramaGenJob[], b: DramaGenJob[]): boolean {
   if (a === b) return true
   if (a.length !== b.length) return false
@@ -82,7 +132,7 @@ function snapshotsEqual(a: DramaGenJob[], b: DramaGenJob[]): boolean {
   return true
 }
 
-// 清理过期完成/失败项（进行中永不清）
+// Dọn mục đã xong / đã lỗi quá hạn (mục đang chạy thì không bao giờ bị dọn)
 function pruneFinished() {
   const now = Date.now()
   jobs = jobs.filter((job) => {
@@ -92,7 +142,7 @@ function pruneFinished() {
   })
 }
 
-// 刷新快照并通知
+// Làm mới ảnh chụp rồi báo các subscriber
 function emit() {
   pruneFinished()
   const next = jobs.length === 0 ? EMPTY : [...jobs]
@@ -101,7 +151,7 @@ function emit() {
   listeners.forEach((fn) => fn())
 }
 
-// 读取快照
+// Đọc ảnh chụp
 export function getDramaGenQueue(): DramaGenJob[] {
   pruneFinished()
   if (jobs.length === 0) {
@@ -114,7 +164,7 @@ export function getDramaGenQueue(): DramaGenJob[] {
   return cachedSnapshot
 }
 
-// 订阅
+// Đăng ký subscriber
 export function subscribeDramaGenQueue(listener: Listener): () => void {
   listeners.add(listener)
   return () => listeners.delete(listener)
@@ -125,12 +175,12 @@ export function useDramaGenQueue(): DramaGenJob[] {
   return useSyncExternalStore(subscribeDramaGenQueue, getDramaGenQueue, getDramaGenQueue)
 }
 
-// 活跃任务数（角标）
+// Số tác vụ đang chạy (con số trên nút tròn)
 export function getDramaGenActiveCount(): number {
   return jobs.filter((j) => j.status === 'queued' || j.status === 'running').length
 }
 
-// 两条任务的展示字段是否相同
+// Hai tác vụ có các trường hiển thị giống nhau không
 function jobDisplayEqual(a: DramaGenJob, b: DramaGenJob): boolean {
   return (
     a.id === b.id &&
@@ -148,7 +198,7 @@ function jobDisplayEqual(a: DramaGenJob, b: DramaGenJob): boolean {
   )
 }
 
-// 写入或更新一条任务；silent 时只改内存，由调用方统一 emit
+// Ghi hoặc cập nhật một tác vụ; khi silent thì chỉ sửa bộ nhớ, emit do caller lo
 export function upsertDramaGenJob(
   patch: Omit<DramaGenJob, 'createdAt' | 'finishedAt'> & {
     createdAt?: number
@@ -194,17 +244,17 @@ export function upsertDramaGenJob(
   if (!options?.silent) emit()
 }
 
-// 图片任务 id
+// id của tác vụ tạo ảnh
 export function imageJobId(assetId: number): string {
   return `image:${assetId}`
 }
 
-// 视频分镜任务 id
+// id của tác vụ tạo video storyboard
 export function videoJobId(fragmentId: number): string {
   return `video:${fragmentId}`
 }
 
-// 同步资产生图任务到统一队列（由 dramaImageGenQueue 回调）
+// Đồng bộ tác vụ tạo ảnh tài nguyên vào hàng đợi thống nhất (gọi từ dramaImageGenQueue)
 export function syncImageJobToUnified(input: {
   assetId: number
   projectId: number
@@ -219,26 +269,26 @@ export function syncImageJobToUnified(input: {
     kind: 'image',
     projectId: input.projectId,
     targetId: input.assetId,
-    title: input.assetName || `资产 ${input.assetId}`,
+    title: input.assetName || `${localized(MESSAGE.imageAsset)} ${input.assetId}`,
     subtype: input.assetType || 'image',
     status: input.status,
     taskId: input.taskId,
     error: input.error,
     message:
       input.status === 'running'
-        ? '生图中'
+        ? localized(MESSAGE.renderingImage)
         : input.status === 'queued'
-          ? '排队中'
+          ? localized(MESSAGE.queued)
           : undefined,
   })
 }
 
-// 画布视频资产任务 id（与分镜 video:{fragmentId} 区分）
+// id của tác vụ tạo video tài nguyên trên canvas (khác với video:{fragmentId} của storyboard)
 export function assetVideoJobId(assetId: number): string {
   return `video-asset:${assetId}`
 }
 
-// 同步画布资产生视频到统一队列
+// Đồng bộ tác vụ tạo video tài nguyên trên canvas vào hàng đợi thống nhất
 export function syncAssetVideoJobToUnified(input: {
   assetId: number
   projectId: number
@@ -251,15 +301,15 @@ export function syncAssetVideoJobToUnified(input: {
     kind: 'video',
     projectId: input.projectId,
     targetId: input.assetId,
-    title: input.assetName || `视频 ${input.assetId}`,
-    subtype: '画布视频',
+    title: input.assetName || `${localized(MESSAGE.videoAsset)} ${input.assetId}`,
+    subtype: CANVAS_VIDEO_SUBTYPE,
     status: input.status,
     error: input.error,
     message:
       input.status === 'running'
-        ? '生视频中'
+        ? localized(MESSAGE.renderingVideo)
         : input.status === 'queued'
-          ? '排队中'
+          ? localized(MESSAGE.queued)
           : undefined,
   })
 }
@@ -274,24 +324,25 @@ type FragmentStatusItem = {
   cover?: string
 }
 
-// 根据分镜列表解析展示序号；无法可靠判断时返回 null，避免轮询把标题改成「片段 01」
+// Suy ra số thứ tự hiển thị của storyboard; khi không chắc thì trả null để vòng
+// poll không ghi đè tiêu đề thành "Cảnh 01" một cách bừa bãi
 function resolveFragmentLabel(
   fragId: number,
   fragments: Array<{ id: number; sort_order?: number }>,
 ): string | null {
   const frag = fragments.find((f) => f.id === fragId)
   if (frag && typeof frag.sort_order === 'number' && frag.sort_order >= 0) {
-    return `片段 ${String(frag.sort_order + 1).padStart(2, '0')}`
+    return `${localized(MESSAGE.shot)} ${String(frag.sort_order + 1).padStart(2, '0')}`
   }
-  // 仅当列表里已有可靠 sort_order 时，才允许用下标兜底（完整有序列表）
+  // Chỉ khi danh sách đã có sort_order đáng tin thì mới cho phép dùng chỉ số làm dự phòng
   const hasAnySortOrder = fragments.some((f) => typeof f.sort_order === 'number' && f.sort_order >= 0)
   if (!hasAnySortOrder) return null
   const idx = fragments.findIndex((f) => f.id === fragId)
   if (idx < 0) return null
-  return `片段 ${String(idx + 1).padStart(2, '0')}`
+  return `${localized(MESSAGE.shot)} ${String(idx + 1).padStart(2, '0')}`
 }
 
-// 组装队列标题：有可靠镜序时写入/纠正；否则保留已有标题
+// Dựng tiêu đề cho hàng đợi: có số thứ tự cảnh đáng tin thì ghi/correct nó, ngược lại giữ tiêu đề cũ
 function resolveVideoJobTitle(
   existing: DramaGenJob | undefined,
   episodeName: string | undefined,
@@ -308,7 +359,8 @@ function resolveVideoJobTitle(
   }
   if (existing?.title) return existing.title
   const prefix = (episodeName || '').trim()
-  return prefix ? `${prefix} · 分镜视频` : '分镜视频'
+  const fallback = localized(MESSAGE.fragmentClip)
+  return prefix ? `${prefix} · ${fallback}` : fallback
 }
 
 type FragmentTaskItem = DramaTaskBrief
@@ -333,7 +385,7 @@ export function syncEpisodeVideoJobs(input: {
   const fragLabel = (fragId: number) => resolveFragmentLabel(fragId, input.fragments)
 
   const activeTaskByFragmentId = new Map<number, FragmentTaskItem>()
-  // 每个分镜取最新一条平台任务（含失败），供队列绑定 taskId / 错误文案
+  // Mỗi storyboard lấy tác vụ nền tảng mới nhất (kể cả đã lỗi), phục vụ việc gắn taskId / văn bản lỗi
   const latestTaskByFragmentId = new Map<number, FragmentTaskItem>()
   for (const task of input.taskItems || []) {
     if (task.task_type !== 'fragment_video') continue
@@ -358,7 +410,7 @@ export function syncEpisodeVideoJobs(input: {
     if (shouldSkipFinishedResync(jobId, raw, existing, Boolean(activeTask))) {
       continue
     }
-    // idle：服务端无任务。乐观入队后若已中断，从「生成中」清掉
+    // idle: server không có tác vụ nào. Nếu đã vào hàng đợi kiểu lạc quan mà giờ bị gián đoạn thì gỡ khỏi "Đang tạo"
     if (raw === 'idle') {
       if (activeTask) {
         upsertDramaGenJob(
@@ -370,14 +422,14 @@ export function syncEpisodeVideoJobs(input: {
             episodeId: input.episodeId,
             taskId: activeTask.id,
             title: resolveVideoJobTitle(existing, input.episodeName, fragLabel(item.fragment_id)),
-            subtype: '分镜视频',
+            subtype: FRAGMENT_VIDEO_SUBTYPE,
             status: activeTask.status === 'pending' || activeTask.status === 'leased' ? 'queued' : 'running',
             message:
               activeTask.current_step_key === 'assets'
-                ? '生成参考图…'
+                ? localized(MESSAGE.renderingRefs)
                 : activeTask.status === 'pending' || activeTask.status === 'leased'
-                  ? '排队中'
-                  : '生成中',
+                  ? localized(MESSAGE.queued)
+                  : localized(MESSAGE.generating),
           },
           { silent: true },
         )
@@ -395,7 +447,7 @@ export function syncEpisodeVideoJobs(input: {
             title: existing.title,
             subtype: existing.subtype,
             status: 'failed',
-            error: latestTask?.error_message || '任务已中断，请重新生成',
+            error: latestTask?.error_message || localized(MESSAGE.interrupted),
           },
           { silent: true },
         )
@@ -406,7 +458,7 @@ export function syncEpisodeVideoJobs(input: {
     if (raw === 'done') status = 'done'
     else if (raw === 'failed' || raw === 'cancelled') status = 'failed'
     else if (activeTask) {
-      // 任务已提交上游时，不以分镜 params 滞后的 queued 为准
+      // Khi tác vụ đã được đẩy lên upstream thì không tin `queued` còn vướng trong params của storyboard
       status =
         activeTask.status === 'pending' || activeTask.status === 'leased' ? 'queued' : 'running'
     } else if (raw === 'queued') status = 'queued'
@@ -417,14 +469,16 @@ export function syncEpisodeVideoJobs(input: {
       (raw === 'cancelled' || status === 'failed'
         ? latestTask?.error_message || undefined
         : undefined) ||
-      (raw === 'cancelled' ? '已取消' : undefined)
+      (raw === 'cancelled' ? localized(MESSAGE.cancelled) : undefined)
 
     const messageFromTask =
       activeTask && status === 'running'
         ? activeTask.current_step_key === 'assets'
-          ? '生成参考图…'
-          : item.message || (item.phase === 'assets' ? '生成参考图…' : '生成中')
-        : item.message || (item.phase === 'assets' ? '生成参考图…' : undefined)
+          ? localized(MESSAGE.renderingRefs)
+          : item.message ||
+            (item.phase === 'assets' ? localized(MESSAGE.renderingRefs) : localized(MESSAGE.generating))
+        : item.message ||
+          (item.phase === 'assets' ? localized(MESSAGE.renderingRefs) : undefined)
 
     upsertDramaGenJob(
       {
@@ -435,9 +489,9 @@ export function syncEpisodeVideoJobs(input: {
         episodeId: input.episodeId,
         taskId: boundTaskId,
         title: resolveVideoJobTitle(existing, input.episodeName, fragLabel(item.fragment_id)),
-        subtype: '分镜视频',
+        subtype: FRAGMENT_VIDEO_SUBTYPE,
         status,
-        message: status === 'queued' ? item.message || '排队中' : messageFromTask,
+        message: status === 'queued' ? item.message || localized(MESSAGE.queued) : messageFromTask,
         error: errText,
       },
       { silent: true },
@@ -447,7 +501,7 @@ export function syncEpisodeVideoJobs(input: {
   ensureEpisodeVideoStatusPoll()
 }
 
-// 入队时立刻写入队列（乐观展示，不依赖首轮轮询）
+// Ghi vào hàng đợi ngay lúc vào (hiển thị kiểu lạc quan, không phụ thuộc vòng poll đầu)
 export function enqueueEpisodeVideoJobs(input: {
   projectId: number
   episodeId: number
@@ -464,7 +518,7 @@ export function enqueueEpisodeVideoJobs(input: {
     .map((f) => ({
       fragment_id: f.id,
       status: 'queued',
-      message: '已入队',
+      message: localized(MESSAGE.enqueued),
     }))
   syncEpisodeVideoJobs({
     projectId: input.projectId,
@@ -477,27 +531,27 @@ export function enqueueEpisodeVideoJobs(input: {
   ensureEpisodeVideoStatusPoll()
 }
 
-/** 分集 generate_status 轮询间隔（全局唯一，避免编辑页重复请求） */
+/** Chu kỳ poll generate_status theo tập (duy nhất toàn cục, tránh trang sửa gọi trùng) */
 export const GENERATE_STATUS_POLL_MS = 8000
 
 type GenerateStatusSubscriber = (episodeId: number, status: EpisodeGenerateStatusPayload) => void
 
 /*
- * videoPollTimer 离开分集页后仍轮询 generate_status
- * videoPollInFlight 避免重叠请求
- * generateStatusSubscribers 编辑页等订阅方同步 UI
+ * videoPollTimer          vẫn poll generate_status sau khi rời trang tập
+ * videoPollInFlight       tránh hai request chồng nhau
+ * generateStatusSubscribers  các bên sử dụng (ví dụ trang sửa) đồng bộ UI
  */
 let videoPollTimer = 0
 let videoPollInFlight = false
 const generateStatusSubscribers = new Set<GenerateStatusSubscriber>()
 
-// 订阅分集 generate_status 轮询结果（与 ensureEpisodeVideoStatusPoll 共用同一请求）
+// Nhận kết quả poll generate_status theo tập (dùng chung một request với ensureEpisodeVideoStatusPoll)
 export function subscribeEpisodeGenerateStatus(listener: GenerateStatusSubscriber): () => void {
   generateStatusSubscribers.add(listener)
   return () => generateStatusSubscribers.delete(listener)
 }
 
-// 后台轮询进行中的分镜视频（不阻塞编辑页）
+// Poll nền cho các video storyboard đang chạy (không chặn trang sửa)
 export function ensureEpisodeVideoStatusPoll(): void {
   if (typeof window === 'undefined') return
   if (videoPollTimer) return
@@ -507,13 +561,13 @@ export function ensureEpisodeVideoStatusPoll(): void {
   void pollActiveEpisodeVideoJobs()
 }
 
-// 按分集拉取状态并写回队列
+// Lấy trạng thái theo tập rồi ghi ngược vào hàng đợi
 async function pollActiveEpisodeVideoJobs(): Promise<void> {
   if (videoPollInFlight) return
   const active = jobs.filter(
     (job) =>
       job.kind === 'video' &&
-      job.subtype === '分镜视频' &&
+      job.subtype === FRAGMENT_VIDEO_SUBTYPE &&
       (job.status === 'queued' || job.status === 'running') &&
       typeof job.episodeId === 'number',
   )
@@ -532,11 +586,12 @@ async function pollActiveEpisodeVideoJobs(): Promise<void> {
       episodeIds.map(async (episodeId) => {
         const epJobs = active.filter((job) => job.episodeId === episodeId)
         const st = await dramaApi.generateStatus(episodeId)
-        // 本集已在队列中的分镜（含已完成），用于保留镜序、避免轮询只带进行中子集
+        // Storyboard đã có trong hàng đợi của tập này (kể cả đã xong), giữ thứ tự cảnh và
+        // tránh vòng poll chỉ mang về tập con đang chạy
         const tracked = jobs.filter(
           (job) =>
             job.kind === 'video' &&
-            job.subtype === '分镜视频' &&
+            job.subtype === FRAGMENT_VIDEO_SUBTYPE &&
             job.episodeId === episodeId,
         )
         const trackedIds = new Set(tracked.map((job) => job.targetId))
@@ -546,9 +601,10 @@ async function pollActiveEpisodeVideoJobs(): Promise<void> {
           projectId: epJobs[0].projectId,
           episodeId,
           episodeName,
-          // 不传 sort_order：轮询无法可靠得知镜序，避免标题被刷成全是「片段 01」
+          // Không truyền sort_order: vòng poll không biết chắc thứ tự cảnh, tránh tiêu đề bị đổi hàng loạt thành "Cảnh 01"
           fragments: tracked.map((job) => ({ id: job.targetId })),
-          // 只同步本集已入队分镜，避免 generate_status 全集把无关镜刷进队列并改名
+          // Chỉ đồng bộ storyboard đã vào hàng đợi của tập này, tránh generate_status cả tập
+          // đẩy các cảnh không liên quan vào hàng đợi rồi đổi tên
           statusItems: st.fragments.filter((row) => trackedIds.has(row.fragment_id)),
           taskItems: st.tasks,
         })
@@ -556,19 +612,19 @@ async function pollActiveEpisodeVideoJobs(): Promise<void> {
           try {
             fn(episodeId, st)
           } catch {
-            /* 订阅方异常不影响轮询 */
+            /* subscriber lỗi không được làm hỏng vòng poll */
           }
         })
       }),
     )
   } catch {
-    /* 轮询失败下一轮再试 */
+    /* poll lỗi thì thử lại ở vòng sau */
   } finally {
     videoPollInFlight = false
   }
 }
 
-// 请求打开右下角队列面板
+// Yêu cầu mở panel hàng đợi ở góc phải dưới
 let openRequestSeq = 0
 const openListeners = new Set<() => void>()
 
@@ -586,7 +642,7 @@ export function getDramaGenQueueOpenRequestSeq(): number {
   return openRequestSeq
 }
 
-// 清空已结束（完成+失败），并记住 id 防止轮询再次写入
+// Xoá các mục đã kết thúc (xong + lỗi), đồng thời nhớ id để vòng poll không ghi lại
 export function clearFinishedDramaGenJobs(): void {
   for (const job of jobs) {
     if (job.status === 'done' || job.status === 'failed') {
@@ -597,7 +653,7 @@ export function clearFinishedDramaGenJobs(): void {
   emit()
 }
 
-// 将进行中/排队中的视频任务标记为已取消（本地队列同步）
+// Đánh dấu các tác vụ video đang chạy / đang chờ là đã huỷ (đồng bộ hàng đợi cục bộ)
 export function markVideoJobsCancelled(fragmentIds?: number[]): void {
   const idSet = fragmentIds ? new Set(fragmentIds.map((id) => videoJobId(id))) : null
   jobs = jobs.map((job) => {
@@ -607,7 +663,7 @@ export function markVideoJobsCancelled(fragmentIds?: number[]): void {
     return {
       ...job,
       status: 'failed' as const,
-      error: '已取消',
+      error: localized(MESSAGE.cancelled),
       finishedAt: Date.now(),
     }
   })

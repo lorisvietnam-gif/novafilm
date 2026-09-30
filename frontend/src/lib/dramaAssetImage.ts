@@ -1,7 +1,13 @@
-/** 漫剧资产是否已有形象图（AI 生成或本地上传） */
+/** Tài nguyên AI Drama đã có ảnh hình chưa (do AI tạo hay tải lên) */
 import type { DramaAsset } from '../api/drama'
+import { localized, type LocalizedText } from './localeStrings'
 
-// 从 params 中读取可能存在的预览 URL（画布同步等）
+const COPY: Record<string, LocalizedText> = {
+  regenerate: { zh: '重新生成形象', en: 'Regenerate the art', vi: 'Tạo lại ảnh' },
+  generate: { zh: '生成形象', en: 'Generate the art', vi: 'Tạo ảnh' },
+}
+
+// Đọc URL xem trước có sẵn trong params (do canvas đồng bộ ghi vào)
 function readParamsMediaUrl(asset: DramaAsset): string {
   const params = asset.params
   if (!params || typeof params !== 'object') return ''
@@ -21,24 +27,24 @@ function readParamsMediaUrl(asset: DramaAsset): string {
   return ''
 }
 
-// 资产是否已有有效形象图
+// Tài nguyên đã có ảnh hình dùng được hay chưa
 export function dramaAssetHasImage(asset: DramaAsset): boolean {
   if ((asset.cover || '').trim() || (asset.url || '').trim()) return true
   return Boolean(readParamsMediaUrl(asset))
 }
 
-// 是否仍需生图（无图且非纯音频类资产时可批量入队）
+// Có còn cần tạo ảnh không (chưa có ảnh và không phải tài nguyên thuần âm thanh thì mới cho vào hàng đợi hàng loạt)
 export function dramaAssetNeedsImageGeneration(asset: DramaAsset): boolean {
   const kind = (asset.type || '').toLowerCase()
   if (['voice', 'video', 'audio', 'text'].includes(kind)) return false
   return !dramaAssetHasImage(asset)
 }
 
-// 卡片/弹窗生图按钮文案（queueLabel 为排队态文案，有值时优先）
+// Văn bản nút tạo ảnh trên card/popup (queueLabel là văn bản ở trạng thái đang xếp hàng, ưu tiên nếu có)
 export function dramaAssetImageGenButtonLabel(
   asset: DramaAsset,
   queueLabel: string | null,
 ): string {
   if (queueLabel) return queueLabel
-  return dramaAssetHasImage(asset) ? '重新生成形象' : '生成形象'
+  return localized(dramaAssetHasImage(asset) ? COPY.regenerate : COPY.generate)
 }

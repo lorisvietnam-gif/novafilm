@@ -17,7 +17,7 @@ type ModalProps = {
   className?: string
 }
 
-// 全局居中/抽屉弹层（portal 到 body，统一 pf-modal 样式）
+// Lớp popup căn giữa / kéo ra dạng ngăn kéo (portal ra body, dùng chung style pf-modal)
 export default function Modal({
   open,
   onClose,

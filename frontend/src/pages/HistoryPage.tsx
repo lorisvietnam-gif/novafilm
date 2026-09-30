@@ -69,23 +69,23 @@ export default function HistoryPage() {
   const nav = useNavigate()
   const { t, m, locale } = useI18n()
   /*
-   * items 当前页项目
-   * total 筛选后总数（后端）
-   * stats 顶部统计
-   * templates 模板名映射
-   * error 错误文案
-   * loading 加载中
-   * busyId 单条操作中的项目 id
-   * packing 打包中
-   * packProgress 打包进度
-   * selected 勾选 id
-   * tab 状态 Tab
-   * typeMode 类型筛选（pipeline_mode）
-   * q 搜索框
-   * debouncedQ 防抖后的搜索词
-   * page 页码
-   * pageSize 每页条数
-   * preview 预览弹层
+   * items          dự án của trang hiện tại
+   * total          tổng sau khi lọc (từ backend)
+   * stats          số liệu ở đầu trang
+   * templates      bản đồ tên template
+   * error          thông báo lỗi
+   * loading        đang tải
+   * busyId         id dự án đang thao tác
+   * packing        đang đóng gói
+   * packProgress   tiến độ đóng gói
+   * selected       các id đã chọn
+   * tab            tab trạng thái
+   * typeMode       bộ lọc loại (pipeline_mode)
+   * q              ô tìm kiếm
+   * debouncedQ     từ khoá sau debounce
+   * page           số trang
+   * pageSize       số bản ghi mỗi trang
+   * preview        lớp xem trước
    */
   const [items, setItems] = useState<HistoryItem[]>([])
   const [total, setTotal] = useState(0)
@@ -116,7 +116,7 @@ export default function HistoryPage() {
     [items, stats.generating],
   )
 
-  // 搜索防抖
+  // Debounce cho ô tìm kiếm
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedQ(q.trim()), 300)
     return () => window.clearTimeout(t)
@@ -180,7 +180,7 @@ export default function HistoryPage() {
   const pageCount = pageCountOf(total, pageSize)
   const pageItems = items
 
-  // 筛选后若当前页超出范围则回退
+  // Sau khi lọc, nếu trang hiện tại nằm ngoài phạm vi thì lùi lại
   useEffect(() => {
     if (page > pageCount) setPage(pageCount)
   }, [page, pageCount])

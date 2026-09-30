@@ -1,6 +1,7 @@
 /** Văn bản trang pháp lý và liên hệ: điều khoản sử dụng, chính sách bảo mật, kênh liên hệ */
 
 import type { Locale } from '../i18n/detect'
+import { localized, localizedList, type LocalizedText } from './localeStrings'
 
 /**
  * TODO(vi): thay bằng địa chỉ hỗ trợ chính thức của NOVAFILM khi đã có.
@@ -465,32 +466,79 @@ export type ContactChannel = {
   actionLabel?: string
 }
 
-export const CONTACT_CHANNELS: ContactChannel[] = [
+type ContactChannelCopy = {
+  title: LocalizedText
+  desc: LocalizedText
+  actionLabel: LocalizedText
+  /** Chủ đề gửi kèm trong mail liên hệ. */
+  subject?: LocalizedText
+}
+
+/**
+ * Kênh liên hệ: `title`, `desc` và `actionLabel` định nghĩa bằng getter để đọc ra
+ * đúng ngôn ngữ đang dùng, vì bên ngoài sẽ duyệt mảng này rồi render thẳng.
+ */
+const CONTACT_CHANNEL_COPY: ContactChannelCopy[] = [
   {
-    title: '邮箱支持',
-    desc: '工作日一般 1–2 个工作日内回复；请附上账号邮箱与订单号（如有）。',
-    href: `mailto:${SUPPORT_EMAIL}`,
-    actionLabel: SUPPORT_EMAIL,
+    title: { zh: '邮箱支持', en: 'Email support', vi: 'Hỗ trợ qua email' },
+    desc: {
+      zh: '工作日一般 1–2 个工作日内回复；请附上账号邮箱与订单号（如有）。',
+      en: 'We reply within one to two business days. Include your account email and the order ID, if you have one.',
+      vi: 'Chúng tôi trả lời trong một đến hai ngày làm việc. Vui lòng kèm email tài khoản và mã đơn hàng nếu có.',
+    },
+    actionLabel: { zh: '发送邮件', en: 'Send an email', vi: 'Gửi email' },
   },
   {
-    title: '帮助中心',
-    desc: '充值、下载、漫剧与工具等常见问题可先在帮助中心自助查询。',
-    href: '/help',
-    actionLabel: '前往帮助中心',
+    title: { zh: '帮助中心', en: 'Help centre', vi: 'Trung tâm trợ giúp' },
+    desc: {
+      zh: '充值、下载、漫剧与工具等常见问题可先在帮助中心自助查询。',
+      en: 'Answers to common questions about top-ups, downloads, drama and the tools are in the help centre.',
+      vi: 'Các câu hỏi thường gặp về nạp tiền, tải về, Drama và công cụ đều có trong trung tâm trợ giúp.',
+    },
+    actionLabel: { zh: '前往帮助中心', en: 'Open the help centre', vi: 'Mở trung tâm trợ giúp' },
   },
   {
-    title: '企业合作 / 对公转账',
-    desc: '企业批量充值、API 合作或发票需求，请邮件说明公司名称与需求，我们会安排对接。',
-    href: `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('NOVAFILM 企业合作')}`,
-    actionLabel: '发送合作邮件',
+    title: {
+      zh: '企业合作 / 对公转账',
+      en: 'Business enquiries / bank transfer',
+      vi: 'Hợp tác doanh nghiệp / chuyển khoản',
+    },
+    desc: {
+      zh: '企业批量充值、API 合作或发票需求，请邮件说明公司名称与需求，我们会安排对接。',
+      en: 'For bulk top-ups, API partnerships, or invoices, email us your company name and what you need and we will set up contact.',
+      vi: 'Với nhu cầu nạp tiền số lượng lớn, hợp tác API hoặc xuất hoá đơn, hãy gửi email kèm tên công ty và nhu cầu, chúng tôi sẽ sắp xếp liên hệ.',
+    },
+    actionLabel: { zh: '发送合作邮件', en: 'Email us', vi: 'Gửi email cho chúng tôi' },
+    subject: { zh: 'NOVAFILM 企业合作', en: 'NOVAFILM business enquiry', vi: 'Hợp tác doanh nghiệp NOVAFILM' },
   },
 ]
 
-export const CONTACT_TOPICS = [
-  '账号与登录',
-  '充值与到账',
-  '创作任务异常',
-  '下载与素材',
-  '隐私与账号注销',
-  '其他',
-] as const
+export const CONTACT_CHANNELS: ContactChannel[] = CONTACT_CHANNEL_COPY.map(
+  (copy, index) => ({
+    href:
+      index === 0
+        ? `mailto:${SUPPORT_EMAIL}`
+        : index === 1
+          ? '/help'
+          : `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(copy.subject ? localized(copy.subject) : '')}`,
+    get title() {
+      return localized(copy.title)
+    },
+    get desc() {
+      return localized(copy.desc)
+    },
+    get actionLabel() {
+      // Kênh đầu hiển thị luôn địa chỉ email, nên nhãn hành động là chính địa chỉ.
+      return index === 0 ? SUPPORT_EMAIL : localized(copy.actionLabel)
+    },
+  }),
+)
+
+export const CONTACT_TOPICS: readonly string[] = localizedList([
+  { zh: '账号与登录', en: 'Account and sign-in', vi: 'Tài khoản và đăng nhập' },
+  { zh: '充值与到账', en: 'Top-ups and credits', vi: 'Nạp tiền và ghi nhận' },
+  { zh: '创作任务异常', en: 'Failed generation jobs', vi: 'Tác vụ tạo bị lỗi' },
+  { zh: '下载与素材', en: 'Downloads and assets', vi: 'Tải về và tư liệu' },
+  { zh: '隐私与账号注销', en: 'Privacy and account deletion', vi: 'Quyền riêng tư và huỷ tài khoản' },
+  { zh: '其他', en: 'Something else', vi: 'Khác' },
+])

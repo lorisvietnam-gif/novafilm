@@ -8,7 +8,7 @@ type Props = {
   active?: NavActive
   wide?: boolean
   flush?: boolean
-  /** 隐藏页脚（全屏工作台） */
+  /** Ẩn chân trang (khi vào không gian làm việc toàn màn hình) */
   hideFooter?: boolean
 }
 
