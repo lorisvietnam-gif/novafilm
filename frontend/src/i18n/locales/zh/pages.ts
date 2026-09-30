@@ -161,7 +161,9 @@ export const zhPages = {
     introLink: '帮助中心',
     introSuffix: '。',
     formTitle: '留言反馈',
-    formLead: '填写后将打开您的邮件客户端，预填发往 support@printfilm.com 的草稿，请确认后发送。',
+    // TODO: Đăng ký và cấu hình nhận mail cho domain novafilm.vn, thay địa chỉ gmail này khi domain sẵn sàng.
+    formLead:
+      '填写后将打开您的邮件客户端，预填发往 x.novalife@gmail.com 的草稿，请确认后发送。',
     topic: '问题类型',
     email: '联系邮箱',
     emailPlaceholder: '便于我们回复',
@@ -181,8 +183,9 @@ export const zhPages = {
       {
         title: '邮箱支持',
         desc: '工作日一般 1–2 个工作日内回复；请附上账号邮箱与订单号（如有）。',
-        href: 'mailto:support@printfilm.com',
-        actionLabel: 'support@printfilm.com',
+        // TODO: Đổi cùng địa chỉ gmail ở formLead và channels[2].href khi domain novafilm.vn sẵn sàng.
+        href: 'mailto:x.novalife@gmail.com',
+        actionLabel: 'x.novalife@gmail.com',
       },
       {
         title: '帮助中心',
@@ -193,7 +196,7 @@ export const zhPages = {
       {
         title: '企业合作 / 对公转账',
         desc: '企业批量充值、API 合作或发票需求，请邮件说明公司名称与需求，我们会安排对接。',
-        href: 'mailto:support@printfilm.com?subject=NOVAFILM%20Enterprise',
+        href: 'mailto:x.novalife@gmail.com?subject=NOVAFILM%20Enterprise',
         actionLabel: '发送合作邮件',
       },
       {

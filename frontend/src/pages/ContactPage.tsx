@@ -29,7 +29,7 @@ export default function ContactPage() {
       '',
       message.trim() || t('contact.mailEmpty'),
     ].join('\n')
-    const href = `mailto:support@printfilm.com?subject=${encodeURIComponent(
+    const href = `mailto:x.novalife@gmail.com?subject=${encodeURIComponent(
       `[PRINTFILM] ${topic}`,
     )}&body=${encodeURIComponent(body)}`
     window.location.href = href
@@ -126,7 +126,7 @@ export default function ContactPage() {
             {sent ? (
               <p className="pf-contact-sent pf-muted">
                 {t('contact.sentPrefix')}{' '}
-                <a href="mailto:support@printfilm.com">support@printfilm.com</a>
+                <a href="mailto:x.novalife@gmail.com">x.novalife@gmail.com</a>
               </p>
             ) : null}
           </form>
