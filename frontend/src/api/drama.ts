@@ -1,4 +1,17 @@
 import { throwApiError } from '../lib/apiError'
+import { localized, type LocalizedText } from '../lib/localeStrings'
+
+/**
+ * Văn bản dự phòng khi backend không trả `detail` dạng chuỗi.
+ *
+ * Trước đây hai chỗ này viết thẳng tiếng Trung, nên một `vi` / `en` user chỉ cần gặp
+ * lỗi có `detail` rỗng là thấy tiếng Trung. `localized()` đọc locale lúc ném lỗi
+ * nên không cần truyền ngôn ngữ từ component xuống.
+ */
+const COPY: Record<string, LocalizedText> = {
+  requestFailed: { zh: '请求失败', en: 'Request failed', vi: 'Yêu cầu thất bại' },
+  uploadFailed: { zh: '上传失败', en: 'Upload failed', vi: 'Tải lên thất bại' },
+}
 
 function defaultApiBase() {
   if (typeof window !== 'undefined' && window.location?.hostname) {
@@ -59,7 +72,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }))
-    throwApiError(res.status, err.detail, '请求失败')
+    throwApiError(res.status, err.detail, localized(COPY.requestFailed))
   }
   return res.json()
 }
@@ -353,7 +366,7 @@ export const dramaApi = {
           : Array.isArray(detail)
             ? detail.map((d: { msg?: string }) => d.msg || JSON.stringify(d)).join('; ')
             : res.statusText
-      throw new Error(message || '上传失败')
+      throw new Error(message || localized(COPY.uploadFailed))
     }
     return res.json() as Promise<DramaAsset>
   },
