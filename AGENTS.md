@@ -57,14 +57,33 @@ Board (main) chia 3 lane, mỗi lane là 1 git worktree riêng trên ổ `D:`:
 
 ## 4. Kiểm tra trước khi báo cáo
 
+### Frontend
 ```bash
-# frontend (lane của bạn)
 cd frontend
-npm run lint          # oxlint
-npm run build         # tsc -b && vite build  -> phải 0 error
+npm run lint          # oxlint — baseline: 1 error + 40 warning
+npm run build         # tsc -b && vite build -> phải 0 error
 ```
 
+### Backend
+```bash
+cd backend
+.venv\Scripts\python.exe -m pytest -q
+```
+
+**Baseline (đo thật trên Windows, 2026-09-30): `5 failed, 609 passed`.** Cả 5 lỗi là bug có sẵn từ
+upstream, board đã chạy lại ở commit gốc `88755c3` và xác nhận y hệt — không phải do ta:
+
+- `test_admin_stats.py::test_admin_stats_http_query_days_accepts_string_query`
+- `test_fragment_video_estimate.py::test_fragment_video_estimate_720p_doubles_480p`
+- `test_kepu_phase_billing.py::test_videos_estimate_hd_doubles_480p_preview`
+- `test_kepu_phase_billing.py::test_shot_regen_video_estimate_uses_project_hd`
+- `test_kepu_shot_edit_demote.py::test_narration_edit_invalidates_continuous_audio`
+
+Nếu số lỗi **vượt quá 5** thì do bạn. Đừng sửa 5 lỗi trên trừ khi được giao riêng.
+
 Nếu `tsc` báo thiếu key `vi`, đó chính là lỗi cần sửa — không dùng `as any` để né.
+Không được dùng `as unknown as Messages` hay bất kỳ cast nào để né kiểm tra.
+Cơ chế đúng là `Widen<typeof zh>` trong `i18n/messages.ts`: thiếu key sẽ làm build FAIL.
 
 ## 5. Báo cáo về board
 
