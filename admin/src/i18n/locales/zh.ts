@@ -1,4 +1,5 @@
 ﻿import { zhLabels } from './zh/labels'
+import { zhOrders } from './zh/orders'
 import { zhProjects } from './zh/projects'
 import { zhQueues } from './zh/queues'
 import { zhTasks } from './zh/tasks'
@@ -9,5 +10,6 @@ export const zh = {
   labels: zhLabels,
   ...zhQueues,
   ...zhTasks,
+  ...zhOrders,
   ...zhProjects,
 }

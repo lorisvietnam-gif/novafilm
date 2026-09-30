@@ -1,4 +1,5 @@
 ﻿import { viLabels } from './vi/labels'
+import { viOrders } from './vi/orders'
 import { viProjects } from './vi/projects'
 import { viQueues } from './vi/queues'
 import { viTasks } from './vi/tasks'
@@ -9,5 +10,6 @@ export const vi = {
   labels: viLabels,
   ...viQueues,
   ...viTasks,
+  ...viOrders,
   ...viProjects,
 }

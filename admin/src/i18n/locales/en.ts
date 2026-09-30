@@ -1,4 +1,5 @@
 ﻿import { enLabels } from './en/labels'
+import { enOrders } from './en/orders'
 import { enProjects } from './en/projects'
 import { enQueues } from './en/queues'
 import { enTasks } from './en/tasks'
@@ -9,5 +10,6 @@ export const en = {
   labels: enLabels,
   ...enQueues,
   ...enTasks,
+  ...enOrders,
   ...enProjects,
 }

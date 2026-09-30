@@ -66,6 +66,11 @@ export function shotStatusLabel(status: string): string {
   return labelFrom(messages[getActiveLocale()].labels.shotStatus, status);
 }
 
+// Nhãn năng lực tính phí (mã như usage_by_capability)
+export function capabilityLabel(key: string): string {
+  return labelFrom(messages[getActiveLocale()].labels.capability, key);
+}
+
 // Nhãn căn cứ tính phí; `basis` rỗng thì suy ra từ cờ `estimated`
 export function billingBasisLabel(basis: string | null | undefined, estimated?: boolean): string {
   if (basis) return labelFrom(messages[getActiveLocale()].labels.billingBasis, basis);
