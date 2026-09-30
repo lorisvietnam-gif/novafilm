@@ -56,12 +56,22 @@
   outline: none;
 }
 
-/* On the accent fill the ring and the button share a hue, so the ring is drawn
-   from the near-black end of the ramp instead: 4.72:1 on #f2c94c, which is the
-   same guarantee the accent-ink ring gives on white. */
-.pf-btn--accent:focus-visible,
-.pf-cta--accent:focus-visible,
-.pf-chip--accent:focus-visible {
+/* On an accent-filled control the ring and the button share a hue, so the ring
+   has to come from the near-black end of the ramp instead of the accent ink.
+
+   This is not hypothetical. Measured: the dark-mode ring is `--pf-accent-300`
+   `#f8dc87` and the dark-mode fill is `--pf-accent-400` `#f2c94c` — two steps
+   apart on the same ramp, **1.18:1**. A keyboard user on a dark-theme gold
+   button had an effectively invisible focus indicator. Drawn from
+   `--pf-on-accent` instead it is 10.76:1 in light and 12.15:1 in dark, which is
+   the same guarantee the accent-ink ring gives on white.
+
+   `.pf-btn-lime` is the accent fill; `--pf-focus-ring-on-fill` resolves to
+   #1c1c1a in light and #0e0e11 in dark. */
+.pf-btn-lime:focus-visible,
+.pf-btn-lime:focus-visible:focus-visible,
+.pf-chip--accent:focus-visible,
+.pf-cta--accent:focus-visible {
   outline-color: var(--pf-focus-ring-on-fill);
 }
 
