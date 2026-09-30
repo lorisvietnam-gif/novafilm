@@ -1,12 +1,45 @@
+import logging
 from functools import lru_cache
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _BACKEND_DIR = Path(__file__).resolve().parent.parent
 _ENV_FILE = _BACKEND_DIR / ".env"
+
+logger = logging.getLogger("app.config")
+
+# The placeholders shipped in code, in backend/.env.example and in
+# deploy/.env.prod.example. They are public in the repository, so none of them can
+# guard a real deployment.
+DEFAULT_SECRET_KEY = "dev-secret-change-me"
+PLACEHOLDER_SECRET_KEYS = frozenset(
+    {
+        DEFAULT_SECRET_KEY,
+        "change-me-to-a-long-random-string",
+    }
+)
+
+# APP_ENV values that unlock the production security gate. Anything else is
+# development-like, which keeps a fresh clone runnable with zero configuration.
+PRODUCTION_APP_ENVS = frozenset({"prod", "production"})
+KNOWN_APP_ENVS = frozenset(
+    {
+        "dev",
+        "development",
+        "local",
+        "test",
+        "testing",
+        "stage",
+        "staging",
+        "prod",
+        "production",
+    }
+)
+
+_weak_secret_warned = False
 
 
 def parse_origin_list(value: str, *, variable: str) -> list[str]:
@@ -55,6 +88,20 @@ def parse_host_list(value: str, *, variable: str) -> list[str]:
     return hosts
 
 
+def _warn_default_secret_once(app_env: str) -> None:
+    """Warn at most once per process that the default SECRET_KEY is still in use."""
+    global _weak_secret_warned
+    if _weak_secret_warned:
+        return
+    _weak_secret_warned = True
+    logger.warning(
+        "SECRET_KEY is unset or still a public placeholder while APP_ENV=%s: anyone can mint "
+        "valid JWTs (full user and admin takeover) and decrypt the provider API keys stored in "
+        "the database. Set SECRET_KEY to a private value before going live.",
+        app_env,
+    )
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=str(_ENV_FILE) if _ENV_FILE.is_file() else ".env",
@@ -62,11 +109,16 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    # Deployment environment. Unset means development, so a fresh clone runs with no
+    # configuration at all; APP_ENV=prod|production turns on the SECRET_KEY startup gate.
+    app_env: str = "development"
     app_name: str = "PRINTFILM"
     debug: bool = True
     # In raw SQLAlchemy SQL (off by default to avoid flooding; set SQL_ECHO=true to debug SQL)
     sql_echo: bool = False
-    secret_key: str = "dev-secret-change-me"
+    # Signs every JWT and derives the Fernet key that encrypts provider API keys in the database.
+    # The default is public in the repository, so production refuses to start with it.
+    secret_key: str = DEFAULT_SECRET_KEY
     access_token_expire_minutes: int = 60 * 24 * 7
 
     database_url: str = "postgresql+asyncpg://printfilm:change-me-strong-db-password@127.0.0.1:15432/printfilm"
@@ -256,6 +308,37 @@ class Settings(BaseSettings):
     def _validate_static_host_allowlist(cls, value: str) -> str:
         parse_host_list(value, variable="STATIC_HOST_ALLOWLIST")
         return value
+
+    # Reject a typo in APP_ENV at settings construction rather than at first use: an
+    # unrecognised value must never quietly downgrade production to development.
+    @field_validator("app_env")
+    @classmethod
+    def _validate_app_env(cls, value: str) -> str:
+        normalized = (value or "").strip().lower()
+        if normalized not in KNOWN_APP_ENVS:
+            raise ValueError(
+                f"APP_ENV has an unknown value {value!r}: expected one of "
+                f"{', '.join(sorted(KNOWN_APP_ENVS))}"
+            )
+        return normalized
+
+    # Fail fast, in production only, when SECRET_KEY is unset or still a shipped placeholder.
+    # The gate lives on Settings() itself, so every entry point (uvicorn, celery, scripts,
+    # tests) is covered by the very first settings load, long before a request arrives.
+    @model_validator(mode="after")
+    def _gate_secret_key(self) -> "Settings":
+        if self.secret_key.strip() and self.secret_key not in PLACEHOLDER_SECRET_KEYS:
+            return self
+        if self.app_env in PRODUCTION_APP_ENVS:
+            raise ValueError(
+                f"SECRET_KEY is unset or still a public placeholder ({self.secret_key!r}) while "
+                f"APP_ENV={self.app_env!r}. Generate a private key and set it, for example: "
+                "python -c \"import secrets; print(secrets.token_urlsafe(48))\". "
+                "With a placeholder key anyone can sign valid JWTs (admin and user takeover) "
+                "and decrypt the provider API keys stored in the database."
+            )
+        _warn_default_secret_once(self.app_env)
+        return self
 
 
 @lru_cache
