@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSettingsSaveSlot } from "@/components/settings/SettingsSaveContext";
+import { useI18n } from "@/i18n";
 
 type PanelProps = {
   title: string;
@@ -36,10 +37,12 @@ type SettingsTabShellProps = {
 };
 
 // Tab 内容区：把保存动作注册到页头，不再单独占一行工具条
-export function SettingsTabShell({ children, onSave, saving, saveLabel = "保存" }: SettingsTabShellProps) {
+export function SettingsTabShell({ children, onSave, saving, saveLabel }: SettingsTabShellProps) {
+  const { t } = useI18n();
   const { registerSave } = useSettingsSaveSlot();
   const onSaveRef = useRef(onSave);
   onSaveRef.current = onSave;
+  const label = saveLabel ?? t("common.action.save");
 
   useEffect(() => {
     if (!onSave) {
@@ -49,10 +52,10 @@ export function SettingsTabShell({ children, onSave, saving, saveLabel = "保存
     registerSave({
       onSave: () => onSaveRef.current?.(),
       saving,
-      label: saveLabel,
+      label,
     });
     return () => registerSave(null);
-  }, [onSave ? true : false, saving, saveLabel, registerSave]);
+  }, [onSave ? true : false, saving, label, registerSave]);
 
   return (
     <div className="settings-tab-shell">
@@ -62,11 +65,12 @@ export function SettingsTabShell({ children, onSave, saving, saveLabel = "保存
 }
 
 // 加载占位
-export function SettingsLoading({ label = "加载中…" }: { label?: string }) {
+export function SettingsLoading({ label }: { label?: string }) {
+  const { t } = useI18n();
   return (
     <div className="settings-loading">
       <Loader2 className="h-4 w-4 animate-spin" />
-      {label}
+      {label ?? t("common.state.loading")}
     </div>
   );
 }
@@ -125,6 +129,7 @@ export function SettingsStatusBar({
   items: SettingsStatusItem[];
   extra?: ReactNode;
 }) {
+  const { t } = useI18n();
   return (
     <SettingsSurface className="settings-readiness-bar">
       <div className="settings-readiness-title-row">
@@ -136,7 +141,7 @@ export function SettingsStatusBar({
           <div key={item.id} className={cn("settings-readiness-item", item.ready && "is-ready")}>
             <span className={cn("settings-readiness-dot", item.ready ? "is-on" : "is-off")} />
             <span>{item.label}</span>
-            <em>{item.ready ? item.readyText ?? "已配置" : item.pendingText ?? "未就绪"}</em>
+            <em>{item.ready ? item.readyText ?? t("settings.ready") : item.pendingText ?? t("settings.notReady")}</em>
           </div>
         ))}
       </div>

@@ -4,6 +4,7 @@ import { enOrders } from './en/orders'
 import { enProjects } from './en/projects'
 import { enQueues } from './en/queues'
 import { enTasks } from './en/tasks'
+import { enSettings } from './en/settings'
 import { enShell } from './en/shell'
 
 export const en = {
@@ -12,6 +13,7 @@ export const en = {
   ...enDashboard,
   ...enQueues,
   ...enTasks,
+  ...enSettings,
   ...enOrders,
   ...enProjects,
 }

@@ -4,6 +4,7 @@ import { viOrders } from './vi/orders'
 import { viProjects } from './vi/projects'
 import { viQueues } from './vi/queues'
 import { viTasks } from './vi/tasks'
+import { viSettings } from './vi/settings'
 import { viShell } from './vi/shell'
 
 export const vi = {
@@ -12,6 +13,7 @@ export const vi = {
   ...viDashboard,
   ...viQueues,
   ...viTasks,
+  ...viSettings,
   ...viOrders,
   ...viProjects,
 }
