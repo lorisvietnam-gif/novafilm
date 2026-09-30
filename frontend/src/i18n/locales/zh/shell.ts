@@ -70,7 +70,6 @@ export const zhShell = {
     privacy: '隐私政策',
     contact: '联系我们',
     help: '帮助中心',
-    github: 'GitHub',
     links: '页脚链接',
   },
   discord: {

@@ -71,7 +71,6 @@ export const enShell = {
     privacy: 'Privacy',
     contact: 'Contact',
     help: 'Help',
-    github: 'GitHub',
     links: 'Footer links',
   },
   discord: {

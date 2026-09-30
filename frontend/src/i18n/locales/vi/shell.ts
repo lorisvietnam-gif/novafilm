@@ -71,7 +71,6 @@ export const viShell = {
     privacy: 'Quyền riêng tư',
     contact: 'Liên hệ',
     help: 'Trung tâm trợ giúp',
-    github: 'GitHub',
     links: 'Liên kết chân trang',
   },
   discord: {

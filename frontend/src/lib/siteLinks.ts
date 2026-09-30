@@ -1,10 +1,4 @@
-/** Liên kết cố định ra ngoài site (kho mã nguồn mở, v.v.) */
-
-/**
- * Kho mã nguồn. KHÔNG đưa link này vào navbar/footer — nó chỉ còn là "diễn đàn
- * mở" trong nội dung trang (ContactPage, LegalDocPage, HomePage, PricingPage).
- */
-export const GITHUB_REPO_URL = 'https://github.com/lorisvietnam-gif/novafilm'
+/** Liên kết cố định ra ngoài site (cộng đồng, domain) */
 
 /**
  * Link mời vào cộng đồng Discord, lấy từ biến môi trường `VITE_DISCORD_INVITE_URL`.

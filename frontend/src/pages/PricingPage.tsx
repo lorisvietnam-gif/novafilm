@@ -15,7 +15,6 @@ import PricingWalletCard from '../components/billing/PricingWalletCard'
 import TopupHistoryModal from '../components/billing/TopupHistoryModal'
 import { api, type BillingSku, type UsageSummary, type Wallet } from '../api'
 import { useI18n } from '../i18n'
-import { GITHUB_REPO_URL } from '../lib/siteLinks'
 
 type PayType = 'alipay' | 'wxpay'
 
@@ -327,9 +326,6 @@ export default function PricingPage() {
               <Link to="/terms">{t('footer.terms')}</Link>
               <Link to="/privacy">{t('footer.privacy')}</Link>
               <Link to="/contact">{t('footer.contact')}</Link>
-              <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer">
-                {t('footer.github')}
-              </a>
             </nav>
             <p className="pf-pricing-site-copy">© {new Date().getFullYear()} NOVAFILM. All rights reserved.</p>
           </footer>
