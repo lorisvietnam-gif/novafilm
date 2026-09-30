@@ -38,27 +38,91 @@ AA result with far less visual fatigue.
 
 ## 2. Accent ramp
 
-Anchored on `#f2c94c` at step 400 (hue 45°, sat 86%). Steps 50–300 are tints for
-fills and washes; 400 is the brand fill; 500–900 are strokes and the dark-mode
-text end of the ramp.
+Anchored on `#f2c94c` at step 400 (hue 45°, sat 86%). The ramp has **two
+halves, and only one of them flips with the theme**:
 
-| Token | Light | Dark | On `#ffffff` | On `#0e0e11` | Use |
+| Half | Role | Dark value |
+|---|---|---|
+| 50–200 | **surface tints** — the only steps whose job is to sit *behind* text | inverts to a dark amber wash |
+| 300–500 | **ink and fill** — read *on* a surface | held at the light values |
+| 600–900 | **shades** — read *on* the yellow fill, and used as strokes | held |
+
+This split is the whole reason the ramp had to be re-threaded. Before Wave 1.4
+the ten steps were declared **only** in `:root`, so a `background:
+var(--pf-accent-100)` stayed cream in dark mode while the text on it had
+already flipped to near-white — 1.01:1 on the Drama product card.
+
+| Token | Light | Dark | Text role | On light surfaces | On dark surfaces |
 |---|---|---|---|---|---|
-| `--pf-accent-50` | `#fffbf0` | — | 1.03 | 18.64 | page-level accent wash |
-| `--pf-accent-100` | `#fef6dc` | — | 1.08 | 17.83 | selected row, active chip |
-| `--pf-accent-200` | `#fceab6` | — | 1.19 | 16.14 | hover on a 100 |
-| `--pf-accent-300` | `#f8dc87` | `#f8dc87` | 1.35 | 14.30 | dark-mode accent text |
-| `--pf-accent-400` | `#f2c94c` | `#f2c94c` | 1.60 | 12.15 | **the brand fill** |
-| `--pf-accent-500` | `#ebb81e` | — | 1.84 | 10.47 | light-mode hover |
-| `--pf-accent-600` | `#c19315` | — | 2.82 | 6.84 | accent stroke on light |
-| `--pf-accent-700` | `#926f16` | — | 4.66 | 4.14 | large-text accent only |
-| `--pf-accent-800` | `#6a5116` | — | 7.50 | 2.57 | **`--pf-accent-ink` in light** |
-| `--pf-accent-900` | `#493813` | — | 11.30 | 1.71 | deepest accent tint |
+| `--pf-accent-50` | `#fffbf0` | `#2a2415` | surface tint | 16.51:1 for ink | 14.16:1 for ink |
+| `--pf-accent-100` | `#fef6dc` | `#363229` | surface tint | 15.79:1 | 11.72:1 |
+| `--pf-accent-200` | `#fceab6` | `#484232` | surface tint / hover border | 14.29:1 | 9.18:1 |
+| `--pf-accent-300` | `#f8dc87` | `#f8dc87` | **dark-mode accent ink** | 1.35:1 — unusable | 13.39:1 |
+| `--pf-accent-400` | `#f2c94c` | `#f2c94c` | **the brand fill** | 1.59:1 — unusable | 11.37:1 |
+| `--pf-accent-500` | `#ebb81e` | `#ebb81e` | hover fill | 1.84:1 — unusable | 9.80:1 |
+| `--pf-accent-600` | `#c19315` | `#c19315` | accent stroke, active fill | 2.82:1 | 6.40:1 |
+| `--pf-accent-700` | `#926f16` | `#926f16` | large-text accent, light only | 4.66:1 | 3.87:1 — fails |
+| `--pf-accent-800` | `#6a5116` | `#6a5116` | **`--pf-accent-ink` in light** | 7.50:1 | 2.41:1 — fails |
+| `--pf-accent-900` | `#493813` | `#493813` | deepest shade, light only | 11.30:1 | 1.60:1 — fails |
+
+**Read the last column before using 700–900 in dark.** They are held, not
+inverted, because their job in dark mode is to be text *on the yellow fill*.
+None of them is a legal dark-mode text colour, and the token layer reaches
+for 300 and 400 instead — see `--pf-accent-ink` below.
 
 `--pf-accent-rgb` (`242 201 76` light / `248 220 135` dark) exists for alpha
 compositing, e.g. `rgb(var(--pf-accent-rgb) / 0.28)`. Because it is a token it
 retints automatically in dark mode, which is how the 39 alpha-accent values in
 `printfilm.css` and 6 in `drama.css` became theme-aware.
+
+### 2a. The semantic accent roles, and what they resolve to per theme
+
+| Token | Light | Dark | Purpose |
+|---|---|---|---|
+| `--pf-accent` | `#f2c94c` | `#f2c94c` | the fill |
+| `--pf-accent-hover` | `#ebb81e` (500) | `#ebb81e` (500) | hover fill |
+| `--pf-accent-active` | `#c19315` (600) | `#c19315` (600) | pressed fill |
+| `--pf-on-accent` | `#1c1c1a` | `#0e0e11` | text **on** the fill — 10.76 / 12.15:1 |
+| `--pf-accent-ink` | `#6a5116` (800) | `#f8dc87` (300) | accent-toned text on a surface — 7.50 / 13.39:1 |
+| `--pf-accent-ink-soft` | `#926f16` (700) | `#f2c94c` (400) | large text only |
+| `--pf-accent-soft` | `#fef6dc` (100) | `#363229` (100) | tinted accent background |
+| `--pf-accent-soft-strong` | `#fceab6` (200) | `#484232` (200) | stronger tint |
+| `--pf-accent-stroke` | `#c19315` (600) | `#c19315` (600) | accent border |
+
+Two of these had to be repointed when the ramp was re-threaded, because they
+were reading a step that changed meaning:
+
+- `--pf-accent-active` pointed at 200, which is now a *surface tint*. It
+  moved to 600, so the fill sequence deepens in both themes (400 → 500 → 600)
+  and the pressed state keeps 6.84:1 against `--pf-on-accent` in dark.
+- `--pf-accent-hover` pointed at 300. 300 is still light, so this was not
+  broken, but a yellow fill that gets *brighter* on hover glares on a dark UI
+  and competes with the dark-mode ink end of the ramp. It moved to 500 to
+  match light mode. This is a deliberate visual change, not a bug fix.
+
+`--pf-accent-soft` and `--pf-accent-soft-strong` were `rgb(248 220 135 / 0.14)`
+and `/ 0.22` in dark. Those are alpha values, so they resolve to a
+*different colour depending on what is behind them* — `#363229` over
+`--pf-surface` but `#2f2b22` over `--pf-bg`. They now point at 100 and 200, the
+same relationship they have in light. The dark appearance is unchanged to the
+byte; what changed is that the wash no longer depends on its backdrop.
+
+### 2b. Why a fixed `color-mix` percentage is the same bug in disguise
+
+`color-mix(in srgb, var(--pf-accent) N%, var(--pf-surface))` looks theme-aware
+because both operands are tokens, but the *percentage* is a constant, so the
+mix lands in the middle of the ramp in one theme and near an end in the other.
+Two sites did this and failed AA in dark only:
+
+| Site | Light | Dark | Verdict |
+|---|---|---|---|
+| `.pf-pricing-pay-tile-badge` (55%) | `#f8e19d` → 5.80:1 | `#8f7836` → **3.17:1** | was failing, now `--pf-accent-200` |
+| `.pf-pricing-info-visual.is-value` (45%) | `#f9e7ae` → 6.09:1 | `#796731` → **4.10:1** | was failing, now 200 → 50 gradient |
+
+The rule: a percentage low enough to stay near the surface is safe (10–18% all
+measure ≥12:1 in both themes). A percentage high enough to be recognisably
+yellow is a mid-tone, and a mid-tone is a colour that is illegible with
+*something*. Use a ramp step instead of a percentage.
 
 ---
 
@@ -209,6 +273,14 @@ may set a dark value:
 Setting `data-theme` on `<html>` is enough to switch themes; there is no
 JavaScript in the token layer.
 
+**The invariant that Wave 1.4 added: every block declares every colour token.**
+Block 3 already restated 40 of them; the ten accent-ramp steps were the
+exception, and that exception was the largest accessibility defect in the
+project's history. A step declared in one theme-space and not the other is
+invisible until a human reads a light literal in dark mode, so no step is
+declared in fewer than all three blocks now. When you add a colour token, add
+it to all three in the same commit.
+
 **The trap this layer exists to prevent.** A text token and its background token
 must come from the same theme-space, or one of the two themes inverts the
 contrast. Two patterns account for every break found in Wave 1:
@@ -219,6 +291,108 @@ contrast. Two patterns account for every break found in Wave 1:
   looks fine in light and turns into dark-on-dark in dark. Use
   `--pf-scrim-rgb` + `--pf-on-media` for anything sitting on media, and
   `--pf-accent` + `--pf-on-accent` for anything sitting on the accent.
+- *Fixed mixes break in one direction only.* See section 2b: a
+  `color-mix(accent N%, surface)` fails in whichever theme puts the result in
+  the middle of the ramp.
+
+---
+
+## 7a. Contrast matrix — every background, every ink, both themes
+
+This table did not exist before Wave 1.4, and its absence is why the accent
+ramp defect shipped. Every cell is a measured WCAG 2.2 relative-luminance
+ratio, computed from the token values as they resolve in each theme.
+
+**Read a cell as: background × foreground.** Anything at or below 4.49 is an AA
+text failure; 3.0–4.49 is fine for large text and UI components only.
+
+| Background | Light value | ink | ink-2 | ink-3 | accent-ink | Dark value | ink | ink-2 | ink-3 | accent-ink |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `--pf-bg` | `#f7f8fa` | 16.06 | 6.88 | 4.91 | 7.05 | `#0e0e11` | 17.70 | 8.33 | 5.92 | 14.30 |
+| `--pf-surface` | `#ffffff` | 17.07 | 7.31 | 5.22 | 7.50 | `#16161a` | 16.57 | 7.80 | 5.54 | 13.39 |
+| `--pf-surface-raised` | `#ffffff` | 17.07 | 7.31 | 5.22 | 7.50 | `#1f1f25` | 15.06 | 7.09 | 5.03 | 12.16 |
+| `--pf-surface-sunken` | `#f1f2f5` | 15.25 | 6.53 | 4.66 | 6.70 | `#0a0a0d` | 18.16 | 8.55 | 6.07 | 14.67 |
+| `--pf-accent-50` | `#fffbf0` | 16.51 | 7.07 | 5.05 | 7.25 | `#2a2415` | 14.16 | 6.67 | 4.74 | 11.44 |
+| `--pf-accent-100` | `#fef6dc` | 15.79 | 6.77 | 4.83 | 6.94 | `#363229` | 11.72 | 5.52 | **3.92** | 9.47 |
+| `--pf-accent-200` | `#fceab6` | 14.29 | 6.12 | **4.37** | 6.28 | `#484232` | 9.18 | **4.32** | **3.07** | 7.42 |
+| `--pf-danger-soft` | `#fdeceb` | 14.93 | 6.40 | 4.57 | 6.56 | `#2a1a17` | 15.32 | 7.21 | 5.12 | 12.38 |
+| `--pf-warning-soft` | `#fdf3e0` | 15.50 | 6.64 | 4.74 | 6.81 | `#2a2314` | 14.30 | 6.73 | 4.78 | 11.55 |
+| `--pf-success-soft` | `#e6f4ec` | 15.05 | 6.45 | 4.60 | 6.61 | `#12251c` | 14.76 | 6.95 | 4.93 | 11.92 |
+| `--pf-info-soft` | `#e8eefc` | 14.68 | 6.29 | **4.49** | 6.45 | `#131f33` | 15.17 | 7.14 | 5.07 | 12.25 |
+
+`--pf-accent-soft` and `--pf-accent-soft-strong` are 100 and 200 in both
+themes, so their rows are identical and are not repeated.
+
+**The four bold cells are the constraint that set the dark tint values.**
+`--pf-ink-tertiary` drops below 4.5:1 on 100 and 200, and `--pf-ink-secondary`
+drops below on 200. That is why the dark ramp tops out at `#484232` rather than
+going brighter for a "stronger" wash, and why `--pf-accent-50` is held at
+`#2a2415` — `.pf-prompt-chip strong` uses tertiary ink on an accent-50 hover and
+measures 4.74:1 there, which is the tightest legitimate pair in the system.
+
+### Which accent steps are legal as *text*, per theme
+
+| Step | On `#ffffff` | On `#f7f8fa` | On `#16161a` | On `#0e0e11` |
+|---|---|---|---|---|
+| 300 `#f8dc87` | 1.35 | 1.27 | **13.39** | **14.30** |
+| 400 `#f2c94c` | 1.59 | 1.49 | **11.37** | **12.15** |
+| 500 `#ebb81e` | 1.84 | 1.73 | **9.80** | **10.47** |
+| 600 `#c19315` | 2.82 | 2.65 | **6.40** | **6.84** |
+| 700 `#926f16` | **4.66** | 4.38 | 3.87 | 4.14 |
+| 800 `#6a5116` | **7.50** | **7.05** | 2.41 | 2.57 |
+| 900 `#493813` | **11.30** | **10.63** | 1.60 | 1.71 |
+
+The table splits cleanly: 300–500 are dark-mode inks, 700–900 are light-mode
+inks, and 600 is the only step that clears 3:1 on both — which is exactly why
+`--pf-accent-stroke` is pinned to it.
+
+### Fill states and the focus ring
+
+| | Light | Dark |
+|---|---|---|
+| base fill 400 + `--pf-on-accent` | 10.76:1 | 12.15:1 |
+| hover fill 500 + `--pf-on-accent` | 9.27:1 | 10.47:1 |
+| active fill 600 + `--pf-on-accent` | 6.06:1 | 6.84:1 |
+| focus ring on `--pf-surface` | 7.50:1 | 13.39:1 |
+| focus ring on `--pf-accent-50` | 7.25:1 | 11.44:1 |
+| focus ring on `--pf-accent-100` | 6.94:1 | 9.47:1 |
+| focus ring on `--pf-accent-200` | 6.28:1 | 7.42:1 |
+| focus ring on the accent fill | 4.72:1 | 4.72:1 |
+
+The focus ring clears 3:1 against every surface a control can land on in either
+theme, including all three accent tints it was previously never measured
+against.
+
+### Every accent background site, verified
+
+All 23 declarations that use an accent step as a background or a border, with
+the ink that actually sits on them. Lowest value in the system: **4.74:1**;
+count below 4.5:1: **0**.
+
+| Site | Step | Light | Dark |
+|---|---|---|---|
+| `drama.css:38` `.drama-agent-hero-icon` | 50 | 7.25 | 11.44 |
+| `drama.css:351` `.drama-agent-opt-trigger:hover` | 50 | 7.07 | 6.67 |
+| `drama.css:357` `.drama-agent-opt-trigger.is-active` | 50 | 7.25 | 11.44 |
+| `drama.css:850` `.drama-project-row-tag.is-script` | 50 | 7.25 | 11.44 |
+| `drama.css:1099` `.drama-hero` | 50 | 16.51 | 14.16 |
+| `drama.css:2266` `.drama-step-hero-icon` | 50 | 7.25 | 11.44 |
+| `drama.css:2531` `.drama-outline-ep-thumb` | 50 | 16.51 | 14.16 |
+| `drama.css:6584` `.drama-gen-fab-item.is-running` | 50 | 16.51 | 14.16 |
+| `drama.css:6996` `.drama-batch-voice-item` stages | 50 | 16.51 | 14.16 |
+| `printfilm.css:314` `.pf-ws-product-drama` | 100 | 15.79 | 11.72 |
+| `printfilm.css:565` `.pf-land-product.is-drama` | 100 | 15.79 | 11.72 |
+| `printfilm.css:836` `.pf-land-close` | 100 | 15.79 | 11.72 |
+| `printfilm.css:3434` `.pf-cta-band` | 100 | 15.79 | 11.72 |
+| `printfilm.css:3883` `.pf-model-badge` | 100 | 6.94 | 9.47 |
+| `printfilm.css:3994` `.pf-ratio.selected` | 100 | 15.79 | 11.72 |
+| `printfilm.css:4081` `.pf-shot-table tbody tr:hover` | 50 | 16.51 | 14.16 |
+| `printfilm.css:4205` `button.pf-shot-editable:hover` | 50 | 16.51 | 14.16 |
+| `printfilm.css:4242` `.pf-prompt-chip:hover` | 50 | 5.05 | **4.74** |
+| `printfilm.css:4475` `.pf-shot-menu button:hover` | 50 | 16.51 | 14.16 |
+| `printfilm.css:4603` `.pf-scene-item.active` | 100 | 15.79 | 11.72 |
+| `printfilm.css:5679` `.pf-pricing-pay-tile-badge` | 200 | 6.28 | 7.42 |
+| `printfilm.css:5911` `.pf-pricing-info-visual.is-value` | 200 → 50 | 6.28 / 7.25 | 7.42 / 11.44 |
 
 ---
 
@@ -232,10 +406,67 @@ they are the known tail.
 | `printfilm.css` `.pf-nav-github:hover` | `--pf-accent` at 0.28 over `--pf-surface` | text is `--pf-accent-ink`, 7.50:1 | fixed in Wave 1 |
 | `drama.css` `.drama-ep-ref-voice-badge.bound` | `--pf-accent` on `rgb(var(--pf-scrim-rgb) / 0.82)` | **8.8:1** | **intentional** — accent on a dark scrim is the allowed pattern; an automated pass that assumes a light background will flag this as a false positive |
 | `drama.css` `:disabled` button labels | `--pf-ink-disabled` | 2.48–3.35:1 | WCAG 1.4.3 exempts inactive UI components. Left as-is deliberately |
-| `printfilm.css` `.pf-land-*` gradient panels | accent tints behind `--pf-ink` | 14–16:1 | pass; a future refinement would add a hairline so the panel edge reads in dark mode |
+| `printfilm.css` `.pf-land-*` gradient panels | accent tints behind `--pf-ink` | 14–16:1 | **was 1.01:1 in dark — the Wave 1.4 defect. Now 11.72:1** |
 | `printfilm.css` `.pf-pricing-wallet-dark` | fixed `#243041 → #151c26 → #111820` gradient | text uses `--pf-on-media` | a deliberately dark island in both themes; the gradient is intentionally not a token |
 | `printfilm.css` `.pf-wx-fab-btn` | `#07c160` WeChat green | text is `--pf-on-accent`, 7.16:1 | **was `#fff` at 2.38:1 — an AA failure fixed in Wave 1** |
 
+---
+
+## 8a. The same defect, found elsewhere — listed, **not fixed**
+
+The board asked for a sweep of every token declared exactly once in
+`tokens.css` and then used as a background or border. Method: parse
+`tokens.css`, keep the tokens whose only declaration is the base `:root` block,
+then check what uses them as a fill.
+
+**87 tokens are declared only once. 77 of them are not colours** — space,
+radius, type, weight, z-index, duration and easing are theme-invariant by
+design and need no dark block. Of the 10 that are colours:
+
+| Token | Verdict |
+|---|---|
+| `--pf-accent-50` … `--pf-accent-900` | **the Wave 1.4 defect — fixed** |
+| `--pf-accent-strong` | safe: an alias of `--pf-accent-ink`, which *is* re-declared, so it follows |
+| `--pf-border`, `--pf-border-control`, `--pf-border-hairline` | safe: aliases of `--pf-line*`, all re-declared |
+| `--pf-surface-elevated` | safe: alias of `--pf-surface-raised` |
+| `--pf-text-primary` … `--pf-text-inverse` | safe: aliases of `--pf-ink*` |
+| `--pf-highlight-rgb`, `--pf-on-media-rgb` | safe **by intent**: documented as fixed light in both themes because they draw on media and on deliberately dark islands |
+| `--pf-scrim`, `--pf-scrim-rgb` | safe **by intent**: scrims sit on top of media and must not flip |
+| `--pf-shadow-0` | `none` in both themes; a no-op, not a colour |
+
+**No second single-declaration token is broken.** The accent ramp was the only
+one, because it was the only theme-*variant* colour ramp that had been split
+into a "behind text" half and an "ink" half while living in one list.
+
+### The real second class: hard-coded light literals outside the token layer
+
+The same failure mode exists in three stylesheets that predate the token layer
+and were never converted. These are **not** token bugs, so they are out of
+Wave 1.4's scope, but they are the same accessibility defect and they are
+larger than the accent ramp was.
+
+| File | Literal count | Worst example |
+|---|---|---|
+| `pages/drama/canvas/canvas.css` | ~90 | `#f8fafc` panel under `#0f172a` text; 18 × `rgba(182,255,0,α)` lime washes that never retint |
+| `pages/drama/canvas/nodes/dramaImageGenOptions.css` | ~60 | same Tailwind palette, same lime literals |
+| `pages/drama/episodeCanvas/episodeCanvas.css` | ~40 | same |
+| `pages/method/method.css` | ~10 | `#f4ffd6` at lines 144, 248, 434 and `#fff8ec` at 208; this file also runs its own `--m-*` namespace and has **no dark block at all** |
+
+The lime `rgba(182, 255, 0, α)` family is the most consequential: it is the
+*old* brand lime, it appears ~20 times, and it is written as a literal rather
+than `rgb(var(--pf-accent-rgb) / α)`, so it stays `#b6ff00` in both themes while
+every other lime in the app moved to `#f2c94c`. The result is two visibly
+different greens inside one product.
+
+### One borderline item inside the token layer
+
+`printfilm.css` `.pf-btn-ai` mixes the accent 55% into the surface and puts
+`--pf-on-accent` on it: **13.21:1 in light, 4.50:1 in dark** — exactly at the AA
+threshold, with no margin. It is not failing, so it was left alone; converting
+it to a ramp step would change a button's identity colour and belongs with the
+Pricing restyle, not with a contrast fix.
+
+---
 ## 9. Remaining polish, highest priority first
 
 1. **Interaction states are not yet complete on every control.** Focus, hover,
