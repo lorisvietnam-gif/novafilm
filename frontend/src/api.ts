@@ -21,6 +21,25 @@ function authHeaders(): HeadersInit {
     : { 'Content-Type': 'application/json' }
 }
 
+/** Máy chủ trả HTML thay vì JSON: SPA fallback của Firebase, trang lỗi của proxy, 502 của nginx...
+ *  Nếu không can thiệp, trình duyệt ném lỗi phân tích JSON thô ("Unexpected token '<'") thẳng vào
+ *  giao diện — người dùng thấy thông báo kỹ thuật không liên quan tới họ. */
+async function readJson<T>(res: Response, path: string): Promise<T> {
+  const contentType = res.headers.get('content-type') || ''
+  if (!contentType.includes('application/json')) {
+    console.error(
+      `[api] ${path} tra ve "${contentType || 'khong ro'}" thay vi JSON. API_BASE = "${API_BASE}"`,
+    )
+    throw new Error('Không kết nối được máy chủ. Vui lòng thử lại sau ít phút.')
+  }
+  try {
+    return (await res.json()) as T
+  } catch {
+    console.error(`[api] ${path} tra ve JSON khong doc duoc`)
+    throw new Error('Máy chủ trả về dữ liệu không hợp lệ. Vui lòng thử lại sau.')
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -30,7 +49,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const err = await res.json().catch(() => ({ detail: res.statusText }))
     throwApiError(res.status, err.detail, res.statusText)
   }
-  return res.json()
+  return readJson<T>(res, path)
 }
 
 export type PipelineMode = 'full' | 'image_text'

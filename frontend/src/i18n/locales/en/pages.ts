@@ -38,7 +38,7 @@ export const enPages = {
       { step: '03', title: 'Board and ship', desc: 'Split episodes, cite assets, generate stills and video, then export a playable film.' },
     ],
     capabilities: [
-      { title: '19 film looks', desc: 'From mythic epics to urban realism and neon cyberpunk — one style carries the whole piece.' },
+      { title: '21 film looks', desc: 'From mythic epics to urban realism and neon cyberpunk — one style carries the whole piece.' },
       { title: 'Reusable assets', desc: 'Generate a character once, reuse it across the series instead of redrawing every shot.' },
       { title: 'Editable boards', desc: '@-mention assets, set duration and camera moves, and see the shot before you generate.' },
       { title: 'Two output paths', desc: 'Drama for episodic stories, AI short video for the storyboard pipeline — one account and one wallet.' },
