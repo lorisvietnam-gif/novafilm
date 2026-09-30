@@ -526,8 +526,8 @@ export function formatDramaGenError(raw: string | null | undefined): DramaGenErr
     }
   }
 
-  // 已是较短中文：原样展示，补通用建议
-  if (!/[{\[\]"]/.test(text) && text.length <= 120 && /[\u4e00-\u9fff]/.test(text)) {
+  // Đã là câu tiếng Trung ngắn: hiển thị nguyên văn, chỉ bổ sung gợi ý chung
+  if (!/[{[\]"]/.test(text) && text.length <= 120 && /[\u4e00-\u9fff]/.test(text)) {
     return {
       title: localized({ zh: '生成失败', en: 'Generation failed', vi: 'Tạo thất bại' }),
       message: text,
@@ -550,7 +550,7 @@ export function formatDramaGenError(raw: string | null | undefined): DramaGenErr
   }
 }
 
-/** 弹窗展示生成失败（含上游欠费 / 用户余额不足等） */
+/** Hiện popup khi tạo thất bại (gồm cả nợ phía upstream / hết tiền trong ví người dùng) */
 export async function alertDramaGenError(raw: unknown): Promise<void> {
   const text = raw instanceof Error ? raw.message : String(raw || '')
   const view = formatDramaGenError(text)
