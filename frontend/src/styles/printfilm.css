@@ -121,6 +121,10 @@
   white-space: nowrap;
 }
 
+/* Every control in this cluster is one row, so none of their labels may break.
+   .pf-nav-help-btn had no nowrap and "Help" wrapped onto two lines at 1440,
+   where the cluster is widest — measured: label 8px wide, 2 lines, pushing the
+   gold CTA up beside it. A two-word label is one unit. */
 .pf-nav-help-btn {
   display: inline-flex;
   align-items: center;
@@ -132,6 +136,8 @@
   font-weight: 500;
   cursor: pointer;
   padding: 0.25rem 0.35rem;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .pf-nav-help-btn:hover {
@@ -151,6 +157,7 @@
   font-size: 0.82rem;
   font-weight: 650;
   text-decoration: none;
+  white-space: nowrap;
   transition: border-color var(--pf-dur-base) var(--pf-ease-standard), background var(--pf-dur-base) var(--pf-ease-standard), box-shadow var(--pf-dur-base) var(--pf-ease-standard);
 }
 
@@ -779,6 +786,13 @@
   gap: 0.35rem 0.5rem;
 }
 
+/* Ink ON the accent FILL is --pf-on-accent, never --pf-accent-ink. The two are
+   the same hue in light mode and opposite ends of the ramp in dark, where
+   --pf-accent-ink resolves to --pf-accent-300 (#f8dc87) and the fill is
+   #f2c94c — measured 1.18:1 in dark mode, against a 4.5:1 requirement. Read
+   off a screenshot of the homepage at 1440 in dark: light gold text on a
+   solid gold pill, effectively invisible. Every other gold-fill rule in this
+   file already used --pf-on-accent; this badge was the one exception. */
 .pf-land-product-tag {
   font-size: 0.72rem;
   font-weight: 700;
@@ -786,7 +800,7 @@
   padding: 0.12rem 0.5rem;
   border-radius: 999px;
   background: var(--pf-lime);
-  color: var(--pf-accent-ink);
+  color: var(--pf-on-accent);
 }
 
 .pf-land-product-body em {
@@ -3806,12 +3820,21 @@
   min-height: calc(100vh - var(--pf-nav-h) - 5rem);
 }
 
+/* `grid-template-columns: 300px 1fr 300px` on the parent makes every track
+   `minmax(auto, …)`, and a grid item's automatic minimum size is its
+   min-content width — `min-width: auto`. Below 1100px the parent collapses to
+   one `1fr` track, but the columns then refuse to shrink below 382px of
+   min-content and the whole page gains a horizontal scrollbar: measured 46px of
+   overflow at a 360px viewport and 16px at 390px, with the panel's right border
+   pushed off screen. `min-width: 0` is the standard opt-out and the codebase
+   already uses it on the flex children that need it. */
 .pf-create-col {
   background: var(--pf-surface);
   border: 1px solid var(--pf-line);
   border-radius: var(--pf-radius);
   padding: 1rem;
   min-height: 420px;
+  min-width: 0;
 }
 
 .pf-create-col h3 {
@@ -5178,9 +5201,21 @@ button.pf-shot-editable:disabled {
   box-shadow: var(--pf-shadow);
 }
 
+/* The row is [check] [thumb] [title + meta] [ratio] [actions].
+
+   The last track was `auto`, so it was sized to its max-content — the three
+   text buttons plus the delete icon came to 341px — and the `1fr` title column
+   received what was left, which was nothing. Measured: 0px at a 768px
+   viewport, 145px at 1024px, 401px at 1280px. At 768 the project title
+   rendered one word per line in a zero-width box; the meta strip below it
+   stacked 142px tall. A list of projects whose name you cannot read is not a
+   list of projects.
+
+   So the title column gets a floor it can actually use and the actions column
+   gets a ceiling, and the two stop competing for the same pixels. */
 .pf-project-card {
   display: grid;
-  grid-template-columns: 40px 168px minmax(0, 1fr) 64px auto;
+  grid-template-columns: 40px 168px minmax(14rem, 1fr) 64px minmax(0, 16rem);
   gap: 0.9rem;
   align-items: center;
   padding: 1rem 1.1rem;
@@ -5250,6 +5285,12 @@ button.pf-shot-editable:disabled {
   font-size: 0.7rem;
   padding: 0.15rem 0.4rem;
   border-radius: 999px;
+}
+
+/* Never had a rule of its own, so it inherited `min-width: auto` and let the
+   track collapse silently. Paired with the track sizes above. */
+.pf-project-info {
+  min-width: 0;
 }
 
 .pf-project-info h3 {
@@ -7677,6 +7718,54 @@ button.pf-shot-editable:disabled {
   }
 }
 
+/* Between 701px and 1100px a five-column row cannot hold both the title and
+   three text buttons: the fixed parts (40 + 168 + 64 + gaps) plus a 16rem
+   action block and the 14rem title floor come to 794px, so at a 768px viewport
+   the row would overflow rather than shrink. Below 1100 the row becomes two
+   lines — title and meta on the first, ratio and actions on the second — which
+   is the same reading order as the ≤700px layout above, just with the
+   thumbnail held at its square instead of becoming a banner.
+
+   Scoped with a lower bound so it cannot fight the ≤700px rules, which place
+   the same five children by line number rather than by name. */
+@media (min-width: 701px) and (max-width: 1100px) {
+  .pf-project-card {
+    grid-template-columns: 40px 148px minmax(0, 1fr) auto;
+    grid-template-areas:
+      'check thumb info   info'
+      'check thumb ratio  actions';
+    align-items: start;
+    column-gap: 0.75rem;
+    row-gap: 0.7rem;
+  }
+
+  .pf-project-check {
+    grid-area: check;
+    align-self: center;
+  }
+
+  .pf-project-thumb {
+    grid-area: thumb;
+    align-self: start;
+  }
+
+  .pf-project-info {
+    grid-area: info;
+  }
+
+  .pf-project-ratio {
+    grid-area: ratio;
+    align-self: center;
+    text-align: left;
+  }
+
+  .pf-project-actions {
+    grid-area: actions;
+    align-self: center;
+    justify-content: flex-end;
+  }
+}
+
 /* ---------- Nút nhóm WeChat (liên kết cộng đồng) ---------- */
 .pf-wx-fab-root {
   position: fixed;
@@ -7870,17 +7959,29 @@ button.pf-shot-editable:disabled {
    ========================================================================== */
 
 @media (max-width: 700px) {
+  /* The bar is ONE row of controls, so it stays one row. Measured on a 390px
+     viewport: the cluster needs 329px (lang 86 + avatar 34 + gold CTA 137 +
+     burger 40 + gaps) and the grid gives it 208px, so `flex-wrap: wrap` stacked
+     it over four lines and the sticky header grew to 101px — a quarter of a
+     phone screen, with the logo centred against a ragged two-row cluster that
+     read as a bug rather than a layout. Nothing was clipped; it just stopped
+     looking designed.
+
+     The gold CTA is the one control that has to go: it is the widest, and on
+     every page there is an equivalent primary action in the page body (the
+     landing hero carries the same call to action immediately below the fold
+     line of the header). It moves into the burger drawer, which is where the
+     rest of the navigation lives below this width. What stays in the bar:
+     lang (86) + avatar (34) + burger (40) = 160px, which fits 179px at 360 and
+     208px at 390. */
   .pf-nav {
-    height: auto;
-    min-height: var(--pf-nav-h);
-    padding-block: 0.55rem;
-    row-gap: 0.5rem;
+    height: var(--pf-nav-h);
+    padding-block: 0;
   }
 
   .pf-nav-right {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: flex-end;
-    row-gap: 0.45rem;
     gap: 0.5rem;
   }
 
@@ -7890,13 +7991,33 @@ button.pf-shot-editable:disabled {
     display: none;
   }
 
-  .pf-nav .pf-btn-lime {
-    padding: 0.5rem 0.8rem;
-    font-size: var(--pf-text-sm);
+  .pf-nav-right > .pf-btn-lime {
+    display: none;
   }
 
   .pf-nav-lang button {
     padding: 0 0.45rem;
+  }
+
+  /* The drawer carries the action the bar gave up. Full width, so it is a
+     target rather than a token, and it is the last thing in the list. */
+  .pf-nav-drawer-cta {
+    width: 100%;
+    margin-top: 0.75rem;
+    justify-content: center;
+  }
+}
+
+/* At 360px the three surviving controls plus gaps come to 185px against 179px
+   of column. Trimming the language pill's inline padding closes the 6px. */
+@media (max-width: 400px) {
+  .pf-nav-right {
+    gap: 0.4rem;
+  }
+
+  .pf-nav-lang button {
+    padding: 0 0.3rem;
+    font-size: 0.68rem;
   }
 }
 
