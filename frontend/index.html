@@ -3,12 +3,51 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover so the full-bleed bands can reach under a notch. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>NOVAFILM · Nền tảng phim AI</title>
     <meta
       name="description"
       content="NOVAFILM: nhập điểm bán và phong cách, tự động tạo phân cảnh, hình ảnh, lời dẫn và thành phẩm video."
     />
+    <!-- The browser chrome has to match the app, or the mobile URL bar reads
+         as a light strip above a dark page. Both values are token values: the
+         light one is --pf-bg, the dark one is --pf-bg in the dark block. -->
+    <meta name="theme-color" content="#f7f8fa" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0e0e11" media="(prefers-color-scheme: dark)" />
+
+    <!--
+      ONE preload, and it is the hero.
+
+      The landing hero is the only above-the-fold image in the product, so it is
+      the only one worth a render-blocking request. Two candidates, because a
+      1x desktop band and a 2x phone band want different files. `sizes` tells
+      the browser the rendered width so it can choose before layout runs, which
+      is what makes this a win rather than a guess.
+
+      What is deliberately NOT preloaded, and why:
+
+      - The other photographs. They are CSS background-images, so the browser
+        only requests them once the element that uses them is styled; preloading
+        would spend bandwidth on art the visitor may never scroll to.
+
+      - Fonts. Three families at five weights cannot be fetched in parallel with
+        the app bundle without making LCP worse, and display=swap already covers
+        the gap. Measure a font preload on a real connection before adding one.
+
+      - The component <img> previews. DramaImageStylePreviewImg already sets
+        loading="lazy", but it loads 2560px originals into ~200px boxes. That is
+        a real defect and the fix is a srcset in that component, which is
+        outside this lane's files. Recorded in docs/IMAGE_MANIFEST.md.
+    -->
+    <link
+      rel="preload"
+      as="image"
+      imagesrcset="/img/retro-narrative-film-1280.jpg 1x, /img/retro-narrative-film-1920.jpg 2x"
+      imagesizes="100vw"
+      fetchpriority="high"
+    />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
