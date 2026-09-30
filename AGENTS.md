@@ -70,16 +70,25 @@ cd backend
 .venv\Scripts\python.exe -m pytest -q
 ```
 
-**Baseline (đo thật trên Windows, 2026-09-30): `5 failed, 609 passed`.** Cả 5 lỗi là bug có sẵn từ
-upstream, board đã chạy lại ở commit gốc `88755c3` và xác nhận y hệt — không phải do ta:
+**Baseline (đo thật trên Windows, 2026-09-30, sau Wave 1.1b/1.1c/1.2/1.3: `4 failed, 635 passed, 1 skipped`).
+Cả lỗi failed lẫn lỗi skipped đều là vấn đề có sẵn từ upstream, board đã chạy lại ở commit gốc
+`88755c3` và xác nhận — không phải do ta:
 
-- `test_admin_stats.py::test_admin_stats_http_query_days_accepts_string_query`
 - `test_fragment_video_estimate.py::test_fragment_video_estimate_720p_doubles_480p`
 - `test_kepu_phase_billing.py::test_videos_estimate_hd_doubles_480p_preview`
 - `test_kepu_phase_billing.py::test_shot_regen_video_estimate_uses_project_hd`
 - `test_kepu_shot_edit_demote.py::test_narration_edit_invalidates_continuous_audio`
+- `test_admin_stats.py::test_admin_stats_http_query_days_accepts_string_query` — **test này có điều kiện
+  skip** (`demo 账号不可用，跳过 HTTP stats 回归`). Nếu tài khoản `demo` còn trong database thì nó FAIL,
+  nếu không thì nó SKIP. Số lỗi vì vậy **phụ thuộc trạng thái database**, không phải do code.
+  Board đã xác nhận điều này bằng cách chạy trên `main` không có thay đổi nào: vẫn SKIP.
 
-Nếu số lỗi **vượt quá 5** thì do bạn. Đừng sửa 5 lỗi trên trừ khi được giao riêng.
+Nếu số lỗi **vượt quá mức trên** thì do bạn. Đừng sửa 4 lỗi failed kia trừ khi được giao riêng.
+
+### Cổng chặn bảo mật khi khởi động
+`APP_ENV=production` với `SECRET_KEY` còn giá trị mặc định sẽ **từ chối khởi động** (đã kiểm chứng).
+Chỉ `APP_ENV` bằng `prod` hoặc `production` mới kích hoạt cổng; `staging` và `dev` cố ý không bị chặn.
+Sinh khoá: `python -c "import secrets; print(secrets.token_urlsafe(48))"`
 
 Nếu `tsc` báo thiếu key `vi`, đó chính là lỗi cần sửa — không dùng `as any` để né.
 Không được dùng `as unknown as Messages` hay bất kỳ cast nào để né kiểm tra.
