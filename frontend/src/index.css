@@ -1,34 +1,44 @@
+@import './styles/tokens.css';
+@import './styles/base.css';
+
+/* Legacy alias layer.
+   tokens.css already owns --pf-bg, --pf-ink, --pf-line, --pf-surface,
+   --pf-shadow, --pf-radius-*, --pf-nav-h and the accent ramp — this file must
+   NOT redefine those or dark mode breaks. What follows only adds names that
+   predate the token system and have no token equivalent, pointing them at the
+   tokens that do exist, so every consumer in printfilm.css, drama.css and
+   App.css becomes theme-aware for free. New code should use --pf-* tokens
+   directly and drop these. */
+
 :root {
-  --pf-lime: #b6ff00;
-  --pf-lime-soft: #eefcc8;
-  --pf-ink: #111318;
-  --pf-muted: #6b7280;
-  --pf-bg: #f7f8fa;
-  --pf-card: #ffffff;
-  --pf-line: rgba(17, 19, 24, 0.1);
-  --pf-radius: 14px;
-  --pf-radius-sm: 10px;
-  --pf-shadow: 0 8px 28px rgba(17, 19, 24, 0.06);
-  --pf-nav-h: 64px;
+  --pf-lime: var(--pf-accent);
+  --pf-lime-soft: var(--pf-accent-soft);
+  --pf-muted: var(--pf-ink-tertiary);
+  --pf-card: var(--pf-surface);
+  /* printfilm.css references these two names in 42 places. --pf-radius was
+     14px and maps exactly onto --pf-radius-md; --pf-shadow was a single
+     28px-blur shadow and maps onto the refined --pf-shadow-2. */
+  --pf-radius: var(--pf-radius-md);
+  --pf-shadow: var(--pf-shadow-2);
 
   /* legacy aliases used by residual styles */
   --ink: var(--pf-ink);
   --paper: var(--pf-bg);
-  --paper-deep: #e8eaee;
-  --accent: var(--pf-lime);
-  --teal: #2a6f7a;
-  --crimson: #c43c2e;
-  --moss: #2a6f7a;
+  --paper-deep: var(--pf-surface-sunken);
+  --accent: var(--pf-accent);
+  --teal: var(--pf-info);
+  --crimson: var(--pf-danger);
+  --moss: var(--pf-success);
   --muted: var(--pf-muted);
   --line: var(--pf-line);
-  --shadow: var(--pf-shadow);
-  --hero-ink: #e8eef2;
+  --shadow: var(--pf-shadow-2);
+  --hero-ink: var(--pf-ink-inverse);
 
   font-family: 'Noto Sans', 'Noto Sans SC', 'PingFang SC', sans-serif;
   color: var(--pf-ink);
   background: var(--pf-bg);
-  line-height: 1.5;
-  font-weight: 400;
+  line-height: var(--pf-leading-normal, 1.5);
+  font-weight: var(--pf-weight-regular, 400);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -63,4 +73,8 @@ select {
 
 button {
   cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
 }

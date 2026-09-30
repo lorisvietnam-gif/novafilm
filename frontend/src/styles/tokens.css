@@ -1,0 +1,456 @@
+/* ==========================================================================
+   novafilm / PRINTFILM — design token layer
+   --------------------------------------------------------------------------
+   Single source of truth for colour, type, space, radius, elevation, motion
+   and focus. Component stylesheets (printfilm.css, drama.css, App.css) must
+   consume these variables and never hard-code a literal colour.
+
+   Brand accent: #f2c94c. Measured contrast of #f2c94c on #ffffff is 1.60:1,
+   so it is a FILL colour only — never a text colour and never a border on a
+   light surface. Text on accent surfaces uses --pf-ink (#1c1c1a, 10.76:1).
+   Accent used as text on light surfaces uses --pf-accent-ink (7.50:1).
+
+   See DESIGN_TOKENS.md for the full token table and measured ratios.
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* ---------------------------------------------------------------------
+     1. Accent ramp — #f2c94c pinned at 400
+     Light surfaces only as a fill. Steps 500+ are for strokes and hover on
+     dark/photographic backgrounds. See the usage rules in DESIGN_TOKENS.md.
+     --------------------------------------------------------------------- */
+  --pf-accent-50: #fffbf0;
+  --pf-accent-100: #fef6dc;
+  --pf-accent-200: #fceab6;
+  --pf-accent-300: #f8dc87;
+  --pf-accent-400: #f2c94c;
+  --pf-accent-500: #ebb81e;
+  --pf-accent-600: #c19315;
+  --pf-accent-700: #926f16;
+  --pf-accent-800: #6a5116;
+  --pf-accent-900: #493813;
+
+  /* Channel triplet for alpha compositing — retinted per theme. */
+  --pf-accent-rgb: 242 201 76;
+
+  /* ---------------------------------------------------------------------
+     2. Semantic accent roles
+     --------------------------------------------------------------------- */
+  /* Fill: primary buttons, active chips, highlight bands, selected rows. */
+  --pf-accent: var(--pf-accent-400);
+  /* Hover / pressed fill. */
+  --pf-accent-hover: var(--pf-accent-500);
+  --pf-accent-active: var(--pf-accent-600);
+  /* Text and ghost-button foreground on a light surface. AA at 7.50:1. */
+  --pf-accent-ink: var(--pf-accent-800);
+  /* Muted accent text — large text / non-essential only (4.66:1 on #fff). */
+  --pf-accent-ink-soft: var(--pf-accent-700);
+  /* Tinted accent backgrounds. */
+  --pf-accent-soft: var(--pf-accent-100);
+  --pf-accent-soft-strong: var(--pf-accent-200);
+  /* Text placed on an accent fill. Near-black, never #000. */
+  --pf-on-accent: #1c1c1a;
+  /* Accent stroke on light surfaces. */
+  --pf-accent-stroke: var(--pf-accent-600);
+  /* Alias used by printfilm.css for accent-toned text. */
+  --pf-accent-strong: var(--pf-accent-ink);
+
+  /* ---------------------------------------------------------------------
+     3. Surfaces
+     --------------------------------------------------------------------- */
+  --pf-bg: #f7f8fa;
+  --pf-surface: #ffffff;
+  --pf-surface-raised: #ffffff;
+  --pf-surface-sunken: #f1f2f5;
+  --pf-surface-overlay: #ffffff;
+  --pf-surface-inverse: #1c1c1a;
+  --pf-surface-glass: rgb(255 255 255 / 0.72);
+  --pf-surface-rgb: 255 255 255;
+
+  /* ---------------------------------------------------------------------
+     4. Borders
+     --pf-line and --pf-line-hairline are decorative separators and sit
+     below 3:1 by design; they never carry meaning on their own.
+     --pf-line-control is the only border allowed on form controls and it
+     clears 3:1 against surface and surface-sunken.
+     --------------------------------------------------------------------- */
+  --pf-line-hairline: #e4e5e9;
+  --pf-line: #dcdee2;
+  --pf-line-strong: #b3b5bd;
+  --pf-line-control: #8b8c94;
+
+  /* ---------------------------------------------------------------------
+     5. Text
+     --------------------------------------------------------------------- */
+  --pf-ink: #1c1c1a;
+  --pf-ink-secondary: #55565c;
+  --pf-ink-tertiary: #6b6c74;
+  /* Non-text / disabled only — 3.35:1, below the 4.5:1 text threshold. */
+  --pf-ink-disabled: #8b8c94;
+  --pf-ink-inverse: #ffffff;
+  --pf-ink-rgb: 28 28 26;
+
+  /* Scrims stay dark in both themes: they sit on top of media. */
+  --pf-scrim-rgb: 17 19 24;
+  --pf-scrim: rgb(var(--pf-scrim-rgb) / 0.42);
+
+  /* Intent-revealing aliases for the same values above. Declared here rather
+     than in a component stylesheet so they stay theme-aware. */
+  --pf-text-primary: var(--pf-ink);
+  --pf-text-secondary: var(--pf-ink-secondary);
+  --pf-text-tertiary: var(--pf-ink-tertiary);
+  --pf-text-disabled: var(--pf-ink-disabled);
+  --pf-text-inverse: var(--pf-ink-inverse);
+  --pf-surface-elevated: var(--pf-surface-raised);
+  --pf-border-hairline: var(--pf-line-hairline);
+  --pf-border: var(--pf-line);
+  --pf-border-control: var(--pf-line-control);
+  /* Text drawn on top of media. */
+  --pf-on-media: rgb(255 255 255 / 0.92);
+  --pf-on-media-rgb: 255 255 255;
+  /* Light overlay that must NOT flip with the theme: the top-edge highlight on
+     a dialog, and the inner surfaces of deliberately dark islands such as
+     .pf-pricing-wallet-dark. */
+  --pf-highlight-rgb: 255 255 255;
+
+  /* ---------------------------------------------------------------------
+     6. Status — deliberately distinct from the accent hue.
+     Yellow means "brand / selected", never "error" or "warning".
+     --------------------------------------------------------------------- */
+  --pf-danger: #b3261e;
+  --pf-danger-soft: #fdeceb;
+  --pf-danger-ink: #b3261e;
+
+  --pf-warning: #8a5300;
+  --pf-warning-soft: #fdf3e0;
+  --pf-warning-ink: #8a5300;
+
+  --pf-success: #1c6b45;
+  --pf-success-soft: #e6f4ec;
+  --pf-success-ink: #1c6b45;
+
+  --pf-info: #1a4fd6;
+  --pf-info-soft: #e8eefc;
+  --pf-info-ink: #1a4fd6;
+
+  /* ---------------------------------------------------------------------
+     7. Focus
+     --pf-focus-ring is accent-ink, which clears 3:1 against every surface
+     the UI puts a control on: 7.50:1 on #ffffff, 7.05:1 on #f7f8fa,
+     4.72:1 on the accent fill, 6.28:1 on accent-200.
+     --------------------------------------------------------------------- */
+  --pf-focus-ring: var(--pf-accent-ink);
+  --pf-focus-ring-width: 2px;
+  --pf-focus-ring-offset: 2px;
+  --pf-focus-halo: rgb(255 255 255 / 0.9);
+  --pf-focus-halo-rgb: 255 255 255;
+
+  /* ---------------------------------------------------------------------
+     8. Typography
+     'Noto Sans' is ahead of 'Noto Sans SC' because the latter is CJK-first
+     and its Vietnamese coverage is incidental rather than designed.
+     --------------------------------------------------------------------- */
+  --pf-font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Noto Sans',
+    'Noto Sans SC', 'PingFang SC', system-ui, sans-serif;
+  --pf-font-display: 'Space Grotesk', 'SF Pro Display', 'Noto Sans', 'Noto Sans SC',
+    system-ui, sans-serif;
+  --pf-font-serif: 'Noto Serif SC', Georgia, serif;
+  --pf-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* 8pt type scale */
+  --pf-text-2xs: 0.6875rem;
+  --pf-text-xs: 0.75rem;
+  --pf-text-sm: 0.8125rem;
+  --pf-text-md: 0.875rem;
+  --pf-text-base: 1rem;
+  --pf-text-lg: 1.125rem;
+  --pf-text-xl: 1.25rem;
+  --pf-text-2xl: 1.5rem;
+  --pf-text-3xl: 2rem;
+  --pf-text-4xl: 2.75rem;
+
+  --pf-leading-tight: 1.2;
+  --pf-leading-snug: 1.35;
+  --pf-leading-normal: 1.5;
+  --pf-leading-relaxed: 1.65;
+
+  --pf-weight-regular: 400;
+  --pf-weight-medium: 500;
+  --pf-weight-semibold: 600;
+  --pf-weight-bold: 700;
+
+  /* ---------------------------------------------------------------------
+     9. Space — 8pt grid
+     --------------------------------------------------------------------- */
+  --pf-space-0: 0;
+  --pf-space-1: 0.25rem;
+  --pf-space-2: 0.5rem;
+  --pf-space-3: 0.75rem;
+  --pf-space-4: 1rem;
+  --pf-space-5: 1.25rem;
+  --pf-space-6: 1.5rem;
+  --pf-space-8: 2rem;
+  --pf-space-10: 2.5rem;
+  --pf-space-12: 3rem;
+  --pf-space-16: 4rem;
+  --pf-space-20: 5rem;
+  --pf-space-24: 6rem;
+
+  /* ---------------------------------------------------------------------
+     10. Radius
+     --------------------------------------------------------------------- */
+  --pf-radius-xs: 6px;
+  --pf-radius-sm: 10px;
+  --pf-radius-md: 14px;
+  --pf-radius-lg: 20px;
+  --pf-radius-xl: 28px;
+  --pf-radius-pill: 999px;
+  --pf-radius-circle: 50%;
+
+  /* ---------------------------------------------------------------------
+     11. Elevation — very light, Apple-style. Never a hard drop shadow.
+     --------------------------------------------------------------------- */
+  --pf-shadow-0: none;
+  --pf-shadow-1: 0 1px 2px rgb(17 19 24 / 0.04);
+  --pf-shadow-2: 0 1px 2px rgb(17 19 24 / 0.04), 0 8px 24px rgb(17 19 24 / 0.06);
+  --pf-shadow-3: 0 1px 2px rgb(17 19 24 / 0.05), 0 16px 40px rgb(17 19 24 / 0.1);
+  --pf-shadow-popover: 0 1px 2px rgb(17 19 24 / 0.05), 0 24px 60px rgb(17 19 24 / 0.14);
+  --pf-shadow-inset-top: inset 0 1px 0 rgb(255 255 255 / 0.8);
+
+  /* ---------------------------------------------------------------------
+     12. Hairline — 0.5px is the Apple standard for 1x separators.
+     --------------------------------------------------------------------- */
+  --pf-hairline: 0.5px;
+
+  /* ---------------------------------------------------------------------
+     13. Motion — 160-240ms on a decelerating curve.
+     --------------------------------------------------------------------- */
+  --pf-dur-fast: 120ms;
+  --pf-dur-base: 180ms;
+  --pf-dur-slow: 240ms;
+  --pf-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --pf-ease-emphasis: cubic-bezier(0.32, 0.72, 0, 1);
+
+  --pf-transition-color: color var(--pf-dur-base) var(--pf-ease-standard),
+    background-color var(--pf-dur-base) var(--pf-ease-standard),
+    border-color var(--pf-dur-base) var(--pf-ease-standard);
+  --pf-transition-transform: transform var(--pf-dur-base) var(--pf-ease-standard);
+  --pf-transition-surface: var(--pf-transition-color), box-shadow var(--pf-dur-base)
+    var(--pf-ease-standard), transform var(--pf-dur-fast) var(--pf-ease-standard);
+
+  /* ---------------------------------------------------------------------
+     14. Layout and stacking
+     --------------------------------------------------------------------- */
+  --pf-nav-h: 64px;
+  --pf-shell-pad: 1.5rem;
+  --pf-z-base: 0;
+  --pf-z-sticky: 10;
+  --pf-z-nav: 100;
+  --pf-z-dropdown: 200;
+  --pf-z-overlay: 300;
+  --pf-z-modal: 400;
+  --pf-z-toast: 500;
+}
+
+/* ==========================================================================
+   Dark mode — every token is overridden here, never in a component rule.
+   Order: explicit class beats the media query, explicit light class beats
+   a dark OS preference.
+   ========================================================================== */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --pf-accent-rgb: 248 220 135;
+
+    --pf-accent: var(--pf-accent-400);
+    --pf-accent-hover: var(--pf-accent-300);
+    --pf-accent-active: var(--pf-accent-200);
+    /* On dark, accent text is the light end of the ramp: 14.30:1 on #0e0e11. */
+    --pf-accent-ink: var(--pf-accent-300);
+    --pf-accent-ink-soft: var(--pf-accent-400);
+    --pf-accent-soft: rgb(248 220 135 / 0.14);
+    --pf-accent-soft-strong: rgb(248 220 135 / 0.22);
+    /* Accent stays bright in both themes, so the ink on it stays near-black. */
+    --pf-on-accent: #0e0e11;
+    --pf-accent-stroke: var(--pf-accent-600);
+
+    --pf-bg: #0e0e11;
+    --pf-surface: #16161a;
+    --pf-surface-raised: #1f1f25;
+    --pf-surface-sunken: #0a0a0d;
+    --pf-surface-overlay: #1f1f25;
+    --pf-surface-inverse: #f5f5f7;
+    --pf-surface-glass: rgb(22 22 26 / 0.72);
+    --pf-surface-rgb: 22 22 26;
+
+    --pf-line-hairline: #2a2a32;
+    --pf-line: #32323b;
+    --pf-line-strong: #45454f;
+    --pf-line-control: #6a6b78;
+
+    --pf-ink: #f5f5f7;
+    --pf-ink-secondary: #a9aab2;
+    --pf-ink-tertiary: #8d8e97;
+    --pf-ink-disabled: #5c5d6a;
+    --pf-ink-inverse: #0e0e11;
+    --pf-ink-rgb: 245 245 247;
+
+    --pf-on-media: rgb(255 255 255 / 0.92);
+
+    --pf-danger: #ff6f61;
+    --pf-danger-soft: #2a1a17;
+    --pf-danger-ink: #ff6f61;
+
+    --pf-warning: #ffb340;
+    --pf-warning-soft: #2a2314;
+    --pf-warning-ink: #ffb340;
+
+    --pf-success: #4ade80;
+    --pf-success-soft: #12251c;
+    --pf-success-ink: #4ade80;
+
+    --pf-info: #7aa2f7;
+    --pf-info-soft: #131f33;
+    --pf-info-ink: #7aa2f7;
+
+    --pf-focus-ring: var(--pf-accent-300);
+    --pf-focus-halo: rgb(14 14 17 / 0.9);
+    --pf-focus-halo-rgb: 14 14 17;
+
+    --pf-shadow-1: 0 1px 2px rgb(0 0 0 / 0.5);
+    --pf-shadow-2: 0 1px 2px rgb(0 0 0 / 0.45), 0 8px 24px rgb(0 0 0 / 0.5);
+    --pf-shadow-3: 0 1px 2px rgb(0 0 0 / 0.5), 0 16px 40px rgb(0 0 0 / 0.6);
+    --pf-shadow-popover: 0 1px 2px rgb(0 0 0 / 0.5), 0 24px 60px rgb(0 0 0 / 0.7);
+    --pf-shadow-inset-top: inset 0 1px 0 rgb(255 255 255 / 0.06);
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --pf-accent-rgb: 248 220 135;
+
+  --pf-accent: var(--pf-accent-400);
+  --pf-accent-hover: var(--pf-accent-300);
+  --pf-accent-active: var(--pf-accent-200);
+  --pf-accent-ink: var(--pf-accent-300);
+  --pf-accent-ink-soft: var(--pf-accent-400);
+  --pf-accent-soft: rgb(248 220 135 / 0.14);
+  --pf-accent-soft-strong: rgb(248 220 135 / 0.22);
+  --pf-on-accent: #0e0e11;
+  --pf-accent-stroke: var(--pf-accent-600);
+
+  --pf-bg: #0e0e11;
+  --pf-surface: #16161a;
+  --pf-surface-raised: #1f1f25;
+  --pf-surface-sunken: #0a0a0d;
+  --pf-surface-overlay: #1f1f25;
+  --pf-surface-inverse: #f5f5f7;
+  --pf-surface-glass: rgb(22 22 26 / 0.72);
+  --pf-surface-rgb: 22 22 26;
+
+  --pf-line-hairline: #2a2a32;
+  --pf-line: #32323b;
+  --pf-line-strong: #45454f;
+  --pf-line-control: #6a6b78;
+
+  --pf-ink: #f5f5f7;
+  --pf-ink-secondary: #a9aab2;
+  --pf-ink-tertiary: #8d8e97;
+  --pf-ink-disabled: #5c5d6a;
+  --pf-ink-inverse: #0e0e11;
+  --pf-ink-rgb: 245 245 247;
+
+  --pf-on-media: rgb(255 255 255 / 0.92);
+
+  --pf-danger: #ff6f61;
+  --pf-danger-soft: #2a1a17;
+  --pf-danger-ink: #ff6f61;
+
+  --pf-warning: #ffb340;
+  --pf-warning-soft: #2a2314;
+  --pf-warning-ink: #ffb340;
+
+  --pf-success: #4ade80;
+  --pf-success-soft: #12251c;
+  --pf-success-ink: #4ade80;
+
+  --pf-info: #7aa2f7;
+  --pf-info-soft: #131f33;
+  --pf-info-ink: #7aa2f7;
+
+  --pf-focus-ring: var(--pf-accent-300);
+  --pf-focus-halo: rgb(14 14 17 / 0.9);
+  --pf-focus-halo-rgb: 14 14 17;
+
+  --pf-shadow-1: 0 1px 2px rgb(0 0 0 / 0.5);
+  --pf-shadow-2: 0 1px 2px rgb(0 0 0 / 0.45), 0 8px 24px rgb(0 0 0 / 0.5);
+  --pf-shadow-3: 0 1px 2px rgb(0 0 0 / 0.5), 0 16px 40px rgb(0 0 0 / 0.6);
+  --pf-shadow-popover: 0 1px 2px rgb(0 0 0 / 0.5), 0 24px 60px rgb(0 0 0 / 0.7);
+  --pf-shadow-inset-top: inset 0 1px 0 rgb(255 255 255 / 0.06);
+}
+
+/* Explicit light opt-out when the OS prefers dark. */
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='light'] {
+    color-scheme: light;
+
+    --pf-accent-rgb: 242 201 76;
+    --pf-accent-hover: var(--pf-accent-500);
+    --pf-accent-active: var(--pf-accent-600);
+    --pf-accent-ink: var(--pf-accent-800);
+    --pf-accent-ink-soft: var(--pf-accent-700);
+    --pf-accent-soft: var(--pf-accent-100);
+    --pf-accent-soft-strong: var(--pf-accent-200);
+    --pf-on-accent: #1c1c1a;
+    --pf-accent-stroke: var(--pf-accent-600);
+
+    --pf-bg: #f7f8fa;
+    --pf-surface: #ffffff;
+    --pf-surface-raised: #ffffff;
+    --pf-surface-sunken: #f1f2f5;
+    --pf-surface-overlay: #ffffff;
+    --pf-surface-inverse: #1c1c1a;
+    --pf-surface-glass: rgb(255 255 255 / 0.72);
+    --pf-surface-rgb: 255 255 255;
+
+    --pf-line-hairline: #e4e5e9;
+    --pf-line: #dcdee2;
+    --pf-line-strong: #b3b5bd;
+    --pf-line-control: #8b8c94;
+
+    --pf-ink: #1c1c1a;
+    --pf-ink-secondary: #55565c;
+    --pf-ink-tertiary: #6b6c74;
+    --pf-ink-disabled: #8b8c94;
+    --pf-ink-inverse: #ffffff;
+    --pf-ink-rgb: 28 28 26;
+
+    --pf-danger: #b3261e;
+    --pf-danger-soft: #fdeceb;
+    --pf-danger-ink: #b3261e;
+    --pf-warning: #8a5300;
+    --pf-warning-soft: #fdf3e0;
+    --pf-warning-ink: #8a5300;
+    --pf-success: #1c6b45;
+    --pf-success-soft: #e6f4ec;
+    --pf-success-ink: #1c6b45;
+    --pf-info: #1a4fd6;
+    --pf-info-soft: #e8eefc;
+    --pf-info-ink: #1a4fd6;
+
+    --pf-focus-ring: var(--pf-accent-ink);
+    --pf-focus-halo: rgb(255 255 255 / 0.9);
+    --pf-focus-halo-rgb: 255 255 255;
+
+    --pf-shadow-1: 0 1px 2px rgb(17 19 24 / 0.04);
+    --pf-shadow-2: 0 1px 2px rgb(17 19 24 / 0.04), 0 8px 24px rgb(17 19 24 / 0.06);
+    --pf-shadow-3: 0 1px 2px rgb(17 19 24 / 0.05), 0 16px 40px rgb(17 19 24 / 0.1);
+    --pf-shadow-popover: 0 1px 2px rgb(17 19 24 / 0.05), 0 24px 60px rgb(17 19 24 / 0.14);
+    --pf-shadow-inset-top: inset 0 1px 0 rgb(255 255 255 / 0.8);
+  }
+}

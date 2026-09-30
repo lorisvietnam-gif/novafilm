@@ -1,0 +1,149 @@
+/* ==========================================================================
+   novafilm / PRINTFILM — base interaction layer
+   --------------------------------------------------------------------------
+   Global, class-agnostic rules that make every control keyboard-visible and
+   theme-aware. This file intentionally defines no component styles; it only
+   restores guarantees that component stylesheets tend to strip out.
+
+   Load order: tokens.css -> base.css -> printfilm.css -> drama.css -> App.css
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Reduced motion — honour the OS setting globally.
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   2. Focus ring
+   Drawn in --pf-focus-ring, which clears 3:1 on every surface the app places a
+   control on: 7.50:1 on #ffffff, 7.05:1 on #f7f8fa, 4.72:1 on the accent fill.
+   Measurements in DESIGN_TOKENS.md.
+   -------------------------------------------------------------------------- */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: var(--pf-focus-ring-width) solid var(--pf-focus-ring);
+  outline-offset: var(--pf-focus-ring-offset);
+  border-radius: var(--pf-radius-xs);
+}
+
+/* Keep the ring for keyboard users only; pointer users get the hover state. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* printfilm.css strips the outline on these five controls — on :focus for
+   three of them, unconditionally for the other two. A bare
+   `input:focus-visible` scores (0,1,1) and loses to `.pf-field-input:focus`
+   at (0,2,0), so these re-assertions repeat the pseudo-class to reach
+   (0,2,1)/(0,3,0). That keeps keyboard focus visible (WCAG 2.4.7) without
+   resorting to !important and without depending on stylesheet order. */
+.pf-drama-search input:focus-visible:focus-visible,
+.pf-field-input:focus-visible:focus-visible,
+.pf-search-field input:focus-visible:focus-visible,
+.pf-dialog-input:focus-visible:focus-visible,
+.pf-textarea-wrap textarea:focus-visible:focus-visible {
+  outline: var(--pf-focus-ring-width) solid var(--pf-focus-ring);
+  outline-offset: var(--pf-focus-ring-offset);
+}
+
+/* The search field draws its focus treatment on the wrapper instead. */
+.pf-drama-search:focus-within {
+  outline: var(--pf-focus-ring-width) solid var(--pf-focus-ring);
+  outline-offset: var(--pf-focus-ring-offset);
+}
+
+/* --------------------------------------------------------------------------
+   3. Form control defaults — theme-aware, WCAG-safe borders.
+   -------------------------------------------------------------------------- */
+input,
+textarea,
+select {
+  border-color: var(--pf-line-control);
+  color: var(--pf-ink);
+  transition: var(--pf-transition-color);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--pf-ink-tertiary);
+  opacity: 1;
+}
+
+input:disabled,
+textarea:disabled,
+select:disabled {
+  color: var(--pf-ink-disabled);
+  cursor: not-allowed;
+}
+
+/* --------------------------------------------------------------------------
+   4. Selection
+   -------------------------------------------------------------------------- */
+::selection {
+  background: var(--pf-accent-soft-strong);
+  color: var(--pf-ink);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) ::selection {
+    background: rgb(248 220 135 / 0.32);
+    color: var(--pf-ink);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   5. Root surface — adopt the token surfaces so dark mode actually applies.
+   -------------------------------------------------------------------------- */
+html {
+  background: var(--pf-bg);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--pf-bg);
+  color: var(--pf-ink);
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   6. Scrollbars — subtle, theme-aware, non-intrusive.
+   -------------------------------------------------------------------------- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--pf-line-strong) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--pf-line-strong);
+  border-radius: var(--pf-radius-pill);
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--pf-ink-disabled);
+  background-clip: content-box;
+}
