@@ -78,6 +78,14 @@ backend/frontend/
 frontend/node_modules/
 frontend/dist/
 
+# Firebase CLI — cache và project id cục bộ
+# .firebase/ là cache build, .firebaserc chứa project id thật nên không lên repo.
+# Commit firebase.json và .firebaserc.example để người khác dựng lại được.
+**/.firebase/
+**/.firebaserc
+**/skills-lock.json
+**/.agents/
+
 # 本地 Agent / IDE（不上库）
 .claude/
 .cursor/
