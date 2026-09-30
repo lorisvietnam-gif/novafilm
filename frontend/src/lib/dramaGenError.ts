@@ -527,7 +527,7 @@ export function formatDramaGenError(raw: string | null | undefined): DramaGenErr
   }
 
   // 已是较短中文：原样展示，补通用建议
-  if (!/[{\[\]"]/.test(text) && text.length <= 120 && /[\u4e00-\u9fff]/.test(text)) {
+  if (!/[{[\]"]/.test(text) && text.length <= 120 && /[\u4e00-\u9fff]/.test(text)) {
     return {
       title: localized({ zh: '生成失败', en: 'Generation failed', vi: 'Tạo thất bại' }),
       message: text,
