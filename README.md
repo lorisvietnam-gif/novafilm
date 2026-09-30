@@ -1,264 +1,390 @@
-# PRINTFILM
+# Novafilm
 
-[![GitHub stars](https://img.shields.io/github/stars/yi1108/printfilm?style=social)](https://github.com/yi1108/printfilm)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Upstream: PRINTFILM](https://img.shields.io/badge/derived%20from-yi1108%2Fprintfilm-informational)](https://github.com/yi1108/printfilm)
 
-> **把故事做成能播的片子** — AI 漫剧与 AI 短视频，从文案到成片。
+> **Đưa câu chuyện thành một đoạn phim có thể phát** — nền tảng sáng tạo AI drama
+> ngắn và AI short video, từ kịch bản đến bản dựng hoàn chỉnh.
 
-模板驱动的创作平台：主题 / 剧本 → 分镜 → 生图 → 生视频 → 成片。口播由 Seedance 出片时生成，无需单独配音。
+Nhập chủ đề hoặc kịch bản → chia cảnh (分镜) → sinh ảnh → sinh video → dựng thành
+phim bằng FFmpeg. Lời dẫn được sinh kèm khi dựng video, không cần thu âm riêng.
 
-**源码**：[github.com/yi1108/printfilm](https://github.com/yi1108/printfilm) · **版本** 0.2.0
+---
 
-## 界面预览
+## ⚠️ Read this first: this is a derivative work
 
-**工作台**
+This repository is **not** the official release of PRINTFILM. It is a private fork
+built on top of it.
 
-![工作台](docs/images/image-20260910-home.png)
+| | |
+|---|---|
+| Upstream | [github.com/yi1108/printfilm](https://github.com/yi1108/printfilm) — Copyright (c) 2026 PRINTFILM, MIT |
+| This fork | Renamed product, new visual design system, third UI locale (`vi`), rewritten operations documentation |
+| Licence | MIT, inherited. `LICENSE` is kept byte-identical to upstream and must stay that way |
+| Attribution | [`NOTICE`](NOTICE) at the repo root |
+| Trademark | The PRINTFILM name and logo remain the upstream authors' property. MIT does not grant trademark rights. We have rebranded; the wordmark is being retired item by item — see [`docs/OPEN_SOURCE_CHECKLIST.md`](docs/OPEN_SOURCE_CHECKLIST.md) §2 |
 
-**AI 短视频** — 历史、分镜、成片
+**Before you redistribute this code**, read
+[`docs/OPEN_SOURCE_CHECKLIST.md`](docs/OPEN_SOURCE_CHECKLIST.md). Two items are
+currently `NO-GO` for public or commercial distribution: residual PRINTFILM marks in
+user-facing surfaces and legal text (§2.1, §2.2, §2.3), and the provenance of the
+bundled image-style previews (§3.1, §3.6).
 
-| 项目历史 | 分镜工作台 | 成片预览 |
+---
+
+## Screenshots
+
+> These were captured from the upstream PRINTFILM build and still show its branding
+> and Chinese-only UI. They are kept for reference while the rebrand lands
+> ([`docs/OPEN_SOURCE_CHECKLIST.md`](docs/OPEN_SOURCE_CHECKLIST.md) §2.1) and should
+> be recaptured before any public release. Vietnamese and English screenshots do not
+> exist yet.
+
+**User app — history, storyboard, film preview**
+
+| Project history | Storyboard workbench | Film preview |
 |:---:|:---:|:---:|
-| ![科普历史](docs/images/image-20260910-history.png) | ![分镜工作台](docs/images/image-20260910-studio.png) | ![成片预览](docs/images/image-20260910-preview.png) |
+| ![History](docs/images/image-20260910-history.png) | ![Storyboard](docs/images/image-20260910-studio.png) | ![Preview](docs/images/image-20260910-preview.png) |
 
-**AI 漫剧** — 项目、分集、剧本、分镜、资产
+**AI drama — projects, episodes, script, storyboard, assets, admin**
 
-| 项目列表 | 分集工作台 | 剧本解析 |
+| Project list | Episode workbench | Script parse |
 |:---:|:---:|:---:|
-| ![漫剧项目列表](docs/images/image-20260917-drama-list.png) | ![分集工作台](docs/images/image-20260917-drama-episode.png) | ![剧本解析](docs/images/image-20260917-drama-script.png) |
+| ![Drama list](docs/images/image-20260917-drama-list.png) | ![Drama episode](docs/images/image-20260917-drama-episode.png) | ![Drama script](docs/images/image-20260917-drama-script.png) |
 
-| 分镜编辑 | 资产库 | 管理后台 |
+| Storyboard editor | Asset library | Admin console |
 |:---:|:---:|:---:|
-| ![分镜编辑](docs/images/image-20260917-drama-storyboard.png) | ![漫剧资产库](docs/images/image-20260917-drama-assets.png) | ![管理后台](docs/images/image-20260910-admin.png) |
+| ![Storyboard editor](docs/images/image-20260917-drama-storyboard.png) | ![Drama assets](docs/images/image-20260917-drama-assets.png) | ![Admin](docs/images/image-20260910-admin.png) |
 
-## 核心功能
+---
 
-### 1. AI 漫剧
+## Project status
 
-从一句话到分集成片，角色与场景可复用。
+| Area | State |
+|------|-------|
+| User app, admin console, API, task platform, billing, payment | Working, self-hosted |
+| Locales | `vi` (default), `en` (secondary), `zh` (retained) |
+| Migrations | **None.** `create_all` at startup plus hand-written additive DDL. Single worker required |
+| Task execution | In-process asyncio. No external worker. Celery is a vestigial dependency |
+| Upstream AI provider | **Locked to a single provider** (see below) |
+| Tests | `backend/tests/` — extensive, but no CI pipeline and no coverage measurement |
+| Missing standard docs | `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `CHANGELOG.md` — see checklist §7 |
 
-- 大纲 / 剧情摘要 / 剧本内容
-- 资产库：角色、场景、道具
-- 解析成镜后进入分镜编辑与画布
-- 细则见 [docs/EPISODE_RULES.md](docs/EPISODE_RULES.md)
+### Single-provider lock-in — the main operational risk
 
-### 2. AI 短视频
+The open-source build is hard-locked to **one** upstream AI gateway, enforced in
+`backend/app/services/tokenfree_gateway.py` and `backend/app/services/model_settings.py`.
+There is no admin switch to change it. A fork that loses access to that provider
+loses image and video generation entirely, with no fallback.
 
-选模板后沿分镜流水线出片，适合获客与科普。
+This is a deliberate distribution choice, documented rather than hidden. Making the
+provider pluggable is a scoped 2–3 week engineering project, analysed in
+[`docs/OPEN_SOURCE_CHECKLIST.md`](docs/OPEN_SOURCE_CHECKLIST.md) §5.
 
-- 20+ 内置风格模板
-- `full`（图 + 视频 + 合成）或 `image_text`（静图，更快更省）
-- 单镜重绘、重生视频；任务离开页面也会继续跑
-- 成片由 FFmpeg 合成
+### No media URLs expire
 
-### 3. 工具中心
+Every asset is either a relative `/static/...` path or a public object-storage URL.
+There are no signed URLs and no expiry. Anyone who can read an asset URL can read the
+asset. This is a deliberate simplification; treat object storage bucket policy as the
+real access control.
 
-不走完整流水线的单点能力：文生图、图生图、图生产品、文生视频、视频生视频、电商拼图。
+---
 
-### 4. 管理后台与开放 API
+## What it does
 
-用户、订单、模板、任务中心、模型路由。开放接口 `/api/v1` 生图 / 生视频（Bearer 或 `X-Api-Key`）。
+### 1. AI drama (漫剧)
 
-## 工作流程
+From a one-line idea to per-episode finished films, with reusable characters and
+scenes.
+
+- Outline, story summary, full script
+- Asset library: characters, scenes, props
+- Parse into shots, then storyboard editing and a node canvas
+- Detail: [`docs/EPISODE_RULES.md`](docs/EPISODE_RULES.md)
+
+### 2. AI short video
+
+Pick a template, follow the shot pipeline. Suited to lead-gen and explainer content.
+
+- 20+ built-in style templates
+- `full` (image + video + compose) or `image_text` (stills, faster and cheaper)
+- Per-shot image redraw and video regeneration; jobs keep running after you leave the page
+- Final film assembled by FFmpeg
+
+### 3. Tool centre
+
+Single-purpose capabilities that skip the full pipeline: text-to-image,
+image-to-image, text-to-product, text-to-video, video-to-video, e-commerce collage.
+
+### 4. Admin console and open API
+
+Users, orders, templates, task centre, model routing. Open endpoints under
+`/api/v1` for image and video generation (Bearer token or `X-Api-Key`).
+
+---
+
+## Pipeline
 
 ```
-输入主题或剧本
-    → 分镜
-    → 生图
-    → 生视频（Seedance 自带口播）
-    → FFmpeg 合成成片
+input topic or script
+    → shots
+    → images
+    → video (narration generated alongside)
+    → FFmpeg compose
 ```
 
-每个阶段都可以回头重做单镜；进度在历史页查看。
+Any stage can be redone per shot. Progress is visible from the history page.
 
-## 技术特点
+---
 
-- **两条产品线共用一套生成能力** — 漫剧与短视频走同一上游
-- **进程内任务平台** — scheduler / executor / poller，无需单独 Celery Worker
-- **模型可换** — 管理后台配置 TokenFree Key 与模型，不必改代码
-- **Docker 一键启动** — 公开镜像，拉取无需登录
-- **可选计费** — 默认关闭；开启后按用量结算，见 [docs/BILLING.md](docs/BILLING.md)
+## Stack
 
-## 技术栈
+| Layer | Choice |
+|-------|--------|
+| Backend | Python 3.12 · FastAPI · SQLAlchemy (asyncpg) · Pydantic v2 |
+| Database | PostgreSQL 16 |
+| Cache / pub-sub | Redis 7 |
+| Frontend | React 19 · TypeScript 6 · Vite 8 |
+| Admin | React 19 · Tailwind v4 · Radix (shadcn-style) |
+| Media | FFmpeg / FFprobe on `PATH` |
+| AI | One OpenAI-compatible upstream gateway, locked in configuration |
 
-| 层 | 选型 |
-|----|------|
-| 后端 | Python 3.12 · FastAPI · SQLAlchemy · PostgreSQL · Redis |
-| 前端 | React 19 · TypeScript · Vite 8（管理端 Tailwind + shadcn） |
-| AI | TokenFree New API（文字 / 图 / 视频） |
-| 部署 | Docker 全栈镜像，或本机三进程 + 中间件容器 |
+---
 
-## 快速开始（Docker 一键启动）
+## Quick start (Docker, all-in-one)
 
-本机只需安装 [Docker Desktop](https://www.docker.com/products/docker-desktop/)（或 Docker Engine + Compose）。镜像在阿里云 ACR `gcc` 公开命名空间，**拉取无需登录**。
+Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/) or
+Docker Engine with Compose. The images are in a public registry namespace, so
+`docker pull` needs no login.
 
-### 1. 克隆并准备环境变量
+### 1. Clone and prepare the environment
 
 ```bash
-git clone https://github.com/yi1108/printfilm.git
-cd printfilm
+git clone <this-repo>
+cd <this-repo>
 
 cp deploy/.env.docker.example deploy/.env.docker
 ```
 
-编辑 `deploy/.env.docker`，至少改这三项：
+Edit `deploy/.env.docker`. At minimum, change these three:
 
-| 变量 | 说明 |
-|------|------|
-| `POSTGRES_PASSWORD` | 数据库密码（勿用示例默认值） |
-| `SECRET_KEY` | 任意长随机串（会话 / 密钥加密） |
-| `OPENAI_API_KEY` / `ARK_API_KEY` | TokenFree API Key（同一把填两处即可） |
+| Variable | Why |
+|----------|-----|
+| `POSTGRES_PASSWORD` | Database password. Never the example default |
+| `SECRET_KEY` | Long random string. Signs sessions **and** encrypts every secret stored in the database. Rotating it later silently invalidates all stored upstream keys |
+| `ARK_API_KEY` / `OPENAI_API_KEY` | Your upstream API key. Fill the same value in both |
 
-无 Key 想先看界面：把 `ARK_MOCK=true`。
+No key yet, just want to look around? Set `ARK_MOCK=true`.
 
-### 2. 一键启动
+### 2. Start
 
 ```bash
 docker compose --env-file deploy/.env.docker up -d
 ```
 
-等约半分钟（API 健康检查通过后，web / admin 才会起来）。
+Wait about 30 seconds — the web and admin containers wait for the API health check
+to pass.
 
-| 服务 | 地址 |
-|------|------|
-| 用户端 | http://localhost:8080 |
-| 管理后台 | http://localhost:8081 |
-| API / 文档 | http://localhost:8000 · `/docs` |
-| 健康检查 | http://localhost:8000/api/health |
-
-常用：
-
-```bash
-docker compose --env-file deploy/.env.docker ps          # 状态
-docker compose --env-file deploy/.env.docker logs -f api # 看日志
-docker compose --env-file deploy/.env.docker down        # 停止（保留数据卷）
-```
-
-### 3. 注册与管理员
-
-| 角色 | 怎么拿 |
-|------|--------|
-| 普通用户 | 打开用户端 → `/auth` 邮箱注册 |
-| 管理员 | 先用该邮箱注册 → 在 `.env.docker` 设 `ADMIN_BOOTSTRAP_EMAILS=你的邮箱` → `docker compose --env-file deploy/.env.docker up -d --force-recreate api`（**只提权，不造号**） |
-
-仓库无内置演示账号；生产请立刻改掉密钥。
-
-### 4. 更新到最新镜像
+| Service | URL |
+|---------|-----|
+| User app | http://localhost:8080 |
+| Admin console | http://localhost:8081 |
+| API / OpenAPI docs | http://localhost:8000 · `/docs` |
+| Health check | http://localhost:8000/api/health |
 
 ```bash
-docker compose --env-file deploy/.env.docker pull
-docker compose --env-file deploy/.env.docker up -d
+docker compose --env-file deploy/.env.docker ps          # status
+docker compose --env-file deploy/.env.docker logs -f api # logs
+docker compose --env-file deploy/.env.docker down        # stop, keep data volumes
 ```
 
-### 5. 从源码构建（可选）
+### 3. First user, first admin
 
-改过前后端代码，或拉不到 ACR 时：
+| Role | How |
+|------|-----|
+| Regular user | Open the user app → `/auth`, register with an e-mail address |
+| Admin | Register with that address first → set `ADMIN_BOOTSTRAP_EMAILS=<address>` in `deploy/.env.docker` → `docker compose --env-file deploy/.env.docker up -d --force-recreate api` |
+
+`ADMIN_BOOTSTRAP_EMAILS` only **promotes existing users**. It never creates accounts.
+It is read at startup only, so the recreate is required.
+
+There are no built-in demo accounts. Change every secret before going live.
+
+### 4. Building from source
 
 ```bash
 docker compose --env-file deploy/.env.docker -f docker-compose.full.yml up -d --build
 ```
 
-## 配置 TokenFree API Key
+### 5. Running without Docker
 
-开源版文字 / 图 / 视频统一走 **TokenFree New API**（OpenAI 兼容：`https://www.tokenfree.com/v1`）。没有 Key 时只能 `ARK_MOCK=true` 看界面，不能真实生图 / 生视频。
-
-### A. 在 TokenFree 拿到 Key
-
-1. 打开 [https://www.tokenfree.com](https://www.tokenfree.com) 注册并登录。
-2. 进入控制台的 **API 密钥 / Tokens**（部分部署路径为 `/token` 或 `/keys`）。
-3. 点击 **创建**，填名称（如 `printfilm`），按需设额度 / 过期时间。
-4. **立刻复制完整 Key**（形如 `sk-…`，只显示一次）。
-5. 确认账户有余额或可用额度；模型列表里能看到你要用的对话 / 生图 / 视频模型。
-
-> Key 等同密码，不要提交到 Git、不要发到群聊。泄露后在 TokenFree 控制台作废并重建。
-
-### B. 写入 Docker 环境（推荐自托管首次启动）
-
-编辑 `deploy/.env.docker`：
-
-```env
-OPENAI_API_KEY=sk-你的密钥
-OPENAI_BASE_URL=https://www.tokenfree.com/v1
-ARK_API_KEY=sk-你的密钥
-ARK_MOCK=false
-MODEL_LLM=kimi-k2.6
-MODEL_IMAGE=seedream-5-0-pro
-MODEL_VIDEO=seedance-2-5
-```
-
-`OPENAI_API_KEY` 与 `ARK_API_KEY` 填**同一把**即可。然后重建 API 容器使环境生效：
+Postgres and Redis only:
 
 ```bash
-docker compose --env-file deploy/.env.docker up -d --force-recreate api
+cp deploy/.env.prod.example deploy/.env.prod
+docker compose -f deploy/docker-compose.yml --env-file deploy/.env.prod up -d
 ```
 
-打开 http://localhost:8000/api/health ，`ark_mock` 应为 `false`。
-
-### C. 在管理后台填写（推荐日常改 Key）
-
-1. 用管理员登录 http://localhost:8081 。
-2. 打开 **系统设置 → 模型**（路由 / TokenFree 渠道）。
-3. 在 TokenFree 渠道填入 API Key 并保存。
-4. 按需调整默认文字 / 图 / 视频模型；保存后即时生效，一般不必改 `.env`。
-
-后台保存的 Key 会加密进数据库；换机器迁移时记得一并备份库，或重新在后台填写。
-
-### D. 联调排查
-
-| 现象 | 处理 |
-|------|------|
-| 生图 / 生视频报未配置 Key | 检查 `.env.docker` 是否仍为 `replace-me`，或后台渠道是否已填 Key |
-| `ark_mock: true` | 关掉 `ARK_MOCK`，并确认 Key 非空后 `--force-recreate api` |
-| 401 / 额度不足 | 到 TokenFree 控制台看 Key 是否启用、余额是否够 |
-| 模型名 404 | 在后台模型列表里选 TokenFree 实际提供的模型 id |
-## 适用场景
-
-- 短视频 / 获客片：把卖点做成可投放的短片
-- 漫剧 / 短剧：从大纲到分集，角色场景保持一致
-- 单点出图出片：工具中心直接生成
-- 自托管：Docker 拉镜像即可在自己的机器上跑
-
-## 目录结构
-
-```
-backend/                  FastAPI、流水线、计费、任务运行时
-frontend/                 用户端
-admin/                    运营后台
-deploy/                   环境变量示例、中间件 compose
-docs/                     规范与专题文档
-docker-compose.yml        拉公开镜像一键启动
-docker-compose.full.yml   从源码构建
-```
-
-## 社区
-
-- GitHub：https://github.com/yi1108/printfilm
-- 微信加 **`gitpp88`**（备注「入群」）：部署答疑 / 短剧交流 / 模板分享
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/chart?repos=yi1108/printfilm&type=date&legend=top-left)](https://www.star-history.com/#yi1108/printfilm&Date)
-
-## 更多文档
-
-| 文档 | 内容 |
-|------|------|
-| [docs/STANDARDS.md](docs/STANDARDS.md) | 工程规范 |
-| [docs/BILLING.md](docs/BILLING.md) | 计费与易支付 |
-| [docs/EPISODE_RULES.md](docs/EPISODE_RULES.md) | 漫剧分集 |
-| [docs/SEEDANCE_2_5.md](docs/SEEDANCE_2_5.md) | Seedance 参数 |
-| [deploy/README.md](deploy/README.md) | 本机中间件与运维 |
-
-## 贡献
-
-欢迎 Issue / PR。提交前对照 [docs/STANDARDS.md](docs/STANDARDS.md)：简体中文文案、函数注释、服务端分页；勿提交 `.env`、密钥与生成媒体。
+Then the API and the two front-ends on the host:
 
 ```bash
-cd frontend && npm run lint
-cd ../admin && npm run lint
-cd ../backend && pytest
+cd backend
+python -m venv .venv && ./.venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env          # then edit it
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+cd ../frontend && npm install && npm run dev    # 5173
+cd ../admin    && npm install && npm run dev    # 5174
 ```
 
-## 开源许可
+Host requirements: Python 3.12, Node.js, FFmpeg on `PATH`, **and a CJK-capable
+font** — subtitles are burned in with FFmpeg `drawtext` and render as tofu boxes
+without one. See [`docs/OPERATIONS.md`](docs/OPERATIONS.md) §2.2.
 
-本项目采用 [MIT License](LICENSE)。
+---
+
+## Locales
+
+| Locale | Role | Font |
+|--------|------|------|
+| `vi` | Default | Noto Sans |
+| `en` | Secondary | Space Grotesk / Figtree |
+| `zh` | Retained | Noto Sans SC |
+
+Users pick a language from the header; the choice persists in `localStorage`. First
+visit follows `navigator.language`.
+
+The `Messages` type is derived from the `zh` tree, so **every locale must carry every
+`zh` key with the same shape**. A missing key is a `tsc` error, not a runtime
+fallback.
+
+**API enum values are never translated.** Statuses, pipeline modes, ledger kinds,
+model ids and task types stay exactly as the server sends them; Chinese/Vietnamese
+exists only in display-mapping tables. See
+[`docs/STANDARDS.md`](docs/STANDARDS.md) §4.1.
+
+The admin console has **no** i18n layer and renders in Chinese only. Plan:
+[`docs/ADMIN_I18N_PLAN.md`](docs/ADMIN_I18N_PLAN.md).
+
+---
+
+## Configuration
+
+`backend/.env`, resolved as: environment → `Settings` → DB overlay → effective
+value. The DB overlay (editable in the admin console) wins; `.env` is only the
+first-import seed. `backend/app/config.py` holds all 113 settings.
+
+The four that will bite you:
+
+| Setting | Trap |
+|---------|------|
+| `DATABASE_URL` | Must start with `postgresql` or the import raises. Read once at startup, so admin changes need a restart |
+| `SECRET_KEY` | Signs JWTs and derives the DB secret-encryption key. Rotating it breaks every stored upstream key |
+| `MODEL_IMAGE` / `MODEL_VIDEO` | The `config.py` defaults are Volcengine ARK endpoint ids, not catalogue ids, and the image default 404s. Use `seedream-5-0-pro` and `seedance-2-5` |
+| `EPAY_NOTIFY_URL` | Must **not** contain `/api/`. The payment gateway's WAF blocks it. Use `/epay/notify` plus an nginx rewrite |
+
+Full reference: [`docs/OPERATIONS.md`](docs/OPERATIONS.md) §3.
+
+---
+
+## Operations
+
+[`docs/OPERATIONS.md`](docs/OPERATIONS.md) is the runbook. It was written from the
+code, not from memory, and every claim carries a `path:line` citation.
+
+| Topic | Section |
+|-------|---------|
+| Architecture and process model | §1 |
+| Configuration resolution order | §3 |
+| Task lifecycle, statuses, recovery, timeouts | §4 |
+| Billing: pre-hold, usage, settlement, `billing_basis` | §5 |
+| Model routing and failover order | §6 |
+| Payment order and callback flow | §7 |
+| Schema, media storage, Redis, FFmpeg | §8 |
+| Deployment shapes and production checklist | §9 |
+| Troubleshooting tables | §10 |
+| Known traps | §11 |
+
+### Task platform in one paragraph
+
+There is no external worker. Scheduler, poller, executor and watchdog are asyncio
+tasks started by the FastAPI lifespan (`backend/app/main.py:114`). **Run uvicorn with
+`--workers 1`** — two workers means two schedulers racing over the same rows, and
+progress SSE silently degrades to a per-process queue. Tasks waiting on upstream
+video (`awaiting_poll`) do **not** occupy a concurrency slot. A full walkthrough is
+in `docs/OPERATIONS.md` §4.
+
+### Billing in one paragraph
+
+Wallet unit is the fen. Every task runs: balance check → `freeze_for_task` →
+`record_line` usage rows → `settle_task` (charge the real amount, release the rest).
+Settlement is idempotent through three separate guards. A cancel that lands while
+usage is still being written deliberately does **not** refund — see
+`docs/OPERATIONS.md` §5.7 before you "fix" that.
+
+---
+
+## Repository layout
+
+```
+backend/                  FastAPI, pipelines, billing, in-process task platform
+frontend/                 User app (Vite, custom CSS design system, i18n)
+admin/                    Operations console (Vite, Tailwind, no i18n yet)
+deploy/                   Middleware compose, env examples, maintenance scripts
+docs/                     Standards, operations, open-source audit, i18n backlog
+NOTICE                    Upstream attribution and rebrand summary
+docker-compose.yml        Pull public images, one command
+docker-compose.full.yml   Build from source
+```
+
+---
+
+## Tests
+
+```bash
+cd backend
+pip install -r requirements-dev.txt
+pytest                              # full suite
+pytest tests/test_kepu_continuity.py # one file
+pytest tests/test_x.py::test_name    # one test
+```
+
+Tests that use the `db_session` fixture are integration tests and **need PostgreSQL
+running**; they roll back per test and do not persist. The rest are pure unit tests.
+`conftest.py` stubs upstream price-list network calls automatically.
+
+There is **no CI pipeline**. Everything above runs locally only.
+
+```bash
+cd frontend && npm run lint && npm run build
+cd admin    && npm run lint && npm run build
+```
+
+---
+
+## Contributing
+
+Issue and pull requests are welcome. Before you open one, read
+[`docs/STANDARDS.md`](docs/STANDARDS.md) and work through its §9 checklist.
+
+The short version:
+
+- Conventional Commits, English message, explain **why**
+- No hard-coded user-visible copy — go through `i18n`; never translate an API enum value
+- Comments and docstrings in `vi` or `en`; never add new Chinese comments
+- Server-side pagination and filtering; all three states (loading / empty / error)
+- Never commit `.env`, keys, or generated media
+- If you touch billing, routing, the task platform, or deployment, update
+  `docs/OPERATIONS.md` in the same commit
+- **Never modify `LICENSE`**
+
+---
+
+## Licensing
+
+MIT. See [`LICENSE`](LICENSE) for the full text (kept unmodified from upstream) and
+[`NOTICE`](NOTICE) for attribution and the rebrand summary.
+
+Third-party dependencies are under their own licences. That audit is **not yet
+complete** — see [`docs/OPEN_SOURCE_CHECKLIST.md`](docs/OPEN_SOURCE_CHECKLIST.md) §6.
