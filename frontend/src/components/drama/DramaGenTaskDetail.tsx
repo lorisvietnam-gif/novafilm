@@ -1,24 +1,68 @@
-/** 生成队列任务详情：进行中看进度，失败才挖根因 */
+/** Chi tiết một tác vụ trong hàng đợi: đang chạy thì xem tiến độ, lỗi thì mới đào nguyên nhân */
 import { useEffect, useState } from 'react'
 import { Loader2, X } from 'lucide-react'
 import { tasksApi, type TaskRunOut } from '../../api/tasks'
 import { formatDramaGenError, pickRootDramaGenError } from '../../lib/dramaGenError'
 import BillingTopupLink from '../billing/BillingTopupLink'
 import type { DramaGenJob } from '../../lib/dramaGenQueue'
+import { useLocalizedText } from '../../lib/useLocalizedText'
+import type { LocalizedText } from '../../lib/localeStrings'
 
 type Props = {
   job: DramaGenJob
   onClose: () => void
 }
 
-const STATUS_LABEL: Record<DramaGenJob['status'], string> = {
-  queued: '排队中',
-  running: '生成中',
-  done: '已完成',
-  failed: '失败',
+// Khoá là trạng thái nội bộ của hàng đợi, chỉ nhãn hiển thị mới dịch
+const STATUS_LABEL: Record<DramaGenJob['status'], LocalizedText> = {
+  queued: { zh: '排队中', en: 'Queued', vi: 'Đang chờ' },
+  running: { zh: '生成中', en: 'Generating', vi: 'Đang tạo' },
+  done: { zh: '已完成', en: 'Done', vi: 'Đã xong' },
+  failed: { zh: '失败', en: 'Failed', vi: 'Thất bại' },
 }
 
-// 拉取该目标相关的多条历史任务（用于挖出被「重试超限」覆盖的根因）
+const COPY: Record<string, LocalizedText> = {
+  titleFailed: { zh: '失败原因', en: 'Why it failed', vi: 'Lý do thất bại' },
+  titleProgress: { zh: '任务进度', en: 'Job progress', vi: 'Tiến độ tác vụ' },
+  titleDetail: { zh: '任务详情', en: 'Job details', vi: 'Chi tiết tác vụ' },
+  close: { zh: '关闭', en: 'Close', vi: 'Đóng' },
+  parsing: { zh: '正在解析错误…', en: 'Reading the error…', vi: 'Đang phân tích lỗi…' },
+  suggestion: { zh: '建议：', en: 'Try this: ', vi: 'Nên làm: ' },
+  upstreamShort: {
+    zh: '需管理员充值 TokenFree Seedream 账户。',
+    en: 'The admin needs to top up the TokenFree Seedream account.',
+    vi: 'Quản trị viên cần nạp tiền cho tài khoản TokenFree Seedream.',
+  },
+  upstreamLong: {
+    zh: '需管理员充值 TokenFree Seedream 账户，用户端充值无法解决。',
+    en: 'The admin needs to top up the TokenFree Seedream account. Paying from the user wallet cannot fix this.',
+    vi: 'Quản trị viên cần nạp tiền cho tài khoản TokenFree Seedream. Người dùng nạp tiền không giải quyết được.',
+  },
+  hideRaw: { zh: '收起原始错误', en: 'Hide raw error', vi: 'Ẩn lỗi gốc' },
+  showRaw: { zh: '查看原始错误', en: 'Show raw error', vi: 'Xem lỗi gốc' },
+  doneTip: {
+    zh: '成片已写回分镜，可在时间轴预览。',
+    en: 'The finished clip has been written back to the shot. Preview it on the timeline.',
+    vi: 'Video đã được ghi lại vào cảnh quay. Xem trước ở thanh thời gian.',
+  },
+  hintQueued: {
+    zh: '任务已入队，等待调度器领取。',
+    en: 'The job is queued and waiting for the scheduler to pick it up.',
+    vi: 'Tác vụ đã vào hàng đợi, đang chờ bộ lập lịch nhận.',
+  },
+  hintVideo: {
+    zh: '正在生成分镜视频，完成后会自动更新封面与成片。',
+    en: 'Rendering the storyboard clip. The cover and the final film update automatically when it finishes.',
+    vi: 'Đang tạo video storyboard. Ảnh bìa và phim hoàn chỉnh sẽ tự cập nhật khi xong.',
+  },
+  hintImage: {
+    zh: '正在生成图片，完成后会自动写回资产。',
+    en: 'Rendering the image. It is written back to the asset automatically when it finishes.',
+    vi: 'Đang tạo ảnh. Ảnh sẽ tự được ghi lại vào tài nguyên khi xong.',
+  },
+}
+
+// Lấy các tác vụ lịch sử liên quan tới mục tiêu này (để tìm ra nguyên nhân bị câu "vượt giới hạn retry" che)
 async function listRelatedTasks(job: DramaGenJob): Promise<TaskRunOut[]> {
   if (job.kind === 'video' && job.targetId > 0) {
     const list = await tasksApi.list({
@@ -52,16 +96,17 @@ async function listRelatedTasks(job: DramaGenJob): Promise<TaskRunOut[]> {
   return []
 }
 
-// 进行中任务的进度说明
-function activeJobHint(job: DramaGenJob): string {
+// Phần mô tả tiến độ cho tác vụ đang chạy
+function activeJobHint(job: DramaGenJob, lt: (v: LocalizedText) => string): string {
   if (job.message?.trim()) return job.message.trim()
-  if (job.status === 'queued') return '任务已入队，等待调度器领取。'
-  if (job.kind === 'video') return '正在生成分镜视频，完成后会自动更新封面与成片。'
-  return '正在生成图片，完成后会自动写回资产。'
+  if (job.status === 'queued') return lt(COPY.hintQueued)
+  if (job.kind === 'video') return lt(COPY.hintVideo)
+  return lt(COPY.hintImage)
 }
 
-// 任务详情抽屉（进行中=进度；失败=错误文案）
+// Ngăn kéo chi tiết tác vụ (đang chạy = tiến độ; lỗi = văn bản lỗi)
 export function DramaGenTaskDetail({ job, onClose }: Props) {
+  const lt = useLocalizedText()
   const isFailed = job.status === 'failed'
   const isActive = job.status === 'queued' || job.status === 'running'
   const [loading, setLoading] = useState(isFailed)
@@ -69,7 +114,7 @@ export function DramaGenTaskDetail({ job, onClose }: Props) {
   const [showRaw, setShowRaw] = useState(false)
 
   useEffect(() => {
-    // 非失败任务不挖历史错误，避免把旧的「跳过重复任务」当成当前失败
+    // Tác vụ không lỗi thì không đào lịch sử lỗi, tránh coi "bỏ qua tác vụ trùng" cũ là lỗi hiện tại
     if (!isFailed) {
       setRawError('')
       setLoading(false)
@@ -85,7 +130,7 @@ export function DramaGenTaskDetail({ job, onClose }: Props) {
         if (cancelled) return
         const candidates: Array<string | null | undefined> = [job.error]
         for (const task of tasks) {
-          // 优先当前 job 绑定的任务；历史 cancelled「跳过重复」不当作根因抢占
+          // Ưu tiên tác vụ mà job hiện tại đang gắn; lịch sử cancelled kiểu "bỏ qua trùng" không được cướp chỗ nguyên nhân
           if (job.taskId && task.id === job.taskId) {
             candidates.unshift(task.error_message)
             continue
@@ -123,7 +168,7 @@ export function DramaGenTaskDetail({ job, onClose }: Props) {
         }
         if (best) setRawError(best)
       } catch {
-        /* 无平台任务时仍用 job.error */
+        /* Không có tác vụ nền tảng thì vẫn dùng job.error */
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -134,7 +179,7 @@ export function DramaGenTaskDetail({ job, onClose }: Props) {
   }, [job, isFailed])
 
   const errView = isFailed ? formatDramaGenError(rawError || job.message) : null
-  const panelTitle = isFailed ? '失败原因' : isActive ? '任务进度' : '任务详情'
+  const panelTitle = isFailed ? lt(COPY.titleFailed) : isActive ? lt(COPY.titleProgress) : lt(COPY.titleDetail)
 
   return (
     <div className="drama-gen-detail" role="dialog" aria-label={panelTitle}>
@@ -143,7 +188,7 @@ export function DramaGenTaskDetail({ job, onClose }: Props) {
           <strong>{panelTitle}</strong>
           <span>{job.title}</span>
         </div>
-        <button type="button" className="drama-gen-fab-icon-btn" onClick={onClose} aria-label="关闭">
+        <button type="button" className="drama-gen-fab-icon-btn" onClick={onClose} aria-label={lt(COPY.close)}>
           <X size={18} />
         </button>
       </header>
@@ -152,7 +197,7 @@ export function DramaGenTaskDetail({ job, onClose }: Props) {
         {loading ? (
           <div className="drama-gen-detail-loading">
             <Loader2 size={18} className="drama-gen-detail-spin" />
-            <span>正在解析错误…</span>
+            <span>{lt(COPY.parsing)}</span>
           </div>
         ) : null}
 
@@ -162,7 +207,7 @@ export function DramaGenTaskDetail({ job, onClose }: Props) {
             <p>{errView.message}</p>
             {errView.suggestion ? (
               <p className="drama-gen-detail-tip">
-                <strong>建议：</strong>
+                <strong>{lt(COPY.suggestion)}</strong>
                 {errView.suggestion}
                 {errView.billingBlocked ? (
                   <>
@@ -170,16 +215,14 @@ export function DramaGenTaskDetail({ job, onClose }: Props) {
                     <BillingTopupLink />
                   </>
                 ) : null}
-                {errView.upstreamAccountBlocked ? (
-                  <> 需管理员充值 TokenFree Seedream 账户。</>
-                ) : null}
+                {errView.upstreamAccountBlocked ? <> {lt(COPY.upstreamShort)}</> : null}
               </p>
             ) : errView.billingBlocked ? (
               <p className="drama-gen-detail-tip">
                 <BillingTopupLink />
               </p>
             ) : errView.upstreamAccountBlocked ? (
-              <p className="drama-gen-detail-tip">需管理员充值 TokenFree Seedream 账户，用户端充值无法解决。</p>
+              <p className="drama-gen-detail-tip">{lt(COPY.upstreamLong)}</p>
             ) : null}
             {rawError ? (
               <button
@@ -187,17 +230,17 @@ export function DramaGenTaskDetail({ job, onClose }: Props) {
                 className="drama-gen-detail-raw-toggle"
                 onClick={() => setShowRaw((v) => !v)}
               >
-                {showRaw ? '收起原始错误' : '查看原始错误'}
+                {showRaw ? lt(COPY.hideRaw) : lt(COPY.showRaw)}
               </button>
             ) : null}
             {showRaw && rawError ? <pre className="drama-gen-detail-raw">{rawError}</pre> : null}
           </section>
         ) : (
           <section className={`drama-gen-detail-card${isActive ? '' : ' is-done'}`}>
-            <h4>{STATUS_LABEL[job.status]}</h4>
-            <p>{activeJobHint(job)}</p>
+            <h4>{lt(STATUS_LABEL[job.status])}</h4>
+            <p>{activeJobHint(job, lt)}</p>
             {job.status === 'done' ? (
-              <p className="drama-gen-detail-tip">成片已写回分镜，可在时间轴预览。</p>
+              <p className="drama-gen-detail-tip">{lt(COPY.doneTip)}</p>
             ) : null}
           </section>
         )}
