@@ -1,4 +1,4 @@
-/** 分镜字幕板：预览整集口播字幕，支持折叠与导出。 */
+/** Bảng phụ đề của storyboard: xem trước lời đọc cả tập, có thể thu gọn và xuất. */
 import { useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import type { DramaFragment } from '../../api/drama'
@@ -11,6 +11,8 @@ import {
   subtitleModeUsesModelOutput,
   type DramaSubtitleMode,
 } from '../../lib/dramaSubtitleBoard'
+import { useLocalizedText } from '../../lib/useLocalizedText'
+import type { LocalizedText } from '../../lib/localeStrings'
 
 type Props = {
   fragments: DramaFragment[]
@@ -18,16 +20,35 @@ type Props = {
   subtitleMode: DramaSubtitleMode
 }
 
-// 渲染可折叠的分集字幕板预览与导出按钮。
+const COPY: Record<string, LocalizedText> = {
+  episodeDefault: { zh: '本集', en: 'Episode', vi: 'Tập này' },
+  title: { zh: '字幕板', en: 'Subtitle board', vi: 'Bảng phụ đề' },
+  fromModel: { zh: '模型自出', en: 'Rendered by the model', vi: 'Mô hình tự tạo' },
+  stitched: { zh: '后期拼接', en: 'Stitched afterwards', vi: 'Ghép sau hậu kỳ' },
+  cueCount: { zh: '{n} 条', en: '{n} cues', vi: '{n} câu' },
+  exportTitle: { zh: '导出 SRT，可直接导入剪映', en: 'Export SRT, ready to import into JianYing', vi: 'Xuất SRT, nạp thẳng vào JianYing được' },
+  export: { zh: '导出SRT', en: 'Export SRT', vi: 'Xuất SRT' },
+  fileSuffix: { zh: '字幕', en: 'subtitles', vi: 'phu-de' },
+  empty: {
+    zh: '当前分镜里还没有可预览的对白/旁白字幕。',
+    en: 'There is no dialogue or narration to preview in this storyboard yet.',
+    vi: 'Storyboard này chưa có đối thoại hay lời dẫn để xem trước.',
+  },
+  shot: { zh: '片段 {n}', en: 'Shot {n}', vi: 'Cảnh {n}' },
+}
+
+// Render bảng phụ đề của tập, có thể thu gọn, kèm nút xuất.
 export function DramaSubtitleBoard({
   fragments,
-  episodeName = '本集',
+  episodeName,
   subtitleMode,
 }: Props) {
+  const lt = useLocalizedText()
   const cues = buildDramaSubtitleBoard(fragments)
   const modelOutput = subtitleModeUsesModelOutput(subtitleMode)
-  // collapsed 默认折叠，减少右侧预览占位
+  // collapsed mặc định thu gọn, để bớt chiếm chỗ ở khung xem bên phải
   const [collapsed, setCollapsed] = useState(true)
+  const episodeLabel = episodeName || lt(COPY.episodeDefault)
 
   return (
     <section className={`drama-subtitle-board${collapsed ? ' is-collapsed' : ''}`}>
@@ -39,9 +60,10 @@ export function DramaSubtitleBoard({
           onClick={() => setCollapsed((prev) => !prev)}
         >
           <span className="drama-subtitle-board__title-wrap">
-            <h4>字幕板</h4>
+            <h4>{lt(COPY.title)}</h4>
             <p>
-              {modelOutput ? '模型自出' : '后期拼接'} · {cues.length} 条
+              {modelOutput ? lt(COPY.fromModel) : lt(COPY.stitched)} ·{' '}
+              {lt(COPY.cueCount).replace('{n}', String(cues.length))}
             </p>
           </span>
           {collapsed ? (
@@ -54,22 +76,25 @@ export function DramaSubtitleBoard({
           type="button"
           className="drama-subtitle-board__export"
           disabled={cues.length === 0}
-          title="导出 SRT，可直接导入剪映"
+          title={lt(COPY.exportTitle)}
           onClick={(event) => {
             event.stopPropagation()
             const srt = exportDramaSubtitleBoardSrt(fragments)
             if (!srt) return
-            // 剪映桌面版可识别 UTF-8 BOM 的 .srt
+            // JianYing bản desktop nhận được file .srt có BOM UTF-8
             const blob = new Blob(['\uFEFF', srt], { type: 'application/x-subrip;charset=utf-8' })
-            triggerBlobDownload(blob, `${sanitizeMediaBasename(episodeName)}_字幕.srt`)
+            triggerBlobDownload(
+              blob,
+              `${sanitizeMediaBasename(episodeLabel)}_${lt(COPY.fileSuffix)}.srt`,
+            )
           }}
         >
-          导出SRT
+          {lt(COPY.export)}
         </button>
       </div>
       {!collapsed ? (
         cues.length === 0 ? (
-          <div className="drama-subtitle-board__empty">当前分镜里还没有可预览的对白/旁白字幕。</div>
+          <div className="drama-subtitle-board__empty">{lt(COPY.empty)}</div>
         ) : (
           <div className="drama-subtitle-board__list">
             {cues.map((cue, index) => (
@@ -81,7 +106,9 @@ export function DramaSubtitleBoard({
                   <span>
                     {formatSubtitleClock(cue.startSec)} - {formatSubtitleClock(cue.endSec)}
                   </span>
-                  <span>片段 {String(cue.fragmentIndex + 1).padStart(2, '0')}</span>
+                  <span>
+                    {lt(COPY.shot).replace('{n}', String(cue.fragmentIndex + 1).padStart(2, '0'))}
+                  </span>
                   <span>{cue.speaker}</span>
                 </div>
                 <div className="drama-subtitle-board__text">{cue.text}</div>
