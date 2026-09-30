@@ -16,6 +16,8 @@ const PORT = 9333
 const BASE = 'http://127.0.0.1:5173'
 const API = 'http://127.0.0.1:8000'
 const OUT = process.env.AUDIT_OUT || 'C:\\Users\\NOVAST~1\\AppData\\Local\\Temp\\kilo\\audit'
+const VIEWPORT_W = Number(process.env.AUDIT_W) || 1440
+const VIEWPORT_H = Number(process.env.AUDIT_H) || 900
 const PROFILE = 'C:\\Users\\NOVAST~1\\AppData\\Local\\Temp\\kilo\\edge-profile'
 
 const CJK = /[\u4e00-\u9fff]/
@@ -230,16 +232,41 @@ async function main() {
                      localStorage.setItem('token', ${JSON.stringify(token)});`,
       })
       await send('Page.enable')
-      await send('Page.navigate', { url: BASE + route })
-      await sleep(2600)
-      await send('Page.reload', { ignoreCache: false })
-      await sleep(2600)
-
-      const textRes = await send('Runtime.evaluate', {
-        expression: 'document.body ? document.body.innerText : ""',
-        returnByValue: true,
+      /*
+       * Khoá viewport về kích thước desktop thật. Không có lệnh này thì Edge headless mở
+       * cửa sổ mặc định khoảng 756px, và ảnh chụp ra một bố cục thu hẹp mà người dùng
+       * desktop không bao giờ thấy — chữ bị xuống dòng từng từ, ô vỡ, nhưng người xem
+       * ảnh lại tưởng là lỗi bố cục thật. Giờ ảnh phản ánh đúng thứ người dùng thấy.
+       */
+      await send('Emulation.setDeviceMetricsOverride', {
+        width: VIEWPORT_W,
+        height: VIEWPORT_H,
+        deviceScaleFactor: 1,
+        mobile: false,
       })
-      const text = textRes?.result?.value || ''
+      await send('Page.navigate', { url: BASE + route })
+      await send('Page.reload', { ignoreCache: false })
+
+      /*
+       * Chờ trang thật sự ổn định thay vì đếm số cứng. Cứ ngủ 2,6 giây rồi đọc thì Vite còn
+       * đang biên dịch ở lần tải đầu, `innerText` rỗng hoặc còn là "Đang tải…", và audit báo
+       * "trang rỗng" cho một trang vốn render tốt — báo xong mà thực ra **chưa kiểm tra
+       * được gì**. Điều kiện là nội dung đủ dài *và* không còn đổi giữa hai lần lấy liên tiếp.
+       */
+      let text = ''
+      let prev = ''
+      let stable = 0
+      for (let i = 0; i < 16; i++) {
+        await sleep(400)
+        const res = await send('Runtime.evaluate', {
+          expression: 'document.body ? document.body.innerText : ""',
+          returnByValue: true,
+        })
+        text = res?.result?.value || ''
+        stable = text === prev && text.trim().length >= 40 ? stable + 1 : 0
+        prev = text
+        if (stable >= 2) break
+      }
 
       const cjk = (text.match(/[\u4e00-\u9fff]/g) || []).length
       const rawKeys = [...new Set(text.match(RAW_KEY) || [])]
