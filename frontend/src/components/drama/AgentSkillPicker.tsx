@@ -3,6 +3,7 @@ import { useRef, useState, type MouseEvent } from 'react'
 import { Download, Eye, X } from 'lucide-react'
 import type { AgentSkill } from '../../api/agentSkills'
 import { triggerBlobDownload } from '../../lib/clientDownload'
+import EmptyState from '../ui/EmptyState'
 import { useLocalizedText } from '../../lib/useLocalizedText'
 import type { LocalizedText } from '../../lib/localeStrings'
 
@@ -120,7 +121,12 @@ export function AgentSkillPicker({
         ) : null}
       </div>
       {skills.length === 0 ? (
-        <p className={`${rootClass}-empty`}>{emptyText || lt(COPY.empty)}</p>
+        <EmptyState
+          imageStyle="pixel-art"
+          compact
+          className={`${rootClass}-empty pf-skill-picker-empty`}
+          message={emptyText || lt(COPY.empty)}
+        />
       ) : (
         <ul className={`${rootClass}-list`}>
           {skills.map((skill) => {

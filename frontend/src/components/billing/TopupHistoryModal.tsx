@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import Modal from '../ui/Modal'
+import EmptyState from '../ui/EmptyState'
 import { api, type BillingOrder } from '../../api'
 import { localized, type LocalizedText } from '../../lib/localeStrings'
 import { useLocalizedText } from '../../lib/useLocalizedText'
@@ -81,7 +82,9 @@ export default function TopupHistoryModal({ open, onClose }: Props) {
       {loading ? <p className="pf-muted">{lt(COPY.loading)}</p> : null}
       {error ? <p className="pf-error">{error}</p> : null}
       {!loading && !error && orders.length === 0 ? (
-        <p className="pf-muted">{lt(COPY.empty)}</p>
+        <EmptyState imageStyle="american-retro-hollywood" className="pf-topup-empty">
+          <p>{lt(COPY.empty)}</p>
+        </EmptyState>
       ) : null}
       {!loading && orders.length > 0 ? (
         <ul className="pf-topup-list">

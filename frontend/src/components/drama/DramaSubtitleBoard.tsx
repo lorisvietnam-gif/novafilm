@@ -1,6 +1,7 @@
 /** Bảng phụ đề của storyboard: xem trước lời đọc cả tập, có thể thu gọn và xuất. */
 import { useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
+import EmptyState from '../ui/EmptyState'
 import type { DramaFragment } from '../../api/drama'
 import { sanitizeMediaBasename } from '../../lib/canvasNodeMedia'
 import { triggerBlobDownload } from '../../lib/clientDownload'
@@ -94,7 +95,9 @@ export function DramaSubtitleBoard({
       </div>
       {!collapsed ? (
         cues.length === 0 ? (
-          <div className="drama-subtitle-board__empty">{lt(COPY.empty)}</div>
+          <EmptyState imageStyle="shadow-puppet-illustration" className="drama-subtitle-board__empty">
+            <p>{lt(COPY.empty)}</p>
+          </EmptyState>
         ) : (
           <div className="drama-subtitle-board__list">
             {cues.map((cue, index) => (

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, type UsageChargeRecord } from '../../api'
 import Pagination from '../ui/Pagination'
+import EmptyState from '../ui/EmptyState'
 import { pageCountOf } from '../../lib/pagination'
 import { LOCALE_DATE, getActiveLocale } from '../../i18n/detect'
 import { localized, type LocalizedText } from '../../lib/localeStrings'
@@ -109,9 +110,9 @@ export default function UsageChargeRecords({ variant = 'compact' }: UsageChargeR
       {error ? <p className="pf-error">{error}</p> : null}
 
       {!loading && !error && items.length === 0 ? (
-        <div className="pf-settings-empty">
+        <EmptyState imageStyle="retro-narrative-film" className="pf-settings-empty">
           <p>{lt(COPY.empty)}</p>
-        </div>
+        </EmptyState>
       ) : null}
 
       {items.length > 0 ? (

@@ -2,6 +2,7 @@
 import { Download, Maximize, Minimize, MonitorPlay, Pause, Play, Volume2, VolumeX } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { resolveDramaMediaUrl, type DramaFragment } from '../../api/drama'
+import EmptyState from '../ui/EmptyState'
 import {
   buildEpisodeVideoTimelineSegments,
   formatVideoTimelineClock,
@@ -450,7 +451,12 @@ export function DramaFragmentSegmentedVideoPlayer({
           <img src={posterUrl} alt={lt(COPY.posterAlt)} />
         ) : (
           <div className="drama-ep-player-placeholder">
-            <span>{lt(COPY.pending)}</span>
+            <EmptyState
+              imageStyle="wuxia-realistic-photo"
+              tone="dark"
+              className="drama-ep-player-empty"
+              message={lt(COPY.pending)}
+            />
           </div>
         )}
       </div>
