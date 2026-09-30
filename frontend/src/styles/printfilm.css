@@ -1095,11 +1095,14 @@
   margin-bottom: 1rem;
 }
 
+/* Page title (/drama, /assets). Same serif rung as the other page headers. */
 .pf-drama-list-title-row h1 {
   margin: 0;
-  font-size: 1.65rem;
-  font-weight: 750;
-  letter-spacing: -0.02em;
+  font-family: var(--pf-font-serif);
+  font-size: clamp(1.65rem, 1.2rem + 1.3vw, 2.1rem);
+  font-weight: var(--pf-weight-bold);
+  letter-spacing: var(--pf-tracking-tightest);
+  line-height: var(--pf-leading-display);
 }
 
 .pf-drama-list-actions {
@@ -3007,12 +3010,40 @@
   margin-bottom: 0.75rem;
 }
 
+/* The editorial voice for a page that opens on a plain header row.
+
+   Measured across fourteen routes, page-level h1 resolved to three families
+   and nine sizes: Noto Serif at 68px (/), 57.6px (/method), 42.4px (/pricing),
+   32px (/help, /contact, /terms); Noto Sans at 32px (/tools, /history),
+   29.6px (/studio/new, via .pf-page-title), 26.4px (/assets, /drama) and
+   22.4px (/settings); and Space Grotesk at 32px (/auth, which media.css tries
+   to move to the serif but App.css outranks it).
+
+   /tools is the clearest case: a bare <h1> with no class at all, so it took
+   the browser default — 32px Noto Sans at the default weight. The hero pages
+   earn their size from a photograph behind them; a utility page header sits on
+   flat surface and only needs a consistent voice.
+
+   So this sets the serif at the same rung .pf-page-title already occupies, and
+   .pf-page-title itself moves to the serif to match. A bare h1 inside
+   .pf-page-head was previously invisible to the type system. */
+.pf-page-head h1 {
+  margin: 0;
+  font-family: var(--pf-font-serif);
+  font-size: clamp(1.75rem, 1.2rem + 1.6vw, 2.5rem);
+  font-weight: var(--pf-weight-bold);
+  letter-spacing: var(--pf-tracking-tightest);
+  line-height: var(--pf-leading-display);
+  color: var(--pf-ink);
+}
+
 .pf-page-title {
   margin: 0.35rem 0 0;
-  font-size: clamp(1.45rem, 2.4vw, 1.85rem);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.25;
+  font-family: var(--pf-font-serif);
+  font-size: clamp(1.45rem, 1.1rem + 1vw, 1.85rem);
+  font-weight: var(--pf-weight-bold);
+  letter-spacing: var(--pf-tracking-tightest);
+  line-height: var(--pf-leading-display);
 }
 
 .pf-toolbar {
@@ -5048,11 +5079,14 @@ button.pf-shot-editable:disabled {
   flex-wrap: wrap;
 }
 
+/* Page title (/history). Same serif rung as the other page headers. */
 .pf-history-head h1 {
   margin: 0;
-  font-size: clamp(1.6rem, 2.5vw, 2rem);
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-family: var(--pf-font-serif);
+  font-size: clamp(1.75rem, 1.2rem + 1.6vw, 2.5rem);
+  font-weight: var(--pf-weight-bold);
+  letter-spacing: var(--pf-tracking-tightest);
+  line-height: var(--pf-leading-display);
 }
 
 .pf-history-head p {
@@ -5133,10 +5167,14 @@ button.pf-shot-editable:disabled {
   margin-bottom: 0.75rem;
 }
 
+/* Same min-width:auto problem as the row that contains it: without the opt-out
+   this flex item's automatic minimum is the 358px of content it holds, which
+   is what pushed the page into a horizontal scrollbar on a 360px screen. */
 .pf-history-filter-right {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
 }
 
 .pf-type-select {
@@ -5154,6 +5192,14 @@ button.pf-shot-editable:disabled {
   cursor: not-allowed;
 }
 
+/* `min-width: 220px` on the field is the floor the filter row needs, but the
+   row itself has no floor of its own and inherited `min-width: auto`, so at a
+   360px viewport it held 358px of content inside a 312px flex line and pushed
+   22px of page-wide horizontal scroll — the type select and the search box
+   hanging off the right edge. `flex: 1 1 220px` lets the field keep that floor
+   where there is room and give it up where there is not; `min-width: 0` on the
+   row is what lets that happen at all. Measured after: 0px of overflow at 360
+   and the field at 312px. */
 .pf-search-field {
   display: inline-flex;
   align-items: center;
@@ -5162,7 +5208,8 @@ button.pf-shot-editable:disabled {
   background: var(--pf-surface);
   border-radius: var(--pf-radius-sm);
   padding: 0.45rem 0.75rem;
-  min-width: 220px;
+  flex: 1 1 220px;
+  min-width: 0;
   color: var(--pf-muted);
 }
 

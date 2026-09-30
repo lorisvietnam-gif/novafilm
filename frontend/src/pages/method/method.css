@@ -1,25 +1,38 @@
-/* 获客短视频宣传页：亮色纸面 + PRINTFILM 酸橙点缀 */
+/* Trang phương pháp — KHÔNG phải một hệ thiết kế riêng.
+   ---------------------------------------------------------------------------
+   File này từng khai báo mười một màu riêng dưới namespace `--m-*`, tất cả là
+   hex tĩnh, và không có khối `prefers-color-scheme` nào. Đo thật trên
+   `prefers-color-scheme: dark`: trang này vẫn sáng trắng trong khi mọi trang
+   còn lại trong ảnh chụp cùng lượt đều tối. Màu nhấn là xanh chanh #b6ff00
+   trong khi phần còn lại của sản phẩm dùng vàng #f2c94c, và font là
+   `'Noto Sans SC', 'PingFang SC'` — stack ưu tiên Trung, nên chữ tiếng Việt
+   được kết xuống bằng biến thể Trung với hệ số khác hẳt.
+
+   Nay mười một tên `--m-*` trỏ thẳng về token `--pf-*`. Vì token `--pf-*` đã
+   tự lật theo sáng/tối, cả trang này nhận được nền tối mà không cần khối
+   override riêng. Giữ namespace `--m-*` để không phải sửa hàng trăm dòng bên
+   dưới và để diff đọc được. */
 
 .pf-method {
-  --m-bg: #f7f8fa;
-  --m-panel: #ffffff;
-  --m-line: rgba(17, 19, 24, 0.12);
-  --m-line-soft: rgba(17, 19, 24, 0.08);
-  --m-txt: #111318;
-  --m-soft: #4b5563;
-  --m-muted: #6b7280;
-  --m-lime: #b6ff00;
-  --m-lime-ink: #111318;
-  --m-lime-deep: #5f8f00;
-  --m-warn: #c67a12;
+  --m-bg: var(--pf-bg);
+  --m-panel: var(--pf-surface);
+  --m-line: var(--pf-line);
+  --m-line-soft: var(--pf-line-hairline);
+  --m-txt: var(--pf-ink);
+  --m-soft: var(--pf-ink-secondary);
+  --m-muted: var(--pf-ink-tertiary);
+  --m-lime: var(--pf-accent);
+  --m-lime-ink: var(--pf-on-accent);
+  --m-lime-deep: var(--pf-accent-ink);
+  --m-warn: var(--pf-warning-ink);
   min-height: 100vh;
   min-height: 100dvh;
   background:
-    radial-gradient(900px 420px at 8% -10%, rgba(182, 255, 0, 0.22), transparent 55%),
-    radial-gradient(640px 320px at 100% 0%, rgba(182, 255, 0, 0.12), transparent 50%),
+    radial-gradient(900px 420px at 8% -10%, rgb(var(--pf-accent-rgb) / 0.16), transparent 55%),
+    radial-gradient(640px 320px at 100% 0%, rgb(var(--pf-accent-rgb) / 0.09), transparent 50%),
     var(--m-bg);
   color: var(--m-txt);
-  font-family: 'Noto Sans SC', 'PingFang SC', sans-serif;
+  font-family: var(--pf-font-sans);
 }
 
 .pf-method a {
@@ -52,7 +65,7 @@
   gap: 1rem;
   min-height: 64px;
   padding: 0.7rem 1.4rem;
-  background: rgba(247, 248, 250, 0.92);
+  background: var(--pf-surface-glass);
   border-bottom: 1px solid var(--m-line-soft);
   backdrop-filter: blur(14px);
 }
@@ -83,7 +96,7 @@
 }
 
 .pf-method-word strong {
-  font-family: 'Space Grotesk', 'Noto Sans SC', sans-serif;
+  font-family: var(--pf-font-sans);
   font-size: 0.95rem;
   letter-spacing: 0.04em;
 }
@@ -105,7 +118,7 @@
 
 .pf-method-nav .pf-nav-lang {
   border-color: var(--m-line);
-  background: #fff;
+  background: var(--m-panel);
 }
 
 .pf-method-btn {
@@ -130,18 +143,18 @@
 .pf-method-btn.is-lime {
   background: var(--m-lime);
   color: var(--m-lime-ink);
-  box-shadow: 0 8px 24px rgba(182, 255, 0, 0.18);
+  box-shadow: 0 8px 24px rgb(var(--pf-accent-rgb) / 0.18);
 }
 
 .pf-method-btn.is-ghost {
   border: 1px solid var(--m-line);
-  background: #fff;
+  background: var(--m-panel);
   color: var(--m-txt);
 }
 
 .pf-method-btn.is-ghost:hover {
   color: var(--m-txt);
-  background: #f4ffd6;
+  background: var(--pf-accent-soft);
 }
 
 .pf-method-btn.is-lg {
@@ -156,19 +169,53 @@
   padding: 2.4rem 0 4.5rem;
 }
 
+/* The one page in the product that carried no photograph at all: a wall of
+   text on flat paper, while the set in styles/media.css was already loaded for
+   every other page. The kicker, headline and lede now sit on the city still
+   with the same measured scrim ladder the landing hero uses, and their ink
+   comes from the on-media tokens so the pair is legal in both themes.
+
+   `--pf-media-scrim` is the floor rung and it measures 5.38:1 for white at
+   0.92 over a pure-white pixel, so the left-weighted ladder is the safe
+   direction: the copy column is 44rem and the bright half of the frame is
+   right of it. Below 768 the column is full width, so the scrim rotates
+   vertical — the same rotation the landing hero needed and that had to be
+   rescoped in media.css to take effect. */
 .pf-method-hero {
+  max-width: none;
+  margin: 0 -2rem;
+  padding: 2.6rem 2rem 2.4rem;
+  background-color: var(--pf-scrim-rgb);
+  background-image:
+    linear-gradient(
+      100deg,
+      var(--pf-media-scrim-full) 0%,
+      var(--pf-media-scrim-strong) 26%,
+      var(--pf-media-scrim) 50%,
+      var(--pf-media-scrim-soft) 100%
+    ),
+    var(--pf-media-plate-city);
+  background-size: cover, cover;
+  background-position: center, 62% 50%;
+  background-repeat: no-repeat, no-repeat;
+}
+
+.pf-method-hero > * {
   max-width: 44rem;
-  padding: 1.2rem 0 2rem;
 }
 
 .pf-method-kicker {
   margin: 0 0 0.7rem;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--pf-font-sans);
   font-size: 0.78rem;
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--m-lime-deep);
+}
+
+.pf-method-hero .pf-method-kicker {
+  color: var(--pf-accent-300);
 }
 
 .pf-method-hero h1 {
@@ -178,6 +225,7 @@
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1.12;
+  color: var(--pf-on-media-strong);
 }
 
 .pf-method-lede {
@@ -187,11 +235,20 @@
   line-height: 1.75;
 }
 
+.pf-method-hero .pf-method-lede {
+  color: var(--pf-on-media);
+}
+
 .pf-method-lede em {
   font-style: normal;
   color: var(--m-txt);
   font-weight: 650;
-  box-shadow: inset 0 -0.42em 0 rgba(182, 255, 0, 0.28);
+  box-shadow: inset 0 -0.42em 0 rgb(var(--pf-accent-rgb) / 0.28);
+}
+
+.pf-method-hero .pf-method-lede em {
+  color: var(--pf-on-media-strong);
+  box-shadow: inset 0 -0.42em 0 rgb(var(--pf-accent-rgb) / 0.55);
 }
 
 .pf-method-notice,
@@ -204,8 +261,8 @@
 }
 
 .pf-method-notice {
-  border-color: rgba(198, 122, 18, 0.28);
-  background: #fff8ec;
+  border-color: color-mix(in srgb, var(--pf-warning-ink) 28%, transparent);
+  background: var(--pf-warning-soft);
 }
 
 .pf-method-notice strong,
@@ -236,16 +293,16 @@
   padding: 0.4rem 0.75rem;
   border-radius: 999px;
   border: 1px solid var(--m-line);
-  background: #fff;
+  background: var(--m-panel);
   color: var(--m-soft);
   text-decoration: none;
   font-size: 0.86rem;
 }
 
 .pf-method-toc a:hover {
-  border-color: #7ab800;
+  border-color: var(--pf-accent-stroke);
   color: var(--m-txt);
-  background: #f4ffd6;
+  background: var(--pf-accent-soft);
 }
 
 .pf-method-section {
@@ -296,7 +353,7 @@
   position: absolute;
   left: 1.1rem;
   top: 1.2rem;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--pf-font-sans);
   font-size: 1.05rem;
   font-weight: 700;
   color: var(--m-lime-deep);
@@ -348,12 +405,27 @@
   line-height: 1.65;
 }
 
+/* Four columns of prose is genuinely wider than a phone: the table keeps a
+   640px floor and the box scrolls sideways, which is the expected interaction
+   for a comparison table. What was missing was any sign of it. Measured at
+   360px the table rendered 651px inside a 328px frame with a clean right edge,
+   so the last column simply looked absent rather than deferred.
+
+   The two `local` gradients ride with the content and the two `scroll` ones
+   stay pinned to the frame, so each edge shadow is covered exactly when that
+   edge is reached and nothing is drawn when the table fits outright. No extra
+   element, no !important, and it needs no JS to keep in sync. */
 .pf-method-table-wrap {
   overflow-x: auto;
   margin: 0 0 1rem;
   border: 1px solid var(--m-line-soft);
   border-radius: 16px;
-  background: var(--m-panel);
+  background:
+    linear-gradient(90deg, var(--m-panel) 40%, transparent) left center / 2.5rem 100% no-repeat local,
+    linear-gradient(-90deg, var(--m-panel) 40%, transparent) right center / 2.5rem 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgb(var(--pf-scrim-rgb) / 0.22), transparent) left center / 1.1rem 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgb(var(--pf-scrim-rgb) / 0.22), transparent) right center / 1.1rem 100% no-repeat scroll,
+    var(--m-panel);
 }
 
 .pf-method-table {
@@ -430,8 +502,8 @@
   gap: 1.4rem;
   padding: 1.6rem 1.5rem;
   border-radius: 22px;
-  border: 1px solid rgba(182, 255, 0, 0.55);
-  background: linear-gradient(135deg, #f4ffd6 0%, #ffffff 70%);
+  border: 1px solid color-mix(in srgb, var(--pf-accent) 55%, transparent);
+  background: linear-gradient(135deg, var(--pf-accent-soft) 0%, var(--m-panel) 70%);
 }
 
 .pf-method-close h2 {
@@ -474,12 +546,29 @@
 
 .pf-method-copy {
   color: var(--m-soft) !important;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--pf-font-sans);
 }
 
 @media (max-width: 820px) {
   .pf-method-nav-actions .pf-nav-lang {
     display: none;
+  }
+
+  /* The copy column is the full width of the band below this point, so a
+     left-weighted ladder leaves the second half of the lede on the brightest
+     part of the photograph. Rotated vertical, the strong rungs land on the
+     lines that actually carry text. */
+  .pf-method-hero {
+    background-image:
+      linear-gradient(
+        180deg,
+        var(--pf-media-scrim-full) 0%,
+        var(--pf-media-scrim-strong) 40%,
+        var(--pf-media-scrim) 72%,
+        var(--pf-media-scrim-soft) 100%
+      ),
+      var(--pf-media-plate-city);
+    background-position: center, 50% 40%;
   }
 
   .pf-method-grid,
@@ -512,6 +601,26 @@
 
   .pf-method-main {
     width: min(1120px, calc(100% - 1.25rem));
+  }
+
+  /* Trade some of the horizontal padding back so a swipe reveals more than
+     one column at a time. The table still scrolls — 0.55rem of cell padding
+     does not make four columns of prose fit 360px, and pretending otherwise
+     would just bury the content in twenty-line cells. */
+  .pf-method-table th,
+  .pf-method-table td {
+    padding: 0.6rem 0.7rem;
+  }
+
+  .pf-method-table {
+    font-size: 0.85rem;
+  }
+
+  /* The hero band goes edge to edge here, so the negative margin has to shrink
+     to the page gutter instead of the fixed 2rem it uses on wide screens. */
+  .pf-method-hero {
+    margin: 0 -0.625rem;
+    padding: 2rem 0.625rem 1.8rem;
   }
 }
 

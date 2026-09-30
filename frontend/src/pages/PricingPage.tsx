@@ -291,7 +291,11 @@ export default function PricingPage() {
           <section className="pf-pricing-info">
             <article className="pf-pricing-info-card">
               <div className="pf-pricing-info-visual is-billing" aria-hidden>
-                <CreditCard size={28} strokeWidth={1.6} />
+                {/* Both tiles are 3.5rem and both glyphs are 28px, so the pair
+                    has to carry one stroke weight. This was 1.6 against the
+                    check's 2.5 beside it — a 56% difference, clearly visible in
+                    a screenshot of the two cards side by side. */}
+                <CreditCard size={28} strokeWidth={2.25} />
               </div>
               <div>
                 <h3>{t('pricing.billingTitle')}</h3>
@@ -304,7 +308,7 @@ export default function PricingPage() {
             </article>
             <article className="pf-pricing-info-card">
               <div className="pf-pricing-info-visual is-value" aria-hidden>
-                <Check size={28} strokeWidth={2.5} />
+                <Check size={28} strokeWidth={2.25} />
               </div>
               <div>
                 <h3>{t('pricing.whyTitle')}</h3>
