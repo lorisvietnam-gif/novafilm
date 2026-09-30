@@ -1,0 +1,117 @@
+NOTICE
+======
+
+This product ("the Product") is a derivative work of PRINTFILM.
+
+Upstream project
+----------------
+
+    PRINTFILM
+    https://github.com/yi1108/printfilm
+    Copyright (c) 2026 PRINTFILM
+    Licensed under the MIT License
+
+The Product is distributed under the same MIT License. The full license text is
+in the `LICENSE` file at the root of this repository and MUST be retained,
+unmodified, in every copy and redistribution of the software. The MIT License
+requires that the above copyright notice and the permission notice be included
+in all copies or substantial portions of the software. Do not remove, alter, or
+obscure the `LICENSE` file, and do not add product names or trademarks to the
+`LICENSE` file itself.
+
+Attribution
+-----------
+
+    This product is based on PRINTFILM (https://github.com/yi1108/printfilm),
+    Copyright (c) 2026 PRINTFILM, used under the MIT License. The PRINTFILM
+    name and logo remain the property of the upstream authors. See the
+    `LICENSE` file for the full terms.
+
+Trademarks and branding
+-----------------------
+
+The MIT License grants permission to use, copy, modify, merge, publish,
+distribute, sublicense, and sell copies of the software. It does NOT grant any
+rights in trademarks, trade names, service marks, logos, or other brand
+identifiers.
+
+Specifically:
+
+  * "PRINTFILM" (word and logo), the wordmark, and associated visual identity
+    are trademarks of the upstream authors. They are NOT licensed under the MIT
+    License.
+  * The Product is a rebrand. The Product name, logo, favicon, and wordmark are
+    the responsibility of the Product's own maintainers.
+  * The upstream logo and wordmark must not be presented as the Product's own.
+    Do not claim, in any form, that the upstream logo is ours.
+  * Several upstream marks are still present in the codebase (UI strings,
+    e-mail subjects and bodies, file names, `index.html` titles and meta tags,
+    `logo.png` / `logo.svg` / `favicon.svg`, and documentation). These are
+    retained for provenance and history only. Each one must be reviewed and
+    replaced before the Product is distributed publicly or commercially.
+    See `docs/OPEN_SOURCE_CHECKLIST.md` for the itemised list and its status.
+  * Third-party marks shown inside bundled media assets (for example product
+    packaging visible in image-style preset thumbnails) are the property of
+    their respective owners and are not covered by the MIT License either.
+
+Major changes made by this fork
+-------------------------------
+
+The MIT License permits derivative works. For traceability, the following are
+the substantial changes made relative to the upstream code base. This list is
+informative, not a warranty of completeness.
+
+  1. Third user-interface locale: Vietnamese (`vi`).
+     - New locale tree under `frontend/src/i18n/locales/vi/`, registered in
+       `frontend/src/i18n/detect.ts` and `frontend/src/i18n/messages.ts`.
+     - The default locale is now `vi`; `en` is the secondary locale.
+     - `zh` is retained for ENUM-valued data, API payloads, and stored records.
+     - The language switcher exposes `vi` / `en` / `zh`.
+     - Web font subsets: Noto Sans (Latin Extended, for `vi`) alongside
+       Noto Sans SC / Noto Serif SC (for `zh`).
+
+  2. New visual design system.
+     - Replacement stylesheets and semantic class naming for the user-facing
+       application, replacing the upstream presentation layer.
+     - The admin console keeps its own Tailwind design system.
+
+  3. Operations documentation.
+     - `docs/OPERATIONS.md` — architecture, configuration, task lifecycle,
+       billing, model routing, payment, media storage, deployment, and
+       troubleshooting. Written from the actual code in this repository.
+     - `docs/OPEN_SOURCE_CHECKLIST.md` — itemised audit of licence, trademark,
+       asset-provenance, secret-leak, provider-lock, and third-party-dependency
+       items, each with a status and a decision that a human still has to make.
+     - `docs/VI_BACKLOG.md` — measured inventory of remaining Chinese text in
+       the backend, admin console, and frontend.
+     - `docs/ADMIN_I18N_PLAN.md` — plan for localisation of the admin console.
+     - Rewritten `README.md` and `docs/STANDARDS.md`; updated `CLAUDE.md`.
+
+  4. Dead-code removal and comment localisation.
+     - Removal of unused frontend exports that were byte-for-byte duplicates of
+       `frontend/src/i18n/locales/*/pages.ts` content.
+     - Translation of backend source comments and docstrings from Chinese into
+       Vietnamese, restricted to the core backend modules. User-facing runtime
+     strings, API values, log messages, and e-mail bodies are deliberately left
+       unchanged.
+
+  5. Rebranding.
+     - The product is presented under its own name, with its own logo, copy,
+     and documentation. Upstream marks are being retired item by item; see
+     `docs/OPEN_SOURCE_CHECKLIST.md`.
+
+Third-party components
+----------------------
+
+This repository depends on third-party open-source components, each under its
+own licence. Those licences are not replaced by this NOTICE, and each
+dependency's terms continue to apply. See `docs/OPEN_SOURCE_CHECKLIST.md` for
+the current third-party licence audit and for any items that require review
+before public distribution.
+
+Contact
+-------
+
+Questions about this attribution, or about a specific item in
+`docs/OPEN_SOURCE_CHECKLIST.md`, should be raised as an issue in this
+repository so that the decision can be recorded.
