@@ -10,7 +10,7 @@
  * Ảnh nằm trong workspace và trong `.gitignore` — lane đọc được, commit không bị bẩn.
  */
 
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -43,6 +43,46 @@ const API = process.env.AUDIT_API || 'http://127.0.0.1:8000'
 const HERE = resolve(fileURLToPath(new URL('.', import.meta.url)))
 const OUT = process.env.AUDIT_OUT || resolve(HERE, '..', '.kilo', 'audit')
 const PROFILE = join(OUT, '..', `edge-profile-${process.pid}`)
+
+/**
+ * Chốt: **chỉ một audit chạy một lúc.**
+ *
+ * Đã xảy ra: board chạy audit trong khi bunny/5 chạy audit của nó. Hai Edge cùng lúc đẻ ra
+ * **366 tiến trình**, chạy tranh tài nguyên, và cả hai đều hỏng — một cái chết sau 4 dòng, cái
+ * kia bị cắt giữa chừng. Tệ hơn: khi chạy song song thì **không con số nào đáng tin**, mà
+ * board đã nhiều lần dính phải đính chính vì đo nhầm.
+ *
+ * Vì vậy: giữ một file khoá trong thư mục `.kilo` (đã gitignore). Thấy khoá còn sống thì **thoát
+ * ngay kèm lý do** — đừng chạy song song.
+ */
+const LOCK = join(OUT, '..', 'audit.lock')
+mkdirSync(resolve(OUT, '..'), { recursive: true })
+
+function lockHeldByOther() {
+  try {
+    const pid = Number(readFileSync(LOCK, 'utf8').trim())
+    if (!pid || pid === process.pid) return null
+    process.kill(pid, 0) // chỉ kiểm tra, không giết
+    return pid
+  } catch {
+    return null
+  }
+}
+
+const holder = lockHeldByOther()
+if (holder) {
+  throw new Error(
+    `Da co audit khac dang chay (pid ${holder}). `
+      + `Hai audit cung luc se hong ca hai va khong con so nao dung duoc. `
+      + `Cho no chay xong roi chay lai.`,
+  )
+}
+writeFileSync(LOCK, String(process.pid))
+process.on('exit', () => {
+  try {
+    if (Number(readFileSync(LOCK, 'utf8').trim()) === process.pid) rmSync(LOCK, { force: true })
+  } catch { /* da duoc xoa */ }
+})
 
 const CJK = /[\u4e00-\u9fff]/
 
