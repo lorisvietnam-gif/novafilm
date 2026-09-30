@@ -16,6 +16,8 @@ import {
   updateDurationChipElement,
   type MentionCaretRect,
 } from '../../lib/dramaEpisodePromptEditor'
+import { localizeScriptContent } from '../../lib/dramaScriptLabels'
+import { useI18n } from '../../i18n'
 import type { AssetScope } from './dramaEpisodeEditUtils'
 import { EpisodeEditMentionPopover } from './EpisodeEditMentionPopover'
 
@@ -42,6 +44,7 @@ export function EpisodeEditPromptEditor({
   const editorRef = useRef<HTMLDivElement>(null)
   const lastEmittedRef = useRef(content)
   const mentionTriggerRangeRef = useRef<Range | null>(null)
+  const paintedAsDisplayRef = useRef(false)
 
   const [mentionOpen, setMentionOpen] = useState(false)
   const [mentionQuery, setMentionQuery] = useState('')
@@ -49,6 +52,10 @@ export function EpisodeEditPromptEditor({
   const [mentionScope, setMentionScope] = useState<AssetScope>('episode')
   const [mentionActiveIndex, setMentionActiveIndex] = useState(0)
   const [mentionItemsCount, setMentionItemsCount] = useState(0)
+
+  // DOM của trình soạn thảo do tay vẽ vào chứ không phải do React render, nên đổi ngôn ngữ
+  // sẽ không tự vẽ lại. Hook này chỉ để đưa `locale` vào dependency của effect vẽ.
+  const { locale } = useI18n()
 
   // Tra chip theo id tài nguyên để hiển thị
   const resolveChip = useCallback(
@@ -69,28 +76,41 @@ export function EpisodeEditPromptEditor({
     mentionTriggerRangeRef.current = null
   }, [])
 
-  // Đẩy content vào DOM của trình soạn thảo
+  // Đẩy content vào DOM của trình soạn thảo.
+  //
+  // Ở chế độ soạn phải dán **nguyên văn**: DOM được serialize ngược thành `content` và gửi
+  // lên backend, mà backend khớp marker `【字幕…】` / `【对白…】` bằng tiếng Trung — hiển thị bản
+  // dịch rồi bấm "Lưu" là hỏng luôn bài kiểm tra định dạng. Chỉ khi xem mới dùng bản dịch.
   const paint = useCallback(
     (next: string) => {
       const editor = editorRef.current
       if (!editor) return
-      renderPromptEditorContent(editor, next, resolveChip)
+      const asDisplay = !editing
+      renderPromptEditorContent(
+        editor,
+        next,
+        resolveChip,
+        asDisplay ? localizeScriptContent : undefined,
+      )
+      paintedAsDisplayRef.current = asDisplay
     },
-    [resolveChip],
+    [resolveChip, editing],
   )
 
-  // Đồng bộ content từ ngoài vào DOM (khi đang sửa thì bỏ qua chính lần ghi của trình soạn thảo)
+  // Đồng bộ content từ ngoài vào DOM (khi đang sửa thì bỏ qua chính lần ghi của trình soạn thảo).
+  // `paintedAsDisplayRef` bắt buộc vẽ lại lúc bật chế độ soạn: nếu không, DOM còn giữ bản dịch
+  // và lần ghi kế tiếp sẽ lưu nhầm bản dịch đó lên backend.
   useEffect(() => {
-    if (editing && content === lastEmittedRef.current) return
+    if (editing && !paintedAsDisplayRef.current && content === lastEmittedRef.current) return
     paint(content)
     lastEmittedRef.current = content
-  }, [content, editing, paint])
+  }, [content, editing, paint, locale])
 
   // Ở chế độ chỉ đọc, làm mới chip khi danh sách tài nguyên đổi
   useEffect(() => {
     if (editing) return
     paint(content)
-  }, [assets, content, editing, paint])
+  }, [assets, content, editing, paint, locale])
 
   // Vào chế độ sửa thì focus
   useEffect(() => {
