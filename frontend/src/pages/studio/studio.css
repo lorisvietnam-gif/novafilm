@@ -29,6 +29,19 @@
   border-radius: 6px;
 }
 
+/* Same rule one level deeper, so the accent ring also wins over the base
+   `.pf-field-input:focus { outline: none }` inside a studio panel. */
+.studio-scoped .pf-create-col :focus-visible,
+.studio-scoped .pf-board :focus-visible,
+.studio-scoped .pf-editor :focus-visible,
+.studio-scoped .pf-toolbar :focus-visible,
+.studio-scoped .pf-panel-tabs :focus-visible,
+.studio-scoped .modal :focus-visible,
+.studio-scoped .studio-editor-bar :focus-visible {
+  outline: 2px solid var(--studio-accent);
+  outline-offset: 2px;
+}
+
 /* ---------- Page head: calmer rhythm under the stepper ------------------ */
 
 .studio-scoped.pf-page-head {
@@ -69,7 +82,9 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(17, 19, 24, 0) 34%, rgba(17, 19, 24, 0.55) 100%);
+  /* Bottom-heavy enough that the white caption keeps 4.5:1 even when the
+     still behind it is nearly white. */
+  background: linear-gradient(180deg, rgba(17, 19, 24, 0) 30%, rgba(17, 19, 24, 0.74) 100%);
   pointer-events: none;
 }
 
@@ -87,6 +102,7 @@
   color: #ffffff;
   text-align: center;
   letter-spacing: 0.01em;
+  text-shadow: 0 1px 2px rgba(17, 19, 24, 0.55);
 }
 
 .studio-still-note.is-busy {
@@ -419,6 +435,116 @@
   max-height: none;
   object-fit: cover;
   background: #111;
+}
+
+/* ==========================================================================
+   Storyboard board
+   ========================================================================== */
+
+.studio-cover {
+  box-shadow: var(--studio-shadow-sm);
+  background: var(--studio-sunken);
+}
+
+.studio-cover-empty {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+}
+
+.studio-scoped .pf-shot-thumb-btn:hover {
+  outline-color: var(--studio-accent);
+}
+
+/* The shot cell keeps its 96×54 box, but now shows a real still behind the caption
+   instead of a flat grey gradient. */
+.studio-scoped .pf-shot-thumb.studio-still {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  background: var(--studio-sunken);
+}
+
+.studio-scoped .pf-shot-thumb.studio-still img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.studio-scoped .pf-shot-thumb.studio-still .studio-still-note {
+  font-size: 0.7rem;
+  padding: 0.35rem 0.4rem;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(17, 19, 24, 0.6);
+}
+
+.studio-board-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+  margin: 1.5rem 0;
+  text-align: center;
+}
+
+.studio-board-art {
+  display: block;
+  width: min(320px, 100%);
+  overflow: hidden;
+  border-radius: var(--studio-radius);
+  box-shadow: var(--studio-shadow-md);
+}
+
+.studio-board-art img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 7;
+  object-fit: cover;
+  opacity: 0.6;
+  filter: saturate(0.75);
+}
+
+.studio-board-empty p {
+  margin: 0;
+  max-width: 56ch;
+  line-height: 1.6;
+}
+
+.studio-pick-list {
+  max-height: 160px;
+  overflow: auto;
+  border: 1px solid var(--pf-border, #e5e7eb);
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.studio-modal {
+  max-width: 460px;
+}
+
+.studio-preview-none {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  margin-top: 0.75rem;
+}
+
+.studio-scoped .pf-prompt-chip {
+  transition:
+    border-color var(--studio-dur) var(--studio-ease),
+    transform var(--studio-dur) var(--studio-ease),
+    box-shadow var(--studio-dur) var(--studio-ease);
+}
+
+.studio-scoped .pf-prompt-chip:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--studio-accent);
+  box-shadow: var(--studio-shadow-sm);
+}
+
+.studio-scoped .pf-shot-status {
+  transition: background-color var(--studio-dur) var(--studio-ease);
 }
 
 /* ---------- Reduced motion --------------------------------------------- */
