@@ -173,7 +173,7 @@
 
 .pf-method-hero h1 {
   margin: 0 0 1rem;
-  font-family: 'Noto Serif SC', 'Noto Sans SC', serif;
+  font-family: 'Noto Serif', 'Noto Serif SC', 'Noto Sans SC', serif;
   font-size: clamp(2.3rem, 6vw, 3.6rem);
   font-weight: 700;
   letter-spacing: -0.03em;
@@ -256,7 +256,7 @@
 
 .pf-method-section > h2 {
   margin: 0 0 0.85rem;
-  font-family: 'Noto Serif SC', serif;
+  font-family: 'Noto Serif', 'Noto Serif SC', serif;
   font-size: clamp(1.45rem, 3vw, 1.85rem);
   letter-spacing: -0.02em;
 }
@@ -436,7 +436,7 @@
 
 .pf-method-close h2 {
   margin: 0 0 0.45rem;
-  font-family: 'Noto Serif SC', serif;
+  font-family: 'Noto Serif', 'Noto Serif SC', serif;
   font-size: 1.45rem;
 }
 
