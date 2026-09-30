@@ -3,7 +3,7 @@ import AppShell from '../components/layout/AppShell'
 import { useI18n } from '../i18n'
 import { getLegalDoc, type LegalDoc } from '../lib/legalContent'
 
-/** 渲染单份法律文档正文 */
+/** Render nội dung của một văn bản pháp lý */
 function LegalBody({ doc }: { doc: LegalDoc }) {
   const { t } = useI18n()
   return (
@@ -47,7 +47,7 @@ function LegalBody({ doc }: { doc: LegalDoc }) {
   )
 }
 
-/** 用户协议页 */
+/** Trang điều khoản sử dụng */
 export function TermsPage() {
   const { locale } = useI18n()
   const doc = getLegalDoc('terms', locale)
@@ -60,7 +60,7 @@ export function TermsPage() {
   )
 }
 
-/** 隐私政策页 */
+/** Trang chính sách quyền riêng tư */
 export function PrivacyPage() {
   const { locale } = useI18n()
   const doc = getLegalDoc('privacy', locale)

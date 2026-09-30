@@ -12,7 +12,7 @@ import { getDramaImageStylePreviewUrl } from '../lib/dramaImageStylePreviews'
 import type { ImageStyleId } from '../lib/dramaImageStyles'
 import { PRODUCT_ICONS, localizeToolDefs } from '../lib/toolsCatalog'
 
-/** 产品入口卡的配图（仓库内既有素材，懒加载；纯装饰）。 */
+/** Ảnh của thẻ lối vào sản phẩm (dùng ảnh đã có sẵn trong repo, tải trễ, thuần trang trí). */
 const PRODUCT_ART = {
   drama: 'palace-intrigue-cold',
   kepu: 'retro-sci-fi-atompunk',
@@ -27,7 +27,7 @@ export default function HomePage() {
   const KepuIcon = PRODUCT_ICONS.kepu
   const tools = localizeToolDefs(m)
 
-  // 未登录去登录；已登录弹出产品选择
+  // Chưa đăng nhập thì tới trang đăng nhập; đã đăng nhập thì mở popup chọn sản phẩm
   function goCreate() {
     if (!loggedIn) {
       nav('/auth?next=/')
@@ -36,7 +36,7 @@ export default function HomePage() {
     setCreateOpen(true)
   }
 
-  // 产品入口：未登录带 next 回跳
+  // Lối vào sản phẩm: chưa đăng nhập thì kèm next để quay lại
   function goAuthOr(path: string) {
     nav(loggedIn ? path : `/auth?next=${encodeURIComponent(path)}`)
   }

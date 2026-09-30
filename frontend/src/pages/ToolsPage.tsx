@@ -7,7 +7,7 @@ import { useI18n } from '../i18n'
 import type { ImageStyleId } from '../lib/dramaImageStyles'
 import { PRODUCT_ICONS, localizeToolDefs, type ToolId } from '../lib/toolsCatalog'
 
-/** 每个工具卡片配一张主题最接近的画风图（均为仓库内既有素材，懒加载）。 */
+/** Mỗi thẻ công cụ gán một ảnh phong cách gần nhất về chủ đề (đều là ảnh đã có sẵn trong repo, tải trễ). */
 const TOOL_ART: Record<ToolId, ImageStyleId> = {
   t2i: 'ancient-romance-soft',
   i2i: '90s-realistic-film',

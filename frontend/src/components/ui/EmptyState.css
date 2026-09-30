@@ -93,12 +93,19 @@
 .drama-ep-player-placeholder .pf-empty-state,
 .pf-skill-picker-empty,
 .fc-skill-picker-empty,
-.pf-topup-empty {
+.pf-topup-empty,
+.pf-templates-empty {
   width: 100%;
   height: 100%;
   min-height: 0;
   border-radius: 0;
   box-shadow: none;
+}
+
+/* Ô rỗng nằm sau lưới nên vẫn cần chiều cao tối thiểu. */
+.pf-templates-empty {
+  min-height: 11rem;
+  margin-top: 1rem;
 }
 
 .drama-ep-player-placeholder {
