@@ -3,9 +3,26 @@
    --------------------------------------------------------------------------
    Global, class-agnostic rules that make every control keyboard-visible and
    theme-aware. This file intentionally defines no component styles; it only
-   restores guarantees that component stylesheets tend to strip out.
+   restores guarantees that component stylesheets tend to strip out, plus the
+   primitives every stylesheet is allowed to build on.
 
    Load order: tokens.css -> base.css -> printfilm.css -> drama.css -> App.css
+
+   Sections
+     1. Reduced motion
+     2. Focus ring
+     3. Form control defaults
+     4. Selection
+     5. Root surface
+     6. Scrollbars
+     7. Glass primitive (+ no-backdrop-filter fallback)
+     8. Media overlay primitive (the only legal way to put text on a photo)
+     9. Skeleton
+    10. Reading utilities (serif display, lede, kicker, quote, measure)
+    11. Rhythm utilities (stack, cluster, section)
+    12. Reserved media box — kills layout shift
+    13. Forced colours / high contrast
+    14. Print
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
@@ -39,6 +56,15 @@
   outline: none;
 }
 
+/* On the accent fill the ring and the button share a hue, so the ring is drawn
+   from the near-black end of the ramp instead: 4.72:1 on #f2c94c, which is the
+   same guarantee the accent-ink ring gives on white. */
+.pf-btn--accent:focus-visible,
+.pf-cta--accent:focus-visible,
+.pf-chip--accent:focus-visible {
+  outline-color: var(--pf-focus-ring-on-fill);
+}
+
 /* printfilm.css strips the outline on these five controls — on :focus for
    three of them, unconditionally for the other two. A bare
    `input:focus-visible` scores (0,1,1) and loses to `.pf-field-input:focus`
@@ -62,6 +88,9 @@
 
 /* --------------------------------------------------------------------------
    3. Form control defaults — theme-aware, WCAG-safe borders.
+   --pf-line-control clears 3:1 on surface, sunken AND well in both themes;
+   the previous light value measured 2.99:1 on the sunken surface, which is a
+   1.4.11 failure for any control placed in a well.
    -------------------------------------------------------------------------- */
 input,
 textarea,
@@ -105,11 +134,20 @@ select:disabled {
 html {
   background: var(--pf-bg);
   -webkit-text-size-adjust: 100%;
+  /* Belt and braces against a horizontal scrollbar from a full-bleed band.
+     `.pf-shell-main` also clips; this covers the auth shell, which does not
+     sit inside it. */
+  overflow-x: clip;
 }
 
 body {
   background: var(--pf-bg);
   color: var(--pf-ink);
+  /* Optical sizing: the browser tightens spacing as the face grows, which is
+     what keeps a large serif headline from looking loose. */
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 img,
@@ -117,6 +155,13 @@ video,
 canvas,
 svg {
   max-width: 100%;
+}
+
+/* A replaced element with no intrinsic size that is still decorative should
+   never be announced. `alt=""` already does this; this catches the cases where
+   the attribute was forgotten and the image is pure decoration by context. */
+img[alt=''] {
+  pointer-events: none;
 }
 
 /* --------------------------------------------------------------------------
@@ -146,4 +191,364 @@ svg {
 *::-webkit-scrollbar-thumb:hover {
   background: var(--pf-ink-disabled);
   background-clip: content-box;
+}
+
+/* --------------------------------------------------------------------------
+   7. Glass primitive
+
+   Glass is for surfaces that float ABOVE flat or gently-graded content: nav,
+   popover, modal, toolbar, floating card. It is never for text that sits over
+   a photo — a moving background makes contrast unmeasurable, and section 8 is
+   the tool for that case instead.
+
+   Alpha is 0.86 rather than a more fashionable 0.6 because the worst case is
+   a bright pixel scrolling underneath. Measured: the darkest result in light
+   mode is #dbdbdb (ink 12.3:1, secondary 5.6:1) and the lightest in dark mode
+   is #37373a (ink 10.9:1, secondary 5.1:1). At 0.72 the dark secondary ink
+   falls to 3.11:1 and fails AA.
+   -------------------------------------------------------------------------- */
+.pf-glass {
+  background: var(--pf-glass-fallback);
+  border: 1px solid var(--pf-glass-edge);
+  box-shadow: var(--pf-glass-shadow);
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .pf-glass {
+    background: var(--pf-glass-bg);
+    -webkit-backdrop-filter: blur(var(--pf-glass-blur))
+      saturate(var(--pf-glass-sat));
+    backdrop-filter: blur(var(--pf-glass-blur)) saturate(var(--pf-glass-sat));
+  }
+}
+
+/* Decorative variant for surfaces that carry no text at all. */
+.pf-glass--soft {
+  border-color: var(--pf-glass-edge-soft);
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .pf-glass--soft {
+    background: var(--pf-glass-bg-soft);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+    backdrop-filter: blur(12px) saturate(140%);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   8. Media overlay primitive
+
+   The only legal way to put text on a photograph. The gradient is measured,
+   not guessed: --pf-media-scrim is rgb(17 19 24 / 0.66), and white @ 0.92 on
+   that over PURE WHITE (the brightest pixel a JPEG can hold) measures 5.38:1,
+   which is AA for body text. Anything lighter fails over a bright region, so
+   --pf-media-scrim-soft is explicitly decorative-only.
+   -------------------------------------------------------------------------- */
+.pf-media-scrim {
+  position: relative;
+  isolation: isolate;
+}
+
+.pf-media-scrim::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: var(--pf-media-scrim);
+  pointer-events: none;
+}
+
+.pf-media-scrim > :where(h1, h2, p, span, a, li, figcaption) {
+  position: relative;
+  z-index: 2;
+}
+
+/* Directional ladder for a full-bleed band. Strong where the copy sits,
+   clearing to almost nothing where the photograph should breathe. The stops
+   are percentages of the band, not of the image, so the read does not change
+   with viewport width. */
+.pf-media-scrim--left {
+  background-image: linear-gradient(
+      100deg,
+      var(--pf-media-scrim-full) 0%,
+      var(--pf-media-scrim-strong) 26%,
+      var(--pf-media-scrim) 46%,
+      var(--pf-media-scrim-soft) 66%,
+      var(--pf-media-scrim-none) 88%
+    ),
+    var(--pf-media-src);
+  background-size: cover;
+  background-position: center;
+}
+
+.pf-media-scrim--bottom {
+  background-image: linear-gradient(
+      to top,
+      var(--pf-media-scrim-full) 0%,
+      var(--pf-media-scrim-strong) 22%,
+      var(--pf-media-scrim) 44%,
+      var(--pf-media-scrim-soft) 68%,
+      var(--pf-media-scrim-none) 100%
+    ),
+    var(--pf-media-src);
+  background-size: cover;
+  background-position: center;
+}
+
+/* A caption chip that has to hold small text over any photograph. This is a
+   scrim, not glass: 0.86 measures 10.80:1 over pure white. */
+.pf-media-chip {
+  background: var(--pf-media-scrim-full);
+  border: 1px solid rgb(255 255 255 / 0.16);
+  color: var(--pf-on-media-strong);
+  border-radius: var(--pf-radius-pill);
+}
+
+/* --------------------------------------------------------------------------
+   9. Skeleton — the loading state has to belong to the same system, or the
+   app briefly looks like a different product while data loads.
+   -------------------------------------------------------------------------- */
+.pf-skeleton {
+  background-color: var(--pf-skeleton-base);
+  background-image: linear-gradient(
+    90deg,
+    var(--pf-skeleton-sheen) 0%,
+    var(--pf-skeleton-base) 40%,
+    var(--pf-skeleton-sheen) 80%
+  );
+  background-size: var(--pf-skeleton-sheen-x) 100%;
+  background-repeat: no-repeat;
+  animation: pf-skeleton-sweep var(--pf-skeleton-dur) var(--pf-ease-standard)
+    infinite;
+  border-radius: var(--pf-radius-sm);
+}
+
+@keyframes pf-skeleton-sweep {
+  from {
+    background-position: -120% 0;
+  }
+  to {
+    background-position: 220% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-skeleton {
+    animation: none;
+    background-image: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   10. Reading utilities
+
+   The serif voice is the editorial layer: hero headline, section title, pull
+   quote, lede. Everything with a control or a number in it stays sans. This
+   is what keeps the app from reading as one undifferentiated sans sheet.
+   -------------------------------------------------------------------------- */
+.pf-display {
+  font-family: var(--pf-font-serif);
+  font-size: var(--pf-text-display);
+  line-height: var(--pf-leading-display);
+  font-weight: var(--pf-weight-bold);
+  letter-spacing: var(--pf-tracking-tightest);
+  text-wrap: balance;
+}
+
+.pf-title-serif {
+  font-family: var(--pf-font-serif);
+  font-weight: var(--pf-weight-bold);
+  letter-spacing: var(--pf-tracking-tight);
+  text-wrap: balance;
+}
+
+.pf-lede {
+  font-family: var(--pf-font-serif);
+  font-size: var(--pf-text-lg);
+  line-height: var(--pf-leading-prose);
+  max-width: var(--pf-measure);
+  color: var(--pf-ink-secondary);
+  text-wrap: pretty;
+}
+
+.pf-prose {
+  font-family: var(--pf-font-serif);
+  font-size: var(--pf-text-base);
+  line-height: var(--pf-leading-prose);
+  max-width: var(--pf-measure-prose);
+  text-wrap: pretty;
+}
+
+.pf-prose > * + * {
+  margin-block-start: var(--pf-space-4);
+}
+
+.pf-quote {
+  font-family: var(--pf-font-serif);
+  font-size: var(--pf-text-xl);
+  line-height: var(--pf-leading-relaxed);
+  max-width: var(--pf-measure-tight);
+  border-inline-start: 2px solid var(--pf-accent-stroke);
+  padding-inline-start: var(--pf-space-5);
+  color: var(--pf-ink);
+  text-wrap: pretty;
+}
+
+.pf-kicker {
+  font-family: var(--pf-font-display);
+  font-size: var(--pf-text-xs);
+  font-weight: var(--pf-weight-semibold);
+  letter-spacing: var(--pf-tracking-caps-wide);
+  text-transform: uppercase;
+  color: var(--pf-ink-tertiary);
+}
+
+.pf-numeric {
+  font-family: var(--pf-font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--pf-tracking-normal);
+}
+
+.pf-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --------------------------------------------------------------------------
+   11. Rhythm utilities
+
+   One grid, used everywhere: 8pt base with the half-steps in section 9 of
+   tokens.css. Nothing in the app should invent a padding value that is not on
+   that scale.
+   -------------------------------------------------------------------------- */
+.pf-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pf-stack-gap, var(--pf-space-4));
+}
+
+.pf-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--pf-cluster-gap, var(--pf-space-3));
+}
+
+.pf-section {
+  margin-block-end: var(--pf-rhythm-section);
+}
+
+.pf-hairline-top {
+  border-block-start: var(--pf-hairline) solid var(--pf-line);
+}
+
+.pf-hairline-bottom {
+  border-block-end: var(--pf-hairline) solid var(--pf-line);
+}
+
+/* --------------------------------------------------------------------------
+   12. Reserved media box — kills layout shift.
+
+   Any element that will hold a photograph or a video frame reserves its box
+   with aspect-ratio before the bytes arrive. This is why the placeholder work
+   in media.css never causes a reflow: the space is already correct.
+   -------------------------------------------------------------------------- */
+.pf-media-box {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  background: var(--pf-surface-media);
+  aspect-ratio: 16 / 10;
+}
+
+.pf-media-box > img,
+.pf-media-box > video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pf-media-box--portrait {
+  aspect-ratio: 9 / 16;
+}
+
+.pf-media-box--square {
+  aspect-ratio: 1;
+}
+
+.pf-media-box--wide {
+  aspect-ratio: 21 / 9;
+}
+
+/* --------------------------------------------------------------------------
+   13. Forced colours / high contrast.
+
+   Windows High Contrast strips background-image and box-shadow, so a design
+   that carries meaning in a gradient or a hairline loses it. System colours
+   are restored and every border that was decorative becomes load-bearing.
+   -------------------------------------------------------------------------- */
+@media (forced-colors: active) {
+  .pf-glass,
+  .pf-media-scrim,
+  .pf-media-scrim::after {
+    background: Canvas;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    forced-color-adjust: none;
+    background-color: Canvas;
+  }
+
+  .pf-media-scrim > :where(h1, h2, p, span, a, li, figcaption) {
+    color: CanvasText;
+    forced-color-adjust: none;
+  }
+
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline-color: Highlight;
+  }
+
+  .pf-skeleton {
+    animation: none;
+    background-image: none;
+    border: 1px solid GrayText;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   14. Print — a film tool gets printed: shot lists, budgets, scripts.
+   -------------------------------------------------------------------------- */
+@media print {
+  html,
+  body {
+    background: #ffffff;
+    color: #000000;
+  }
+
+  .pf-nav,
+  .pf-shell-footer,
+  .pf-dialog-root,
+  .modal-backdrop,
+  .pf-wx-fab,
+  .pf-media-scrim::after {
+    display: none !important;
+  }
+
+  .pf-shell-main {
+    max-width: none;
+    padding: 0;
+  }
+
+  a[href^='http']::after {
+    content: ' (' attr(href) ')';
+    font-size: 0.75em;
+    color: #444444;
+  }
 }

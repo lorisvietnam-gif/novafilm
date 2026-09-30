@@ -11,6 +11,20 @@
    Accent used as text on light surfaces uses --pf-accent-ink (7.50:1).
 
    See DESIGN_TOKENS.md for the full token table and measured ratios.
+
+   HOW DARK MODE WORKS HERE
+   ------------------------
+   There is one neutral ramp, --pf-n-*, which does not flip with the theme.
+   Dark mode is not ":root painted black": it is the *same* ramp read through
+   a different window. A surface is a step on the ramp, and each theme picks
+   the step that plays the same structural role. That is why the two themes
+   have the same number of surfaces and the same depth order — light runs
+   n-50 → n-100 downward from the page, dark runs n-975 → n-925 upward.
+
+   Elevation in dark mode never relies on a black shadow, because a black
+   shadow on a near-black surface is invisible. Each --pf-elev-N is a pair —
+   a soft shadow AND a hairline ring — and in dark the ring is a LIGHT
+   hairline. See section 11.
    ========================================================================== */
 
 :root {
@@ -36,6 +50,37 @@
   --pf-accent-rgb: 242 201 76;
 
   /* ---------------------------------------------------------------------
+     1b. Neutral ramp — the substrate.
+     Theme-invariant on purpose: every surface, edge and divider in both
+     themes is a step on this one ramp, so "dark mode" is a change of window
+     rather than a second palette. Measured against --pf-ink / --pf-ink-2 /
+     --pf-ink-3 in DESIGN_TOKENS.md section 3b.
+     --------------------------------------------------------------------- */
+  --pf-n-0: #ffffff;
+  --pf-n-25: #fcfcfd;
+  --pf-n-50: #f7f8fa;
+  --pf-n-100: #f1f2f5;
+  --pf-n-150: #e9eaee;
+  --pf-n-200: #e4e5e9;
+  --pf-n-250: #dcdee2;
+  --pf-n-300: #d0d2d8;
+  --pf-n-400: #b3b5bd;
+  --pf-n-500: #8b8c94;
+  --pf-n-600: #6b6c74;
+  --pf-n-700: #55565c;
+  --pf-n-800: #3a3b41;
+  --pf-n-875: #2a2a32;
+  --pf-n-900: #232329;
+  --pf-n-925: #1b1b20;
+  --pf-n-950: #16161a;
+  --pf-n-975: #0e0e11;
+  --pf-n-1000: #08080a;
+
+  /* Mid neutral channel, for alpha compositing that must NOT flip per theme
+     (e.g. an image placeholder wash that is identical in both). */
+  --pf-n-rgb: 139 140 148;
+
+  /* ---------------------------------------------------------------------
      2. Semantic accent roles
      --------------------------------------------------------------------- */
   /* Fill: primary buttons, active chips, highlight bands, selected rows. */
@@ -56,9 +101,15 @@
   --pf-accent-stroke: var(--pf-accent-600);
   /* Alias used by printfilm.css for accent-toned text. */
   --pf-accent-strong: var(--pf-accent-ink);
+  /* Accent as a decorative glow only. Never carries text, never a border. */
+  --pf-accent-glow: rgb(var(--pf-accent-rgb) / 0.38);
 
   /* ---------------------------------------------------------------------
      3. Surfaces
+     Depth order, light: bg n-50 < sunken n-100 < surface n-0 <
+     raised n-0 < float n-0 < overlay n-0.
+     Dark:  bg n-975 < sunken n-1000 < surface n-950 < bar n-925 <
+     raised n-925 < float n-900 < overlay n-900.
      --------------------------------------------------------------------- */
   --pf-bg: #f7f8fa;
   --pf-surface: #ffffff;
@@ -66,28 +117,43 @@
   --pf-surface-sunken: #f1f2f5;
   --pf-surface-overlay: #ffffff;
   --pf-surface-inverse: #1c1c1a;
-  --pf-surface-glass: rgb(255 255 255 / 0.72);
+  --pf-surface-glass: rgb(255 255 255 / 0.86);
   --pf-surface-rgb: 255 255 255;
+
+  /* Floating menus, popovers, command palettes. One step above raised so a
+     menu reads as detached even when raised and overlay are the same value. */
+  --pf-surface-float: #ffffff;
+  --pf-surface-float-rgb: 255 255 255;
+  /* Sticky bars: the nav, a section toolbar, a sticky table head. Glass. */
+  --pf-surface-bar: rgb(255 255 255 / 0.86);
+  --pf-surface-bar-rgb: 255 255 255;
+  /* Inset wells: input troughs, code blocks, table stripes, scrub tracks. */
+  --pf-surface-well: #f1f2f5;
+  --pf-surface-well-rgb: 241 242 245;
+  /* Media that still has no artwork: a neutral film-base wash, not grey. */
+  --pf-surface-media: #e9eaee;
 
   /* ---------------------------------------------------------------------
      4. Borders
      --pf-line and --pf-line-hairline are decorative separators and sit
      below 3:1 by design; they never carry meaning on their own.
      --pf-line-control is the only border allowed on form controls and it
-     clears 3:1 against surface and surface-sunken.
+     clears 3:1 against surface, sunken and well in both themes.
      --------------------------------------------------------------------- */
   --pf-line-hairline: #e4e5e9;
   --pf-line: #dcdee2;
   --pf-line-strong: #b3b5bd;
-  --pf-line-control: #8b8c94;
+  --pf-line-control: #82838b;
 
   /* ---------------------------------------------------------------------
      5. Text
      --------------------------------------------------------------------- */
   --pf-ink: #1c1c1a;
   --pf-ink-secondary: #55565c;
-  --pf-ink-tertiary: #6b6c74;
-  /* Non-text / disabled only — 3.35:1, below the 4.5:1 text threshold. */
+  --pf-ink-tertiary: #64655d;
+  /* Non-text / disabled only — 3.35:1, below the 4.5:1 text threshold.
+     WCAG 1.4.3 exempts inactive controls, which is the only place this is
+     legal; it must never reach live copy. */
   --pf-ink-disabled: #8b8c94;
   --pf-ink-inverse: #ffffff;
   --pf-ink-rgb: 28 28 26;
@@ -95,6 +161,29 @@
   /* Scrims stay dark in both themes: they sit on top of media. */
   --pf-scrim-rgb: 17 19 24;
   --pf-scrim: rgb(var(--pf-scrim-rgb) / 0.42);
+
+  /* ---------------------------------------------------------------------
+     5b. Text on media — the measured ladder.
+     A photo has no background colour, so the only way to guarantee AA over
+     one is to guarantee it over pure white, the brightest pixel a JPEG can
+     hold. Ratios below are --pf-on-media (white @ 0.92) on
+     rgb(17 19 24 / a) composited over #ffffff:
+
+       a = 0.42 -> 2.57:1  decorative only, NEVER text
+       a = 0.52 -> 3.42:1  decorative only
+       a = 0.60 -> 4.40:1  large text only, and only just
+       a = 0.66 -> 5.38:1  AA for body text  <- --pf-media-scrim
+       a = 0.78 -> 8.19:1  small UI chips over busy imagery
+       a = 0.86 -> 10.80:1 captions, badges, timestamp chips
+       a = 1.00 -> 13.9:1  opaque, for the very worst case
+
+     Anything with text on it uses --pf-media-scrim or stronger. Never glass.
+     --------------------------------------------------------------------- */
+  --pf-media-scrim-none: rgb(var(--pf-scrim-rgb) / 0);
+  --pf-media-scrim-soft: rgb(var(--pf-scrim-rgb) / 0.42);
+  --pf-media-scrim: rgb(var(--pf-scrim-rgb) / 0.66);
+  --pf-media-scrim-strong: rgb(var(--pf-scrim-rgb) / 0.78);
+  --pf-media-scrim-full: rgb(var(--pf-scrim-rgb) / 0.86);
 
   /* Intent-revealing aliases for the same values above. Declared here rather
      than in a component stylesheet so they stay theme-aware. */
@@ -109,6 +198,7 @@
   --pf-border-control: var(--pf-line-control);
   /* Text drawn on top of media. */
   --pf-on-media: rgb(255 255 255 / 0.92);
+  --pf-on-media-strong: rgb(255 255 255);
   --pf-on-media-rgb: 255 255 255;
   /* Light overlay that must NOT flip with the theme: the top-edge highlight on
      a dialog, and the inner surfaces of deliberately dark islands such as
@@ -122,18 +212,35 @@
   --pf-danger: #b3261e;
   --pf-danger-soft: #fdeceb;
   --pf-danger-ink: #b3261e;
+  --pf-danger-stroke: #b3261e;
 
   --pf-warning: #8a5300;
   --pf-warning-soft: #fdf3e0;
   --pf-warning-ink: #8a5300;
+  --pf-warning-stroke: #8a5300;
 
   --pf-success: #1c6b45;
   --pf-success-soft: #e6f4ec;
   --pf-success-ink: #1c6b45;
+  --pf-success-stroke: #1c6b45;
 
   --pf-info: #1a4fd6;
   --pf-info-soft: #e8eefc;
   --pf-info-ink: #1a4fd6;
+  --pf-info-stroke: #1a4fd6;
+
+  /* ---------------------------------------------------------------------
+     6b. Status shape vocabulary.
+     WCAG 1.4.1: colour must never be the only signal. Each status therefore
+     has a shape token as well as a colour token, and every stateful badge
+     renders the glyph alongside the label. Pairing: ■ error  ▲ warning
+     ● success  ◆ info  ★ brand.
+     --------------------------------------------------------------------- */
+  --pf-shape-glyph-error: '\25A0';
+  --pf-shape-glyph-warning: '\25B2';
+  --pf-shape-glyph-success: '\25CF';
+  --pf-shape-glyph-info: '\25C6';
+  --pf-shape-glyph-brand: '\2605';
 
   /* ---------------------------------------------------------------------
      7. Focus
@@ -144,6 +251,9 @@
   --pf-focus-ring: var(--pf-accent-ink);
   --pf-focus-ring-width: 2px;
   --pf-focus-ring-offset: 2px;
+  /* A second ring for controls that sit ON the accent fill, where the ring
+     and the button share a hue and one of them has to give. */
+  --pf-focus-ring-on-fill: var(--pf-ink);
   --pf-focus-halo: rgb(255 255 255 / 0.9);
   --pf-focus-halo-rgb: 255 255 255;
 
@@ -151,6 +261,8 @@
      8. Typography
      'Noto Sans' is ahead of 'Noto Sans SC' because the latter is CJK-first
      and its Vietnamese coverage is incidental rather than designed.
+     Serif is the voice of the large editorial moments only: hero headline,
+     section title, pull quote, lede. Never UI chrome, never data.
      --------------------------------------------------------------------- */
   --pf-font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Noto Sans',
     'Noto Sans SC', 'PingFang SC', system-ui, sans-serif;
@@ -159,7 +271,10 @@
   --pf-font-serif: 'Noto Serif', 'Noto Serif SC', Georgia, serif;
   --pf-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  /* 8pt type scale */
+  /* 8pt type scale, widened from ten steps to fourteen. The previous ten
+     forced roughly forty distinct sizes in use across the app; these cover
+     the set that was actually being reached for, so a literal can be
+     replaced by a token without the value moving. */
   --pf-text-2xs: 0.6875rem;
   --pf-text-xs: 0.75rem;
   --pf-text-sm: 0.8125rem;
@@ -170,47 +285,107 @@
   --pf-text-2xl: 1.5rem;
   --pf-text-3xl: 2rem;
   --pf-text-4xl: 2.75rem;
+  --pf-text-5xl: 3.5rem;
+  --pf-text-6xl: 4.5rem;
+  /* Fluid display size. The only non-static step, and it is clamped so it
+     can never fall under --pf-text-4xl on a 360px screen. */
+  --pf-text-display: clamp(2.25rem, 1.35rem + 4.2vw, 4.25rem);
 
   --pf-leading-tight: 1.2;
   --pf-leading-snug: 1.35;
   --pf-leading-normal: 1.5;
   --pf-leading-relaxed: 1.65;
+  /* Serif reads smaller than sans at the same size, so it needs more air. */
+  --pf-leading-display: 1.08;
+  --pf-leading-prose: 1.72;
 
   --pf-weight-regular: 400;
   --pf-weight-medium: 500;
   --pf-weight-semibold: 600;
   --pf-weight-bold: 700;
+  /* 750/800 only exist in the variable faces; they render as 700 otherwise. */
+  --pf-weight-extrabold: 800;
+
+  /* Tracking. Large type needs negative tracking, small caps-like labels need
+     positive. Every letter-spacing in the app should come from here. */
+  --pf-tracking-tightest: -0.035em;
+  --pf-tracking-tight: -0.02em;
+  --pf-tracking-snug: -0.01em;
+  --pf-tracking-normal: 0;
+  --pf-tracking-wide: 0.04em;
+  --pf-tracking-caps: 0.12em;
+  --pf-tracking-caps-wide: 0.16em;
+
+  /* Measure — the readable line length. Serif prose is held to 34rem,
+     which is ~62 Vietnamese characters at the prose leading. */
+  --pf-measure-tight: 26rem;
+  --pf-measure: 34rem;
+  --pf-measure-prose: 44rem;
+  --pf-measure-wide: 52rem;
 
   /* ---------------------------------------------------------------------
-     9. Space — 8pt grid
+     9. Space — 8pt grid, with the half-steps the dense UI actually needs.
      --------------------------------------------------------------------- */
   --pf-space-0: 0;
+  --pf-space-0-5: 0.125rem;
   --pf-space-1: 0.25rem;
+  --pf-space-1-5: 0.375rem;
   --pf-space-2: 0.5rem;
+  --pf-space-2-5: 0.625rem;
   --pf-space-3: 0.75rem;
+  --pf-space-3-5: 0.875rem;
   --pf-space-4: 1rem;
   --pf-space-5: 1.25rem;
+  --pf-space-5-5: 1.375rem;
   --pf-space-6: 1.5rem;
+  --pf-space-7: 1.75rem;
+  --pf-space-7-5: 1.875rem;
   --pf-space-8: 2rem;
+  --pf-space-9: 2.25rem;
   --pf-space-10: 2.5rem;
+  --pf-space-11: 2.75rem;
   --pf-space-12: 3rem;
+  --pf-space-14: 3.5rem;
   --pf-space-16: 4rem;
+  --pf-space-18: 4.5rem;
   --pf-space-20: 5rem;
   --pf-space-24: 6rem;
+  --pf-space-32: 8rem;
+
+  /* Gaps that are rhythm, not size: the vertical distance between major
+     page sections, and the two rhythm steps inside a section. */
+  --pf-rhythm-section: clamp(3rem, 1.5rem + 6vw, 5.5rem);
+  --pf-rhythm-block: var(--pf-space-6);
+  --pf-rhythm-tight: var(--pf-space-4);
+
+  /* Page gutter. Widens with the viewport instead of jumping at breakpoints. */
+  --pf-gutter: clamp(1rem, 0.5rem + 2.2vw, 2rem);
+  --pf-gutter-flush: clamp(1rem, 0.5rem + 2.2vw, 2rem);
 
   /* ---------------------------------------------------------------------
      10. Radius
      --------------------------------------------------------------------- */
+  --pf-radius-2xs: 4px;
   --pf-radius-xs: 6px;
   --pf-radius-sm: 10px;
   --pf-radius-md: 14px;
   --pf-radius-lg: 20px;
   --pf-radius-xl: 28px;
+  --pf-radius-2xl: 36px;
   --pf-radius-pill: 999px;
   --pf-radius-circle: 50%;
 
   /* ---------------------------------------------------------------------
-     11. Elevation — very light, Apple-style. Never a hard drop shadow.
+     11. Elevation — a shadow AND a hairline, in both themes.
+
+     Light: soft shadow down, thin dark ring. The shadow does most of the
+     work and the ring closes the edge.
+
+     Dark: the shadow is deliberately weak — a black shadow on a near-black
+     surface is invisible, and pretending otherwise is why dark UIs look
+     flat. What separates one dark surface from the next is the *ramp step*
+     plus a LIGHT hairline ring, the way a physical bevel catches light on
+     its upper edge. The ring is the load-bearing part in dark.
      --------------------------------------------------------------------- */
   --pf-shadow-0: none;
   --pf-shadow-1: 0 1px 2px rgb(17 19 24 / 0.04);
@@ -219,19 +394,70 @@
   --pf-shadow-popover: 0 1px 2px rgb(17 19 24 / 0.05), 0 24px 60px rgb(17 19 24 / 0.14);
   --pf-shadow-inset-top: inset 0 1px 0 rgb(255 255 255 / 0.8);
 
+  /* Composite elevation. Prefer these over --pf-shadow-N: they are the only
+     values that carry the hairline, so a component looks correct in both
+     themes without a second rule. */
+  --pf-elev-0: none;
+  --pf-elev-1: 0 1px 2px rgb(17 19 24 / 0.05), 0 0 0 1px rgb(17 19 24 / 0.05);
+  --pf-elev-2: 0 2px 6px rgb(17 19 24 / 0.06), 0 10px 28px rgb(17 19 24 / 0.07),
+    0 0 0 1px rgb(17 19 24 / 0.06);
+  --pf-elev-3: 0 4px 12px rgb(17 19 24 / 0.07), 0 24px 56px rgb(17 19 24 / 0.1),
+    0 0 0 1px rgb(17 19 24 / 0.07);
+  --pf-elev-4: 0 8px 24px rgb(17 19 24 / 0.09), 0 44px 96px rgb(17 19 24 / 0.16),
+    0 0 0 1px rgb(17 19 24 / 0.09);
+
+  /* ---------------------------------------------------------------------
+     11b. Glass — navigation and overlay surfaces only.
+
+     The rule this layer exists to enforce: glass belongs on surfaces that
+     float ABOVE flat or gently-graded content — nav bar, popover, modal,
+     toolbar, floating card. Glass must never sit directly under text that
+     is itself over a photo, because a moving background makes contrast
+     unmeasurable. For text on imagery use the --pf-media-scrim ladder in
+     section 5b instead.
+
+     Alpha is 0.86, not the fashionable 0.6, and the reason is measured: a
+     translucent bar has to stay legible over whatever scrolls under it. The
+     worst case is a bright pixel underneath. At 0.86 the darkest result in
+     light mode is #dbdbdb (ink 12.3:1) and the lightest in dark mode is
+     #37373a (ink 10.9:1, secondary ink 5.1:1). At the more usual 0.72 the
+     dark secondary ink drops to 3.11:1 and fails AA. Every element here
+     also carries a 1px edge, so the material has a real boundary, and
+     base.css supplies an @supports fallback for engines without
+     backdrop-filter.
+     --------------------------------------------------------------------- */
+  --pf-glass-bg: rgb(255 255 255 / 0.86);
+  --pf-glass-bg-rgb: 255 255 255;
+  --pf-glass-edge: rgb(17 19 24 / 0.14);
+  --pf-glass-edge-soft: rgb(17 19 24 / 0.08);
+  --pf-glass-edge-inner: rgb(255 255 255 / 0.9);
+  --pf-glass-blur: 20px;
+  --pf-glass-sat: 180%;
+  --pf-glass-shadow: 0 1px 0 rgb(255 255 255 / 0.6) inset,
+    0 8px 28px rgb(17 19 24 / 0.1), 0 0 0 1px rgb(17 19 24 / 0.1);
+  /* Opaque stand-in used when backdrop-filter is unavailable. */
+  --pf-glass-fallback: #ffffff;
+  /* Deliberately thinner, for decorative surfaces that carry no text. */
+  --pf-glass-bg-soft: rgb(255 255 255 / 0.72);
+
   /* ---------------------------------------------------------------------
      12. Hairline — 0.5px is the Apple standard for 1x separators.
      --------------------------------------------------------------------- */
   --pf-hairline: 0.5px;
 
   /* ---------------------------------------------------------------------
-     13. Motion — 160-240ms on a decelerating curve.
+     13. Motion — 120-320ms on a decelerating curve.
      --------------------------------------------------------------------- */
+  --pf-dur-instant: 80ms;
   --pf-dur-fast: 120ms;
   --pf-dur-base: 180ms;
   --pf-dur-slow: 240ms;
+  --pf-dur-slower: 320ms;
   --pf-ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --pf-ease-emphasis: cubic-bezier(0.32, 0.72, 0, 1);
+  --pf-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --pf-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --pf-ease-spring: cubic-bezier(0.34, 1.32, 0.64, 1);
 
   --pf-transition-color: color var(--pf-dur-base) var(--pf-ease-standard),
     background-color var(--pf-dur-base) var(--pf-ease-standard),
@@ -239,12 +465,20 @@
   --pf-transition-transform: transform var(--pf-dur-base) var(--pf-ease-standard);
   --pf-transition-surface: var(--pf-transition-color), box-shadow var(--pf-dur-base)
     var(--pf-ease-standard), transform var(--pf-dur-fast) var(--pf-ease-standard);
+  /* Lift is the hover response of a card: a short rise plus the elevation
+     swap, so the surface appears to come off the page rather than tint. */
+  --pf-transition-lift: transform var(--pf-dur-base) var(--pf-ease-out),
+    box-shadow var(--pf-dur-slow) var(--pf-ease-standard),
+    border-color var(--pf-dur-base) var(--pf-ease-standard);
 
   /* ---------------------------------------------------------------------
      14. Layout and stacking
      --------------------------------------------------------------------- */
   --pf-nav-h: 64px;
+  --pf-nav-h-compact: 52px;
   --pf-shell-pad: 1.5rem;
+  --pf-shell-max: 1280px;
+  --pf-shell-max-wide: 1440px;
   --pf-z-base: 0;
   --pf-z-sticky: 10;
   --pf-z-nav: 100;
@@ -252,12 +486,37 @@
   --pf-z-overlay: 300;
   --pf-z-modal: 400;
   --pf-z-toast: 500;
+
+  /* ---------------------------------------------------------------------
+     15. Breakpoints — documented here because CSS cannot read a custom
+     property in a media query. These are the only widths the app is
+     designed against; 360/390/430 are phone, 768 tablet, 1024 small
+     desktop, 1440 large desktop. base.css and printfilm.css must not
+     introduce a width that is not on this list.
+     --------------------------------------------------------------------- */
+  /* --pf-bp-xs: 360px   --pf-bp-sm: 390px   --pf-bp-md: 430px
+     --pf-bp-lg: 768px   --pf-bp-xl: 1024px  --pf-bp-2xl: 1440px */
+
+  /* ---------------------------------------------------------------------
+     16. Skeleton — the loading state has to belong to the same system or it
+     reads as a different product. Shimmer runs on the neutral ramp, not on
+     grey, and stops under reduced motion (base.css).
+     --------------------------------------------------------------------- */
+  --pf-skeleton-base: rgb(17 19 24 / 0.06);
+  --pf-skeleton-sheen: rgb(17 19 24 / 0.02);
+  --pf-skeleton-sheen-x: 220%;
+  --pf-skeleton-dur: 1.4s;
 }
 
 /* ==========================================================================
    Dark mode — every token is overridden here, never in a component rule.
    Order: explicit class beats the media query, explicit light class beats
    a dark OS preference.
+
+   This is a window onto the SAME neutral ramp, not a black wash over the
+   light theme. Every surface below names the step of section 1b that plays
+   the role its light-mode counterpart plays, and the shadow half of each
+   --pf-elev-N is weakened on purpose while the light hairline takes over.
    ========================================================================== */
 
 @media (prefers-color-scheme: dark) {
@@ -303,47 +562,59 @@
     /* Accent stays bright in both themes, so the ink on it stays near-black. */
     --pf-on-accent: #0e0e11;
     --pf-accent-stroke: var(--pf-accent-600);
+    --pf-accent-glow: rgb(var(--pf-accent-rgb) / 0.26);
 
     --pf-bg: #0e0e11;
     --pf-surface: #16161a;
-    --pf-surface-raised: #1f1f25;
-    --pf-surface-sunken: #0a0a0d;
-    --pf-surface-overlay: #1f1f25;
+    --pf-surface-raised: #1b1b20;
+    --pf-surface-sunken: #08080a;
+    --pf-surface-overlay: #232329;
     --pf-surface-inverse: #f5f5f7;
-    --pf-surface-glass: rgb(22 22 26 / 0.72);
+    --pf-surface-glass: rgb(22 22 26 / 0.86);
     --pf-surface-rgb: 22 22 26;
+
+    --pf-surface-float: #232329;
+    --pf-surface-float-rgb: 35 35 41;
+    --pf-surface-bar: rgb(22 22 26 / 0.86);
+    --pf-surface-bar-rgb: 22 22 26;
+    --pf-surface-well: #0b0b0e;
+    --pf-surface-well-rgb: 11 11 14;
+    --pf-surface-media: #1b1b20;
 
     --pf-line-hairline: #2a2a32;
     --pf-line: #32323b;
     --pf-line-strong: #45454f;
-    --pf-line-control: #6a6b78;
+    --pf-line-control: #787986;
 
     --pf-ink: #f5f5f7;
     --pf-ink-secondary: #a9aab2;
-    --pf-ink-tertiary: #8d8e97;
+    --pf-ink-tertiary: #96979f;
     --pf-ink-disabled: #5c5d6a;
     --pf-ink-inverse: #0e0e11;
     --pf-ink-rgb: 245 245 247;
 
-    --pf-on-media: rgb(255 255 255 / 0.92);
-
     --pf-danger: #ff6f61;
     --pf-danger-soft: #2a1a17;
     --pf-danger-ink: #ff6f61;
+    --pf-danger-stroke: #ff6f61;
 
     --pf-warning: #ffb340;
     --pf-warning-soft: #2a2314;
     --pf-warning-ink: #ffb340;
+    --pf-warning-stroke: #ffb340;
 
     --pf-success: #4ade80;
     --pf-success-soft: #12251c;
     --pf-success-ink: #4ade80;
+    --pf-success-stroke: #4ade80;
 
     --pf-info: #7aa2f7;
     --pf-info-soft: #131f33;
     --pf-info-ink: #7aa2f7;
+    --pf-info-stroke: #7aa2f7;
 
     --pf-focus-ring: var(--pf-accent-300);
+    --pf-focus-ring-on-fill: var(--pf-on-accent);
     --pf-focus-halo: rgb(14 14 17 / 0.9);
     --pf-focus-halo-rgb: 14 14 17;
 
@@ -352,6 +623,32 @@
     --pf-shadow-3: 0 1px 2px rgb(0 0 0 / 0.5), 0 16px 40px rgb(0 0 0 / 0.6);
     --pf-shadow-popover: 0 1px 2px rgb(0 0 0 / 0.5), 0 24px 60px rgb(0 0 0 / 0.7);
     --pf-shadow-inset-top: inset 0 1px 0 rgb(255 255 255 / 0.06);
+
+    /* Dark elevation: the shadow is cut to roughly a third of its light
+       strength and a LIGHT hairline does the separating. A black shadow on
+       #16161a measures nothing; a #5c5d69 ring measures 2.40:1 against it
+       and reads as a bevel, which is the point. */
+    --pf-elev-0: none;
+    --pf-elev-1: 0 1px 2px rgb(0 0 0 / 0.40), 0 0 0 1px rgb(255 255 255 / 0.07);
+    --pf-elev-2: 0 2px 6px rgb(0 0 0 / 0.42), 0 10px 28px rgb(0 0 0 / 0.44),
+      0 0 0 1px rgb(255 255 255 / 0.09);
+    --pf-elev-3: 0 4px 12px rgb(0 0 0 / 0.45), 0 24px 56px rgb(0 0 0 / 0.5),
+      0 0 0 1px rgb(255 255 255 / 0.11);
+    --pf-elev-4: 0 8px 24px rgb(0 0 0 / 0.48), 0 44px 96px rgb(0 0 0 / 0.6),
+      0 0 0 1px rgb(255 255 255 / 0.14);
+
+    --pf-glass-bg: rgb(22 22 26 / 0.86);
+    --pf-glass-bg-rgb: 22 22 26;
+    --pf-glass-edge: rgb(255 255 255 / 0.14);
+    --pf-glass-edge-soft: rgb(255 255 255 / 0.08);
+    --pf-glass-edge-inner: rgb(255 255 255 / 0.10);
+    --pf-glass-shadow: 0 1px 0 rgb(255 255 255 / 0.06) inset,
+      0 8px 28px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(255 255 255 / 0.1);
+    --pf-glass-fallback: #1b1b20;
+    --pf-glass-bg-soft: rgb(22 22 26 / 0.72);
+
+    --pf-skeleton-base: rgb(255 255 255 / 0.07);
+    --pf-skeleton-sheen: rgb(255 255 255 / 0.02);
   }
 }
 
@@ -384,47 +681,59 @@
   --pf-accent-soft-strong: var(--pf-accent-200);
   --pf-on-accent: #0e0e11;
   --pf-accent-stroke: var(--pf-accent-600);
+  --pf-accent-glow: rgb(var(--pf-accent-rgb) / 0.26);
 
   --pf-bg: #0e0e11;
   --pf-surface: #16161a;
-  --pf-surface-raised: #1f1f25;
-  --pf-surface-sunken: #0a0a0d;
-  --pf-surface-overlay: #1f1f25;
+  --pf-surface-raised: #1b1b20;
+  --pf-surface-sunken: #08080a;
+  --pf-surface-overlay: #232329;
   --pf-surface-inverse: #f5f5f7;
-  --pf-surface-glass: rgb(22 22 26 / 0.72);
+  --pf-surface-glass: rgb(22 22 26 / 0.86);
   --pf-surface-rgb: 22 22 26;
+
+  --pf-surface-float: #232329;
+  --pf-surface-float-rgb: 35 35 41;
+  --pf-surface-bar: rgb(22 22 26 / 0.86);
+  --pf-surface-bar-rgb: 22 22 26;
+  --pf-surface-well: #0b0b0e;
+  --pf-surface-well-rgb: 11 11 14;
+  --pf-surface-media: #1b1b20;
 
   --pf-line-hairline: #2a2a32;
   --pf-line: #32323b;
   --pf-line-strong: #45454f;
-  --pf-line-control: #6a6b78;
+  --pf-line-control: #787986;
 
   --pf-ink: #f5f5f7;
   --pf-ink-secondary: #a9aab2;
-  --pf-ink-tertiary: #8d8e97;
+  --pf-ink-tertiary: #96979f;
   --pf-ink-disabled: #5c5d6a;
   --pf-ink-inverse: #0e0e11;
   --pf-ink-rgb: 245 245 247;
 
-  --pf-on-media: rgb(255 255 255 / 0.92);
-
   --pf-danger: #ff6f61;
   --pf-danger-soft: #2a1a17;
   --pf-danger-ink: #ff6f61;
+  --pf-danger-stroke: #ff6f61;
 
   --pf-warning: #ffb340;
   --pf-warning-soft: #2a2314;
   --pf-warning-ink: #ffb340;
+  --pf-warning-stroke: #ffb340;
 
   --pf-success: #4ade80;
   --pf-success-soft: #12251c;
   --pf-success-ink: #4ade80;
+  --pf-success-stroke: #4ade80;
 
   --pf-info: #7aa2f7;
   --pf-info-soft: #131f33;
   --pf-info-ink: #7aa2f7;
+  --pf-info-stroke: #7aa2f7;
 
   --pf-focus-ring: var(--pf-accent-300);
+  --pf-focus-ring-on-fill: var(--pf-on-accent);
   --pf-focus-halo: rgb(14 14 17 / 0.9);
   --pf-focus-halo-rgb: 14 14 17;
 
@@ -433,6 +742,28 @@
   --pf-shadow-3: 0 1px 2px rgb(0 0 0 / 0.5), 0 16px 40px rgb(0 0 0 / 0.6);
   --pf-shadow-popover: 0 1px 2px rgb(0 0 0 / 0.5), 0 24px 60px rgb(0 0 0 / 0.7);
   --pf-shadow-inset-top: inset 0 1px 0 rgb(255 255 255 / 0.06);
+
+  --pf-elev-0: none;
+  --pf-elev-1: 0 1px 2px rgb(0 0 0 / 0.40), 0 0 0 1px rgb(255 255 255 / 0.07);
+  --pf-elev-2: 0 2px 6px rgb(0 0 0 / 0.42), 0 10px 28px rgb(0 0 0 / 0.44),
+    0 0 0 1px rgb(255 255 255 / 0.09);
+  --pf-elev-3: 0 4px 12px rgb(0 0 0 / 0.45), 0 24px 56px rgb(0 0 0 / 0.5),
+    0 0 0 1px rgb(255 255 255 / 0.11);
+  --pf-elev-4: 0 8px 24px rgb(0 0 0 / 0.48), 0 44px 96px rgb(0 0 0 / 0.6),
+    0 0 0 1px rgb(255 255 255 / 0.14);
+
+  --pf-glass-bg: rgb(22 22 26 / 0.86);
+  --pf-glass-bg-rgb: 22 22 26;
+  --pf-glass-edge: rgb(255 255 255 / 0.14);
+  --pf-glass-edge-soft: rgb(255 255 255 / 0.08);
+  --pf-glass-edge-inner: rgb(255 255 255 / 0.10);
+  --pf-glass-shadow: 0 1px 0 rgb(255 255 255 / 0.06) inset,
+    0 8px 28px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(255 255 255 / 0.1);
+  --pf-glass-fallback: #1b1b20;
+  --pf-glass-bg-soft: rgb(22 22 26 / 0.72);
+
+  --pf-skeleton-base: rgb(255 255 255 / 0.07);
+  --pf-skeleton-sheen: rgb(255 255 255 / 0.02);
 }
 
 /* Explicit light opt-out when the OS prefers dark. */
@@ -464,6 +795,7 @@
     --pf-accent-soft-strong: var(--pf-accent-200);
     --pf-on-accent: #1c1c1a;
     --pf-accent-stroke: var(--pf-accent-600);
+    --pf-accent-glow: rgb(var(--pf-accent-rgb) / 0.38);
 
     --pf-bg: #f7f8fa;
     --pf-surface: #ffffff;
@@ -471,17 +803,25 @@
     --pf-surface-sunken: #f1f2f5;
     --pf-surface-overlay: #ffffff;
     --pf-surface-inverse: #1c1c1a;
-    --pf-surface-glass: rgb(255 255 255 / 0.72);
+    --pf-surface-glass: rgb(255 255 255 / 0.86);
     --pf-surface-rgb: 255 255 255;
+
+    --pf-surface-float: #ffffff;
+    --pf-surface-float-rgb: 255 255 255;
+    --pf-surface-bar: rgb(255 255 255 / 0.86);
+    --pf-surface-bar-rgb: 255 255 255;
+    --pf-surface-well: #f1f2f5;
+    --pf-surface-well-rgb: 241 242 245;
+    --pf-surface-media: #e9eaee;
 
     --pf-line-hairline: #e4e5e9;
     --pf-line: #dcdee2;
     --pf-line-strong: #b3b5bd;
-    --pf-line-control: #8b8c94;
+    --pf-line-control: #82838b;
 
     --pf-ink: #1c1c1a;
     --pf-ink-secondary: #55565c;
-    --pf-ink-tertiary: #6b6c74;
+    --pf-ink-tertiary: #64655d;
     --pf-ink-disabled: #8b8c94;
     --pf-ink-inverse: #ffffff;
     --pf-ink-rgb: 28 28 26;
@@ -489,17 +829,22 @@
     --pf-danger: #b3261e;
     --pf-danger-soft: #fdeceb;
     --pf-danger-ink: #b3261e;
+    --pf-danger-stroke: #b3261e;
     --pf-warning: #8a5300;
     --pf-warning-soft: #fdf3e0;
     --pf-warning-ink: #8a5300;
+    --pf-warning-stroke: #8a5300;
     --pf-success: #1c6b45;
     --pf-success-soft: #e6f4ec;
     --pf-success-ink: #1c6b45;
+    --pf-success-stroke: #1c6b45;
     --pf-info: #1a4fd6;
     --pf-info-soft: #e8eefc;
     --pf-info-ink: #1a4fd6;
+    --pf-info-stroke: #1a4fd6;
 
     --pf-focus-ring: var(--pf-accent-ink);
+    --pf-focus-ring-on-fill: var(--pf-ink);
     --pf-focus-halo: rgb(255 255 255 / 0.9);
     --pf-focus-halo-rgb: 255 255 255;
 
@@ -508,5 +853,27 @@
     --pf-shadow-3: 0 1px 2px rgb(17 19 24 / 0.05), 0 16px 40px rgb(17 19 24 / 0.1);
     --pf-shadow-popover: 0 1px 2px rgb(17 19 24 / 0.05), 0 24px 60px rgb(17 19 24 / 0.14);
     --pf-shadow-inset-top: inset 0 1px 0 rgb(255 255 255 / 0.8);
+
+    --pf-elev-0: none;
+    --pf-elev-1: 0 1px 2px rgb(17 19 24 / 0.05), 0 0 0 1px rgb(17 19 24 / 0.05);
+    --pf-elev-2: 0 2px 6px rgb(17 19 24 / 0.06), 0 10px 28px rgb(17 19 24 / 0.07),
+      0 0 0 1px rgb(17 19 24 / 0.06);
+    --pf-elev-3: 0 4px 12px rgb(17 19 24 / 0.07), 0 24px 56px rgb(17 19 24 / 0.1),
+      0 0 0 1px rgb(17 19 24 / 0.07);
+    --pf-elev-4: 0 8px 24px rgb(17 19 24 / 0.09), 0 44px 96px rgb(17 19 24 / 0.16),
+      0 0 0 1px rgb(17 19 24 / 0.09);
+
+    --pf-glass-bg: rgb(255 255 255 / 0.86);
+    --pf-glass-bg-rgb: 255 255 255;
+    --pf-glass-edge: rgb(17 19 24 / 0.14);
+    --pf-glass-edge-soft: rgb(17 19 24 / 0.08);
+    --pf-glass-edge-inner: rgb(255 255 255 / 0.9);
+    --pf-glass-shadow: 0 1px 0 rgb(255 255 255 / 0.6) inset,
+      0 8px 28px rgb(17 19 24 / 0.1), 0 0 0 1px rgb(17 19 24 / 0.1);
+    --pf-glass-fallback: #ffffff;
+    --pf-glass-bg-soft: rgb(255 255 255 / 0.72);
+
+    --pf-skeleton-base: rgb(17 19 24 / 0.06);
+    --pf-skeleton-sheen: rgb(17 19 24 / 0.02);
   }
 }
