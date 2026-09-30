@@ -2,13 +2,16 @@ import { useCallback, useEffect, useState } from 'react'
 import { api, type UsageChargeRecord } from '../../api'
 import Pagination from '../ui/Pagination'
 import { pageCountOf } from '../../lib/pagination'
+import { LOCALE_DATE, getActiveLocale } from '../../i18n/detect'
+import { localized, type LocalizedText } from '../../lib/localeStrings'
+import { useLocalizedText } from '../../lib/useLocalizedText'
 
-/** 格式化相对时间展示 */
+/** Định dạng thời gian tương đối để hiển thị */
 function formatWhen(iso?: string | null) {
   if (!iso) return '—'
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleString('zh-CN', {
+  return d.toLocaleString(LOCALE_DATE[getActiveLocale()], {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
@@ -16,27 +19,42 @@ function formatWhen(iso?: string | null) {
   })
 }
 
-/** 格式化 token 数量 */
+/** Định dạng số token */
 function formatTokens(n: number) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1)}M`
   if (n >= 10_000) return `${(n / 1000).toFixed(n >= 100_000 ? 0 : 1)}k`
-  return n.toLocaleString('zh-CN')
+  return n.toLocaleString(LOCALE_DATE[getActiveLocale()])
 }
 
 type UsageChargeRecordsProps = {
-  /** 嵌入设置页时为 compact */
+  /** compact khi nhúng vào trang cài đặt */
   variant?: 'panel' | 'compact'
 }
 
-/** 使用扣费记录列表：按次展示 LLM / 生图 / 生视频等计费明细 */
+const COPY: Record<string, LocalizedText> = {
+  title: { zh: '使用扣费记录', en: 'Charges', vi: 'Lịch sử chi phí' },
+  lede: {
+    zh: '每次 AI 调用的 token 用量与扣费明细',
+    en: 'Tokens and charges for every AI call',
+    vi: 'Token và chi phí của từng lượt gọi AI',
+  },
+  loadFailed: { zh: '加载扣费记录失败', en: 'Could not load charges', vi: 'Không tải được lịch sử chi phí' },
+  loading: { zh: '加载中…', en: 'Loading…', vi: 'Đang tải…' },
+  empty: { zh: '暂无扣费记录', en: 'No charges yet', vi: 'Chưa có khoản chi nào' },
+  estimated: { zh: ' · 估算', en: ' · estimated', vi: ' · ước tính' },
+  paginationLabel: { zh: '扣费记录分页', en: 'Charge history pages', vi: 'Phân trang lịch sử chi phí' },
+}
+
+/** Danh sách khấu trừ: hiện chi tiết tính phí LLM / tạo ảnh / tạo video */
 export default function UsageChargeRecords({ variant = 'compact' }: UsageChargeRecordsProps) {
+  const lt = useLocalizedText()
   /*
-   * items 当前页记录
-   * page 当前页码
-   * pageSize 每页条数
-   * total 总条数
-   * loading 加载中
-   * error 错误信息
+   * items  bản ghi của trang hiện tại
+   * page   số trang
+   * pageSize số bản ghi mỗi trang
+   * total  tổng số bản ghi
+   * loading đang tải
+   * error  thông báo lỗi
    */
   const [items, setItems] = useState<UsageChargeRecord[]>([])
   const [page, setPage] = useState(1)
@@ -47,7 +65,7 @@ export default function UsageChargeRecords({ variant = 'compact' }: UsageChargeR
 
   const pageCount = pageCountOf(total, pageSize)
 
-  // 拉取指定页
+  // Lấy một trang cụ thể
   const loadPage = useCallback(async (nextPage: number, size: number) => {
     if (!localStorage.getItem('token')) {
       setItems([])
@@ -63,7 +81,7 @@ export default function UsageChargeRecords({ variant = 'compact' }: UsageChargeR
       setPage(nextPage)
       setItems(res.items)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '加载扣费记录失败')
+      setError(e instanceof Error ? e.message : localized(COPY.loadFailed))
       setItems([])
       setTotal(0)
     } finally {
@@ -83,16 +101,16 @@ export default function UsageChargeRecords({ variant = 'compact' }: UsageChargeR
   return (
     <section className={`pf-usage-records${variant === 'compact' ? ' is-compact' : ''}`}>
       <header className="pf-usage-records-head">
-        <h3>使用扣费记录</h3>
-        <p className="pf-muted">每次 AI 调用的 token 用量与扣费明细</p>
+        <h3>{lt(COPY.title)}</h3>
+        <p className="pf-muted">{lt(COPY.lede)}</p>
       </header>
 
-      {loading ? <p className="pf-muted">加载中…</p> : null}
+      {loading ? <p className="pf-muted">{lt(COPY.loading)}</p> : null}
       {error ? <p className="pf-error">{error}</p> : null}
 
       {!loading && !error && items.length === 0 ? (
         <div className="pf-settings-empty">
-          <p>暂无扣费记录</p>
+          <p>{lt(COPY.empty)}</p>
         </div>
       ) : null}
 
@@ -106,7 +124,7 @@ export default function UsageChargeRecords({ variant = 'compact' }: UsageChargeR
                   <em className="pf-muted">
                     {item.context}
                     {item.total_tokens > 0 ? ` · ${formatTokens(item.total_tokens)} tokens` : ''}
-                    {item.estimated ? ' · 估算' : ''}
+                    {item.estimated ? lt(COPY.estimated) : ''}
                   </em>
                 </span>
                 <span className="pf-settings-list-meta pf-usage-record-meta">
@@ -129,7 +147,7 @@ export default function UsageChargeRecords({ variant = 'compact' }: UsageChargeR
           pageSize={pageSize}
           onPageSizeChange={handlePageSizeChange}
           onChange={setPage}
-          ariaLabel="扣费记录分页"
+          ariaLabel={lt(COPY.paginationLabel)}
         />
       ) : null}
     </section>
