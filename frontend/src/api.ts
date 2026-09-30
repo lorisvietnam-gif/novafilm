@@ -1,4 +1,9 @@
 import { throwApiError } from './lib/apiError'
+import {
+  templateCharacterPrompt,
+  templateExtraPrompt,
+  templateStylePrompt,
+} from './lib/templatePromptLabels'
 
 function defaultApiBase() {
   if (typeof window !== 'undefined' && window.location?.hostname) {
@@ -103,10 +108,19 @@ export function defaultsFromTemplate(t: Template): {
   const voice_id =
     VOICE_PRESET_ALIASES[preset] ||
     (preset.startsWith('zh_') ? preset : 'zh_female_cancan_uranus_bigtts')
+  /*
+   * Ba prompt dưới đây đi qua bảng nhãn `templatePromptLabels` chứ không lấy thẳng từ
+   * template. Lý do nằm ở chỗ "giống mẫu thì để trống": `StoryboardPage` và
+   * `StyleConfigPage` so giá trị **đang hiển thị** với **mặc định của mẫu** để biết có
+   * cần ghi lớp ghi đè vào dự án không. Nếu một vế là bản dịch còn vế kia là tiếng Trung
+   * thì phép so luôn sai, bản dịch bị ghi vào database, và backend sẽ gửi prompt tiếng
+   * Việt cho mô hình ảnh — đổi kết quả sinh ảnh. Cho cả hai vế cùng đi qua hàm này là
+   * chúng không bao giờ lệch nhau. Giá trị gửi cho model vẫn là bản gốc trong database.
+   */
   return {
-    style_prompt: (t.style_prefix || '').trim(),
-    character_prompt: (cfg.character_prompt || '').trim(),
-    extra_prompt: (cfg.extra_prompt || '').trim(),
+    style_prompt: templateStylePrompt(t.id, (t.style_prefix || '').trim()),
+    character_prompt: templateCharacterPrompt(t.id, (cfg.character_prompt || '').trim()),
+    extra_prompt: templateExtraPrompt(t.id, (cfg.extra_prompt || '').trim()),
     voice_id,
     output_ratio: t.default_ratio || '16:9',
   }
