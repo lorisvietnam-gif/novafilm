@@ -28,7 +28,7 @@ type ButtonAsLink = CommonProps & {
 
 type Props = ButtonAsButton | ButtonAsLink
 
-// 组装按钮 class
+// Ghép class cho nút
 function buttonClass(props: {
   variant: ButtonVariant
   size: ButtonSize
