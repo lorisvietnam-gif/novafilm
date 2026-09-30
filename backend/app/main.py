@@ -9,6 +9,7 @@ from sqlalchemy import select, text
 
 from app.api import auth, billing, projects, tasks, templates, tools
 from app.api import api_keys as user_api_keys
+from app.api import oauth as auth_oauth
 from app.api.v1 import router as v1_router
 from app.api.admin import router as admin_router
 from app.api.drama import router as drama_router
@@ -83,6 +84,7 @@ static_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 app.include_router(auth.router, prefix="/api")
+app.include_router(auth_oauth.router, prefix="/api")
 app.include_router(templates.router, prefix="/api")
 app.include_router(projects.router, prefix="/api")
 app.include_router(tasks.router, prefix="/api")

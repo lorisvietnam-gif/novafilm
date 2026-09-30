@@ -1,3 +1,6 @@
+"""Password hashing, JWT issuing and the small user lookups the auth routes share."""
+
+import secrets
 from datetime import datetime, timedelta, timezone
 
 from jose import JWTError, jwt
@@ -19,6 +22,19 @@ def hash_password(password: str) -> str:
 
 def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
+
+
+def oauth_only_password_hash() -> str:
+    """A password hash no one can ever match, for accounts that only sign in via OAuth.
+
+    users.hashed_password is NOT NULL, so an OAuth-only account still needs a value.
+    A real bcrypt hash of a throwaway random secret is used on purpose: a placeholder
+    string such as "oauth" is not a valid hash and would make POST /auth/login raise
+    instead of returning 401. The secret is discarded, so the account can only be
+    entered through its linked provider.
+    """
+    return pwd_context.hash(secrets.token_urlsafe(32))
+
 
 
 def create_access_token(subject: str) -> str:
