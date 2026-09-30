@@ -1,7 +1,9 @@
-/** 角色音色试听按钮（卡片内联播放，不弹窗） */
+/** Nút nghe thử giọng nhân vật (phát trong card, không mở popup) */
 import { useEffect, useRef, useState } from 'react'
 import { Pause, Volume2 } from 'lucide-react'
 import { resolveDramaMediaUrl } from '../../api/drama'
+import { useLocalizedText } from '../../lib/useLocalizedText'
+import type { LocalizedText } from '../../lib/localeStrings'
 
 type Props = {
   url: string
@@ -12,11 +14,20 @@ type Props = {
   onError?: (message: string) => void
 }
 
-/** 同一时刻只播一条试听，避免多卡片叠音 */
+const COPY: Record<string, LocalizedText> = {
+  badUrl: { zh: '试听地址无效', en: 'That preview link is not usable', vi: 'Đường dẫn nghe thử không dùng được' },
+  playFailed: { zh: '播放失败', en: 'Playback failed', vi: 'Không phát được âm thanh' },
+  previewOf: { zh: '试听：{label}', en: 'Preview the voice: {label}', vi: 'Nghe thử giọng: {label}' },
+  previewVoice: { zh: '试听音色', en: 'Preview the voice', vi: 'Nghe thử giọng đọc' },
+  stop: { zh: '停止', en: 'Stop', vi: 'Dừng' },
+  preview: { zh: '试听', en: 'Preview', vi: 'Nghe thử' },
+}
+
+/** Mỗi thời điểm chỉ phát một đoạn, tránh nhiều card chồng tiếng */
 let sharedAudio: HTMLAudioElement | null = null
 let sharedStop: (() => void) | null = null
 
-// 点击播放已绑定音色的试听音频，再点暂停
+// Bấm để phát đoạn nghe thử của giọng đã gắn, bấm lần nữa để dừng
 export function CharacterVoicePreviewButton({
   url,
   label,
@@ -25,6 +36,7 @@ export function CharacterVoicePreviewButton({
   variant = 'button',
   onError,
 }: Props) {
+  const lt = useLocalizedText()
   const [playing, setPlaying] = useState(false)
   const src = resolveDramaMediaUrl(url)
   const stopRef = useRef<() => void>(() => undefined)
@@ -49,7 +61,7 @@ export function CharacterVoicePreviewButton({
 
   function handlePreview() {
     if (!src) {
-      onError?.('试听地址无效')
+      onError?.(lt(COPY.badUrl))
       return
     }
     if (playing) {
@@ -67,7 +79,7 @@ export function CharacterVoicePreviewButton({
     setPlaying(true)
     void sharedAudio.play().catch(() => {
       setPlaying(false)
-      onError?.('播放失败')
+      onError?.(lt(COPY.playFailed))
     })
   }
 
@@ -91,10 +103,10 @@ export function CharacterVoicePreviewButton({
         e.stopPropagation()
         handlePreview()
       }}
-      title={label ? `试听：${label}` : '试听音色'}
+      title={label ? lt(COPY.previewOf).replace('{label}', label) : lt(COPY.previewVoice)}
     >
       {playing ? <Pause size={14} strokeWidth={1.8} aria-hidden /> : <Volume2 size={14} strokeWidth={1.8} aria-hidden />}
-      {playing ? '停止' : '试听'}
+      {playing ? lt(COPY.stop) : lt(COPY.preview)}
     </button>
   )
 }
