@@ -3,7 +3,7 @@
 When OSS is enabled:
 - Default (async): return /static URL immediately and enqueue upload+DB backfill.
 - sync=True: upload inline (template seed, celery unavailable, etc.).
-- skip_oss_intermediates(): 科普流水线只上传 final.mp4，分镜图/配音/镜头视频留本地。
+- skip_oss_intermediates(): the explainer pipeline uploads only final.mp4; shot images, narration and clip videos stay local.
 FFmpeg always reads local files.
 """
 
@@ -22,9 +22,9 @@ import httpx
 
 from app.config import get_settings
 
-# 科普成片文件名：仅此文件在 skip_oss_intermediates 下仍入 OSS
+# Explainer final film name: the only file that still reaches OSS under skip_oss_intermediates
 _KEPU_FINAL_NAMES = frozenset({"final.mp4"})
-# True 时 publish_local 跳过中间文件的异步 OSS 入队
+# When True, publish_local skips enqueuing intermediate files for OSS
 _skip_oss_intermediates: ContextVar[bool] = ContextVar("skip_oss_intermediates", default=False)
 
 logger = logging.getLogger(__name__)
@@ -87,14 +87,14 @@ def local_path_from_url(url: str) -> Path | None:
 
 
 def _download_timeout(timeout: float | httpx.Timeout) -> httpx.Timeout:
-    """把秒数收成 httpx.Timeout：连接短、读体长，避免整包 120s 把大视频掐断。"""
+    """Turn a number of seconds into an httpx.Timeout: short connect, long read, so one blanket 120s does not cut off a large video."""
     if isinstance(timeout, httpx.Timeout):
         return timeout
     seconds = max(30.0, float(timeout))
     return httpx.Timeout(connect=min(30.0, seconds), read=seconds, write=60.0, pool=30.0)
 
 
-# 下载远程文件到 dest；TokenFree 成片 URL 可传 Bearer headers
+# Download a remote file to dest; a TokenFree film URL can be given Bearer headers
 async def download_to(
     url: str,
     dest: Path,
@@ -159,7 +159,7 @@ def rel_static_url(path: Path) -> str:
 def is_local_static_url(url: str | None) -> bool:
     """True when url points at media under backend/static (relative or site /static/).
 
-    HTTPS OSS/CDN 地址即使本地仍保留 FFmpeg 副本，也不算本地 URL。
+    An HTTPS OSS/CDN address is not a local URL even when FFmpeg still keeps a local copy.
     """
     if not url:
         return False
@@ -169,7 +169,7 @@ def is_local_static_url(url: str | None) -> bool:
     base = settings.public_base_url.rstrip("/")
     if url.startswith(f"{base}/static/"):
         return True
-    # 主站 / 旧站 / 历史拼写错误域名、本地调试地址
+    # The main site / the old site / a historic misspelled domain / local debug addresses
     for host in (
         "www.printfilm.com",
         "printfilm.com",
@@ -181,7 +181,7 @@ def is_local_static_url(url: str | None) -> bool:
         for scheme in ("https://", "http://"):
             if url.startswith(f"{scheme}{host}/static/"):
                 return True
-    # 远程 http(s)（含 OSS public_base）一律非本地；勿因磁盘副本误判
+    # Any remote http(s) (including an OSS public_base) is not local; do not misjudge it from the on-disk copy
     if url.startswith("http://") or url.startswith("https://"):
         return False
     return False
@@ -189,7 +189,7 @@ def is_local_static_url(url: str | None) -> bool:
 
 @contextmanager
 def skip_oss_intermediates() -> Iterator[None]:
-    """科普流水线：中间分镜不入 OSS 队列，成片 final.mp4 仍上传。"""
+    """Explainer pipeline: intermediate shots never enter the OSS queue, but the final final.mp4 is still uploaded."""
     token = _skip_oss_intermediates.set(True)
     try:
         yield
@@ -201,7 +201,7 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 
 def without_intermediate_oss(fn: F) -> F:
-    """装饰科普入口：调用期间跳过中间文件异步 OSS 上传。"""
+    """Decorate an explainer entry point: skip async OSS uploads of intermediate files while the call runs."""
 
     @wraps(fn)
     async def _wrapped(*args: Any, **kwargs: Any):
@@ -212,7 +212,7 @@ def without_intermediate_oss(fn: F) -> F:
 
 
 def is_kepu_final_media(path: Path) -> bool:
-    """是否为科普最终成片文件（当前仅 final.mp4）。"""
+    """Whether this is the explainer's final film file (currently only final.mp4)."""
     return Path(path).name.lower() in _KEPU_FINAL_NAMES
 
 
@@ -248,8 +248,8 @@ def publish_local(path: Path, *, sync: bool = False, retries: int = 2) -> str:
     upload and DB backfill. Use sync=True for startup seeds or when immediate OSS
     URL is required.
 
-    科普 skip_oss_intermediates 下：非 final.mp4 的异步上传会被跳过；sync=True
-    仍上传（Seedance 参考图需要公网 https）。
+    Under the explainer's skip_oss_intermediates, async uploads of anything but
+    final.mp4 are skipped; an explicit sync=True still uploads (Seedance needs it).
     """
     path = Path(path)
     if not path.is_file():
@@ -261,7 +261,7 @@ def publish_local(path: Path, *, sync: bool = False, retries: int = 2) -> str:
     if not oss_svc.oss_enabled():
         return local_url
 
-    # 科普中间文件：异步不入队；显式 sync 仍走公网（方舟拉参考图）
+    # Explainer intermediate files: not enqueued when async; an explicit sync still goes public (Ark fetches reference images)
     skip_mid = _skip_oss_intermediates.get() and not is_kepu_final_media(path)
     if skip_mid and not sync:
         return local_url

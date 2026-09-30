@@ -67,7 +67,7 @@ Brand system (strict):
 - Hairline borders: rgba(17,19,24,0.1)
 - Primary CTA button: solid #B6FF00 fill, #111318 label, no glow
 - Secondary: dark ink button or ghost outline
-- Typography: Space Grotesk for English brand wordmark "PRINTFILM"; Noto Sans SC for all Chinese UI copy
+- Typography: Space Grotesk for English brand wordmark "PRINTFILM"; Noto Sans for all Vietnamese UI copy (default locale `vi`); Noto Sans SC only for Chinese UI copy (`zh` locale)
 - Light theme only; bright maker-tool aesthetic; restrained, not decorative
 
 App shell rules:
@@ -240,7 +240,7 @@ Top nav 工具 active. Chinese UI. Communicate roadmap without looking broken. L
 ### 按钮组
 
 ```text
-PRINTFILM button set on white: (1) solid lime #B6FF00 label 开始创作 ink text, (2) solid ink #111318 label 保存 white text, (3) ghost outline hairline label 取消. Corner radius ~10–14px, medium padding, Space Grotesk/Noto Sans SC, no glow, no pill-full unless specified. Flat UI kit sheet.
+PRINTFILM button set on white: (1) solid lime #B6FF00 label 开始创作 ink text, (2) solid ink #111318 label 保存 white text, (3) ghost outline hairline label 取消. Corner radius ~10–14px, medium padding, Space Grotesk/Noto Sans (Noto Sans SC only for the `zh` locale), no glow, no pill-full unless specified. Flat UI kit sheet.
 ```
 
 ### 输入与控件

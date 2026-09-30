@@ -1,4 +1,4 @@
-"""统一应用日志：可读业务日志，默认不刷 SQL DEBUG。"""
+"""Application-wide logging: readable business logs, SQL DEBUG off by default."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ _configured = False
 
 
 def configure_logging(*, level: str = "INFO", sql_echo: bool = False) -> None:
-    # 配置根日志；可重复调用以刷新级别（reload 后仍可生效）
+    # Configure the root logger; safe to call repeatedly to refresh the level (still works after --reload)
     global _configured
 
     root = logging.getLogger()
@@ -23,11 +23,11 @@ def configure_logging(*, level: str = "INFO", sql_echo: bool = False) -> None:
         )
         root.addHandler(handler)
 
-    # 根级别用 INFO：DEBUG=true 也不刷第三方库
+    # Root level is INFO: DEBUG=true still does not flood third-party libraries
     root.setLevel(logging.INFO)
     logging.getLogger("app").setLevel(getattr(logging, level.upper(), logging.INFO))
 
-    # SQLAlchemy 驱动默认关闭
+    # SQLAlchemy drivers are off by default
     for name in (
         "sqlalchemy",
         "sqlalchemy.engine",
@@ -42,7 +42,7 @@ def configure_logging(*, level: str = "INFO", sql_echo: bool = False) -> None:
     else:
         logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
-    # 其他噪音
+    # Other noise sources
     for name in ("uvicorn.access", "httpx", "httpcore", "celery", "asyncio", "multipart"):
         logging.getLogger(name).setLevel(
             logging.INFO if name == "uvicorn.access" else logging.WARNING

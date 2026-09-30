@@ -1,4 +1,4 @@
-"""NIO-style Selector：集中非阻塞轮询 awaiting_poll 上游任务。"""
+"""NIO-style Selector: a single non-blocking poller for all awaiting_poll upstream tasks."""
 
 from __future__ import annotations
 
@@ -15,12 +15,12 @@ from app.models_tasks import TaskRun
 from app.services.billing.settlement import settle_task
 from app.services.tasks.service import append_task_event
 
-# 与 drama.jobs 收尾认领态一致：异常时勿缩短仍在 finalizing 的 next_action_at
+# Matches how drama.jobs closes out the claiming state: on error, do not shorten the next_action_at of a task still finalizing
 _FRAGMENT_FINALIZE_STEP = "finalizing"
 
 logger = logging.getLogger("app.tasks.poller")
 
-# Selector 循环句柄、停机信号、并发闸与心跳
+# Selector loop handle, stop signal, concurrency gate and heartbeat
 _poller_task: asyncio.Task | None = None
 _stop_event = asyncio.Event()
 _poll_inflight: set[int] = set()
@@ -29,7 +29,7 @@ _last_poll_mono: float = 0.0
 _intentionally_stopped: bool = True
 
 
-# 启动 Selector 轮询循环。
+# Start the Selector polling loop.
 async def start_poller() -> None:
     global _poller_task, _selector_sem, _intentionally_stopped, _last_poll_mono
     if _poller_task and not _poller_task.done():
@@ -42,7 +42,7 @@ async def start_poller() -> None:
     _poller_task = asyncio.create_task(_poller_loop(), name="task-poller")
 
 
-# 停止 Selector 轮询循环。
+# Stop the Selector polling loop.
 async def stop_poller() -> None:
     global _intentionally_stopped
     _intentionally_stopped = True
@@ -55,7 +55,7 @@ async def stop_poller() -> None:
             pass
 
 
-# 看门狗拉起卡死或已退出的 Selector 循环。
+# Watchdog recovery for a stuck or exited Selector loop.
 async def restart_poller_loop(*, reason: str = "watchdog") -> None:
     global _poller_task, _intentionally_stopped, _last_poll_mono, _selector_sem
     if _intentionally_stopped:
@@ -75,7 +75,7 @@ async def restart_poller_loop(*, reason: str = "watchdog") -> None:
     _poller_task = asyncio.create_task(_poller_loop(), name="task-poller")
 
 
-# 返回 Selector 当前状态。
+# Return the current Selector status.
 def poller_status() -> str:
     if _intentionally_stopped:
         return "stopped"
@@ -84,33 +84,33 @@ def poller_status() -> str:
     return "stopped"
 
 
-# 距上次 Selector 轮询完成的秒数。
+# Seconds since the last Selector poll round completed.
 def poller_tick_age_sec() -> float:
     if _last_poll_mono <= 0:
         return 1e9
     return max(0.0, time.monotonic() - _last_poll_mono)
 
 
-# Selector 心跳是否过期。
+# Whether the Selector heartbeat has expired.
 def poller_tick_stale() -> bool:
     if _intentionally_stopped:
         return False
     poll_interval = max(1.0, float(get_settings().ark_video_poll_interval or 8.0))
     stale_sec = max(30.0, float(get_settings().task_poll_stale_sec), poll_interval * 4)
     if _poll_inflight:
-        # 拉成片时心跳会停；放宽到读超时上限，但超时仍要拉起
+        # The heartbeat pauses while a film is being fetched; widen it to the read timeout ceiling, but still fail on a timeout
         stale_sec = max(stale_sec, 720.0)
     return poller_tick_age_sec() > stale_sec
 
 
-# Selector 主循环：周期性 select 到期 channel。
+# Selector main loop: periodically select the channels that are due.
 async def _poller_loop() -> None:
     global _last_poll_mono
     interval = max(1.0, float(get_settings().ark_video_poll_interval or 8.0))
     while not _stop_event.is_set():
         _last_poll_mono = time.monotonic()
         try:
-            # 不可对整轮 select 使用短 wait_for：分镜收尾下载常 >80s，取消后会卡在 finalizing。
+            # Do not put a short wait_for around the whole select round: closing out a fragment download often takes >80s, and cancelling it strands the task in finalizing.
             await _select_and_poll_due()
             await _poll_ephemeral_deferred_tasks()
         except asyncio.CancelledError:
@@ -122,13 +122,13 @@ async def _poller_loop() -> None:
         await asyncio.sleep(interval)
 
 
-# 拉取到期 awaiting_poll 任务并并发非阻塞 poll（类似 NIO select + 就绪集合处理）。
+# Fetch due awaiting_poll tasks and poll them concurrently without blocking (like NIO select plus ready-set processing).
 async def _select_and_poll_due() -> None:
     now = datetime.now(UTC)
     batch_limit = max(1, int(get_settings().task_poll_max_concurrency or 20))
     async with AsyncSessionLocal() as db:
-        # 仅 drama fragment_video 走 drama 收尾轮询；api/studio 的轻量 deferred
-        # 视频由 _poll_ephemeral_deferred_tasks 处理，误送 drama poller 会被立即判失败。
+        # Only drama fragment_video uses the drama close-out poller; lightweight api/studio
+        # deferred videos go to _poll_ephemeral_deferred_tasks, and one sent to the drama poller would be failed.
         stmt = (
             select(TaskRun.id)
             .where(
@@ -162,7 +162,7 @@ async def _select_and_poll_due() -> None:
     await asyncio.gather(*[_guarded_poll(task_id) for task_id in task_ids])
 
 
-# 对单条已注册上游任务执行一次非阻塞状态查询。
+# Run one non-blocking status query against a single registered upstream task.
 async def _poll_one_task(task_id: int) -> None:
     from app.services.drama.jobs import poll_fragment_video_task
 
@@ -198,7 +198,7 @@ async def _poll_one_task(task_id: int) -> None:
             task = await db.get(TaskRun, task_id)
             if not task or task.status != "awaiting_poll":
                 return
-            # 仍在收尾认领中：保留长 TTL，避免并发 poller 挤进下载窗口
+            # Still inside the close-out claim: keep the long TTL so a concurrent poller cannot squeeze into the download window
             if (task.current_step_status or "") == _FRAGMENT_FINALIZE_STEP:
                 return
             poll_interval = max(1.0, float(get_settings().ark_video_poll_interval or 8.0))
@@ -206,7 +206,7 @@ async def _poll_one_task(task_id: int) -> None:
             await db.commit()
 
 
-# 后台轮询 api/studio 轻量视频任务：主动查上游终态，超时则失败并解冻。
+# Background polling for lightweight api/studio video tasks: actively query the upstream for a terminal state, failing and unfreezing on timeout.
 async def _poll_ephemeral_deferred_tasks() -> None:
     from app.models import User
     from app.services.billing.ephemeral import settle_deferred_video_poll
@@ -216,8 +216,8 @@ async def _poll_ephemeral_deferred_tasks() -> None:
     timeout_sec = float(get_settings().ark_video_poll_timeout or 900.0)
 
     async with AsyncSessionLocal() as db:
-        # next_action_at 为 NULL（尚未安排退避）视为到期；否则只查到期任务，
-        # 避免每个轮询周期都对全部在途任务请求上游。
+        # A NULL next_action_at (no backoff scheduled) counts as due; otherwise only due tasks are
+        # queried, so we do not ask the upstream about every in-flight task on every polling cycle.
         stmt = (
             select(TaskRun)
             .where(
@@ -238,11 +238,11 @@ async def _poll_ephemeral_deferred_tasks() -> None:
         except asyncio.CancelledError:
             raise
         except Exception:  # noqa: BLE001
-            # 单条失败不影响本批其余任务，下个周期自然重试
+            # One failure does not affect the rest of the batch; the next cycle retries naturally
             logger.exception("ephemeral deferred poll failed task_id=%s", task_id)
 
 
-# 轮询单条 api/studio 轻量 deferred 视频任务：超时判失败、运行中写回退避、终态结算。
+# Poll one lightweight api/studio deferred video task: fail on timeout, write back a backoff while running, settle on a terminal state.
 async def _poll_one_ephemeral_task(task_id: int, *, now, timeout_sec: float) -> None:
     from app.models import User
     from app.services.billing.ephemeral import settle_deferred_video_poll

@@ -113,7 +113,7 @@ class ShotOut(BaseModel):
 
 
 class ShotReorderIn(BaseModel):
-    """按 id 顺序重排分镜号。"""
+    """Renumber the shots by id order."""
 
     shot_ids: list[int] = Field(min_length=1)
 
@@ -290,7 +290,7 @@ class ProjectListOut(BaseModel):
 
 
 class AdminUsageBucketOut(BaseModel):
-    """按 capability / domain 聚合桶。"""
+    """Aggregation bucket keyed by capability / domain."""
 
     key: str
     calls: int = 0
@@ -314,7 +314,7 @@ class AdminTopUserOut(BaseModel):
 
 
 class AdminUpstreamUsageDayOut(BaseModel):
-    """官方与本地上游成本对照（单日）。"""
+    """Official versus local upstream cost comparison, for a single day."""
 
     date: str
     local_cost_fen: int = 0
@@ -340,7 +340,7 @@ class AdminUpstreamUsageSyncOut(BaseModel):
 
 
 class AdminFinanceDailyRowOut(BaseModel):
-    """单日财务对照行。"""
+    """One row of the daily finance reconciliation."""
 
     date: str
     charge_fen: int = 0
@@ -369,7 +369,7 @@ class AdminFinanceDailyOut(BaseModel):
 
 
 class AdminProjectUsageOut(BaseModel):
-    """项目级用量摘要。"""
+    """Project-level usage summary."""
 
     charge_fen: int = 0
     cost_fen: int = 0
@@ -382,7 +382,7 @@ class AdminProjectUsageOut(BaseModel):
 
 
 class AdminTaskBriefOut(BaseModel):
-    """关联任务简要行。"""
+    """Brief row for a related task."""
 
     id: int
     domain: str

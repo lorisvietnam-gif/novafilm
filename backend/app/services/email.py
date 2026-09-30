@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""SMTP 邮件发送（管理员告警等）。"""
+"""SMTP e-mail delivery (admin alerts and the like)."""
 from __future__ import annotations
 
 import asyncio
@@ -22,7 +22,7 @@ def _smtp_configured(settings: Settings | None = None) -> bool:
 
 
 def _use_implicit_ssl(port: int) -> bool:
-    """465 等端口为隐式 SSL（QQ 邮箱）；587 走 STARTTLS。"""
+    """Ports like 465 mean implicit SSL (QQ Mail); 587 uses STARTTLS."""
     return port in {465, 8465, 2465}
 
 
@@ -54,7 +54,7 @@ def _send_email_sync(
     timeout = 30
 
     if _use_implicit_ssl(port):
-        # QQ/企业邮常用 465：全程 SSL，不能先明文 SMTP 再 STARTTLS
+        # QQ and most corporate mail servers use 465: SSL for the whole session, so do not open a plaintext SMTP connection and then upgrade
         server: smtplib.SMTP = smtplib.SMTP_SSL(host, port, timeout=timeout)
         try:
             if user and password:
@@ -84,7 +84,7 @@ async def send_email(
     body: str,
     settings: Settings | None = None,
 ) -> bool:
-    """异步发送邮件；失败记录日志并返回 False。"""
+    """Send e-mail asynchronously; on failure log the error and return False."""
     if not _smtp_configured(settings):
         logger.warning("skip email: smtp not configured subject=%s", subject)
         return False

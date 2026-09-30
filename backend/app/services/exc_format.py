@@ -1,12 +1,12 @@
-"""将异常格式化为可展示、非空的错误文案。"""
+"""Format an exception into a displayable, never-empty error message."""
 
 from __future__ import annotations
 
-# 已建连、等响应超时（不是连不上）
+# Connected, but timed out waiting for a response (not a connection failure)
 _READ_TIMEOUT_EXC_NAMES = frozenset({"ReadTimeout"})
-# 已建连、发请求体超时
+# Connected, but timed out while sending the request body
 _WRITE_TIMEOUT_EXC_NAMES = frozenset({"WriteTimeout"})
-# 建连失败 / 代理不可达（含未细分的 TimeoutException）
+# Connection failed / proxy unreachable (includes the undifferentiated TimeoutException)
 _CONNECT_EXC_NAMES = frozenset(
     {
         "ConnectError",
@@ -25,7 +25,7 @@ def format_exception_message(
     fallback: str = "未知错误",
     limit: int = 500,
 ) -> str:
-    """生成带类型名的错误文案；ConnectError 等空 message 时补上可读说明。"""
+    """Build an error message with the exception type name; supplies readable text when ConnectError and friends have an empty message."""
     name = type(exc).__name__
     detail = str(exc).strip()
     if name in _READ_TIMEOUT_EXC_NAMES:

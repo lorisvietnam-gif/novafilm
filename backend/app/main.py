@@ -20,7 +20,7 @@ from app.services.tasks.runtime import runtime_summary, start_task_runtime, stop
 from app.services.templates_seed import TEMPLATES
 
 settings = get_settings()
-# 业务日志 INFO；DEBUG=true 不再把根日志打成 DEBUG（避免 SQL 驱动刷屏）
+# Business logs at INFO; DEBUG=true no longer turns the root logger into DEBUG (avoids SQL driver flooding)
 configure_logging(level="INFO", sql_echo=settings.sql_echo)
 logger = logging.getLogger("app.http")
 
@@ -48,14 +48,14 @@ app.add_middleware(
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    # 业务可读请求日志（跳过静态资源；高频轮询默认不打）
+    # Readable per-request business log (skips static assets; high-frequency polls stay silent by default)
     path = request.url.path
     started = time.perf_counter()
     response = await call_next(request)
     elapsed_ms = (time.perf_counter() - started) * 1000
     if path.startswith("/static"):
         return response
-    # 高频轮询：成功且较快时静默，避免淹没业务日志
+    # High-frequency polling: stay silent when it succeeds and is fast, so it cannot drown out the business log
     is_poll = (
         path.endswith("/generate_status")
         or (request.method == "GET" and path.startswith("/api/drama/scripts/"))
@@ -124,7 +124,7 @@ async def on_shutdown() -> None:
 
 
 async def _pg_columns(conn, table: str) -> set[str]:
-    """读取 information_schema 列名。"""
+    """Read column names from information_schema."""
     result = await conn.execute(
         text(
             "SELECT column_name FROM information_schema.columns "
@@ -136,7 +136,7 @@ async def _pg_columns(conn, table: str) -> set[str]:
 
 
 async def _apply_schema_patches() -> None:
-    """Lightweight additive migrations（仅 PostgreSQL）。"""
+    """Lightweight additive migrations (PostgreSQL only)."""
     async with engine.begin() as conn:
         scols = await _pg_columns(conn, "shots")
         if "segment_script" not in scols:
@@ -172,7 +172,7 @@ async def _apply_schema_patches() -> None:
 
         # User billing columns
         ucols = await _pg_columns(conn, "users")
-        # 早期库可能无 create_all 后缺此列（模型有、补丁曾遗漏）
+        # An older database may predate create_all and be missing this column (the model has it, a patch had missed it)
         if "quota_left" not in ucols:
             await conn.execute(text("ALTER TABLE users ADD COLUMN quota_left INTEGER DEFAULT 5"))
         if "balance_fen" not in ucols:
@@ -270,7 +270,7 @@ async def bootstrap_admins() -> None:
 
 
 async def seed_agent_skills() -> None:
-    """启动时把内置导演 Skill 同步进数据库。"""
+    """Sync the built-in director Skills into the database at startup."""
     from app.services.agent.store import seed_builtin_skills
 
     async with AsyncSessionLocal() as db:
@@ -278,7 +278,7 @@ async def seed_agent_skills() -> None:
 
 
 def _publish_template_cover(cover: str, log: logging.Logger) -> str:
-    """把 /static 封面发到 OSS；失败则仍返回原路径。"""
+    """Push the /static cover art to OSS; on failure the original path is still returned."""
     from app.services import storage
 
     if not cover.startswith("/static/"):
@@ -295,7 +295,7 @@ def _publish_template_cover(cover: str, log: logging.Logger) -> str:
 
 
 async def seed_templates() -> None:
-    """只插入缺失的内置模板；已有记录以管理后台为准，启动不再覆盖文案与配置。"""
+    """Insert only the missing built-in templates; existing rows stay as the admin UI left them, so startup never overwrites copy or config."""
     log = logging.getLogger("app.seed")
     async with AsyncSessionLocal() as db:
         for item in TEMPLATES:
@@ -303,7 +303,7 @@ async def seed_templates() -> None:
             existing = await db.get(Template, data["id"])
             cover = (data.get("preview_cover") or "").strip()
             if existing:
-                # 已有模板不覆盖后台配置；仅当封面仍是本地路径时按库内路径补发 OSS
+                # Never overwrite the admin's config for an existing template; only push to OSS when the cover is still a local path
                 current = (existing.preview_cover or "").strip()
                 if not current.startswith(("http://", "https://")):
                     published = _publish_template_cover(current or cover, log)

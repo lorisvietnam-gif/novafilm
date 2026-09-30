@@ -24,7 +24,7 @@ from app.services.tasks.service import (
 
 logger = logging.getLogger("app.tasks.scheduler")
 
-# 调度循环句柄、进程内执行槽、停机信号、心跳与孤儿扫描时间戳
+# Scheduling loop handle, in-process execution slots, stop signal, heartbeat and orphan-scan timestamps
 _scheduler_task: asyncio.Task | None = None
 _running_jobs: dict[int, asyncio.Task] = {}
 _stop_event = asyncio.Event()
@@ -33,7 +33,7 @@ _last_orphan_check_mono: float = 0.0
 _intentionally_stopped: bool = True
 
 
-# 启动任务调度循环。
+# Start the task scheduling loop.
 async def start_scheduler() -> None:
     global _scheduler_task, _intentionally_stopped, _last_tick_mono
     if _scheduler_task and not _scheduler_task.done():
@@ -45,7 +45,7 @@ async def start_scheduler() -> None:
     _scheduler_task = asyncio.create_task(_scheduler_loop(), name="task-scheduler")
 
 
-# 停止任务调度循环并取消执行中的任务。
+# Stop the task scheduling loop and cancel the tasks it is running.
 async def stop_scheduler() -> None:
     global _intentionally_stopped
     _intentionally_stopped = True
@@ -65,7 +65,7 @@ async def stop_scheduler() -> None:
     _running_jobs.clear()
 
 
-# 仅重启调度循环（保留进程内仍在跑的 job），用于看门狗拉起卡死 tick。
+# Restart only the scheduling loop, keeping jobs still running in this process; used by the watchdog to recover a stuck tick.
 async def restart_scheduler_loop(*, reason: str = "watchdog") -> None:
     global _scheduler_task, _intentionally_stopped, _last_tick_mono
     if _intentionally_stopped:
@@ -84,12 +84,12 @@ async def restart_scheduler_loop(*, reason: str = "watchdog") -> None:
     _scheduler_task = asyncio.create_task(_scheduler_loop(), name="task-scheduler")
 
 
-# 返回当前运行中的平台任务数量。
+# How many platform tasks are running right now.
 def running_count() -> int:
     return sum(1 for task in _running_jobs.values() if not task.done())
 
 
-# 调度循环是否存活。
+# Whether the scheduling loop is alive.
 def scheduler_status() -> str:
     if _intentionally_stopped:
         return "stopped"
@@ -98,14 +98,14 @@ def scheduler_status() -> str:
     return "stopped"
 
 
-# 距上次成功完成 tick 的秒数；从未 tick 时返回很大值。
+# Seconds since the last tick completed successfully; a very large value if it has never ticked.
 def scheduler_tick_age_sec() -> float:
     if _last_tick_mono <= 0:
         return 1e9
     return max(0.0, time.monotonic() - _last_tick_mono)
 
 
-# 是否因心跳过期应视为卡死（供看门狗判断）。
+# Whether a stale heartbeat means the loop is stuck (used by the watchdog).
 def scheduler_tick_stale() -> bool:
     if _intentionally_stopped:
         return False
@@ -113,13 +113,13 @@ def scheduler_tick_stale() -> bool:
     return scheduler_tick_age_sec() > stale_sec
 
 
-# 本地是否仍持有该任务的执行协程。
+# Whether this process still holds the execution coroutine for the task.
 def _job_alive(task_id: int) -> bool:
     job = _running_jobs.get(task_id)
     return bool(job and not job.done())
 
 
-# 周期扫描到期任务并交给执行器。
+# Scan for due tasks each cycle and hand them to the executor.
 async def _scheduler_loop() -> None:
     global _last_tick_mono
     while not _stop_event.is_set():
@@ -138,14 +138,14 @@ async def _scheduler_loop() -> None:
         await asyncio.sleep(1.0)
 
 
-# 扫描并租约抢占可执行任务。
+# Scan for runnable tasks and claim them by lease.
 async def _tick() -> None:
     global _last_orphan_check_mono
     now = datetime.now(UTC)
     orphan_every = max(5, int(get_settings().task_runtime_orphan_check_sec))
     if time.monotonic() - _last_orphan_check_mono >= orphan_every:
         await recover_orphaned_tasks()
-        # 低频对账：收敛 settle 异常中断遗留的"终态 + frozen"任务（幂等）
+        # Low-frequency reconciliation: converge tasks left in "terminal + frozen" by a settle that raised (idempotent)
         async with AsyncSessionLocal() as reconcile_db:
             await reconcile_terminal_frozen_tasks(reconcile_db)
         _last_orphan_check_mono = time.monotonic()
@@ -228,7 +228,7 @@ async def _tick() -> None:
         _running_jobs[task_id] = asyncio.create_task(_run_one(task_id))
 
 
-# 包装执行器并在结束后释放运行槽位。
+# Wrap the executor and release the running slot when it finishes.
 async def _run_one(task_id: int) -> None:
     try:
         await execute_task_run(task_id)
@@ -236,7 +236,7 @@ async def _run_one(task_id: int) -> None:
         _running_jobs.pop(task_id, None)
 
 
-# 取消指定任务的本地执行协程。
+# Cancel the local execution coroutine of a given task.
 async def cancel_running_task(task_id: int) -> bool:
     task = _running_jobs.get(task_id)
     if not task or task.done():
@@ -245,7 +245,7 @@ async def cancel_running_task(task_id: int) -> bool:
     return True
 
 
-# 把僵死的 leased/running 放回队列；跳过本进程仍持有协程的任务。
+# Put dead leased/running tasks back on the queue, skipping any whose coroutine this process still holds.
 async def recover_orphaned_tasks() -> int:
     now = datetime.now(UTC)
     grace_sec = max(5, int(get_settings().task_runtime_recover_grace_sec))

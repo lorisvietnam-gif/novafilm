@@ -65,4 +65,4 @@
 - 顶栏居中导航 + 右侧「开始创作」
 - 帮助等次要面板：右侧抽屉（`Modal variant=drawer`），避免居中大弹层挡工作台
 
-字体：Space Grotesk（品牌英文）+ Noto Sans SC（正文）。
+字体：Space Grotesk（品牌英文）+ Noto Sans（越南语正文，默认语言 `vi`）。Noto Sans SC 仅用于 `zh` 语言包。

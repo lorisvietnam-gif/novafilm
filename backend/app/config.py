@@ -16,14 +16,14 @@ class Settings(BaseSettings):
 
     app_name: str = "PRINTFILM"
     debug: bool = True
-    # 是否打印 SQLAlchemy 原始 SQL（默认关，避免刷屏；需要排查 SQL 时设 SQL_ECHO=true）
+    # In raw SQLAlchemy SQL (off by default to avoid flooding; set SQL_ECHO=true to debug SQL)
     sql_echo: bool = False
     secret_key: str = "dev-secret-change-me"
     access_token_expire_minutes: int = 60 * 24 * 7
 
     database_url: str = "postgresql+asyncpg://printfilm:change-me-strong-db-password@127.0.0.1:15432/printfilm"
     database_url_sync: str = "postgresql+psycopg2://printfilm:change-me-strong-db-password@127.0.0.1:15432/printfilm"
-    # Postgres 连接池（统一任务平台 / API 共用）
+    # Postgres connection pool (shared by the task platform and the API)
     db_pool_size: int = 5
     db_max_overflow: int = 5
     db_pool_recycle_sec: int = 1800
@@ -32,33 +32,33 @@ class Settings(BaseSettings):
 
     ark_api_key: str = ""
     ark_base_url: str = "https://www.tokenfree.com/v1"
-    # 文字模型：开源版固定 TokenFree New API，后台选模型
+    # Text model: the open-source build is fixed to TokenFree New API; pick the model in the admin UI
     openai_api_key: str = ""
     openai_base_url: str = "https://www.tokenfree.com/v1"
-    # 默认示例为 kimi；实际以后台渠道 models + 默认定稿为准，可改为 deepseek-chat 等
+    # kimi is just the default example; the real value comes from the admin channel models list, and can be deepseek-chat etc.
     model_llm: str = "kimi-k2.6"
     model_image: str = "doubao-seedream-5-0-260128"
-    # Seedream 4.5 接入点（可选；未配则回退 model_image）
+    # Seedream 4.5 entry point (optional; falls back to model_image when unset)
     model_image_45: str = ""
     model_video: str = "doubao-seedance-2-5-260628"
-    # Seedance 2.0 接入点（可选；未配则仅使用 MODEL_VIDEO）
+    # Seedance 2.0 entry point (optional; when unset only MODEL_VIDEO is used)
     model_video_2: str = ""
-    # Seedance 2.5 官方范围约 4–30 秒
+    # Official Seedance 2.5 duration range is roughly 4-30 seconds
     seedance_duration_min: int = 4
     seedance_duration_max: int = 30
     model_audio: str = "qwen-tts-2025-05-22"
-    # 豆包语音（openspeech）— 与方舟 ARK_API_KEY 不同产品线
+    # Doubao speech (openspeech) - a different product line from Ark, so a different key than ARK_API_KEY
     volc_tts_app_id: str = ""
     volc_tts_access_key: str = ""
     volc_tts_resource_id: str = "seed-tts-2.0"
     volc_tts_speaker: str = "zh_female_cancan_uranus_bigtts"
     volc_tts_url: str = "https://openspeech.bytedance.com/api/v3/tts/unidirectional"
-    # 新版控制台 API Key（与 app_id/access_key 二选一，优先 api_key）
+    # New-style console API key (use instead of app_id/access_key; api_key wins)
     volc_tts_api_key: str = ""
-    # 音色设计：控制台购买的 S_ 槽位，逗号分隔；配了且鉴权齐全则漫剧走 voice_design
+    # Voice design: S_ slots bought in the console, comma separated; when set and auth is complete, drama uses voice_design
     volc_tts_voice_design_url: str = "https://openspeech.bytedance.com/api/v3/tts/voice_design"
     volc_tts_voice_design_speaker_ids: str = ""
-    # Seedream: 2k|3k|4k or WIDTHxHEIGHT，且总像素 >= 3686400（约 2560x1440）
+    # Seedream: 2k|3k|4k or WIDTHxHEIGHT, and total pixels must be >= 3686400 (about 2560x1440)
     ark_image_size: str = "2k"
     ark_video_resolution: str = "480p"
     ark_video_ratio: str = "16:9"
@@ -66,36 +66,36 @@ class Settings(BaseSettings):
     ark_video_poll_timeout: float = 900.0
     # Parallel generation concurrency (per project)
     pipeline_image_concurrency: int = 3
-    # TokenFree / New API 同时观察的生图任务上限（超出会 429）
+    # Cap on image jobs TokenFree / New API watches at once (exceeding it returns 429)
     tokenfree_image_concurrency: int = 1
-    # Seedance 2.5 官方并发上限约 10
+    # Official Seedance 2.5 concurrency cap is about 10
     pipeline_video_concurrency: int = 10
     pipeline_audio_concurrency: int = 4
-    # 单用户漫剧视频并发上限（同时 submit/awaiting_poll）；超出部分保持 pending 排队
+    # Per-user cap on concurrent drama videos (submit and awaiting_poll together); the rest stay pending and queue
     drama_user_video_job_limit: int = 12
-    # 单个分镜视频最大尝试次数；超过后直接失败，避免长时间卡在同一镜
+    # Max attempts for a single fragment video; past the limit the task fails outright instead of stalling on one shot
     drama_fragment_max_attempts: int = 3
-    # 科普 full：Seedance 视频内置口播+环境音，后期不再叠外部 TTS
+    # kepu full mode: Seedance bakes narration and ambience into the video, so no external TTS is layered afterwards
     kepu_seedance_native_audio: bool = True
-    # 仅当 native_audio=false 时生效：Seedance 只要操作音效，口播改后期 TTS（默认开）
+    # Only applies when native_audio=false: ask Seedance for sound effects only and add narration in post via TTS (on by default)
     kepu_seedance_sfx_audio: bool = True
 
     ark_mock: bool = False
-    # 内置任务平台的进程内并发上限（全站 Worker 槽位）。
+    # In-process concurrency cap for the built-in task platform (worker slots for the whole site).
     task_runtime_max_concurrency: int = 4
-    # 单用户同时进行中的 Worker 槽位（不含 awaiting_poll 注册项）。
+    # Worker slots a single user may occupy at once (awaiting_poll rows do not count).
     task_user_max_concurrency: int = 4
-    # Selector 每轮并发非阻塞查询上游的上限（类似 NIO select 就绪 channel 批处理）。
+    # Cap on concurrent non-blocking upstream queries per selector round (like an NIO select ready-channel batch).
     task_poll_max_concurrency: int = 20
-    # 孤儿恢复：leased/running 超过该秒数无更新、且本进程无执行协程时重排队。
+    # Orphan recovery: a leased/running task untouched for this many seconds, with no live coroutine in this process, goes back on the queue.
     task_runtime_recover_grace_sec: int = 30
-    # 运行中每隔多少秒扫描一次孤儿任务（调度 tick 内执行）。
+    # How often to scan for orphaned tasks while running (inside the scheduler tick).
     task_runtime_orphan_check_sec: int = 30
-    # 调度 tick 心跳超过该秒数未刷新 → 看门狗软重启调度循环。
+    # Scheduler tick heartbeat stale for this many seconds -> the watchdog soft-restarts the scheduling loop.
     task_runtime_tick_stale_sec: int = 60
-    # Selector 心跳超过该秒数未刷新 → 看门狗软重启 poller。
+    # Selector heartbeat stale for this many seconds -> the watchdog soft-restarts the poller.
     task_poll_stale_sec: int = 600
-    # 看门狗检查间隔（秒）。
+    # Watchdog check interval, in seconds.
     task_runtime_watchdog_interval_sec: float = 5.0
 
     max_shot_duration: int = 30
@@ -104,10 +104,10 @@ class Settings(BaseSettings):
     # Legacy flag; prefer billing_enabled
     quota_enabled: bool = False
 
-    # Token 计费：用户扣费 = TokenFree 官方成本（billing_markup 保留兼容，不再乘）
+    # Token billing: the user is charged the official TokenFree cost (billing_markup is kept for compatibility and is no longer applied)
     billing_enabled: bool = False
     billing_markup: float = 1.0
-    # token / 视频时长估价缓冲；按张生图官价不再乘此系数（否则 5 元赠金冻不住一张图）
+    # Estimate buffer for tokens / video duration; per-image official pricing does not multiply by this factor (otherwise a 5 CNY grant cannot hold a single image)
     billing_estimate_buffer: float = 1.2
     # Yuan per million tokens (provider cost)
     billing_seedance_video0: float = 46.0
@@ -115,24 +115,24 @@ class Settings(BaseSettings):
     billing_llm_per_m: float = 5.0
     billing_seedream_per_m: float = 8.0
     billing_tts_per_m: float = 2.0
-    # Kie：1 credit 折合人民币分（约 $0.005 ≈ ¥0.035 → 3.5）
+    # Kie: 1 credit is worth this many fen (about $0.005 = 0.035 CNY -> 3.5)
     billing_kie_fen_per_credit: float = 3.5
-    # TokenFree / New API：quota→USD→人民币（500000 quota = 1 USD）
+    # TokenFree / New API: quota -> USD -> CNY (500000 quota = 1 USD)
     billing_usd_cny: float = 7.0
     # Fallback tokens when API omits usage
     billing_est_llm_tokens: int = 80_000
-    # Seedream / gpt-image 无 quota 时按张价结算，不再用 4.5 万 token × 8 元/百万
+    # Seedream / gpt-image with no quota are settled by per-image price, no longer 45k tokens x 8 CNY per million
     billing_est_seedream_tokens: int = 45_000
     billing_est_tts_tokens: int = 5_000
     billing_est_seedance_tokens_per_sec: int = 32_000
     # Signup grant (fen)
     billing_signup_grant_fen: int = 500
 
-    # 用户消费里程碑弹窗（累计扣费每达 interval 分提醒一次；默认 10000 = ¥100）
+    # User spending milestone popup (fires once every `interval` fen of cumulative charges; the default 10000 = 100 CNY)
     billing_user_alert_enabled: bool = True
     billing_user_alert_interval_fen: int = 10000
 
-    # 平台总费用邮件告警（按上游 cost_fen 聚合）
+    # Platform-wide cost e-mail alert (aggregated by upstream cost_fen)
     billing_admin_cost_alert_enabled: bool = False
     billing_admin_cost_alert_threshold_fen: int = 0
     billing_admin_cost_alert_emails: str = ""
@@ -140,7 +140,7 @@ class Settings(BaseSettings):
     billing_admin_cost_alert_last_period_key: str = ""
     billing_admin_cost_alert_last_level: int = 0
 
-    # SMTP（管理员费用告警邮件）
+    # SMTP (for the admin cost alert e-mail)
     smtp_enabled: bool = False
     smtp_host: str = ""
     smtp_port: int = 587
@@ -166,7 +166,7 @@ class Settings(BaseSettings):
     tos_secret_key: str = ""
     cdn_base: str = "http://localhost:8000/static"
 
-    # Aliyun OSS — 成片/分镜上传；FFmpeg 仍读本地文件
+    # Aliyun OSS - film and shot uploads; FFmpeg still reads the local files
     oss_enabled: bool = False
     oss_endpoint: str = "oss-cn-beijing.aliyuncs.com"
     oss_region: str = "cn-hangzhou"
@@ -174,9 +174,9 @@ class Settings(BaseSettings):
     oss_folder: str = "kepu"
     oss_access_key_id: str = ""
     oss_access_key_secret: str = ""
-    # 可选自定义域名；空则用 https://{bucket}.{endpoint}
+    # Optional custom domain; when empty, https://{bucket}.{endpoint} is used
     oss_public_base: str = ""
-    # 生成链路：先落盘返回 /static，再入队异步上传并回填 OSS URL
+    # Generation chain: write to disk and return /static first, then enqueue an async upload and backfill the OSS URL
     oss_upload_async: bool = True
     oss_upload_queue: str = "oss"
 

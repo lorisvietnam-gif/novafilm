@@ -1,4 +1,4 @@
-"""OpenAI 兼容文字模型客户端（任意兼容上游：Kimi / DeepSeek / OpenAI 等）。"""
+"""OpenAI-compatible text model client (any compatible upstream: Kimi / DeepSeek / OpenAI, etc.)."""
 
 from __future__ import annotations
 
@@ -13,15 +13,15 @@ from app.services.logical_model_router import resolve_logical_model, resolve_log
 
 logger = logging.getLogger(__name__)
 
-# DEFAULT_MAX_TOKENS 分集正文等结构化输出需要足够 completion 空间
+# DEFAULT_MAX_TOKENS: structured output such as episode bodies needs enough completion room
 DEFAULT_MAX_TOKENS = 32768
 
 
 class LlmUnavailableError(RuntimeError):
-    """文字 LLM 未配置或不可用。"""
+    """The text LLM is not configured or not available."""
 
 
-# 解析 LLM API Key（对齐 manju resolveOpenaiApiKey）
+# Resolve the LLM API key (mirrors manju resolveOpenaiApiKey)
 def resolve_llm_api_key() -> str:
     key = (get_settings().openai_api_key or "").strip()
     if not key:
@@ -32,7 +32,7 @@ def resolve_llm_api_key() -> str:
     return key
 
 
-# 解析 OpenAI 兼容 Base URL
+# Resolve the OpenAI-compatible base URL
 def resolve_llm_base_url() -> str:
     base = (get_settings().openai_base_url or "").strip().rstrip("/")
     if base:
@@ -40,7 +40,7 @@ def resolve_llm_base_url() -> str:
     return "https://api.openai.com/v1"
 
 
-# kimi / deepseek-v4 默认 thinking 会占满 token、content 常为空；结构化产出统一关闭
+# kimi / deepseek-v4 enable thinking by default, which eats the whole token budget and leaves content empty; turn it off for every structured call
 def _llm_extra_body(model: str) -> dict[str, Any]:
     mid = (model or "").strip().lower()
     if mid.startswith("kimi") or mid.startswith("deepseek"):
@@ -48,7 +48,7 @@ def _llm_extra_body(model: str) -> dict[str, Any]:
     return {}
 
 
-# 从 chat/completions 响应提取正文
+# Extract the body text from a chat/completions response
 def _message_content(data: dict[str, Any]) -> str:
     choices = data.get("choices") or []
     if not choices:
@@ -57,12 +57,12 @@ def _message_content(data: dict[str, Any]) -> str:
     content = message.get("content")
     if content:
         return str(content)
-    # 部分兼容网关把结果放在 reasoning_content
+    # Some compatible gateways put the result in reasoning_content
     reasoning = message.get("reasoning_content")
     return str(reasoning or "")
 
 
-# 调用 OpenAI 兼容 chat/completions
+# Call the OpenAI-compatible chat/completions endpoint
 async def chat_completions(
     system: str,
     user: str,
@@ -87,7 +87,7 @@ async def chat_completions(
         raise LlmUnavailableError(
             "未解析到可用文字模型。请在管理后台填写 TokenFree API Key，拉取并选择文本模型。"
         )
-    # kimi 系列仅允许 temperature=0.6，其它值会 400
+    # The kimi family only accepts temperature=0.6; any other value returns 400
     effective_temperature = 0.6 if model.lower().startswith("kimi") else temperature
 
     payload: dict[str, Any] = {
