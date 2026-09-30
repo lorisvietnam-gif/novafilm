@@ -55,6 +55,9 @@ _EMAIL = TypeAdapter(EmailStr)
 _HTTP_TIMEOUT = httpx.Timeout(connect=5.0, read=10.0, write=10.0, pool=5.0)
 _MAX_NICKNAME = 64
 _MAX_AVATAR_URL = 512
+# ?next= là đầu vào của trình duyệt: nó được lưu trong Redis rồi đưa vào Location,
+# nên phải chặn độ dài trước khi nó thành một Location dài vô hạn.
+_MAX_REDIRECT_LENGTH = 2048
 
 
 class OAuthConfigError(Exception):
@@ -188,6 +191,8 @@ def safe_next_target(candidate: str, settings: Settings | None = None) -> str:
     value = str(candidate or "").strip()
     if not value:
         return ""
+    if len(value) > _MAX_REDIRECT_LENGTH:
+        raise OAuthFlowError("redirect_invalid", "登录后的跳转地址非法")
     # `//evil.example` và `/\evil.example` là URL protocol-relative mà trình duyệt vẫn
     # điều hướng; dấu \ trong URL cũng bị một số trình duyệt quy về /.
     if "\\" in value or value.startswith("//"):
@@ -456,8 +461,10 @@ async def complete_login(
     redis_client = store if store is not None else oauth_state.get_redis_client()
 
     if provider_error:
-        # Người dùng bấm "Huỷ", hoặc provider từ chối trước khi phát code.
-        raise OAuthFlowError("access_denied", provider_error)
+        # Người dùng bấm "Huỷ", hoặc provider từ chối trước khi phát code. Chuỗi này do
+        # trình duyệt đưa tới nên phải cắt bớt; nó cũng không đi ra frontend (chỉ mã
+        # `access_denied` mới đi).
+        raise OAuthFlowError("access_denied", str(provider_error)[:64])
     if not (code or "").strip():
         raise OAuthFlowError("missing_code")
     if not (state or "").strip():

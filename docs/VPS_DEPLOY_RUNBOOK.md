@@ -43,6 +43,14 @@ python3 -c "import secrets; print(secrets.token_urlsafe(48))"    # dán vào SEC
 chmod 600 deploy/.env.prod
 ```
 
+`deploy/.env.prod` là file bí mật: `.gitignore` ở gốc chặn `.env`/`.env.*` trừ `*.example`,
+và `backend/.dockerignore` chặn `.env` nên secret không lọt vào image. Kiểm tra trước khi
+build:
+
+```bash
+git check-ignore -v deploy/.env.prod backend/.env
+```
+
 Bắt buộc sửa trong `deploy/.env.prod`:
 
 | Biến | Ý nghĩa |
@@ -58,7 +66,7 @@ Bắt buộc sửa trong `deploy/.env.prod`:
 Thêm khoá nhà cung cấp mô hình và (nếu dùng) khóa thanh toán vào `backend/.env`
 trên VPS. File đó không nằm trong kho.
 
-## 4. Nhận diện tự phát hiện
+## 4. Kiểm tra cấu hình trước khi build
 
 ```bash
 docker compose -f deploy/docker-compose.yml --env-file deploy/.env.prod config >/dev/null \
@@ -128,6 +136,10 @@ server {
 `X-Forwarded-For` là bắt buộc: giới hạn tần suất `/api/auth/*` và link trong email
 đều dựa vào IP thật, thiếu header thì mọi người bị tính chung một IP.
 
+Vì sao phải bắt buộc: `deploy/docker-compose.yml` gán cổng 8000 vào `127.0.0.1`, nên
+nginx là đường vào **duy nhất**. Nếu ai đó mở cổng 8000 ra ngoài, kẻ xấu tự bịa
+`X-Forwarded-For` để né giới hạn tần suất và giả vị trí trong link email.
+
 ```bash
 sudo nginx -t && sudo systemctl reload nginx
 curl -s https://api.novastudio.rr.kg/api/health | head -c 200
@@ -160,14 +172,21 @@ tạo tài khoản chưa hoàn chỉnh, người dùng phải đặt email + m�
 
 ## 8. Firebase Hosting (frontend)
 
+`frontend/firebase.json` không khai domain nào: custom domain nằm ở console Firebase
+(Hosting → Add custom domain). File đó cũng ghi rõ `/api`, `/static` và
+`/epay/notify` **không** do Firebase phục vụ — Firebase Hosting không proxy được tới
+một origin VPS bất kỳ, nên frontend phải gọi API chéo origin qua `VITE_API_BASE`.
+
 ```bash
 cd frontend
 VITE_API_BASE=https://api.novastudio.rr.kg npm run build
 firebase deploy --hosting <site-id>
 ```
 
-Không có `VITE_SITE_URL` trong source: site URL của Firebase và domain staging là hai
-thứ khác nhau, cấu hình ở console Firebase, không commit vào repo.
+Cần CLI và đăng nhập sẵn: `npm i -g firebase-tools && firebase login`.
+`<site-id>` xem bằng `firebase projects:list`. Không có `VITE_SITE_URL` trong source:
+site URL của Firebase và domain staging là hai thứ khác nhau, cấu hình ở console
+Firebase, không commit vào repo.
 
 ## 9. Cập nhật khi có code mới
 

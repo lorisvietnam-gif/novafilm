@@ -171,6 +171,21 @@ def test_relative_path_is_always_allowed() -> None:
     assert oauth.safe_next_target("", fake_settings()) == ""
 
 
+@pytest.mark.parametrize("candidate", ["/" + "a" * 3000, "https://novastudio.rr.kg/" + "a" * 3000])
+def test_an_endless_redirect_target_is_refused(candidate: str) -> None:
+    # ?next= đi thẳng vào Location header; không chặn độ dài thì nó thành header bất tận
+    with pytest.raises(oauth.OAuthFlowError) as err:
+        oauth.safe_next_target(candidate, fake_settings())
+    assert err.value.code == "redirect_invalid"
+
+
+@pytest.mark.parametrize("candidate", ["//evil.example", "/\\evil.example", "https://evil.example"])
+def test_protocol_relative_forms_are_refused(candidate: str) -> None:
+    # `//host` và `/\host` là URL protocol-relative: trình duyệt vẫn điều hướng sang host khác
+    with pytest.raises(oauth.OAuthFlowError):
+        oauth.safe_next_target(candidate, fake_settings())
+
+
 def test_absolute_url_on_a_configured_origin_is_allowed() -> None:
     settings = fake_settings(cors_origins="https://novastudio.rr.kg")
     assert (

@@ -6,6 +6,7 @@ resolve_oauth_user 顶掉数据库。
 
 from __future__ import annotations
 
+import logging
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 from urllib.parse import parse_qs
@@ -360,6 +361,36 @@ async def test_provider_errors_are_logged_without_the_token_or_the_secret(
     assert "gsecret" not in str(err.value)
     assert "at-1" not in str(err.value)
     assert "gsecret" not in caplog.text and "at-1" not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_a_successful_login_never_logs_the_code_state_or_token(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    # Đường đi happy path cũng phải sạch: state, code và access token là ba thứ không
+    # được xuất hiện trong log, dù ở đâu cũng được.
+    _stub_resolve(monkeypatch, user_id=4242)
+    spec = oauth.require_provider("google", SETTINGS)
+    r = FakeRedis()
+    started = oauth.start_authorization(spec, settings=SETTINGS, store=r)
+    with caplog.at_level(logging.INFO):
+        async with _client({"token": TOKEN_OK, "userinfo": USERINFO_OK}) as c:
+            handoff = await oauth.complete_login(
+                spec,
+                code="super-secret-code",
+                state=started.state,
+                session_id=started.session_id,
+                db=_fake_db(),
+                settings=SETTINGS,
+                client=c,
+                store=r,
+            )
+    assert started.state not in caplog.text
+    assert "super-secret-code" not in caplog.text
+    assert "at-1" not in caplog.text
+    assert handoff.token not in caplog.text
+    assert "oauth login ok provider=google user_id=4242 outcome=create" in caplog.text
 
 
 # --------------------------------------------------------------- identity parsing

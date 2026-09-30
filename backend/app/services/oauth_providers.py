@@ -18,6 +18,8 @@ from typing import Any
 from urllib.parse import urlsplit
 
 # TikTok: không được đăng ký quá 10 callback, mỗi cái ngắn hơn 512 ký tự (Login Kit).
+# Ta chỉ đăng ký đúng một URL nên giới hạn 10 nằm ở console, không ở backend; phần
+# backend tự kiểm là https + tĩnh + độ dài.
 TIKTOK_REDIRECT_MAX_LENGTH = 512
 
 
