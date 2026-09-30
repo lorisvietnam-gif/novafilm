@@ -358,11 +358,19 @@ export function serializePromptEditorContent(root: HTMLElement) {
   return result
 }
 
-// Render DOM của trình soạn thảo theo content
+/**
+ * Render DOM của trình soạn thảo theo content
+ *
+ * `mapText` được áp lên **từng mảnh chữ thuần** trước khi đưa vào DOM. Chỉ dùng ở chế độ
+ * xem: trình soạn thảo serialize ngược DOM về `content` rồi gửi lên backend, mà backend khớp
+ * marker kịch bản bằng tiếng Trung, nên lúc soạn `mapText` phải là `undefined` và DOM phải giữ
+ * nguyên văn bản gốc.
+ */
 export function renderPromptEditorContent(
   root: HTMLElement,
   content: string,
   resolveChip: (assetId: number) => DramaMentionChipData | null,
+  mapText: (text: string) => string = identityText,
 ) {
   root.replaceChildren()
   if (!content) return
@@ -372,28 +380,32 @@ export function renderPromptEditorContent(
     const matchIndex = match.index ?? 0
     const token = match[1]
     if (matchIndex > lastIndex) {
-      appendTextWithLineBreaks(root, content.slice(lastIndex, matchIndex))
+      appendTextWithLineBreaks(root, mapText(content.slice(lastIndex, matchIndex)))
     }
     if (token.startsWith('duration:')) {
       const seconds = Number(token.slice('duration:'.length))
       if (Number.isFinite(seconds) && seconds > 0) {
         root.appendChild(createDurationChipElement(seconds))
       } else {
-        appendTextWithLineBreaks(root, match[0])
+        appendTextWithLineBreaks(root, mapText(match[0]))
       }
     } else if (token.startsWith('asset:')) {
       const assetId = Number(token.slice('asset:'.length))
       const chipData = resolveChip(assetId)
       if (chipData) root.appendChild(createMentionChipElement(chipData))
-      else appendTextWithLineBreaks(root, match[0])
+      else appendTextWithLineBreaks(root, mapText(match[0]))
     } else {
-      appendTextWithLineBreaks(root, match[0])
+      appendTextWithLineBreaks(root, mapText(match[0]))
     }
     lastIndex = matchIndex + match[0].length
   }
   if (lastIndex < content.length) {
-    appendTextWithLineBreaks(root, content.slice(lastIndex))
+    appendTextWithLineBreaks(root, mapText(content.slice(lastIndex)))
   }
+}
+
+function identityText(text: string): string {
+  return text
 }
 
 // @asset:id / @duration:n đã lưu không tính là dấu @ đang được gõ
