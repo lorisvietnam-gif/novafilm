@@ -324,10 +324,18 @@ export function localizeScriptLine(line: string): string {
   return trimmed
 }
 
-/** Dịch cả khối nội dung kịch bản để **hiển thị**, giữ nguyên số dòng. */
+/**
+ * Dịch cả khối nội dung kịch bản để **hiển thị**, giữ nguyên số dòng.
+ *
+ * Dòng không nhận diện được marker thì trả về **nguyên bản** kèm thụt lề, không phải bản
+ * đã trim — kịch bản quay dùng thụt lề để phân cấp, mất nó thì bố cục đọc được sẽ đổi.
+ */
 export function localizeScriptContent(content: string): string {
   return (content || '')
     .split('\n')
-    .map((line) => localizeScriptLine(line))
+    .map((line) => {
+      const localizedLine = localizeScriptLine(line)
+      return localizedLine === line.trim() ? line : localizedLine
+    })
     .join('\n')
 }
