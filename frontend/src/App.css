@@ -13,8 +13,8 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 0.75rem;
-  background: #fff;
+  gap: var(--pf-space-3);
+  background: var(--pf-surface);
 }
 
 .auth-panel-top {
@@ -25,7 +25,7 @@
 }
 
 .auth-panel h1 {
-  font-family: 'Space Grotesk', 'Noto Sans SC', sans-serif;
+  font-family: 'Space Grotesk', 'Noto Sans', 'Noto Sans SC', sans-serif;
   font-size: 2rem;
   letter-spacing: 0.04em;
   margin: 0.5rem 0 0;
@@ -34,23 +34,23 @@
 .auth-visual {
   position: relative;
   overflow: hidden;
-  background: #111318;
+  background: rgb(var(--pf-scrim-rgb));
 }
 
 .ink-wash {
   position: absolute;
   inset: -20%;
   background:
-    radial-gradient(circle at 30% 40%, rgba(182, 255, 0, 0.35), transparent 42%),
-    radial-gradient(circle at 72% 58%, rgba(42, 111, 122, 0.35), transparent 38%),
+    radial-gradient(circle at 30% 40%, rgb(var(--pf-accent-rgb) / 0.35), transparent 42%),
+    radial-gradient(circle at 72% 58%, rgb(42 111 122 / 0.35), transparent 38%),
     repeating-linear-gradient(
       -12deg,
       transparent,
       transparent 18px,
-      rgba(232, 238, 242, 0.04) 18px,
-      rgba(232, 238, 242, 0.04) 19px
+      rgb(var(--pf-on-media-rgb) / 0.04) 18px,
+      rgb(var(--pf-on-media-rgb) / 0.04) 19px
     );
-  animation: drift 14s ease-in-out infinite alternate;
+  animation: drift 14s var(--pf-ease-standard) infinite alternate;
 }
 
 @keyframes drift {
@@ -70,18 +70,19 @@
 }
 
 .btn {
-  border: 1px solid var(--pf-ink);
+  border: var(--pf-hairline) solid var(--pf-ink);
   background: transparent;
   color: var(--pf-ink);
   padding: 0.7rem 1.2rem;
-  border-radius: 10px;
-  font-weight: 600;
+  border-radius: var(--pf-radius-sm);
+  font-weight: var(--pf-weight-semibold);
+  transition: var(--pf-transition-surface);
 }
 
 .btn.primary {
-  background: var(--pf-lime);
-  border-color: var(--pf-lime);
-  color: var(--pf-ink);
+  background: var(--pf-accent);
+  border-color: var(--pf-accent);
+  color: var(--pf-on-accent);
 }
 
 .linkish {
@@ -97,7 +98,7 @@
 }
 
 .auth-notice {
-  color: #027a48;
+  color: var(--pf-success);
   margin: 0;
   font-size: 0.95rem;
 }
