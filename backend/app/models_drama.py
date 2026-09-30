@@ -12,7 +12,7 @@ from app.database import Base
 
 
 class DramaProject(Base):
-    # One drama series owned by a PRINTFILM user
+    # Một series phim ngắn thuộc sở hữu của một người dùng NOVAFILM
     __tablename__ = "drama_projects"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
