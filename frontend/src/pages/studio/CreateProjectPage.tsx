@@ -8,8 +8,9 @@ import Stepper from '../../components/ui/Stepper'
 import PillTabs from '../../components/ui/PillTabs'
 import { IconChevronLeft, IconRefresh, IconSparkles } from '../../components/ui/Icons'
 import { useI18n, type Messages } from '../../i18n'
-import { CATEGORY_ORDER } from '../../lib/categories'
+import { CATEGORY_ORDER, homeCategoryLabel } from '../../lib/categories'
 import { kepuStepIndex, kepuSteps } from '../../lib/status'
+import { templateDescription, templateName } from '../../lib/templateLabels'
 import { getDramaImageStylePreviewUrl } from '../../lib/dramaImageStylePreviews'
 import './studio.css'
 
@@ -91,12 +92,14 @@ export default function CreateProjectPage() {
     return [ALL_CATEGORY, FEATURED_CATEGORY, ...CATEGORY_ORDER.filter((c) => found.has(c))]
   }, [templates])
 
-  // PillTabs dùng chính chuỗi nhãn làm value, nên phải dịch nhãn rồi tra ngược về khoá
+  // PillTabs dùng chính chuỗi nhãn làm value, nên phải dịch nhãn rồi tra ngược về khoá.
+  // Khoá danh mục do API trả về là tiếng Trung, nên phải qua homeCategoryLabel —
+  // nếu in thẳng `key` thì chip sẽ hiện tiếng Trung ở cả `en` lẫn `vi`.
   const categoryOptions = useMemo(
     () =>
       categories.slice(0, 6).map((key) => ({
         key,
-        label: CATEGORY_LABEL_KEYS[key] ? t(CATEGORY_LABEL_KEYS[key]) : key,
+        label: CATEGORY_LABEL_KEYS[key] ? t(CATEGORY_LABEL_KEYS[key]) : homeCategoryLabel(key),
       })),
     [categories, t],
   )
@@ -108,7 +111,9 @@ export default function CreateProjectPage() {
     else if (category !== ALL_CATEGORY) list = list.filter((t) => (t.category || []).includes(category))
     if (q.trim()) {
       const s = q.trim().toLowerCase()
-      list = list.filter((t) => t.name.toLowerCase().includes(s))
+      list = list.filter(
+        (t) => templateName(t.id, t.name).toLowerCase().includes(s) || t.name.toLowerCase().includes(s),
+      )
     }
     return list
   }, [templates, category, q])
@@ -237,9 +242,9 @@ export default function CreateProjectPage() {
               >
                 <img src={api.assetUrl(tpl.preview_cover)} alt="" loading="lazy" />
                 <div>
-                  <strong>{tpl.name}</strong>
+                  <strong>{templateName(tpl.id, tpl.name)}</strong>
                   <span>
-                    {tpl.default_ratio} · {(tpl.category || [])[0] || t('studio.shared.categoryGeneral')}
+                    {tpl.default_ratio} · {homeCategoryLabel((tpl.category || [])[0] || '') || t('studio.shared.categoryGeneral')}
                   </span>
                 </div>
               </button>
@@ -370,8 +375,8 @@ export default function CreateProjectPage() {
             <figure className="studio-summary-figure">
               <img src={api.assetUrl(selected.preview_cover)} alt="" />
               <figcaption>
-                <strong>{selected.name}</strong>
-                <p className="pf-muted">{selected.description}</p>
+                <strong>{templateName(selected.id, selected.name)}</strong>
+                <p className="pf-muted">{templateDescription(selected.id, selected.description)}</p>
               </figcaption>
             </figure>
           ) : (

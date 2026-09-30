@@ -1,5 +1,7 @@
 /** Chọn mô hình cho Drama: nhóm icon và văn bản hiển thị */
 import type { MediaModelOption } from '../api'
+import { localized, type LocalizedText } from './localeStrings'
+import { mediaModelDescription, mediaModelEtaHint, mediaModelPricingHint } from './mediaModelLabels'
 
 export type MediaModelIconKind =
   | 'seedance25'
@@ -23,6 +25,8 @@ export function mediaModelIconKind(modelId: string | undefined | null): MediaMod
   return 'generic'
 }
 
+const FALLBACK_MODEL: LocalizedText = { zh: '模型', en: 'Model', vi: 'Mô hình' }
+
 /** Nhãn năng lực (badge trên danh sách) */
 export function mediaModelCapabilityBadge(model: MediaModelOption): string {
   const id = (model.id || '').toLowerCase()
@@ -30,21 +34,23 @@ export function mediaModelCapabilityBadge(model: MediaModelOption): string {
   if (id.includes('seedance')) return 'Seedance'
   if (id.includes('seedream')) return 'Seedream'
   if (id.includes('gpt-image')) return 'GPT Image'
-  return model.provider === 'tokenfree' ? 'TokenFree' : model.provider || 'Mô hình'
+  if (model.provider === 'tokenfree') return 'TokenFree'
+  return model.provider || localized(FALLBACK_MODEL)
 }
+
+const ETA_PREFIX: LocalizedText = { zh: '耗时：', en: 'Time: ', vi: 'Thời gian: ' }
+const CLIP_PREFIX: LocalizedText = { zh: '片段', en: 'Clip', vi: 'Phim' }
 
 /** Mô tả đầy đủ cho tooltip / `title` */
 export function mediaModelHoverText(model: MediaModelOption): string {
-  const clip =
-    typeof model.duration_min === 'number' && typeof model.duration_max === 'number'
-      ? `Phim ${model.duration_min}–${model.duration_max}s`
-      : ''
+  const clip = mediaModelClipDurationLabel(model)
+  const eta = mediaModelEtaHint(model.id, model.eta_hint || '').trim()
   const parts = [
     model.label || model.id,
-    model.description?.trim(),
-    model.eta_hint?.trim() ? `Thời gian: ${model.eta_hint.trim()}` : '',
+    mediaModelDescription(model.id, model.description || '').trim(),
+    eta ? localized(ETA_PREFIX) + eta : '',
     clip,
-    model.pricing_hint?.trim() || '',
+    mediaModelPricingHint(model.id, model.pricing_hint || '').trim(),
   ].filter(Boolean)
   return parts.join('\n')
 }
@@ -54,6 +60,7 @@ export function mediaModelClipDurationLabel(model: MediaModelOption): string {
   const lo = Number(model.duration_min)
   const hi = Number(model.duration_max)
   if (!Number.isFinite(lo) || !Number.isFinite(hi) || lo <= 0 || hi <= 0) return ''
-  if (lo === hi) return `Phim ${lo}s`
-  return `Phim ${lo}–${hi}s`
+  const word = localized(CLIP_PREFIX)
+  if (lo === hi) return `${word} ${lo}s`
+  return `${word} ${lo}–${hi}s`
 }

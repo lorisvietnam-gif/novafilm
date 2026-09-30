@@ -9,6 +9,7 @@ import {
   mediaModelIconKind,
   type MediaModelIconKind,
 } from '../../lib/dramaMediaModelMeta'
+import { mediaModelDescription, mediaModelEtaHint, mediaModelPricingHint } from '../../lib/mediaModelLabels'
 import { useLocalizedText } from '../../lib/useLocalizedText'
 import type { LocalizedText } from '../../lib/localeStrings'
 
@@ -73,9 +74,9 @@ export function DramaMediaModelPicker({
         const selected = selectedId === m.id
         const kind = mediaModelIconKind(m.id)
         const badge = mediaModelCapabilityBadge(m)
-        const desc = (m.description || '').trim()
-        const price = (m.pricing_hint || '').trim()
-        const eta = (m.eta_hint || '').trim()
+        const desc = mediaModelDescription(m.id, m.description || '').trim()
+        const price = mediaModelPricingHint(m.id, m.pricing_hint || '').trim()
+        const eta = mediaModelEtaHint(m.id, m.eta_hint || '').trim()
         const clip = mediaModelClipDurationLabel(m)
         const metaBits = [clip, eta].filter(Boolean)
         const sep = lt(ITEM_SEPARATOR)

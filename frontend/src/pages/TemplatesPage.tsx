@@ -7,6 +7,7 @@ import AppShell from '../components/layout/AppShell'
 import PillTabs from '../components/ui/PillTabs'
 import EmptyState from '../components/ui/EmptyState'
 import { ALL_CATEGORY_KEY, CATEGORY_ORDER, homeCategoryLabel } from '../lib/categories'
+import { templateDescription, templateName } from '../lib/templateLabels'
 import { useLocalizedText } from '../lib/useLocalizedText'
 import type { LocalizedText } from '../lib/localeStrings'
 
@@ -63,7 +64,11 @@ export default function TemplatesPage() {
     if (q.trim()) {
       const s = q.trim().toLowerCase()
       list = list.filter(
-        (t) => t.name.toLowerCase().includes(s) || t.description.toLowerCase().includes(s),
+        (t) =>
+          templateName(t.id, t.name).toLowerCase().includes(s) ||
+          templateDescription(t.id, t.description).toLowerCase().includes(s) ||
+          t.name.toLowerCase().includes(s) ||
+          t.description.toLowerCase().includes(s),
       )
     }
     return list
@@ -104,8 +109,8 @@ export default function TemplatesPage() {
           <button key={t.id} type="button" className="pf-template-card" onClick={() => openTemplate(t)}>
             <img src={api.assetUrl(t.preview_cover)} alt="" />
             <div className="body">
-              <h3>{t.name}</h3>
-              <p>{t.description}</p>
+              <h3>{templateName(t.id, t.name)}</h3>
+              <p>{templateDescription(t.id, t.description)}</p>
               <div className="pf-tags">
                 {t.category.map((c) => (
                   <span key={c}>{homeCategoryLabel(c)}</span>
