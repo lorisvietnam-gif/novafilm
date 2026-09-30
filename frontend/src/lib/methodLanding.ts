@@ -1,16 +1,27 @@
 /** Trang giới thiệu video thu hút khách (/method): mô tả phương pháp giao việc, không cam kết kết quả */
 
 import type { Locale } from '../i18n/detect'
+import { SITE_URL } from './siteLinks'
 
 /** Đường dẫn tương đối cùng origin, không hard-code domain bên ngoài */
 export const METHOD_START_URL = '/studio/new'
 
 /**
- * TODO(vi): điền domain GEO chính thức khi xong.
- * Hiện để '#' — không trỏ sang domain của bên khác để tránh gửi người dùng ra ngoài
- * một cách ngoài ý muốn và để không khẳng định quan hệ với một thương hiệu khác.
+ * Link quay lại site GEO đi kèm.
+ *
+ * Nguồn duy nhất là `SITE_URL` (biến môi trường `VITE_SITE_URL`), nên khi anh mua
+ * tên miền production rồi đặt biến đó là link này tự trỏ đúng — chỉ với một lần
+ * sửa biến môi trường, không phải sửa code.
+ *
+ * Mặc định khi `VITE_SITE_URL` chưa được đặt là `'#'`: KHÔNG trỏ đi đâu. Ta cố
+ * tình không đoán tên miền — site GEO chưa sống, và trỏ nhầm sang domain của bên
+ * khác vừa gửi người dùng ra ngoài ngoài ý muốn, vừa tự khẳng định quan hệ với
+ * một thương hiệu không thuộc về mình.
+ *
+ * Đường dẫn `/geo` là quy ước của chính site; nếu site GEO đặt ở đường khác thì
+ * sửa duy nhất tại đây.
  */
-export const METHOD_GEO_URL = '#'
+export const METHOD_GEO_URL = SITE_URL ? `${SITE_URL}/geo` : '#'
 
 export type MethodTocItem = { href: string; label: string }
 
