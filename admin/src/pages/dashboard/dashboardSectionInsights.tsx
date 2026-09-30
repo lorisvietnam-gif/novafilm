@@ -18,6 +18,15 @@ import type { DashboardInsightItem } from "@/pages/dashboard/DashboardInsightGri
 import { calcProfitFen, sumDailyUsage, sumProjectStatuses } from "@/pages/dashboard/dashboardMetrics";
 import { fenToYuan } from "@/lib/utils";
 import { projectStatusLabel } from "@/lib/statusLabels";
+import { getActiveLocale } from "@/i18n/detect";
+import { messages } from "@/i18n/messages";
+
+/** Thay khoá `{name}` trong văn bản của pack */
+function fill(template: string, vars: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (match, key: string) =>
+    Object.prototype.hasOwnProperty.call(vars, key) ? String(vars[key]) : match,
+  );
+}
 
 /** 财务账单 Tab 图标指标 */
 export function buildFinanceInsights(
@@ -25,6 +34,7 @@ export function buildFinanceInsights(
   upstream: AdminUpstreamUsage | null,
 ): DashboardInsightItem[] {
   if (!stats) return [];
+  const m = messages[getActiveLocale()].dashboard;
 
   const monthCharge = stats.usage_charge_month_fen ?? 0;
   const monthCost = stats.usage_cost_month_fen ?? 0;
@@ -37,33 +47,36 @@ export function buildFinanceInsights(
   const items: DashboardInsightItem[] = [
     {
       key: "paid-total",
-      label: "累计充值",
+      label: m.paidTotal,
       value: `¥${fenToYuan(stats.order_paid_total_fen)}`,
-      hint: `今日 ¥${fenToYuan(stats.order_paid_today_fen)}`,
+      hint: fill(m.todayYuan, { value: fenToYuan(stats.order_paid_today_fen) }),
       icon: Banknote,
       tone: "blue",
     },
     {
       key: "charge-month",
-      label: "本月扣费",
+      label: m.chargeMonth,
       value: `¥${fenToYuan(monthCharge)}`,
-      hint: `今日 ¥${fenToYuan(stats.usage_charge_today_fen ?? 0)}`,
+      hint: fill(m.todayYuan, { value: fenToYuan(stats.usage_charge_today_fen ?? 0) }),
       icon: Zap,
       tone: "purple",
     },
     {
       key: "cost-month",
-      label: "本月成本",
+      label: m.costMonth,
       value: `¥${fenToYuan(monthCost)}`,
-      hint: `今日 ¥${fenToYuan(stats.usage_cost_today_fen ?? 0)}`,
+      hint: fill(m.todayYuan, { value: fenToYuan(stats.usage_cost_today_fen ?? 0) }),
       icon: Wallet,
       tone: "sand",
     },
     {
       key: "profit-month",
-      label: "本月毛利",
+      label: m.profitMonth,
       value: `¥${fenToYuan(profitFen)}`,
-      hint: monthCharge > 0 ? `毛利率 ${((profitFen / monthCharge) * 100).toFixed(1)}%` : undefined,
+      hint:
+        monthCharge > 0
+          ? fill(m.profitRate, { value: ((profitFen / monthCharge) * 100).toFixed(1) })
+          : undefined,
       icon: Percent,
       tone: profitFen >= 0 ? "mint" : "rose",
     },
@@ -72,9 +85,12 @@ export function buildFinanceInsights(
   if (upstream?.configured && officialCost7 > 0) {
     items.push({
       key: "upstream-delta",
-      label: "近 7 日成本差额",
+      label: m.delta7,
       value: `¥${fenToYuan(delta7)}`,
-      hint: `本地 ¥${fenToYuan(localCost7)} / 官方 ¥${fenToYuan(officialCost7)}`,
+      hint: fill(m.delta7Hint, {
+        local: fenToYuan(localCost7),
+        official: fenToYuan(officialCost7),
+      }),
       icon: delta7 >= 0 ? TrendingUp : TrendingDown,
       tone: delta7 >= 0 ? "teal" : "rose",
     });
@@ -82,9 +98,9 @@ export function buildFinanceInsights(
 
   items.push({
     key: "paid-today",
-    label: "今日到账",
+    label: m.paidToday,
     value: `¥${fenToYuan(stats.order_paid_today_fen)}`,
-    hint: "充值订单",
+    hint: m.paidTodayHint,
     icon: CircleDollarSign,
     tone: "teal",
   });
@@ -104,38 +120,39 @@ const STATUS_META: Record<string, { icon: LucideIcon; tone: DashboardInsightItem
 /** 项目运维 Tab 图标指标 */
 export function buildProjectInsights(stats: AdminStats | null, periodDaily: ReturnType<typeof sumDailyUsage>): DashboardInsightItem[] {
   if (!stats) return [];
+  const m = messages[getActiveLocale()].dashboard;
 
   const kepuTotal = sumProjectStatuses(stats.project_status_counts);
   const items: DashboardInsightItem[] = [
     {
       key: "kepu-total",
-      label: "科普项目",
+      label: m.kepuProjects,
       value: kepuTotal,
-      hint: `漫剧 ${stats.drama_project_count ?? 0} 部`,
+      hint: fill(m.kepuProjectsHint, { count: stats.drama_project_count ?? 0 }),
       icon: Clapperboard,
       tone: "blue",
     },
     {
       key: "drama-total",
-      label: "漫剧项目",
+      label: m.dramaProjects,
       value: stats.drama_project_count ?? 0,
-      hint: "全站项目",
+      hint: m.allSite,
       icon: Film,
       tone: "teal",
     },
     {
       key: "calls-today",
-      label: "今日调用",
+      label: m.callsToday,
       value: (stats.usage_calls_today ?? 0).toLocaleString(),
-      hint: `本月 ${stats.usage_calls_month ?? 0} 次`,
+      hint: fill(m.callsMonthHint, { count: stats.usage_calls_month ?? 0 }),
       icon: Activity,
       tone: "mint",
     },
     {
       key: "calls-total",
-      label: "累计调用",
+      label: m.callsTotal,
       value: (stats.usage_calls_total ?? 0).toLocaleString(),
-      hint: `近窗 ${periodDaily.calls.toLocaleString()} 次`,
+      hint: fill(m.callsWindowHint, { count: periodDaily.calls.toLocaleString() }),
       icon: Layers,
       tone: "slate",
     },
@@ -151,7 +168,10 @@ export function buildProjectInsights(stats: AdminStats | null, periodDaily: Retu
       key: `status-${status}`,
       label: projectStatusLabel(status),
       value: count,
-      hint: kepuTotal > 0 ? `占科普 ${((count / kepuTotal) * 100).toFixed(1)}%` : undefined,
+      hint:
+        kepuTotal > 0
+          ? fill(m.shareOfKepu, { value: ((count / kepuTotal) * 100).toFixed(1) })
+          : undefined,
       icon: meta.icon,
       tone: meta.tone,
     });

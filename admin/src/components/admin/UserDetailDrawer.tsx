@@ -18,7 +18,8 @@ import { AdminModal } from "@/components/admin/AdminModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatAccountId } from "@/lib/admin-account";
 import { fenToYuan } from "@/lib/utils";
-import { ledgerKindLabel, orderStatusLabel } from "@/lib/statusLabels";
+import { ledgerKindLabel, orderStatusLabel, capabilityLabel } from "@/lib/statusLabels";
+import { useI18n } from "@/i18n";
 
 type ListRes<T> = { items: T[]; meta: PageMeta };
 
@@ -31,6 +32,7 @@ type UserDetailDrawerProps = {
 
 /** 用户只读明细：基本信息 + 订单/流水/用量聚合 */
 export function UserDetailDrawer({ userId, open, onOpenChange, initialUser }: UserDetailDrawerProps) {
+  const { m, t } = useI18n();
   const [user, setUser] = useState<AdminUserRow | null>(initialUser ?? null);
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [ledger, setLedger] = useState<AdminLedger[]>([]);
@@ -55,24 +57,24 @@ export function UserDetailDrawer({ userId, open, onOpenChange, initialUser }: Us
         setLedger(ledgerRes.items);
         setUsage(usageRes.items);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "加载用户明细失败");
+        toast.error(err instanceof Error ? err.message : t("users.detailLoadFailed"));
       } finally {
         setLoading(false);
       }
     })();
-  }, [open, userId, initialUser]);
+  }, [open, userId, initialUser, t]);
 
   return (
     <AdminModal
       open={open}
       onOpenChange={onOpenChange}
       size="xl"
-      title="用户明细"
+      title={m.users.detailTitle}
       subtitle={
         user
-          ? `${user.email} · ID：${formatAccountId(user.id)}`
+          ? `${user.email} · ${t("common.entity.user", { id: formatAccountId(user.id) })}`
           : loading
-            ? "加载中…"
+            ? t("common.state.loading")
             : "—"
       }
       bodyClassName="!pt-2"
@@ -80,22 +82,22 @@ export function UserDetailDrawer({ userId, open, onOpenChange, initialUser }: Us
       {user ? (
         <Tabs defaultValue="info" className="admin-detail-tabs">
           <TabsList>
-            <TabsTrigger value="info">基本信息</TabsTrigger>
-            <TabsTrigger value="orders">最近订单</TabsTrigger>
-            <TabsTrigger value="ledger">钱包流水</TabsTrigger>
-            <TabsTrigger value="usage">用量摘要</TabsTrigger>
+            <TabsTrigger value="info">{m.users.tabInfo}</TabsTrigger>
+            <TabsTrigger value="orders">{m.users.tabOrders}</TabsTrigger>
+            <TabsTrigger value="ledger">{m.users.tabLedger}</TabsTrigger>
+            <TabsTrigger value="usage">{m.users.tabUsage}</TabsTrigger>
           </TabsList>
           <TabsContent value="info">
             <AdminDetailSection>
               <AdminDetailMeta
                 items={[
-                  { label: "昵称", value: user.nickname || "—" },
-                  { label: "手机", value: user.phone || "—" },
-                  { label: "角色", value: user.role },
-                  { label: "余额", value: `¥${fenToYuan(user.balance_fen)}` },
-                  { label: "冻结", value: `¥${fenToYuan(user.frozen_fen)}` },
+                  { label: m.users.colNickname, value: user.nickname || "—" },
+                  { label: m.users.colPhone, value: user.phone || "—" },
+                  { label: m.users.colRole, value: user.role },
+                  { label: m.users.colBalance, value: `¥${fenToYuan(user.balance_fen)}` },
+                  { label: m.users.colFrozen, value: `¥${fenToYuan(user.frozen_fen)}` },
                   {
-                    label: "注册时间",
+                    label: m.users.colSignedUp,
                     value: user.created_at ? new Date(user.created_at).toLocaleString() : "—",
                     full: true,
                   },
@@ -108,17 +110,17 @@ export function UserDetailDrawer({ userId, open, onOpenChange, initialUser }: Us
               <table>
                 <thead>
                   <tr>
-                    <th>单号</th>
-                    <th>金额</th>
-                    <th>状态</th>
-                    <th>时间</th>
+                    <th>{m.users.colOrderNo}</th>
+                    <th>{m.common.fields.amount}</th>
+                    <th>{m.common.fields.status}</th>
+                    <th>{m.common.fields.time}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {orders.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="!text-center text-[var(--admin-muted)]">
-                        暂无订单
+                        {m.users.noOrders}
                       </td>
                     </tr>
                   ) : (
@@ -140,17 +142,17 @@ export function UserDetailDrawer({ userId, open, onOpenChange, initialUser }: Us
               <table>
                 <thead>
                   <tr>
-                    <th>类型</th>
-                    <th>变动</th>
-                    <th>余额后</th>
-                    <th>备注</th>
+                    <th>{m.common.fields.type}</th>
+                    <th>{m.common.fields.delta}</th>
+                    <th>{m.common.fields.balanceAfter}</th>
+                    <th>{m.common.fields.note}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {ledger.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="!text-center text-[var(--admin-muted)]">
-                        暂无流水
+                        {m.users.noLedger}
                       </td>
                     </tr>
                   ) : (
@@ -172,18 +174,18 @@ export function UserDetailDrawer({ userId, open, onOpenChange, initialUser }: Us
               <table>
                 <thead>
                   <tr>
-                    <th>时间</th>
-                    <th>能力</th>
-                    <th>扣费</th>
-                    <th>成本</th>
-                    <th>任务</th>
+                    <th>{m.common.fields.time}</th>
+                    <th>{m.common.fields.capability}</th>
+                    <th>{m.common.fields.charge}</th>
+                    <th>{m.common.fields.cost}</th>
+                    <th>{m.common.fields.task}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {usage.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="!text-center text-[var(--admin-muted)]">
-                        暂无用量
+                        {m.users.noUsage}
                       </td>
                     </tr>
                   ) : (
@@ -192,7 +194,7 @@ export function UserDetailDrawer({ userId, open, onOpenChange, initialUser }: Us
                         <td className="text-xs">
                           {row.created_at ? new Date(row.created_at).toLocaleString() : "—"}
                         </td>
-                        <td>{row.capability || "—"}</td>
+                        <td>{row.capability ? capabilityLabel(row.capability) : "—"}</td>
                         <td>¥{fenToYuan(row.charge_fen ?? 0)}</td>
                         <td>¥{fenToYuan(row.cost_fen ?? 0)}</td>
                         <td>
@@ -211,7 +213,7 @@ export function UserDetailDrawer({ userId, open, onOpenChange, initialUser }: Us
           </TabsContent>
         </Tabs>
       ) : loading ? (
-        <div className="py-10 text-center text-sm text-[var(--admin-muted)]">加载中…</div>
+        <div className="py-10 text-center text-sm text-[var(--admin-muted)]">{t("common.state.loading")}</div>
       ) : null}
     </AdminModal>
   );

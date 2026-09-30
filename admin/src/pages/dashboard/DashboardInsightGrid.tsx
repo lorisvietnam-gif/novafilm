@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 
 export type DashboardInsightTone = "teal" | "blue" | "purple" | "sand" | "rose" | "mint" | "slate";
 
@@ -21,8 +22,9 @@ type DashboardInsightGridProps = {
 
 /** 仪表盘图标洞察格：能力/领域/周期指标 */
 export function DashboardInsightGrid({ items, columns = 4, className }: DashboardInsightGridProps) {
+  const { t } = useI18n();
   if (items.length === 0) {
-    return <div className="admin-chart-empty !min-h-[88px]">暂无数据</div>;
+    return <div className="admin-chart-empty !min-h-[88px]">{t("common.state.empty")}</div>;
   }
 
   return (

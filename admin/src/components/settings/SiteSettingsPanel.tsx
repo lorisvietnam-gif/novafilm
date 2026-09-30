@@ -6,9 +6,11 @@ import {
   SettingsTabShell,
 } from "@/components/settings/SettingsPanel";
 import { useAdminModelSettings } from "@/hooks/useAdminModelSettings";
+import { useI18n } from "@/i18n";
 
 /** 站点公网地址与媒体工具路径 */
 export function SiteSettingsPanel() {
+  const { m } = useI18n();
   const { form, loading, saving, patchField, save } = useAdminModelSettings();
 
   async function handleSave() {
@@ -19,7 +21,7 @@ export function SiteSettingsPanel() {
         ffmpeg_path: form.ffmpeg_path,
         ffprobe_path: form.ffprobe_path,
       },
-      "站点配置已保存",
+      m.settings.siteSaved,
     );
   }
 
@@ -34,28 +36,28 @@ export function SiteSettingsPanel() {
   return (
     <SettingsTabShell onSave={() => void handleSave()} saving={saving}>
       <SettingsStatusBar
-        title="站点工具状态"
+        title={m.settings.siteReadyTitle}
         items={[
           {
             id: "public",
-            label: "公网地址",
+            label: m.settings.sitePublicUrl,
             ready: hasPublic,
-            readyText: "已配置",
-            pendingText: "未填写",
+            readyText: m.settings.ready,
+            pendingText: m.settings.siteNotFilled,
           },
           {
             id: "ffmpeg",
             label: "ffmpeg",
             ready: hasFfmpeg,
-            readyText: form.ffmpeg_path || "已配置",
-            pendingText: "使用默认 PATH",
+            readyText: form.ffmpeg_path || m.settings.ready,
+            pendingText: m.settings.useDefaultPath,
           },
           {
             id: "ffprobe",
             label: "ffprobe",
             ready: hasFfprobe,
-            readyText: form.ffprobe_path || "已配置",
-            pendingText: "使用默认 PATH",
+            readyText: form.ffprobe_path || m.settings.ready,
+            pendingText: m.settings.useDefaultPath,
           },
         ]}
       />
@@ -63,13 +65,13 @@ export function SiteSettingsPanel() {
       <div className="settings-routing-grid">
         <SettingsPanel
           className="settings-panel--compact"
-          title="1. 公网地址"
-          description="支付回调、分享链接与 OSS 回填"
+          title={m.settings.sitePanelPublicTitle}
+          description={m.settings.sitePanelPublicDesc}
         >
           <div className="settings-field-grid">
             <LabeledControl
-              label="后端公网基址"
-              hint="例：https://your-site.example.com"
+              label={m.settings.siteBackendBase}
+              hint={m.settings.siteBackendBaseHint}
               className="settings-field-span-full"
             >
               <input
@@ -79,18 +81,16 @@ export function SiteSettingsPanel() {
               />
             </LabeledControl>
           </div>
-          <p className="settings-panel-footnote">
-            数据库、Redis、SECRET_KEY 等基础设施仍通过服务器环境变量配置，不在此页修改。
-          </p>
+          <p className="settings-panel-footnote">{m.settings.siteInfraNote}</p>
         </SettingsPanel>
 
         <SettingsPanel
           className="settings-panel--compact"
-          title="2. 媒体工具"
-          description="合成与抽帧依赖本机 ffmpeg / ffprobe"
+          title={m.settings.siteMediaTitle}
+          description={m.settings.siteMediaDesc}
         >
           <div className="settings-field-grid">
-            <LabeledControl label="ffmpeg 路径">
+            <LabeledControl label={m.settings.ffmpegPath}>
               <input
                 className="settings-input"
                 placeholder="ffmpeg"
@@ -98,7 +98,7 @@ export function SiteSettingsPanel() {
                 onChange={(e) => patchField("ffmpeg_path", e.target.value)}
               />
             </LabeledControl>
-            <LabeledControl label="ffprobe 路径">
+            <LabeledControl label={m.settings.ffprobePath}>
               <input
                 className="settings-input"
                 placeholder="ffprobe"

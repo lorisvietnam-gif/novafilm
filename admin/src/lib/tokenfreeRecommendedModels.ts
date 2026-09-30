@@ -1,3 +1,6 @@
+import { getActiveLocale } from "@/i18n/detect";
+import { messages } from "@/i18n/messages";
+
 export type ModelCapability = "text" | "image" | "video" | "audio";
 
 export type PresetModelOption = { id: string; label: string };
@@ -24,12 +27,13 @@ export const PRESET_MODELS: Record<ModelCapability, PresetModelOption[]> = {
 
 export const CAPABILITY_ORDER: ModelCapability[] = ["text", "image", "video", "audio"];
 
-export const CAPABILITY_LABELS: Record<ModelCapability, string> = {
-  text: "文本",
-  image: "图像",
-  video: "视频",
-  audio: "配音",
-};
+/**
+ * Nhãn năng lực. Khoá là mã năng lực (đồng thời là hậu tố của khoá cấu hình
+ * `${cap}_model`) nên nằm trong cây pack, không dịch ở file này.
+ */
+export function modelCapabilityLabel(cap: ModelCapability): string {
+  return messages[getActiveLocale()].labels.modelCapability[cap];
+}
 
 /** 写入 TokenFree 渠道的全部预设 id */
 export function allPresetChannelModels(): string[] {
