@@ -1,4 +1,4 @@
-/** 画布视频节点：风格 / Seedance 模型 / 时长 / 比例清晰度 */
+/** Node video trên canvas: phong cách / model Seedance / thời lượng / tỉ lệ và độ phân giải */
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { BarChart3, ChevronDown, RectangleVertical, Smile, Timer } from 'lucide-react'
 import {
@@ -36,7 +36,7 @@ type DramaVideoGenOptionsBarProps = {
 
 type OpenPanel = 'style' | 'model' | 'duration' | 'output' | null
 
-/** 渲染视频生成选项条 */
+/** Dựng thanh chọn tham số sinh video */
 export function DramaVideoGenOptionsBar({
   value,
   onChange,
@@ -48,7 +48,7 @@ export function DramaVideoGenOptionsBar({
   const videoModels = catalogVideoModels(catalog)
 
   useEffect(() => {
-    // 目录到达后，把旧 Kie/方舟 id 换成后台默认视频模型
+    // Khi danh mục model đã tải xong, thay id Kie/Thuyền cũ bằng model video mặc định của backend
     if (!catalog || disabled) return
     const ids = videoModels.map((m) => m.id)
     if (!ids.length) return
@@ -66,7 +66,7 @@ export function DramaVideoGenOptionsBar({
   }, [catalog, disabled])
 
   useEffect(() => {
-    // 换模型后：清晰度 / 比例 / 时长钳到允许范围（须已知目录行，避免 SAFE 误写）
+    // Sau khi đổi model: giới hạn độ phân giải / tỉ lệ / thời lượng về phạm vi cho phép (phải biết dòng danh mục để tránh ghi đè nhầm ở chế độ SAFE)
     if (disabled) return
     if (!hasKnownVideoModelResolutions(value.model_id, catalog, videoModels)) return
     const nextRes = clampVideoResolutionForModel(
@@ -119,8 +119,8 @@ export function DramaVideoGenOptionsBar({
     e.stopPropagation()
   }
 
-  const styleLabel = getImageStyleLabel(value.image_style_id) || '风格'
-  const modelLabel = catalogModelLabel(value.model_id, videoModels, '视频模型')
+  const styleLabel = getImageStyleLabel(value.image_style_id) || 'Phong cách'
+  const modelLabel = catalogModelLabel(value.model_id, videoModels, 'Model video')
   const outputLabel = formatVideoOutputLabel(value.aspect_ratio, value.resolution)
 
   return (
@@ -169,8 +169,8 @@ export function DramaVideoGenOptionsBar({
       </div>
 
       {open === 'style' ? (
-        <div className="fc-gen-opt-panel fc-gen-style-panel" role="dialog" aria-label="视频风格">
-          <div className="fc-gen-opt-panel-title">视频风格</div>
+        <div className="fc-gen-opt-panel fc-gen-style-panel" role="dialog" aria-label="Phong cách video">
+          <div className="fc-gen-opt-panel-title">Phong cách video</div>
           <div className="fc-gen-style-grid">
             {IMAGE_STYLE_OPTIONS.map((opt) => {
               const selected = value.image_style_id === opt.id
@@ -194,8 +194,8 @@ export function DramaVideoGenOptionsBar({
       ) : null}
 
       {open === 'model' ? (
-        <div className="fc-gen-opt-panel" role="dialog" aria-label="视频模型">
-          <div className="fc-gen-opt-panel-title">模型</div>
+        <div className="fc-gen-opt-panel" role="dialog" aria-label="Model video">
+          <div className="fc-gen-opt-panel-title">Model</div>
           <DramaMediaModelPicker
             models={videoModels}
             selectedId={value.model_id}
@@ -227,8 +227,8 @@ export function DramaVideoGenOptionsBar({
       ) : null}
 
       {open === 'duration' ? (
-        <div className="fc-gen-opt-panel" role="dialog" aria-label="视频时长">
-          <div className="fc-gen-opt-panel-title">时长</div>
+        <div className="fc-gen-opt-panel" role="dialog" aria-label="Thời lượng video">
+          <div className="fc-gen-opt-panel-title">Thời lượng</div>
           <div className="fc-gen-chip-row">
             {durationPresets.map((sec) => (
               <button
@@ -248,7 +248,7 @@ export function DramaVideoGenOptionsBar({
             ))}
           </div>
           <label className="fc-gen-duration-custom">
-            自定义（{durationBounds.min}–{durationBounds.max}s）
+            Tự đặt ({durationBounds.min}–{durationBounds.max}s)
             <input
               type="number"
               min={durationBounds.min}
@@ -272,8 +272,8 @@ export function DramaVideoGenOptionsBar({
       ) : null}
 
       {open === 'output' ? (
-        <div className="fc-gen-opt-panel" role="dialog" aria-label="画幅与清晰度">
-          <div className="fc-gen-opt-panel-title">比例</div>
+        <div className="fc-gen-opt-panel" role="dialog" aria-label="Tỉ lệ khung hình và độ phân giải">
+          <div className="fc-gen-opt-panel-title">Tỉ lệ khung hình</div>
           <div className="fc-gen-chip-row">
             {aspectOptions.map((ratio) => (
               <button
@@ -287,7 +287,7 @@ export function DramaVideoGenOptionsBar({
             ))}
           </div>
           <div className="fc-gen-opt-panel-title" style={{ marginTop: 10 }}>
-            清晰度
+            Độ phân giải
           </div>
           <div className="fc-gen-chip-row">
             {resolutionOptions.map((res) => (

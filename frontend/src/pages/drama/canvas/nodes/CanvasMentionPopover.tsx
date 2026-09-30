@@ -1,4 +1,4 @@
-/** 画布提示词：键入 @ 后选择角色/场景等节点插入（不 portal，避免点选时画布取消选中） */
+/** Câu lệnh trên canvas: gõ @ rồi chọn node nhân vật / bối cảnh để chèn (không dùng portal, tránh việc bấm chọn làm canvas bỏ chọn node) */
 import { Landmark, UserRound, Image as ImageIcon, PlaySquare } from 'lucide-react'
 import { resolveDramaMediaUrl } from '../../../../api/drama'
 import type { CanvasNodeKind } from '../canvasTypes'
@@ -21,7 +21,7 @@ type CanvasMentionPopoverProps = {
   onClose: () => void
 }
 
-/** 按节点类型返回图标 */
+/** Icon theo loại node */
 function KindIcon({ kind }: { kind: CanvasNodeKind }) {
   if (kind === 'character') return <UserRound size={14} strokeWidth={1.8} />
   if (kind === 'scene') return <Landmark size={14} strokeWidth={1.8} />
@@ -29,16 +29,16 @@ function KindIcon({ kind }: { kind: CanvasNodeKind }) {
   return <ImageIcon size={14} strokeWidth={1.8} />
 }
 
-/** 类型中文标签 */
+/** Nhãn tiếng Việt của loại node */
 function kindLabel(kind: CanvasNodeKind) {
-  if (kind === 'character') return '角色'
-  if (kind === 'scene') return '场景'
-  if (kind === 'video') return '视频'
-  if (kind === 'image') return '图片'
-  return '资产'
+  if (kind === 'character') return 'Nhân vật'
+  if (kind === 'scene') return 'Bối cảnh'
+  if (kind === 'video') return 'Video'
+  if (kind === 'image') return 'Hình ảnh'
+  return 'Tư liệu'
 }
 
-/** 按查询过滤可引用节点 */
+/** Lọc các node có thể trích dẫn theo từ khoá */
 export function filterCanvasMentionItems(items: CanvasMentionItem[], query: string) {
   const q = query.trim().toLowerCase()
   if (!q) return items
@@ -49,7 +49,7 @@ export function filterCanvasMentionItems(items: CanvasMentionItem[], query: stri
   })
 }
 
-/** 渲染 @ 引用候选列表 */
+/** Dựng danh sách ứng viên cho trích dẫn @ */
 export function CanvasMentionPopover({
   open,
   query,
@@ -67,7 +67,7 @@ export function CanvasMentionPopover({
     <div
       className="fc-mention-popover nodrag nopan nowheel"
       role="listbox"
-      aria-label="引用画布节点"
+      aria-label="Trích dẫn node trên canvas"
       onPointerDown={(e) => {
         e.preventDefault()
         e.stopPropagation()
@@ -78,7 +78,7 @@ export function CanvasMentionPopover({
       }}
     >
       <div className="fc-mention-head">
-        <span>引用节点</span>
+        <span>Trích dẫn node</span>
         <button
           type="button"
           className="fc-mention-close"
@@ -87,13 +87,13 @@ export function CanvasMentionPopover({
             e.stopPropagation()
             onClose()
           }}
-          aria-label="关闭"
+          aria-label="Đóng"
         >
           ×
         </button>
       </div>
       {filtered.length === 0 ? (
-        <div className="fc-mention-empty">无匹配节点 · 先创建角色/场景</div>
+        <div className="fc-mention-empty">Không có node phù hợp · hãy tạo nhân vật / bối cảnh trước</div>
       ) : (
         <ul className="fc-mention-list">
           {filtered.map((item, index) => {

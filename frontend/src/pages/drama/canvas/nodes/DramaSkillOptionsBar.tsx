@@ -1,4 +1,4 @@
-/** 画布生成条：多选 Agent Skill */
+/** Thanh chọn trong bảng sinh trên canvas: chọn nhiều Agent Skill */
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { ChevronDown, Wand2 } from 'lucide-react'
 import { AgentSkillPicker } from '../../../../components/drama/AgentSkillPicker'
@@ -18,7 +18,7 @@ type DramaSkillOptionsBarProps = {
   disabled?: boolean
 }
 
-/** 渲染 Skill 下拉多选 */
+/** Dựng danh sách Skill xổ xuống, chọn được nhiều mục */
 export function DramaSkillOptionsBar({
   skills,
   selectedIds,
@@ -67,7 +67,7 @@ export function DramaSkillOptionsBar({
         </button>
       </div>
       {open ? (
-        <div className="fc-gen-opt-panel" role="dialog" aria-label="选择 Skill">
+        <div className="fc-gen-opt-panel" role="dialog" aria-label="Chọn Skill">
           <div className="fc-gen-opt-panel-title">Skill</div>
           <AgentSkillPicker
             compact

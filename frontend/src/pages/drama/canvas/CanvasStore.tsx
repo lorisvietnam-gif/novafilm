@@ -598,13 +598,13 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
           if (!ref) return token
           const kindLabel =
             ref.data.kind === 'character'
-              ? '角色'
+              ? 'Nhân vật'
               : ref.data.kind === 'scene'
-                ? '场景'
+                ? 'Bối cảnh'
                 : ref.data.kind === 'image'
-                  ? '图片'
-                  : '资产'
-          return `${kindLabel}「${ref.data.label}」`
+                  ? 'Hình ảnh'
+                  : 'Tư liệu'
+          return `${kindLabel} «${ref.data.label}»`
         })
         const latest = await enqueueDramaImageGen({
           projectId,

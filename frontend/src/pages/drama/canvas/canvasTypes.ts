@@ -79,12 +79,12 @@ export const CANVAS_NODE_OPTION_BY_KIND = Object.fromEntries(
 
 /** Tên hiển thị mặc định của từng loại */
 export const CANVAS_NODE_DEFAULT_LABEL: Record<CanvasNodeKind, string> = {
-  character: '新角色',
-  scene: '新场景',
-  video: '新视频',
-  image: '新图片',
-  text: '文本',
-  audio: '新音频',
+  character: 'Nhân vật mới',
+  scene: 'Bối cảnh mới',
+  video: 'Video mới',
+  image: 'Ảnh mới',
+  text: 'Văn bản',
+  audio: 'Âm thanh mới',
 }
 
 /**
