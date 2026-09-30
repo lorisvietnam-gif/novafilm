@@ -1,25 +1,34 @@
 import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { isBillingError, PRICING_PATH } from '../../lib/billingError'
+import { useLocalizedText } from '../../lib/useLocalizedText'
+import type { LocalizedText } from '../../lib/localeStrings'
 
 type Props = {
   message: string | null | undefined
   className?: string
   style?: CSSProperties
-  /** 内联链接文案 */
+  /** Văn bản của liên kết nội tuyến */
   linkText?: string
-  /** 使用 span 而非 p（工具栏条内联错误） */
+  /** Dùng span thay vì p (lỗi nội tuyến trong thanh công cụ) */
   inline?: boolean
 }
 
-/** 错误提示：余额不足时附带快速跳转充值链接 */
+const TOPUP_LABEL: LocalizedText = {
+  zh: '去充值 →',
+  en: 'Top up →',
+  vi: 'Nạp tiền →',
+}
+
+/** Thông báo lỗi: khi hết tiền sẽ kèm liên kết nạp tiền nhanh */
 export default function BillingErrorNotice({
   message,
   className = 'pf-error',
   style,
-  linkText = '去充值 →',
+  linkText,
   inline = false,
 }: Props) {
+  const lt = useLocalizedText()
   const text = String(message || '').trim()
   if (!text) return null
   const Tag = inline ? 'span' : 'p'
@@ -34,7 +43,7 @@ export default function BillingErrorNotice({
     <Tag className={className} style={style} role={inline ? undefined : 'alert'}>
       {text}{' '}
       <Link to={PRICING_PATH} className="pf-link pf-billing-topup-link">
-        {linkText}
+        {linkText || lt(TOPUP_LABEL)}
       </Link>
     </Tag>
   )
