@@ -1,8 +1,22 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import AppShell from '../components/layout/AppShell'
+import { DramaImageStylePreviewImg } from '../components/drama/DramaImageStylePreviewImg'
 import { useI18n } from '../i18n'
 import { filterHelpFaq } from '../lib/helpContent'
+import type { ImageStyleId } from '../lib/dramaImageStyles'
+
+/**
+ * 分类入口卡的配图：仓库内既有画风素材，懒加载；纯装饰。
+ * 只给有视觉产物的分类配图（漫剧 / 短视频 / 工具 / 起点），
+ * 「个人中心」和「充值说明」没有画面语言，保持纯色卡面。
+ */
+const HELP_CAT_ART: Record<string, ImageStyleId> = {
+  start: 'ancient-chinese-mythology',
+  drama: 'palace-intrigue-cold',
+  kepu: 'neon-cyberpunk-film',
+  tools: 'retro-sci-fi-atompunk',
+}
 
 /** 帮助中心整页：分类入口、上手步骤、可搜索 FAQ */
 export default function HelpPage() {
@@ -33,12 +47,18 @@ export default function HelpPage() {
         </header>
 
         <div className="pf-help-cats pf-help-cats-lg">
-          {m.help.cats.map((c) => (
-            <Link key={c.id} to={c.href} className="pf-help-cat">
-              <strong>{c.title}</strong>
-              <span>{c.desc}</span>
-            </Link>
-          ))}
+          {m.help.cats.map((c) => {
+            const art = HELP_CAT_ART[c.id]
+            return (
+              <Link key={c.id} to={c.href} className="pf-help-cat">
+                <span className="pf-help-cat-media" aria-hidden>
+                  {art ? <DramaImageStylePreviewImg styleId={art} /> : null}
+                </span>
+                <strong>{c.title}</strong>
+                <span>{c.desc}</span>
+              </Link>
+            )
+          })}
         </div>
 
         <section className="pf-help-guide-block" aria-labelledby="pf-land-guide-title">
