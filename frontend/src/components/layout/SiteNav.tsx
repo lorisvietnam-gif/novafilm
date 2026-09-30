@@ -4,11 +4,10 @@ import { api } from '../../api'
 import type { User } from '../../api'
 import UserAvatar from '../UserAvatar'
 import BrandMark from '../BrandMark'
-import { IconGithub, IconHelp } from '../ui/Icons'
+import { IconHelp } from '../ui/Icons'
 import Button from '../ui/Button'
 import CreateChoiceModal from '../ui/CreateChoiceModal'
 import { USER_UPDATED_EVENT } from '../../lib/userEvents'
-import { GITHUB_REPO_URL } from '../../lib/siteLinks'
 import { useI18n } from '../../i18n'
 import LanguageSwitch from './LanguageSwitch'
 
@@ -114,17 +113,6 @@ export default function SiteNav({ active }: Props) {
       </nav>
       <div className="pf-nav-right">
         <LanguageSwitch />
-        <a
-          className="pf-nav-github"
-          href={GITHUB_REPO_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          title={t('nav.githubTitle')}
-          aria-label={t('nav.githubTitle')}
-        >
-          <IconGithub size={18} />
-          <span>{t('nav.github')}</span>
-        </a>
         <button type="button" className="pf-nav-help-btn" title={t('nav.helpCenter')} onClick={() => nav('/help')}>
           <IconHelp size={18} className="pf-nav-help-icon" />
           <span>{t('nav.help')}</span>
@@ -162,9 +150,6 @@ export default function SiteNav({ active }: Props) {
         <div className="pf-nav-drawer" role="dialog" aria-label={t('nav.mobileNav')}>
           <nav className="pf-nav-drawer-links">
             {centerLinks}
-            <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer">
-              {t('nav.github')}
-            </a>
           </nav>
         </div>
       ) : null}

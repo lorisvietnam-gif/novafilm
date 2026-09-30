@@ -54,8 +54,6 @@ export const enShell = {
     pricing: 'Pricing',
     help: 'Help',
     helpCenter: 'Help center',
-    github: 'GitHub',
-    githubTitle: 'Open source on GitHub',
     login: 'Sign in',
     startCreate: 'Start creating',
     profile: 'Account',
@@ -76,15 +74,9 @@ export const enShell = {
     github: 'GitHub',
     links: 'Footer links',
   },
-  wechatGroup: {
-    short: 'WeChat',
-    open: 'Join WeChat user group',
-    title: 'NOVAFILM user group',
-    lead: 'Short drama tips · deploy help · templates',
-    idLabel: 'WeChat ID',
-    copy: 'Copy',
-    copied: 'Copied',
-    tip: 'Add WeChat ID gitpp88 with note “join group” and we will invite you.',
+  discord: {
+    short: 'Discord',
+    open: 'Join the NOVAFILM Discord community',
   },
   auth: {
     loginTitle: 'Back to the studio',
