@@ -1366,7 +1366,7 @@
 
 .drama-assets-page-meta {
   margin: 12px 0 0;
-  font-size: 0.875rem;
+  font-size: var(--pf-text-md);
 }
 
 .drama-assets-pagination {
@@ -2055,7 +2055,7 @@
   border: 1px solid rgb(var(--pf-scrim-rgb) / 0.1);
   background: var(--pf-surface);
   color: var(--pf-ink-secondary);
-  font-size: 0.75rem;
+  font-size: var(--pf-text-xs);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -2080,7 +2080,7 @@
 .drama-project-output-note {
   margin: 0 0 10px;
   color: var(--pf-ink-tertiary);
-  font-size: 0.75rem;
+  font-size: var(--pf-text-xs);
   line-height: 1.45;
 }
 
@@ -2092,7 +2092,7 @@
   border: 1px dashed rgba(17, 19, 24, 0.14);
   background: rgba(255, 255, 255, 0.7);
   color: var(--pf-ink-secondary);
-  font-size: 0.75rem;
+  font-size: var(--pf-text-xs);
   font-weight: 600;
   white-space: nowrap;
 }

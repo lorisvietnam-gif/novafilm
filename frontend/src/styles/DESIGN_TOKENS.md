@@ -242,9 +242,20 @@ they are the known tail.
    active and disabled tokens all exist and are wired globally, but several
    components still rely on bespoke `box-shadow` focus treatments rather than
    `--pf-focus-ring`. Sweep these so the ring is uniform.
-2. **Type scale is not yet adopted.** `printfilm.css` still carries raw
-   `0.82rem` / `0.88rem` / `0.78rem` sizes; they should map onto
-   `--pf-text-xs` … `--pf-text-lg` so vertical rhythm follows the 8pt grid.
+2. **Type scale is partly adopted.** 38 declarations that were already exactly
+   equal to a token now reference it, so the rem-denominated type is on the
+   scale. What is left, and why it was left, is measured rather than guessed —
+   see the table below.
+
+   | Left as a literal | Count | Why |
+   |---|---|---|
+   | `12px` / `13px` / `11px` / `14px` / `16px` / `18px` / `20px` | 294 | Compute to an exact token at a 16px root, but `px → rem` changes how the value responds to a user's browser font-size setting. Behaviour change, not a refactor — needs eyes on the fixed-size canvas UI. |
+   | off-scale rem (`0.82rem`, `0.88rem`, `0.78rem`, `1.45rem`, …) | ~250 | No token is equal; mapping them means rounding, i.e. a deliberate visual change of up to ±0.8px in dense UI. |
+   | `10px` / `15px` / `22px` / `9px` / `26px` / `28px` | 30 | No token on the 8pt scale is close enough to map without an obvious size jump. |
+   | `clamp(...)` | 13 | Fluid type, not on a static scale by design. |
+
+   The scale has only ten steps and roughly forty distinct sizes are in use, so
+   the scale itself is the thing to widen before the literals can be mapped.
 3. **Spacing is only partly tokenised.** Radii, shadows, easings and colours are
    converted; `padding` / `gap` / `margin` values are still literals in most
    rules.
