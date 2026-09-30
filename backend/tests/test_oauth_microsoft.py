@@ -11,7 +11,6 @@ from httpx import ASGITransport
 
 from app.main import app as main_app
 from app.services import oauth, oauth_accounts, oauth_state
-from app.services.auth import decode_token
 from tests.oauth_fakes import FakeRedis, fake_session, fake_settings, mock_transport, query_of
 
 SETTINGS = fake_settings(microsoft_client_id="mid", microsoft_client_secret="msecret")
@@ -23,9 +22,13 @@ USERINFO_OK = httpx.Response(
 )
 
 
+def _identity(payload: dict) -> oauth.OAuthIdentity:
+    return oauth.identity_from_payload(oauth.find_spec("microsoft"), payload)
+
+
 def test_authorize_url_targets_microsoft_with_its_own_scope_and_redirect() -> None:
     url = oauth.build_authorize_url(
-        oauth.MICROSOFT,
+        oauth.find_spec("microsoft"),
         redirect_uri="http://localhost:8000/api/auth/microsoft/callback",
         state="s1",
         code_challenge="c1",
@@ -34,18 +37,14 @@ def test_authorize_url_targets_microsoft_with_its_own_scope_and_redirect() -> No
     assert url.startswith("https://login.microsoftonline.com/common/oauth2/v2.0/authorize?")
     q = query_of(url)
     assert q["client_id"] == "mid"
-    assert q["response_type"] == "code"
-    assert q["code_challenge_method"] == "S256"
     assert q["redirect_uri"] == "http://localhost:8000/api/auth/microsoft/callback"
-    assert "User.Read" in q["scope"]
+    assert "openid" in q["scope"]
     assert q["prompt"] == "select_account"
 
 
 def test_microsoft_email_claim_counts_as_verified() -> None:
-    # Microsoft 不发 email_verified，但它只对已验证地址发 email claim
-    identity = oauth.parse_microsoft_identity(
-        {"sub": " s1 ", "email": "Ada@Example.com", "name": "Ada"}
-    )
+    # Microsoft không gửi email_verified, nhưng chỉ phát claim `email` cho hộp thư nó đã kiểm tra
+    identity = _identity({"sub": " s1 ", "email": "Ada@Example.com", "name": "Ada"})
     assert (identity.provider, identity.subject, identity.email) == (
         "microsoft",
         "s1",
@@ -55,26 +54,28 @@ def test_microsoft_email_claim_counts_as_verified() -> None:
     assert identity.nickname == "Ada"
 
 
-def test_microsoft_preferred_username_alone_is_not_enough() -> None:
-    # 个人账号常常只有 preferred_username，没有任何验证过的邮箱 -> 拒绝登录
-    identity = oauth.parse_microsoft_identity(
-        {"sub": "s1", "preferred_username": "someone@outlook.com", "name": "Some One"}
-    )
-    assert identity.email == ""
+def test_microsoft_preferred_username_is_used_but_never_counts_as_verified() -> None:
+    # preferred_username là UPN do quản trị viên tenant đặt: đọc được để hiển thị,
+    # nhưng KHÔNG phải bằng chứng sở hữu hộp thư -> phải rơi vào nhánh B.
+    identity = _identity({"sub": "s1", "preferred_username": "someone@outlook.com", "name": "S"})
+    assert identity.email == "someone@outlook.com"
     assert identity.email_verified is False
+
+
+def test_microsoft_falls_back_to_the_email_claim() -> None:
+    identity = _identity({"sub": "s1", "email": "a@b.co", "name": "S"})
+    assert identity.email == "a@b.co"
+    assert identity.email_verified is True
 
 
 def test_microsoft_explicit_email_verified_false_wins_over_the_claim() -> None:
     # 显式 false 优先，不能因为 email 存在就当成已验证
-    identity = oauth.parse_microsoft_identity(
-        {"sub": "s1", "email": "a@b.co", "email_verified": False}
-    )
-    assert identity.email_verified is False
+    assert _identity({"sub": "s1", "email": "a@b.co", "email_verified": False}).email_verified is False
 
 
 def test_microsoft_identity_without_a_subject_is_refused() -> None:
     with pytest.raises(oauth.OAuthProviderError):
-        oauth.parse_microsoft_identity({"email": "a@b.co"})
+        _identity({"email": "a@b.co"})
 
 
 @pytest.mark.asyncio
@@ -97,10 +98,11 @@ async def test_microsoft_login_roundtrip_mints_a_session_jwt(
     async with httpx.AsyncClient(
         transport=mock_transport({"login.microsoftonline.com": TOKEN_OK, "userinfo": USERINFO_OK}, calls)
     ) as client:
-        grant = await oauth.complete_login(
+        handoff = await oauth.complete_login(
             spec,
             code="ms-code",
             state=started.state,
+            session_id=started.session_id,
             db=fake_session(),
             settings=SETTINGS,
             client=client,
@@ -112,35 +114,47 @@ async def test_microsoft_login_roundtrip_mints_a_session_jwt(
     assert form["client_id"] == "mid"
     assert form["client_secret"] == "msecret"
     assert form["redirect_uri"] == "http://localhost:8000/api/auth/microsoft/callback"
+    assert form["code_verifier"]
     assert userinfo_request.url.host == "graph.microsoft.com"
     assert userinfo_request.headers["authorization"] == "Bearer at-m"
 
-    assert oauth_state.consume_login_grant(r, grant) == 9090
+    assert oauth_state.consume_login_grant(r, handoff.token) == 9090
 
 
 @pytest.mark.asyncio
-async def test_microsoft_without_a_verified_email_never_reaches_the_accounts_table() -> None:
-    # 个人账号只有 preferred_username 时，真实账号层必须直接拒绝
+async def test_microsoft_without_a_verified_email_creates_a_pending_account(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # 个人账号只有 preferred_username 时，真实账号层把它丢进 nhánh B（tài khoản chưa hoàn chỉnh）
     unverified = httpx.Response(
         200, json={"sub": "s1", "preferred_username": "someone@outlook.com", "name": "S"}
     )
     r = FakeRedis()
     spec = oauth.require_provider("microsoft", SETTINGS)
     started = oauth.start_authorization(spec, settings=SETTINGS, store=r)
-    async with httpx.AsyncClient(
-        transport=mock_transport({"token": TOKEN_OK, "userinfo": unverified})
-    ) as client:
-        with pytest.raises(oauth_accounts.OAuthIdentityError) as err:
-            await oauth.complete_login(
-                spec,
-                code="c",
-                state=started.state,
-                db=fake_session(),
-                settings=SETTINGS,
-                client=client,
-                store=r,
-            )
-    assert err.value.code == "email_unverified"
+
+    async def fake_resolve(_db, identity, settings=None):
+        return oauth_accounts.OAuthLoginResult(
+            user=SimpleNamespace(id=5150), outcome="create_pending"
+        )
+
+    monkeypatch.setattr(oauth_accounts, "resolve_oauth_user", fake_resolve)
+    async with httpx.AsyncClient(transport=mock_transport({"token": TOKEN_OK, "userinfo": unverified})) as c:
+        handoff = await oauth.complete_login(
+            spec,
+            code="c",
+            state=started.state,
+            session_id=started.session_id,
+            db=fake_session(),
+            settings=SETTINGS,
+            client=c,
+            store=r,
+        )
+    assert handoff.setup_required is True
+    # token đó chỉ điền thông tin, không đổi được JWT
+    assert oauth_state.consume_setup_token(r, handoff.token) == 5150
+    with pytest.raises(oauth_state.OAuthStateError):
+        oauth_state.consume_login_grant(r, handoff.token)
 
 
 @pytest.mark.asyncio
@@ -149,19 +163,19 @@ async def test_microsoft_state_is_not_accepted_by_the_google_callback(
 ) -> None:
     # 拿 microsoft 的 state 去敲 google 的回调 = 跨 provider 伪造
     calls: list[httpx.Request] = []
-    google = oauth.require_provider(
-        "google", fake_settings(google_client_id="gid", google_client_secret="gsec")
-    )
+    google_settings = fake_settings(google_client_id="gid", google_client_secret="gsec")
+    google = oauth.require_provider("google", google_settings)
     r = FakeRedis()
-    oauth_state.create_login_state(r, "microsoft", "v")
+    _state, sid = oauth_state.create_login_state(r, "microsoft", "v")
     async with httpx.AsyncClient(transport=mock_transport({}, calls)) as client:
         with pytest.raises(oauth.OAuthFlowError) as err:
             await oauth.complete_login(
                 google,
                 code="c",
-                state=oauth_state.create_login_state(r, "microsoft", "v2"),
+                state=oauth_state.create_login_state(r, "microsoft", "v2")[0],
+                session_id=sid,
                 db=fake_session(),
-                settings=fake_settings(google_client_id="gid", google_client_secret="gsec"),
+                settings=google_settings,
                 client=client,
                 store=r,
             )

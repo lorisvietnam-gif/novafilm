@@ -30,6 +30,7 @@ USERINFO_OK = httpx.Response(
         "email": "Ada@Example.com",
         "email_verified": True,
         "name": "Ada Lovelace",
+        "picture": "https://lh3.example/a.png",
     },
 )
 
@@ -70,13 +71,24 @@ def test_created_pkce_pair_is_fresh_and_within_spec_limits() -> None:
     assert first_verifier != second_verifier
 
 
+def test_pkce_is_sent_even_for_a_provider_that_does_not_require_it() -> None:
+    # Facebook không bắt buộc PKCE, nhưng ta gửi cho tất cả: thêm vào không tốn gì.
+    for provider in ("google", "microsoft", "facebook", "tiktok"):
+        spec = oauth.find_spec(provider)
+        url = oauth.build_authorize_url(
+            spec, redirect_uri="https://api.example.com/cb", state="s", code_challenge="c"
+        )
+        assert query_of(url)["code_challenge"] == "c"
+        assert query_of(url)["code_challenge_method"] == "S256"
+        assert query_of(url)["response_type"] == "code"  # 绝不用 implicit
+
+
 # ------------------------------------------------------------------ authorize URL
 
 
 def test_authorize_url_carries_every_required_parameter() -> None:
-    spec = oauth.GOOGLE
     url = oauth.build_authorize_url(
-        spec,
+        oauth.find_spec("google"),
         redirect_uri="http://localhost:8000/api/auth/google/callback",
         state="state-123",
         code_challenge="challenge-abc",
@@ -85,12 +97,10 @@ def test_authorize_url_carries_every_required_parameter() -> None:
     assert url.startswith("https://accounts.google.com/o/oauth2/v2/auth?")
     q = query_of(url)
     assert q["client_id"] == "gid"
-    assert q["response_type"] == "code"  # 绝不用 implicit
     assert q["scope"] == "openid email profile"
     assert q["state"] == "state-123"
-    assert q["code_challenge"] == "challenge-abc"
-    assert q["code_challenge_method"] == "S256"
     assert q["redirect_uri"] == "http://localhost:8000/api/auth/google/callback"
+    assert q["access_type"] == "online"
 
 
 def test_start_authorization_stores_the_state_and_points_at_the_provider() -> None:
@@ -102,8 +112,8 @@ def test_start_authorization_stores_the_state_and_points_at_the_provider() -> No
     assert q["state"] == started.state
     # verifier 留在服务端，绝不出现在跳转 URL 里
     assert "code_verifier" not in started.url
-    verifier = oauth_state.consume_login_state(r, "google", started.state).code_verifier
-    assert q["code_challenge"] == oauth.code_challenge_s256(verifier)
+    restored = oauth_state.consume_login_state(r, "google", started.state, started.session_id)
+    assert q["code_challenge"] == oauth.code_challenge_s256(restored.code_verifier)
 
 
 # ---------------------------------------------------------------- whole flow
@@ -131,10 +141,11 @@ async def test_google_login_roundtrip_mints_a_session_jwt(
     started = oauth.start_authorization(spec, settings=SETTINGS, store=r)
 
     async with _client({"oauth2.googleapis.com/token": TOKEN_OK, "userinfo": USERINFO_OK}, calls) as c:
-        grant = await oauth.complete_login(
+        handoff = await oauth.complete_login(
             spec,
             code="auth-code-1",
             state=started.state,
+            session_id=started.session_id,
             db=_fake_db(),
             settings=SETTINGS,
             client=c,
@@ -157,11 +168,11 @@ async def test_google_login_roundtrip_mints_a_session_jwt(
     assert userinfo_request.headers["authorization"] == "Bearer at-1"
 
     # 一次性 code -> JWT -> 解出同一个 user
-    user_id = oauth_state.consume_login_grant(r, grant)
-    assert user_id == 4242
+    assert handoff.setup_required is False
+    assert oauth_state.consume_login_grant(r, handoff.token) == 4242
     from app.services.auth import create_access_token
 
-    assert decode_token(create_access_token(str(user_id))) == "4242"
+    assert decode_token(create_access_token("4242")) == "4242"
 
 
 @pytest.mark.asyncio
@@ -189,13 +200,14 @@ async def test_callback_with_a_forged_state_is_refused(
     _stub_resolve(monkeypatch)
     spec = oauth.require_provider("google", SETTINGS)
     r = FakeRedis()
-    oauth_state.create_login_state(r, "google", "real-verifier")
+    _state, sid = oauth_state.create_login_state(r, "google", "real-verifier")
     async with _client({}, calls) as c:
         with pytest.raises(oauth.OAuthFlowError) as err:
             await oauth.complete_login(
                 spec,
                 code="code",
                 state="forged",
+                session_id=sid,
                 db=_fake_db(),
                 settings=SETTINGS,
                 client=c,
@@ -207,7 +219,7 @@ async def test_callback_with_a_forged_state_is_refused(
 
 @pytest.mark.asyncio
 async def test_callback_state_is_single_use(monkeypatch: pytest.MonkeyPatch) -> None:
-    # 同一个 state 第二次回调（重放）必须失败
+    # 同一个 state 第二次回调（重放）必须失败，且不再发任何外呼
     calls: list[httpx.Request] = []
     _stub_resolve(monkeypatch)
     spec = oauth.require_provider("google", SETTINGS)
@@ -215,15 +227,80 @@ async def test_callback_state_is_single_use(monkeypatch: pytest.MonkeyPatch) -> 
     started = oauth.start_authorization(spec, settings=SETTINGS, store=r)
     async with _client({"token": TOKEN_OK, "userinfo": USERINFO_OK}, calls) as c:
         await oauth.complete_login(
-            spec, code="code", state=started.state, db=_fake_db(), settings=SETTINGS, client=c, store=r
+            spec,
+            code="code",
+            state=started.state,
+            session_id=started.session_id,
+            db=_fake_db(),
+            settings=SETTINGS,
+            client=c,
+            store=r,
         )
         sent = len(calls)
         with pytest.raises(oauth.OAuthFlowError) as err:
             await oauth.complete_login(
-                spec, code="code", state=started.state, db=_fake_db(), settings=SETTINGS, client=c, store=r
+                spec,
+                code="code",
+                state=started.state,
+                session_id=started.session_id,
+                db=_fake_db(),
+                settings=SETTINGS,
+                client=c,
+                store=r,
             )
     assert err.value.code == "state_invalid"
-    assert len(calls) == sent  # 重放没有产生任何新的上游请求
+    assert len(calls) == sent
+
+
+@pytest.mark.asyncio
+async def test_callback_state_must_come_from_the_same_browser_session(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # state đúng nhưng cookie phiên của tab khác = CSRF, không một token nào được đổi
+    calls: list[httpx.Request] = []
+    _stub_resolve(monkeypatch)
+    spec = oauth.require_provider("google", SETTINGS)
+    r = FakeRedis()
+    started = oauth.start_authorization(spec, settings=SETTINGS, store=r)
+    async with _client({"token": TOKEN_OK, "userinfo": USERINFO_OK}, calls) as c:
+        with pytest.raises(oauth.OAuthFlowError) as err:
+            await oauth.complete_login(
+                spec,
+                code="code",
+                state=started.state,
+                session_id="cookie-cua-tab-khac",
+                db=_fake_db(),
+                settings=SETTINGS,
+                client=c,
+                store=r,
+            )
+    assert err.value.code == "state_invalid"
+    assert calls == []
+
+
+@pytest.mark.asyncio
+async def test_callback_with_an_expired_state_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    # TTL hết = state không còn trong Redis: y hệt state bị đoán
+    calls: list[httpx.Request] = []
+    _stub_resolve(monkeypatch)
+    spec = oauth.require_provider("google", SETTINGS)
+    r = FakeRedis()
+    started = oauth.start_authorization(spec, settings=SETTINGS, store=r)
+    r.expire_all()
+    async with _client({"token": TOKEN_OK, "userinfo": USERINFO_OK}, calls) as c:
+        with pytest.raises(oauth.OAuthFlowError) as err:
+            await oauth.complete_login(
+                spec,
+                code="code",
+                state=started.state,
+                session_id=started.session_id,
+                db=_fake_db(),
+                settings=SETTINGS,
+                client=c,
+                store=r,
+            )
+    assert err.value.code == "state_invalid"
+    assert calls == []
 
 
 @pytest.mark.asyncio
@@ -255,55 +332,43 @@ async def test_user_cancelling_reports_access_denied(monkeypatch: pytest.MonkeyP
 
 
 @pytest.mark.asyncio
-async def test_token_endpoint_failure_does_not_leak_the_secret(
+async def test_provider_errors_are_logged_without_the_token_or_the_secret(
     monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
+    # Provider trả về lỗi lặp lại bí mật: không được ghi ra log, cũng không trả cho trình duyệt
     _stub_resolve(monkeypatch)
     spec = oauth.require_provider("google", SETTINGS)
     r = FakeRedis()
     started = oauth.start_authorization(spec, settings=SETTINGS, store=r)
-    refused = httpx.Response(400, json={"error": "invalid_grant", "error_description": "bad code"})
+    refused = httpx.Response(
+        400,
+        json={"error": "invalid_grant", "error_description": "bad code for gsecret at-1"},
+    )
     async with _client({"token": refused}) as c:
         with pytest.raises(oauth.OAuthProviderError) as err:
             await oauth.complete_login(
                 spec,
                 code="code",
                 state=started.state,
+                session_id=started.session_id,
                 db=_fake_db(),
                 settings=SETTINGS,
                 client=c,
                 store=r,
             )
     assert "gsecret" not in str(err.value)
-
-
-@pytest.mark.asyncio
-async def test_unverified_google_email_never_becomes_a_local_account(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    # Google 说没验证过邮箱 -> 流程在这里终止，绝不建号也不绑定。
-    # 用真实的账号层跑，只把数据库换成替身。
-    unverified = httpx.Response(
-        200,
-        json={"sub": "s1", "email": "victim@example.com", "email_verified": False, "name": "V"},
-    )
-    spec = oauth.require_provider("google", SETTINGS)
-    r = FakeRedis()
-    started = oauth.start_authorization(spec, settings=SETTINGS, store=r)
-    async with _client({"token": TOKEN_OK, "userinfo": unverified}) as c:
-        with pytest.raises(oauth_accounts.OAuthIdentityError) as err:
-            await oauth.complete_login(
-                spec, code="code", state=started.state, db=_fake_db(), settings=SETTINGS, client=c, store=r
-            )
-    assert err.value.code == "email_unverified"
+    assert "at-1" not in str(err.value)
+    assert "gsecret" not in caplog.text and "at-1" not in caplog.text
 
 
 # --------------------------------------------------------------- identity parsing
 
 
 def test_google_identity_normalises_the_email_and_name() -> None:
-    identity = oauth.parse_google_identity(
-        {"sub": " s1 ", "email": "Ada@Example.com", "email_verified": True, "name": "Ada"}
+    identity = oauth.identity_from_payload(
+        oauth.find_spec("google"),
+        {"sub": " s1 ", "email": "Ada@Example.com", "email_verified": True, "name": "Ada"},
     )
     assert (identity.provider, identity.subject, identity.email) == ("google", "s1", "ada@example.com")
     assert identity.email_verified is True
@@ -313,48 +378,40 @@ def test_google_identity_normalises_the_email_and_name() -> None:
 @pytest.mark.parametrize("flag", [False, None, "false", "", 0])
 def test_google_identity_only_trusts_a_real_true(flag) -> None:
     # 缺失/奇怪的值一律当作未验证
-    identity = oauth.parse_google_identity(
-        {"sub": "s1", "email": "a@b.co", "email_verified": flag}
+    identity = oauth.identity_from_payload(
+        oauth.find_spec("google"), {"sub": "s1", "email": "a@b.co", "email_verified": flag}
     )
     assert identity.email_verified is False
 
 
 def test_google_identity_accepts_a_string_true() -> None:
-    identity = oauth.parse_google_identity({"sub": "s1", "email": "a@b.co", "email_verified": "true"})
+    identity = oauth.identity_from_payload(
+        oauth.find_spec("google"), {"sub": "s1", "email": "a@b.co", "email_verified": "true"}
+    )
     assert identity.email_verified is True
 
 
-def test_google_identity_falls_back_to_the_mailbox_name() -> None:
-    identity = oauth.parse_google_identity(
-        {"sub": "s1", "email": "ada@example.com", "email_verified": True}
+def test_google_identity_reads_the_avatar_and_falls_back_to_the_mailbox_name() -> None:
+    identity = oauth.identity_from_payload(
+        oauth.find_spec("google"),
+        {"sub": "s1", "email": "ada@example.com", "email_verified": True, "picture": "https://a/x.png"},
     )
     assert identity.nickname == "ada"
+    assert identity.avatar_url == "https://a/x.png"
 
 
 def test_google_identity_without_a_subject_is_refused() -> None:
     with pytest.raises(oauth.OAuthProviderError):
-        oauth.parse_google_identity({"email": "a@b.co", "email_verified": True})
+        oauth.identity_from_payload(
+            oauth.find_spec("google"), {"email": "a@b.co", "email_verified": True}
+        )
 
 
 def test_google_identity_with_an_unusable_email_is_refused() -> None:
     with pytest.raises(oauth.OAuthProviderError):
-        oauth.parse_google_identity({"sub": "s1", "email": "not-an-email", "email_verified": True})
-
-
-def test_identity_discovery_is_provider_scoped(monkeypatch: pytest.MonkeyPatch) -> None:
-    # 本套测试只覆盖 google：没有解析器的 provider 必须明确报错，不能静默跳过校验
-    spec = oauth.OAuthProviderSpec(
-        name="unknown",
-        label="Unknown",
-        authorize_url="https://example.com/auth",
-        token_url="https://example.com/token",
-        userinfo_url="https://example.com/me",
-        client_id_setting="google_client_id",
-        client_secret_setting="google_client_secret",
-        scopes=("openid",),
-    )
-    monkeypatch.setitem(oauth.PROVIDERS, "unknown", spec)
-    assert oauth.find_spec("unknown") is spec
+        oauth.identity_from_payload(
+            oauth.find_spec("google"), {"sub": "s1", "email": "not-an-email", "email_verified": True}
+        )
 
 
 # ------------------------------------------------------------------ HTTP routes
@@ -364,15 +421,39 @@ def _http_client() -> httpx.AsyncClient:
     return httpx.AsyncClient(transport=ASGITransport(app=main_app), base_url="http://test")
 
 
-@pytest.mark.asyncio
-async def test_login_endpoint_redirects_to_the_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+def _with_oauth_state(monkeypatch: pytest.MonkeyPatch, r: FakeRedis) -> None:
     monkeypatch.setattr(oauth, "get_settings", lambda: SETTINGS)
-    monkeypatch.setattr(oauth_state, "get_redis_client", lambda: FakeRedis())
+    monkeypatch.setattr(oauth_state, "get_redis_client", lambda: r)
+
+
+@pytest.mark.asyncio
+async def test_login_endpoint_redirects_to_the_provider(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _with_oauth_state(monkeypatch, FakeRedis())
     async with _http_client() as client:
         res = await client.get("/api/auth/google/login", follow_redirects=False)
     assert res.status_code == 302
     assert res.headers["location"].startswith("https://accounts.google.com/o/oauth2/v2/auth?")
     assert query_of(res.headers["location"])["code_challenge_method"] == "S256"
+    # Cookie phiên phải được gắn ngay ở lần bắt đầu đăng nhập
+    assert "oauth_sid" in res.cookies
+
+
+@pytest.mark.asyncio
+async def test_login_endpoint_refuses_an_absolute_url_to_another_domain(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # open redirect: không phát state, không 302 sang provider
+    _with_oauth_state(monkeypatch, FakeRedis())
+    async with _http_client() as client:
+        res = await client.get(
+            "/api/auth/google/login",
+            params={"next": "https://evil.example/steal"},
+            follow_redirects=False,
+        )
+    assert res.status_code == 400
+    assert "evil.example" not in res.text
 
 
 @pytest.mark.asyncio
@@ -411,25 +492,42 @@ async def test_exchange_endpoint_rejects_a_missing_code() -> None:
 
 
 @pytest.mark.asyncio
+async def test_auth_endpoints_are_rate_limited(monkeypatch: pytest.MonkeyPatch) -> None:
+    r = FakeRedis()
+    _with_oauth_state(monkeypatch, r)
+    monkeypatch.setattr(
+        "app.api.oauth.get_settings",
+        lambda: fake_settings(
+            google_client_id="gid", google_client_secret="gsecret", oauth_rate_limit_per_minute=3
+        ),
+    )
+    async with _http_client() as client:
+        codes = [
+            (await client.get("/api/auth/google/login", follow_redirects=False)).status_code
+            for _ in range(5)
+        ]
+    assert codes[:3] == [302, 302, 302]
+    assert codes[3:] == [429, 429]
+
+
+@pytest.mark.asyncio
 async def test_callback_redirects_the_browser_to_the_frontend_with_the_code(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     r = FakeRedis()
     _stub_resolve(monkeypatch, user_id=555)
-    monkeypatch.setattr(oauth, "get_settings", lambda: SETTINGS)
-    monkeypatch.setattr(oauth_state, "get_redis_client", lambda: r)
+    _with_oauth_state(monkeypatch, r)
     spec = oauth.require_provider("google", SETTINGS)
     started = oauth.start_authorization(spec, settings=SETTINGS, store=r)
     main_app.dependency_overrides[get_db] = lambda: _fake_db()
 
     async def fake_complete(*_args, **_kwargs):
-        return oauth_state.issue_login_grant(r, 555)
+        return oauth.LoginHandoff(setup_required=False, token=oauth_state.issue_login_grant(r, 555))
 
     monkeypatch.setattr(oauth, "complete_login", fake_complete)
     try:
-        async with httpx.AsyncClient(
-            transport=ASGITransport(app=main_app), base_url="http://test"
-        ) as client:
+        async with _http_client() as client:
+            await client.get("/api/auth/google/login", follow_redirects=False)
             res = await client.get(
                 "/api/auth/google/callback",
                 params={"code": "auth-code", "state": started.state},
@@ -449,13 +547,10 @@ async def test_callback_redirects_the_browser_to_the_frontend_with_the_code(
 async def test_callback_redirects_with_an_error_code_when_state_is_rejected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(oauth, "get_settings", lambda: SETTINGS)
-    monkeypatch.setattr(oauth_state, "get_redis_client", lambda: FakeRedis())
+    _with_oauth_state(monkeypatch, FakeRedis())
     main_app.dependency_overrides[get_db] = lambda: _fake_db()
     try:
-        async with httpx.AsyncClient(
-            transport=ASGITransport(app=main_app), base_url="http://test"
-        ) as client:
+        async with _http_client() as client:
             res = await client.get(
                 "/api/auth/google/callback",
                 params={"code": "auth-code", "state": "forged"},
