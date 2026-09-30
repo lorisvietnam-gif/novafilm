@@ -1,1 +1,1 @@
-"""PRINTFILM platform backend."""
+"""Nền tảng backend NOVAFILM."""
