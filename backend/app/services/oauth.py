@@ -93,8 +93,22 @@ GOOGLE = OAuthProviderSpec(
     extra_authorize_params=(("access_type", "online"),),
 )
 
+MICROSOFT = OAuthProviderSpec(
+    name="microsoft",
+    label="Microsoft",
+    # "common" accepts both Entra tenant accounts and personal Microsoft accounts.
+    authorize_url="https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+    token_url="https://login.microsoftonline.com/common/oauth2/v2.0/token",
+    userinfo_url="https://graph.microsoft.com/oidc/userinfo",
+    client_id_setting="microsoft_client_id",
+    client_secret_setting="microsoft_client_secret",
+    scopes=("openid", "email", "profile", "User.Read"),
+    # Without it a browser signed into another tenant lands on the wrong account.
+    extra_authorize_params=(("prompt", "select_account"),),
+)
+
 # Insertion order is the order /api/auth/providers reports.
-PROVIDERS: dict[str, OAuthProviderSpec] = {GOOGLE.name: GOOGLE}
+PROVIDERS: dict[str, OAuthProviderSpec] = {GOOGLE.name: GOOGLE, MICROSOFT.name: MICROSOFT}
 
 
 def provider_specs() -> tuple[OAuthProviderSpec, ...]:
@@ -389,6 +403,42 @@ def parse_google_identity(payload: dict[str, Any]) -> OAuthIdentity:
     )
 
 
+def parse_microsoft_identity(payload: dict[str, Any]) -> OAuthIdentity:
+    """Turn Microsoft's userinfo into an identity.
+
+    Microsoft does not emit email_verified: it only issues the email claim for an address
+    it has verified, while a personal account that carries just preferred_username has
+    nothing verified to assert. So a present email claim counts as verified and an absent
+    one does not - the user is refused rather than logged in on an unproven address.
+    """
+    subject = str(payload.get("sub") or "").strip()
+    if not subject:
+        raise OAuthProviderError("microsoft userinfo has no sub")
+    raw_email = str(payload.get("email") or "").strip().lower()
+    try:
+        email = str(_EMAIL.validate_python(raw_email)).lower() if raw_email else ""
+    except ValidationError as exc:
+        raise OAuthProviderError("microsoft returned an unusable email claim") from exc
+
+    if "email_verified" in payload:
+        verified = _bool_claim(payload.get("email_verified"))
+    else:
+        verified = bool(email)
+    return OAuthIdentity(
+        provider="microsoft",
+        subject=subject,
+        email=email,
+        email_verified=verified,
+        nickname=_nickname_from(payload, email),
+    )
+
+
+IDENTITY_PARSERS = {
+    GOOGLE.name: parse_google_identity,
+    MICROSOFT.name: parse_microsoft_identity,
+}
+
+
 # --------------------------------------------------------------------- whole flow
 
 
@@ -435,10 +485,10 @@ async def complete_login(
     )
     payload = await fetch_userinfo(spec, access_token=access_token, client=client)
 
-    if spec.name == "google":
-        identity = parse_google_identity(payload)
-    else:  # pragma: no cover - guarded by require_provider()
+    parser = IDENTITY_PARSERS.get(spec.name)
+    if parser is None:  # pragma: no cover - guarded by require_provider()
         raise OAuthProviderError(f"no identity parser for provider {spec.name}")
+    identity = parser(payload)
 
     result = await oauth_accounts.resolve_oauth_user(db, identity, settings=cfg)
     logger.info(
