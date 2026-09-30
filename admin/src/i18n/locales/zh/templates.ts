@@ -1,4 +1,4 @@
-/** Trang mẫu (lưới thẻ + bộ lọc) và hộp thoại soạn thảo mẫu */
+﻿/** Trang mẫu (lưới thẻ + bộ lọc) và hộp thoại soạn thảo mẫu */
 export const zhTemplates = {
   templates: {
     statusActive: "已上架",
@@ -6,6 +6,7 @@ export const zhTemplates = {
     statusPremium: "Premium",
     description: "风格 / 角色 / 提示词以本页为准；已创建项目需在分镜页恢复模板后才会跟随。",
     newTemplate: "新建模板",
+    itemUnit: "项",
     searchPlaceholder: "搜索名称 / ID / 描述 / 分类",
     categoryLabel: "分类",
     allCategories: "全部分类",
@@ -92,5 +93,10 @@ export const zhTemplates = {
     demoHint: "演示账号：demo / demo123",
     failed: "登录失败",
     succeeded: "登录成功",
+  },
+  api: {
+    requestFailed: "请求失败 ({status})",
+    sessionExpired: "未登录或登录已失效",
+    notAdmin: "该账号没有管理员权限",
   },
 } as const

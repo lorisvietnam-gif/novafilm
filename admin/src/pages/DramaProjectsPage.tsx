@@ -73,7 +73,7 @@ export function DramaProjectsPage() {
             <tr>
               <th>ID</th>
               <th>{m.common.fields.title}</th>
-              <th>用户</th>
+              <th>{m.common.fields.user}</th>
               <th>{m.drama.colEpisodes}</th>
               <th>{m.drama.colAssets}</th>
               <th>{m.common.fields.charge}</th>
@@ -105,7 +105,7 @@ export function DramaProjectsPage() {
                 </td>
                 <td>
                   <Button size="sm" variant="outline" asChild>
-                    <Link to={`/drama-projects/${row.id}`}>详情</Link>
+                    <Link to={`/drama-projects/${row.id}`}>{m.common.action.detail}</Link>
                   </Button>
                 </td>
               </tr>

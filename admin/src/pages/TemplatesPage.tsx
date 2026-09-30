@@ -286,7 +286,7 @@ export function TemplatesPage() {
         trailing={
           <>
             <LayoutGrid className="h-4 w-4" />
-            {filteredItems.length} / {data?.meta.total ?? 0} 项
+            {filteredItems.length} / {data?.meta.total ?? 0} {m.templates.itemUnit}
           </>
         }
       >
