@@ -320,7 +320,7 @@ export default function PricingPage() {
 
           <footer className="pf-pricing-site-foot">
             <p className="pf-pricing-site-brand">
-              <Link to="/">PRINTFILM</Link>
+              <Link to="/">NOVAFILM</Link>
               <span> · {t('pricing.footBrand')}</span>
             </p>
             <nav className="pf-pricing-site-links" aria-label={t('footer.links')}>
@@ -331,7 +331,7 @@ export default function PricingPage() {
                 {t('footer.github')}
               </a>
             </nav>
-            <p className="pf-pricing-site-copy">© {new Date().getFullYear()} PRINTFILM. All rights reserved.</p>
+            <p className="pf-pricing-site-copy">© {new Date().getFullYear()} NOVAFILM. All rights reserved.</p>
           </footer>
         </div>
       </div>

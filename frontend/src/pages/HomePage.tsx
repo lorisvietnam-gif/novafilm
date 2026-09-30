@@ -1,4 +1,4 @@
-/** PRINTFILM 官网首页：产品主张、漫剧/科普入口、成片流程与工具 */
+/** Trang chủ NOVAFILM: tuyên bố sản phẩm, lối vào drama/khoa học, quy trình dựng phim và công cụ */
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
@@ -39,7 +39,7 @@ export default function HomePage() {
     <AppShell active="home" hideFooter>
       <section className="pf-land-hero">
         <div className="pf-land-hero-copy">
-          <p className="pf-land-kicker">PRINTFILM</p>
+          <p className="pf-land-kicker">NOVAFILM</p>
           <h1>
             {t('home.headlineBefore')}
             <br />
@@ -216,7 +216,7 @@ export default function HomePage() {
 
       <footer className="pf-land-foot">
         <div className="pf-land-foot-brand">
-          <strong>PRINTFILM</strong>
+          <strong>NOVAFILM</strong>
           <p>{t('home.footBrand')}</p>
         </div>
         <nav className="pf-land-foot-nav" aria-label={t('home.footNav')}>
@@ -233,7 +233,7 @@ export default function HomePage() {
             {t('footer.github')}
           </a>
         </nav>
-        <p className="pf-land-copy">© {new Date().getFullYear()} PRINTFILM. All rights reserved.</p>
+        <p className="pf-land-copy">© {new Date().getFullYear()} NOVAFILM. All rights reserved.</p>
       </footer>
 
       <CreateChoiceModal open={createOpen} onClose={() => setCreateOpen(false)} />
