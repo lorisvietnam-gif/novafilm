@@ -161,6 +161,28 @@ export const enLabels = {
     DONE: "Done",
     FAILED: "Failed",
   },
+  /** Nhãn cho các trường payload tác vụ; khoá là tên trường backend */
+  payloadField: {
+    prompt: "Prompt",
+    name: "Name",
+    kind: "Type",
+    model_id: "Model",
+    image_style_id: "Style",
+    aspect_ratio: "Aspect ratio",
+    resolution: "Resolution",
+    duration_sec: "Duration (s)",
+    duration: "Duration",
+    force: "Force rerun",
+    total: "Total",
+    project_id: "Project ID",
+    user_id: "User ID",
+    asset_id: "Asset ID",
+    episode_count: "Episodes",
+    phase: "Phase",
+    sync: "Sync",
+    refresh_prompts: "Refresh prompts",
+    reextract_props: "Re-extract props",
+  },
   /** Lựa chọn "tất cả" của các ô lọc (giá trị vẫn là chuỗi rỗng) */
   filter: {
     allStatus: "All statuses",

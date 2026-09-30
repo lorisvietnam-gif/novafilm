@@ -165,6 +165,28 @@ export const viLabels = {
     DONE: "Đã xong",
     FAILED: "Thất bại",
   },
+  /** Nhãn cho các trường payload tác vụ; khoá là tên trường backend */
+  payloadField: {
+    prompt: "Prompt",
+    name: "Tên",
+    kind: "Loại",
+    model_id: "Mô hình",
+    image_style_id: "Phong cách",
+    aspect_ratio: "Tỷ lệ khung hình",
+    resolution: "Độ phân giải",
+    duration_sec: "Thời lượng (giây)",
+    duration: "Thời lượng",
+    force: "Bắt buộc chạy lại",
+    total: "Tổng số",
+    project_id: "ID dự án Short Video",
+    user_id: "ID người dùng",
+    asset_id: "ID tài nguyên",
+    episode_count: "Số tập",
+    phase: "Giai đoạn",
+    sync: "Đồng bộ",
+    refresh_prompts: "Làm mới prompt",
+    reextract_props: "Trích lại đạo cụ",
+  },
   /** Lựa chọn "tất cả" của các ô lọc (giá trị vẫn là chuỗi rỗng) */
   filter: {
     allStatus: "Mọi trạng thái",

@@ -164,6 +164,28 @@ export const zhLabels = {
     DONE: "已完成",
     FAILED: "失败",
   },
+  /** Nhãn cho các trường payload tác vụ; khoá là tên trường backend */
+  payloadField: {
+    prompt: "提示词",
+    name: "名称",
+    kind: "类型",
+    model_id: "模型",
+    image_style_id: "风格",
+    aspect_ratio: "画幅",
+    resolution: "分辨率",
+    duration_sec: "时长(秒)",
+    duration: "时长",
+    force: "强制重跑",
+    total: "总数",
+    project_id: "科普项目 ID",
+    user_id: "用户 ID",
+    asset_id: "资产 ID",
+    episode_count: "集数",
+    phase: "阶段",
+    sync: "同步",
+    refresh_prompts: "刷新提示词",
+    reextract_props: "重抽道具",
+  },
   /** Lựa chọn "tất cả" của các ô lọc (giá trị vẫn là chuỗi rỗng) */
   filter: {
     allStatus: "全部状态",
