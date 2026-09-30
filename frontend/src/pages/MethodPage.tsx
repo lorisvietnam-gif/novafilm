@@ -1,4 +1,4 @@
-/** 获客短视频宣传页：方法论结构 + 开始使用 / 回到 GEO */
+/** Trang giới thiệu video thu hút khách: cấu trúc phương pháp + nút Bắt đầu / Về GEO */
 import { useEffect, type ReactNode } from 'react'
 import { ArrowRight, ArrowUpRight } from 'lucide-react'
 import LanguageSwitch from '../components/layout/LanguageSwitch'
@@ -11,16 +11,18 @@ import {
 } from '../lib/methodLanding'
 import './method/method.css'
 
-const PAGE_URL = 'https://www.printfilm.com/method'
+/** Đường dẫn tương đối cùng origin, không hard-code domain bên ngoài */
+const PAGE_URL = '/method'
 
-// 注入本页 title / description；延迟一拍以免被 I18nProvider 的默认 meta 覆盖
+// Ghi title / description của riêng trang này; trễ một nhịp để không bị
+// meta mặc định của I18nProvider ghi đè
 function useMethodMeta(copy: MethodLandingCopy) {
   useEffect(() => {
     const descEl = document.querySelector('meta[name="description"]')
     const prevTitle = document.title
     const prevDesc = descEl?.getAttribute('content')
 
-    // 写入宣传页 SEO 文案
+    // Ghi nội dung SEO của trang giới thiệu
     function apply() {
       document.title = copy.metaTitle
       descEl?.setAttribute('content', copy.metaDescription)
@@ -36,7 +38,7 @@ function useMethodMeta(copy: MethodLandingCopy) {
   }, [copy.metaTitle, copy.metaDescription])
 }
 
-// 外链按钮：开始使用 / 回到 GEO
+// Nút liên kết ngoài: Bắt đầu dùng / Về GEO
 function MethodCta({
   href,
   className,
@@ -53,7 +55,7 @@ function MethodCta({
   )
 }
 
-/** 获客短视频宣传页主体：方法论章节 + 双 CTA */
+/** Thân trang giới thiệu video thu hút khách: các mục phương pháp + hai CTA */
 export default function MethodPage() {
   const { locale } = useI18n()
   const copy = METHOD_LANDING[locale]
@@ -65,8 +67,8 @@ export default function MethodPage() {
     headline: copy.jsonLdHeadline,
     description: copy.metaDescription,
     inLanguage: locale === 'zh' ? 'zh-CN' : locale === 'en' ? 'en' : 'vi-VN',
-    author: { '@type': 'Organization', name: 'PRINTFILM' },
-    publisher: { '@type': 'Organization', name: 'PRINTFILM' },
+    author: { '@type': 'Organization', name: 'NOVAFILM' },
+    publisher: { '@type': 'Organization', name: 'NOVAFILM' },
     mainEntityOfPage: { '@type': 'WebPage', '@id': PAGE_URL },
     about: copy.toc.map((item) => ({ '@type': 'Thing', name: item.label })),
   }
@@ -82,7 +84,7 @@ export default function MethodPage() {
         <a className="pf-method-brand" href={METHOD_START_URL} rel="noopener noreferrer">
           <img src="/logo.svg" alt="" />
           <span className="pf-method-word">
-            <strong>PRINTFILM</strong>
+            <strong>NOVAFILM</strong>
             <span>{copy.brandLine}</span>
           </span>
         </a>

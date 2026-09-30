@@ -1,9 +1,16 @@
-/** 获客短视频宣传页（/method）文案：对标交付方法论结构，不承诺效果 */
+/** Trang giới thiệu video thu hút khách (/method): mô tả phương pháp giao việc, không cam kết kết quả */
 
 import type { Locale } from '../i18n/detect'
 
-export const METHOD_START_URL = 'https://www.printfilm.com/studio/new'
-export const METHOD_GEO_URL = 'https://www.geohao.com/'
+/** Đường dẫn tương đối cùng origin, không hard-code domain bên ngoài */
+export const METHOD_START_URL = '/studio/new'
+
+/**
+ * TODO(vi): điền domain GEO chính thức khi xong.
+ * Hiện để '#' — không trỏ sang domain của bên khác để tránh gửi người dùng ra ngoài
+ * một cách ngoài ý muốn và để không khẳng định quan hệ với một thương hiệu khác.
+ */
+export const METHOD_GEO_URL = '#'
 
 export type MethodTocItem = { href: string; label: string }
 
@@ -87,9 +94,9 @@ export type MethodLandingCopy = {
 }
 
 const zh: MethodLandingCopy = {
-  metaTitle: '获客短视频 · PRINTFILM（内容生产 SOP · GEO 配套 · 多平台分发）',
+  metaTitle: '获客短视频 · NOVAFILM（内容生产 SOP · GEO 配套 · 多平台分发）',
   metaDescription:
-    'PRINTFILM 获客短视频交付方法论：内容生产四步 SOP、与 GEO 的配合方式、多平台分发、成片节奏与人工质检。本页为方法论说明，不承诺获客或成交结果。',
+    'NOVAFILM 获客短视频交付方法论：内容生产四步 SOP、与 GEO 的配合方式、多平台分发、成片节奏与人工质检。本页为方法论说明，不承诺获客或成交结果。',
   kicker: 'Method',
   title: '获客短视频',
   ledeBefore: '这一页写的是',
@@ -102,7 +109,7 @@ const zh: MethodLandingCopy = {
   skip: '跳到主要内容',
   noticeTitle: '阅读前须知',
   noticeBody:
-    '以下为交付方法论与能力说明，不是客户背书，也不是效果承诺。本页不展示任何客户名称、案例数据、成交金额或客户评价。PRINTFILM 按实际上游用量计费，不承诺获客、播放、线索或成交结果。页内周期与产能为参考区间，待核。',
+    '以下为交付方法论与能力说明，不是客户背书，也不是效果承诺。本页不展示任何客户名称、案例数据、成交金额或客户评价。NOVAFILM 按实际上游用量计费，不承诺获客、播放、线索或成交结果。页内周期与产能为参考区间，待核。',
   toc: [
     { href: '#sop', label: '内容生产 SOP' },
     { href: '#geo', label: '和 GEO 怎么配合' },
@@ -123,7 +130,7 @@ const zh: MethodLandingCopy = {
     },
     {
       title: '结构拆解：把「感觉能获客」变成模板',
-      body: '按标题、开头 3 秒钩子、痛点、方案、结尾行动五个维度拆开，归类成可复用栏目。PRINTFILM 用画面风格 + 口播结构承接这些栏目，让同一套卖点可以批量出片，而不是每条从零写起。',
+      body: '按标题、开头 3 秒钩子、痛点、方案、结尾行动五个维度拆开，归类成可复用栏目。NOVAFILM 用画面风格 + 口播结构承接这些栏目，让同一套卖点可以批量出片，而不是每条从零写起。',
     },
     {
       title: '脚本与分镜：AI 出初稿，人确认再往下',
@@ -152,7 +159,7 @@ const zh: MethodLandingCopy = {
     },
     {
       title: 'GEO 做诊断，短视频做出片',
-      body: '品牌档案、知识库与命中监测在 GEO 侧完成；PRINTFILM 承接「能播的片子」。需要回到诊断与套餐时，从本页返回 GEO。',
+      body: '品牌档案、知识库与命中监测在 GEO 侧完成；NOVAFILM 承接「能播的片子」。需要回到诊断与套餐时，从本页返回 GEO。',
     },
     {
       title: '不做命中承诺',
@@ -177,7 +184,7 @@ const zh: MethodLandingCopy = {
   ],
   distCalloutTitle: '分发纪律',
   distCalloutBody:
-    '全部内容由你自己的账号发布。PRINTFILM 只提供成片与结构建议；不使用 RPA 批量代发，不代持账号密码，不使用任何声称「绕过平台风控」的第三方工具。这条纪律的优先级高于效率。',
+    '全部内容由你自己的账号发布。NOVAFILM 只提供成片与结构建议；不使用 RPA 批量代发，不代持账号密码，不使用任何声称「绕过平台风控」的第三方工具。这条纪律的优先级高于效率。',
   paceKicker: '04',
   paceTitle: '四、成片节奏',
   paceLead:
@@ -199,7 +206,7 @@ const zh: MethodLandingCopy = {
   ],
   paceCalloutTitle: '和 GEO 月报怎么分工',
   paceCalloutBody:
-    'GEO 侧看的是品牌是否被模型提及、表述是否准确；PRINTFILM 侧看的是这一周有没有按栏目把片子做出来。两边对不上时，先改口径再改产量，而不是加一条更夸张的钩子。',
+    'GEO 侧看的是品牌是否被模型提及、表述是否准确；NOVAFILM 侧看的是这一周有没有按栏目把片子做出来。两边对不上时，先改口径再改产量，而不是加一条更夸张的钩子。',
   qcKicker: '05',
   qcTitle: '五、人工质检与合规',
   qcLead: '这部分决定了内容能不能长期稳定地发下去，是整个流程里最不能被 AI 替代的环节。',
@@ -233,17 +240,17 @@ const zh: MethodLandingCopy = {
   ],
   closeTitle: '从一条卖点开始出片',
   closeBody: '进入工作台新建获客短视频；需要品牌诊断、知识库与模型命中，请回到 GEO。',
-  footAbout: 'PRINTFILM 提供获客短视频工作台：主题 / 口播 → 分镜 → 画面 → 成片。与 GEO 站点配合使用，不替代诊断与引用监测。',
+  footAbout: 'NOVAFILM 提供获客短视频工作台：主题 / 口播 → 分镜 → 画面 → 成片。与 GEO 站点配合使用，不替代诊断与引用监测。',
   footLegal:
     '本页为方法论与能力说明，非客户背书，亦不构成任何效果承诺。服务按内容产能与实际上游用量收费，不承诺获客、播放、线索或成交结果。站内不使用绝对化用语，不展示未经授权的客户名称或案例数据。',
-  footCopy: 'PRINTFILM · 获客短视频',
-  jsonLdHeadline: 'PRINTFILM 获客短视频：内容生产 SOP、GEO 配套、多平台分发与人工质检',
+  footCopy: 'NOVAFILM · 获客短视频',
+  jsonLdHeadline: 'NOVAFILM 获客短视频：内容生产 SOP、GEO 配套、多平台分发与人工质检',
 }
 
 const en: MethodLandingCopy = {
-  metaTitle: 'Lead-gen short video · PRINTFILM (SOP · GEO companion · distribution)',
+  metaTitle: 'Lead-gen short video · NOVAFILM (SOP · GEO companion · distribution)',
   metaDescription:
-    'How PRINTFILM makes lead-gen short videos: a four-step SOP, how it pairs with GEO, multi-platform adaptation, and human review. Methodology only — no performance promises.',
+    'How NOVAFILM makes lead-gen short videos: a four-step SOP, how it pairs with GEO, multi-platform adaptation, and human review. Methodology only — no performance promises.',
   kicker: 'Method',
   title: 'Lead-gen short video',
   ledeBefore: 'This page is about ',
@@ -256,7 +263,7 @@ const en: MethodLandingCopy = {
   skip: 'Skip to content',
   noticeTitle: 'Read this first',
   noticeBody:
-    'This is a methodology and capability note, not a testimonial and not a performance promise. We do not show client names, case metrics, deal sizes, or reviews. PRINTFILM bills on actual upstream usage and does not promise leads, views, or sales. Timelines and capacity figures on this page are reference ranges, pending verification.',
+    'This is a methodology and capability note, not a testimonial and not a performance promise. We do not show client names, case metrics, deal sizes, or reviews. NOVAFILM bills on actual upstream usage and does not promise leads, views, or sales. Timelines and capacity figures on this page are reference ranges, pending verification.',
   toc: [
     { href: '#sop', label: 'Production SOP' },
     { href: '#geo', label: 'How it pairs with GEO' },
@@ -277,7 +284,7 @@ const en: MethodLandingCopy = {
     },
     {
       title: 'Break the pattern: turn “this could convert” into a template',
-      body: 'Split samples by title, first-three-second hook, pain, offer, and call to action. PRINTFILM holds those columns with a visual style plus narration structure so you can batch, not start from zero.',
+      body: 'Split samples by title, first-three-second hook, pain, offer, and call to action. NOVAFILM holds those columns with a visual style plus narration structure so you can batch, not start from zero.',
     },
     {
       title: 'Script and boards: AI drafts, you confirm before going on',
@@ -305,8 +312,8 @@ const en: MethodLandingCopy = {
       body: 'Engines do not only read your homepage. Public shorts and captions can be included too. We sync verifiable claims, not hype essays.',
     },
     {
-      title: 'GEO diagnoses, PRINTFILM ships film',
-      body: 'Brand files, knowledge bases, and mention checks live on the GEO side. PRINTFILM ships playable films. Return to GEO for diagnosis and plans.',
+      title: 'GEO diagnoses, NOVAFILM ships film',
+      body: 'Brand files, knowledge bases, and mention checks live on the GEO side. NOVAFILM ships playable films. Return to GEO for diagnosis and plans.',
     },
     {
       title: 'No mention guarantees',
@@ -331,7 +338,7 @@ const en: MethodLandingCopy = {
   ],
   distCalloutTitle: 'Distribution rules',
   distCalloutBody:
-    'You post from your own accounts. PRINTFILM supplies films and structure notes. No RPA bulk posting, no holding passwords, no “bypass the risk engine” tools. This rule outranks speed.',
+    'You post from your own accounts. NOVAFILM supplies films and structure notes. No RPA bulk posting, no holding passwords, no “bypass the risk engine” tools. This rule outranks speed.',
   paceKicker: '04',
   paceTitle: '4. Shipping cadence',
   paceLead:
@@ -353,7 +360,7 @@ const en: MethodLandingCopy = {
   ],
   paceCalloutTitle: 'How this splits from GEO reporting',
   paceCalloutBody:
-    'GEO asks whether models mention you and describe you accurately. PRINTFILM asks whether this week’s films actually shipped. When they disagree, fix the claims before you add volume.',
+    'GEO asks whether models mention you and describe you accurately. NOVAFILM asks whether this week’s films actually shipped. When they disagree, fix the claims before you add volume.',
   qcKicker: '05',
   qcTitle: '5. Human review and compliance',
   qcLead: 'This is what lets you keep posting. It is the part AI cannot replace.',
@@ -388,17 +395,17 @@ const en: MethodLandingCopy = {
   closeTitle: 'Start from one offer',
   closeBody: 'Open the studio to make a lead-gen short. For brand diagnosis, knowledge base, and model mentions, go back to GEO.',
   footAbout:
-    'PRINTFILM is a lead-gen short-video studio: topic / voiceover → boards → picture → film. It pairs with the GEO site; it does not replace diagnosis or citation monitoring.',
+    'NOVAFILM is a lead-gen short-video studio: topic / voiceover → boards → picture → film. It pairs with the GEO site; it does not replace diagnosis or citation monitoring.',
   footLegal:
     'Methodology and capability only — not a testimonial, not a performance promise. We bill for content capacity and actual upstream usage. No guarantees of leads, views, or sales. No superlatives. No unauthorized client names or case data.',
-  footCopy: 'PRINTFILM · Lead-gen short video',
-  jsonLdHeadline: 'PRINTFILM lead-gen short video: production SOP, GEO companion, distribution, and human review',
+  footCopy: 'NOVAFILM · Lead-gen short video',
+  jsonLdHeadline: 'NOVAFILM lead-gen short video: production SOP, GEO companion, distribution, and human review',
 }
 
 const vi: MethodLandingCopy = {
-  metaTitle: 'Video thu hút khách · PRINTFILM (SOP sản xuất · Đi kèm GEO · Phân phối đa nền tảng)',
+  metaTitle: 'Video thu hút khách · NOVAFILM (SOP sản xuất · Đi kèm GEO · Phân phối đa nền tảng)',
   metaDescription:
-    'Phương pháp giao video thu hút khách của PRINTFILM: SOP sản xuất nội dung bốn bước, cách phối hợp với GEO, phân phối đa nền tảng, nhịp độ ra phim và kiểm duyệt thủ công. Trang này chỉ nói về phương pháp, không cam kết khách hàng hay kết quả giao dịch.',
+    'Phương pháp giao video thu hút khách của NOVAFILM: SOP sản xuất nội dung bốn bước, cách phối hợp với GEO, phân phối đa nền tảng, nhịp độ ra phim và kiểm duyệt thủ công. Trang này chỉ nói về phương pháp, không cam kết khách hàng hay kết quả giao dịch.',
   kicker: 'Method',
   title: 'Video thu hút khách',
   ledeBefore: 'Trang này viết về',
@@ -411,7 +418,7 @@ const vi: MethodLandingCopy = {
   skip: 'Bỏ qua tới nội dung chính',
   noticeTitle: 'Xin đọc trước',
   noticeBody:
-    'Dưới đây là phương pháp giao và mô tả năng lực, không phải lời chứng thực của khách hàng, cũng không phải cam kết hiệu quả. Trang này không hiển thị tên khách hàng, số liệu case, giá trị giao dịch hay đánh giá của khách hàng. PRINTFILM tính phí theo mức dùng thượng nguồn thực tế, không cam kết khách hàng, lượt xem, khách tiềm năng hay giao dịch. Các mốc thời gian và năng lực sản xuất trong trang là khoảng tham khảo, còn chờ kiểm chứng.',
+    'Dưới đây là phương pháp giao và mô tả năng lực, không phải lời chứng thực của khách hàng, cũng không phải cam kết hiệu quả. Trang này không hiển thị tên khách hàng, số liệu case, giá trị giao dịch hay đánh giá của khách hàng. NOVAFILM tính phí theo mức dùng thượng nguồn thực tế, không cam kết khách hàng, lượt xem, khách tiềm năng hay giao dịch. Các mốc thời gian và năng lực sản xuất trong trang là khoảng tham khảo, còn chờ kiểm chứng.',
   toc: [
     { href: '#sop', label: 'SOP sản xuất nội dung' },
     { href: '#geo', label: 'Phối hợp với GEO' },
@@ -432,7 +439,7 @@ const vi: MethodLandingCopy = {
     },
     {
       title: 'Bóc tách cấu trúc: biến «cảm giác sẽ ra khách» thành khuôn mẫu',
-      body: 'Tách theo năm chiều: tiêu đề, hook 3 giây đầu, nỗi đau, phương án, hành động kết, rồi gom thành các cột chuyên mục có thể tái dùng. PRINTFILM gánh các cột đó bằng phong cách hình ảnh cộng cấu trúc lời dẫn, giúp bạn xuất hàng loạt cùng một điểm bán thay vì viết lại từ đầu.',
+      body: 'Tách theo năm chiều: tiêu đề, hook 3 giây đầu, nỗi đau, phương án, hành động kết, rồi gom thành các cột chuyên mục có thể tái dùng. NOVAFILM gánh các cột đó bằng phong cách hình ảnh cộng cấu trúc lời dẫn, giúp bạn xuất hàng loạt cùng một điểm bán thay vì viết lại từ đầu.',
     },
     {
       title: 'Kịch bản và storyboard: AI làm bản nháp, bạn duyệt rồi đi tiếp',
@@ -460,8 +467,8 @@ const vi: MethodLandingCopy = {
       body: 'Nguồn của bộ máy sinh không chỉ có trang chủ. Video và chú thích công khai cũng có thể được đưa vào. Ta đồng bộ những phát biểu có thể kiểm chứng, không phải bài viết kích thích cảm xúc.',
     },
     {
-      title: 'GEO chẩn đoán, PRINTFILM ra phim',
-      body: 'Hồ sơ thương hiệu, tri thức cơ sở và theo dõi mức độ được nhắc tới nằm ở phía GEO; PRINTFILM lo phần «thước phim xem được». Cần quay lại chẩn đoán và bảng giá thì quay về GEO.',
+      title: 'GEO chẩn đoán, NOVAFILM ra phim',
+      body: 'Hồ sơ thương hiệu, tri thức cơ sở và theo dõi mức độ được nhắc tới nằm ở phía GEO; NOVAFILM lo phần «thước phim xem được». Cần quay lại chẩn đoán và bảng giá thì quay về GEO.',
     },
     {
       title: 'Không cam kết được nhắc tới',
@@ -486,7 +493,7 @@ const vi: MethodLandingCopy = {
   ],
   distCalloutTitle: 'Kỷ luật phân phối',
   distCalloutBody:
-    'Toàn bộ nội dung do tài khoản của bạn tự đăng. PRINTFILM chỉ cung cấp phim hoàn chỉnh và gợi ý cấu trúc; không dùng RPA để đăng hàng loạt, không giữ mật khẩu tài khoản, không dùng bất kỳ công cụ bên thứ ba nào tự nhận «vượt qua phòng rủi ro của nền tảng». Kỷ luật này quan trọng hơn tốc độ.',
+    'Toàn bộ nội dung do tài khoản của bạn tự đăng. NOVAFILM chỉ cung cấp phim hoàn chỉnh và gợi ý cấu trúc; không dùng RPA để đăng hàng loạt, không giữ mật khẩu tài khoản, không dùng bất kỳ công cụ bên thứ ba nào tự nhận «vượt qua phòng rủi ro của nền tảng». Kỷ luật này quan trọng hơn tốc độ.',
   paceKicker: '04',
   paceTitle: '4. Nhịp độ ra phim',
   paceLead:
@@ -508,7 +515,7 @@ const vi: MethodLandingCopy = {
   ],
   paceCalloutTitle: 'Chia vai trò với báo cáo định kỳ của GEO',
   paceCalloutBody:
-    'Phía GEO xem mô hình có nhắc tới bạn và mô tả có chính xác không; phía PRINTFILM xem tuần này đã ra phim đúng chuyên mục chưa. Khi hai bên lệch nhau, hãy sửa cách nói trước rồi mới sửa sản lượng, thay vì thêm một câu hook khoa trương hơn.',
+    'Phía GEO xem mô hình có nhắc tới bạn và mô tả có chính xác không; phía NOVAFILM xem tuần này đã ra phim đúng chuyên mục chưa. Khi hai bên lệch nhau, hãy sửa cách nói trước rồi mới sửa sản lượng, thay vì thêm một câu hook khoa trương hơn.',
   qcKicker: '05',
   qcTitle: '5. Kiểm duyệt thủ công và tuân thủ',
   qcLead: 'Phần này quyết định nội dung có đăng được ổn định dài hạn hay không, và là phần trong quy trình mà AI không thể thay thế.',
@@ -543,12 +550,12 @@ const vi: MethodLandingCopy = {
   closeTitle: 'Ra phim từ một điểm bán',
   closeBody: 'Vào không gian làm việc để tạo video thu hút khách; nếu cần chẩn đoán thương hiệu, tri thức cơ sở và theo dõi mô hình nhắc tới, hãy quay về GEO.',
   footAbout:
-    'PRINTFILM cung cấp không gian làm việc cho video thu hút khách: chủ đề / lời dẫn → storyboard → hình ảnh → phim hoàn chỉnh. Dùng cùng trang GEO, không thay thế việc chẩn đoán và theo dõi trích dẫn.',
+    'NOVAFILM cung cấp không gian làm việc cho video thu hút khách: chủ đề / lời dẫn → storyboard → hình ảnh → phim hoàn chỉnh. Dùng cùng trang GEO, không thay thế việc chẩn đoán và theo dõi trích dẫn.',
   footLegal:
     'Trang này là phương pháp và mô tả năng lực, không phải lời chứng thực của khách hàng, cũng không cấu thành cam kết hiệu quả. Dịch vụ thu phí theo năng lực sản xuất nội dung và mức dùng thượng nguồn thực tế. Không cam kết khách hàng, lượt xem, khách tiềm năng hay giao dịch. Trong site không dùng từ tuyệt đối, không hiển thị tên khách hàng hay số liệu case khi chưa được cho phép.',
-  footCopy: 'PRINTFILM · Video thu hút khách',
+  footCopy: 'NOVAFILM · Video thu hút khách',
   jsonLdHeadline:
-    'Video thu hút khách PRINTFILM: SOP sản xuất nội dung, đi kèm GEO, phân phối đa nền tảng và kiểm duyệt thủ công',
+    'Video thu hút khách NOVAFILM: SOP sản xuất nội dung, đi kèm GEO, phân phối đa nền tảng và kiểm duyệt thủ công',
 }
 
 export const METHOD_LANDING: Record<Locale, MethodLandingCopy> = { zh, en, vi }

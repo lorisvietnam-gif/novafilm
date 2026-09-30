@@ -8,7 +8,7 @@ export const LOCALES: Locale[] = ['vi', 'zh', 'en']
 /** Ngôn ngữ dự phòng khi không khớp ngôn ngữ nào được hỗ trợ */
 export const DEFAULT_LOCALE: Locale = 'vi'
 
-export const LOCALE_STORAGE_KEY = 'printfilm.locale'
+export const LOCALE_STORAGE_KEY = 'novafilm.locale'
 
 export const LOCALE_HTML: Record<Locale, string> = {
   zh: 'zh-CN',

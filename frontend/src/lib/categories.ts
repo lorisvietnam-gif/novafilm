@@ -18,9 +18,9 @@ export const CATEGORY_ORDER = [
 ]
 
 /**
- * 分类显示名（越南语）。
- * khoá vẫn là chuỗi Trung vì backend trả về và template lọc theo chuỗi này;
- * chỉ phần hiển thị mới dịch sang tiếng Việt.
+ * Tên hiển thị danh mục (tiếng Việt).
+ * Khoá vẫn giữ nguyên là chuỗi Trung vì backend trả về đúng giá trị đó và
+ * template lọc theo chuỗi này; chỉ phần hiển thị mới dịch sang tiếng Việt.
  */
 export const HOME_CATEGORY_LABELS_VI: Record<string, string> = {
   全部: 'Tất cả',

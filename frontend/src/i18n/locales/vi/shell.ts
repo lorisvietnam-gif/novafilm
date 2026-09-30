@@ -2,9 +2,9 @@
 
 export const viShell = {
   meta: {
-    title: 'PRINTFILM · Nền tảng phim AI',
+    title: 'NOVAFILM · Nền tảng phim AI',
     description:
-      'PRINTFILM: AI Drama từ kịch bản đến phim hoàn chỉnh nhiều tập, AI Short Video từ điểm bán đến storyboard ra phim.',
+      'NOVAFILM: AI Drama từ kịch bản đến phim hoàn chỉnh nhiều tập, AI Short Video từ điểm bán đến storyboard ra phim.',
   },
   common: {
     comingSoon: 'Sắp ra mắt',
@@ -79,7 +79,7 @@ export const viShell = {
   wechatGroup: {
     short: 'WeChat',
     open: 'Tham gia nhóm người dùng WeChat',
-    title: 'Nhóm người dùng printfilm',
+    title: 'Nhóm người dùng NOVAFILM',
     lead: 'Kinh nghiệm phim ngắn · Hỗ trợ triển khai · Trao đổi mẫu',
     idLabel: 'WeChat ID',
     copy: 'Sao chép',
@@ -91,7 +91,7 @@ export const viShell = {
     registerTitle: 'Tạo tài khoản nhà sáng tạo',
     forgotTitle: 'Khôi phục mật khẩu',
     resetTitle: 'Đặt mật khẩu mới',
-    lede: 'PRINTFILM · Nền tảng AI Drama và AI Short Video',
+    lede: 'NOVAFILM · Nền tảng AI Drama và AI Short Video',
     nickname: 'Tên hiển thị',
     email: 'Email',
     password: 'Mật khẩu',

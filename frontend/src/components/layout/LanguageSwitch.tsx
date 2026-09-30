@@ -1,15 +1,15 @@
 import { LOCALES, type Locale } from '../../i18n/detect'
 import { useI18n } from '../../i18n'
 
-/** 顶栏语言切换：点击后写入偏好，覆盖浏览器语言。选项由 LOCALES 驱动 */
+/** Bộ chuyển ngôn ngữ trên thanh trên cùng: bấm là ghi lựa chọn, đè lên ngôn ngữ trình duyệt. Danh sách lấy từ LOCALES */
 export default function LanguageSwitch() {
   const { locale, setLocale, t } = useI18n()
 
-  // 每个语言在 shell 里带一个 lang* 短标签（vi 另有 langVi）
+  // Mỗi ngôn ngữ có một nhãn ngắn lang* trong shell của chính nó
   const labelFor = (code: Locale): string => {
     const key = code === 'zh' ? 'nav.langZh' : code === 'en' ? 'nav.langEn' : 'nav.langVi'
     const label = t(key)
-    // 当前文案包里没有该键时 t() 会回显 key，此时退回语言代码
+    // Khi bộ văn bản thiếu khóa, t() sẽ trả về chính khóa đó; lúc đó lùi về mã ngôn ngữ
     return label === key ? code.toUpperCase() : label
   }
 

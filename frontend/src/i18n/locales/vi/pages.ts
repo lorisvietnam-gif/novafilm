@@ -195,14 +195,14 @@ export const viPages = {
       {
         title: 'Hợp tác doanh nghiệp / chuyển khoản',
         desc: 'Nạp số lượng lớn, hợp tác API hoặc cần hoá đơn, xin gửi email nêu tên công ty và nhu cầu, chúng tôi sẽ sắp xếp người phụ trách.',
-        href: 'mailto:support@printfilm.com?subject=PRINTFILM%20Enterprise',
+        href: 'mailto:support@printfilm.com?subject=NOVAFILM%20Enterprise',
         actionLabel: 'Gửi email hợp tác',
       },
       {
         title: 'Mã nguồn mở',
         desc: 'Mã nguồn, issue và hướng dẫn triển khai nằm trên GitHub. Hoan nghênh star, đặt câu hỏi hoặc đóng góp.',
-        href: 'https://github.com/yi1108/printfilm',
-        actionLabel: 'github.com/yi1108/printfilm',
+        href: 'https://github.com/lorisvietnam-gif/novafilm',
+        actionLabel: 'github.com/lorisvietnam-gif/novafilm',
       },
     ],
     topics: [

@@ -2,9 +2,9 @@
 
 export const enShell = {
   meta: {
-    title: 'PRINTFILM · AI short video',
+    title: 'NOVAFILM · AI short video',
     description:
-      'PRINTFILM: turn scripts into episodic AI dramas, or offers into AI short videos.',
+      'NOVAFILM: turn scripts into episodic AI dramas, or offers into AI short videos.',
   },
   common: {
     comingSoon: 'Coming soon',
@@ -66,6 +66,7 @@ export const enShell = {
     language: 'Language',
     langZh: '中',
     langEn: 'EN',
+    langVi: 'VI',
   },
   footer: {
     terms: 'Terms',
@@ -78,7 +79,7 @@ export const enShell = {
   wechatGroup: {
     short: 'WeChat',
     open: 'Join WeChat user group',
-    title: 'printfilm user group',
+    title: 'NOVAFILM user group',
     lead: 'Short drama tips · deploy help · templates',
     idLabel: 'WeChat ID',
     copy: 'Copy',
@@ -90,7 +91,7 @@ export const enShell = {
     registerTitle: 'Create a creator account',
     forgotTitle: 'Reset your password',
     resetTitle: 'Choose a new password',
-    lede: 'PRINTFILM · AI drama and AI short video',
+    lede: 'NOVAFILM · AI drama and AI short video',
     nickname: 'Display name',
     email: 'Email',
     password: 'Password',
