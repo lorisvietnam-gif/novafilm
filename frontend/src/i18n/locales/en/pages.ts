@@ -161,7 +161,7 @@ export const enPages = {
     introLink: 'help center',
     introSuffix: ' first.',
     formTitle: 'Send feedback',
-    formLead: 'Submit opens your mail client with a draft to support@printfilm.com. Please send it after you review.',
+    formLead: 'Submit opens your mail client with a draft to x.novalife@gmail.com. Please send it after you review.',
     topic: 'Topic',
     email: 'Your email',
     emailPlaceholder: 'So we can reply',
@@ -181,8 +181,8 @@ export const enPages = {
       {
         title: 'Email support',
         desc: 'We usually reply in 1–2 business days. Please include your account email and order ID if you have one.',
-        href: 'mailto:support@printfilm.com',
-        actionLabel: 'support@printfilm.com',
+        href: 'mailto:x.novalife@gmail.com',
+        actionLabel: 'x.novalife@gmail.com',
       },
       {
         title: 'Help center',
@@ -193,7 +193,7 @@ export const enPages = {
       {
         title: 'Enterprise / wire transfer',
         desc: 'For bulk credits, API partnerships, or invoices, email your company name and request.',
-        href: 'mailto:support@printfilm.com?subject=NOVAFILM%20Enterprise',
+        href: 'mailto:x.novalife@gmail.com?subject=NOVAFILM%20Enterprise',
         actionLabel: 'Email partnerships',
       },
       {

@@ -163,7 +163,7 @@ export const viPages = {
     introSuffix: '.',
     formTitle: 'Gửi phản hồi',
     formLead:
-      'Khi gửi, ứng dụng email của bạn sẽ mở với bản nháp gửi tới support@printfilm.com, vui lòng kiểm tra lại rồi gửi.',
+      'Khi gửi, ứng dụng email của bạn sẽ mở với bản nháp gửi tới x.novalife@gmail.com, vui lòng kiểm tra lại rồi gửi.',
     topic: 'Chủ đề',
     email: 'Email của bạn',
     emailPlaceholder: 'Để chúng tôi có thể trả lời',
@@ -183,8 +183,8 @@ export const viPages = {
       {
         title: 'Hỗ trợ qua email',
         desc: 'Thông thường trả lời trong 1–2 ngày làm việc; xin kèm email tài khoản và mã đơn hàng nếu có.',
-        href: 'mailto:support@printfilm.com',
-        actionLabel: 'support@printfilm.com',
+        href: 'mailto:x.novalife@gmail.com',
+        actionLabel: 'x.novalife@gmail.com',
       },
       {
         title: 'Trung tâm trợ giúp',
@@ -195,7 +195,7 @@ export const viPages = {
       {
         title: 'Hợp tác doanh nghiệp / chuyển khoản',
         desc: 'Nạp số lượng lớn, hợp tác API hoặc cần hoá đơn, xin gửi email nêu tên công ty và nhu cầu, chúng tôi sẽ sắp xếp người phụ trách.',
-        href: 'mailto:support@printfilm.com?subject=NOVAFILM%20Enterprise',
+        href: 'mailto:x.novalife@gmail.com?subject=NOVAFILM%20Enterprise',
         actionLabel: 'Gửi email hợp tác',
       },
       {
