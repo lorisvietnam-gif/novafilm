@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useI18n } from '../../i18n'
-import { GITHUB_REPO_URL } from '../../lib/siteLinks'
 import SiteNav, { type NavActive } from './SiteNav'
 
 type Props = {
@@ -29,9 +28,6 @@ export default function AppShell({ children, active, wide, flush, hideFooter }: 
             <Link to="/privacy">{t('footer.privacy')}</Link>
             <Link to="/contact">{t('footer.contact')}</Link>
             <Link to="/help">{t('footer.help')}</Link>
-            <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer">
-              {t('footer.github')}
-            </a>
           </nav>
           <p>© {new Date().getFullYear()} NOVAFILM. All rights reserved.</p>
         </footer>

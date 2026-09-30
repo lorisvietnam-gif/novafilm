@@ -53,8 +53,6 @@ export const zhShell = {
     pricing: '定价',
     help: '帮助',
     helpCenter: '帮助中心',
-    github: 'GitHub',
-    githubTitle: '开源仓库 · GitHub',
     login: '登录',
     startCreate: '开始创作',
     profile: '个人中心',
@@ -75,15 +73,9 @@ export const zhShell = {
     github: 'GitHub',
     links: '页脚链接',
   },
-  wechatGroup: {
-    short: '加群',
-    open: '加入微信用户群',
-    title: 'NOVAFILM 用户群',
-    lead: '学习短剧 · 部署答疑 · 模板交流',
-    idLabel: '微信号',
-    copy: '复制',
-    copied: '已复制',
-    tip: '添加微信号 gitpp88，备注「入群」即可拉你进用户群。',
+  discord: {
+    short: 'Discord',
+    open: '加入 NOVAFILM Discord 社区',
   },
   auth: {
     loginTitle: '回到工作台',

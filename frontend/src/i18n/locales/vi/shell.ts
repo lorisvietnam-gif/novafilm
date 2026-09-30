@@ -54,8 +54,6 @@ export const viShell = {
     pricing: 'Bảng giá',
     help: 'Trợ giúp',
     helpCenter: 'Trung tâm trợ giúp',
-    github: 'GitHub',
-    githubTitle: 'Mã nguồn mở · GitHub',
     login: 'Đăng nhập',
     startCreate: 'Bắt đầu sáng tạo',
     profile: 'Tài khoản',
@@ -76,15 +74,9 @@ export const viShell = {
     github: 'GitHub',
     links: 'Liên kết chân trang',
   },
-  wechatGroup: {
-    short: 'WeChat',
-    open: 'Tham gia nhóm người dùng WeChat',
-    title: 'Nhóm người dùng NOVAFILM',
-    lead: 'Kinh nghiệm phim ngắn · Hỗ trợ triển khai · Trao đổi mẫu',
-    idLabel: 'WeChat ID',
-    copy: 'Sao chép',
-    copied: 'Đã sao chép',
-    tip: 'Thêm WeChat ID gitpp88 kèm ghi chú “vào nhóm”, chúng tôi sẽ mời bạn vào nhóm.',
+  discord: {
+    short: 'Discord',
+    open: 'Tham gia cộng đồng Discord của NOVAFILM',
   },
   auth: {
     loginTitle: 'Quay lại không gian làm việc',
