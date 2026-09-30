@@ -7,7 +7,6 @@ export const viPages = {
     lede: 'AI Drama từ kịch bản đến phim hoàn chỉnh nhiều tập, AI Short Video từ điểm bán đến storyboard ra phim. Một không gian làm việc, hai cách ra phim.',
     startCreate: 'Bắt đầu sáng tạo',
     browseTools: 'Xem các công cụ',
-    githubCta: 'Mã nguồn mở · Xem trên GitHub',
     products: 'Sản phẩm chính',
     dramaTitle: 'AI Drama',
     dramaFor: 'Dành cho người làm phim ngắn',
@@ -197,12 +196,6 @@ export const viPages = {
         desc: 'Nạp số lượng lớn, hợp tác API hoặc cần hoá đơn, xin gửi email nêu tên công ty và nhu cầu, chúng tôi sẽ sắp xếp người phụ trách.',
         href: 'mailto:x.novalife@gmail.com?subject=NOVAFILM%20Enterprise',
         actionLabel: 'Gửi email hợp tác',
-      },
-      {
-        title: 'Mã nguồn mở',
-        desc: 'Mã nguồn, issue và hướng dẫn triển khai nằm trên GitHub. Hoan nghênh star, đặt câu hỏi hoặc đóng góp.',
-        href: 'https://github.com/lorisvietnam-gif/novafilm',
-        actionLabel: 'github.com/lorisvietnam-gif/novafilm',
       },
     ],
     topics: [

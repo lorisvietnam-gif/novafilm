@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { HelpCircle, Mail, Building2, GitBranch } from 'lucide-react'
 import AppShell from '../components/layout/AppShell'
 import { useI18n } from '../i18n'
-import { GITHUB_REPO_URL } from '../lib/siteLinks'
 
 const CHANNEL_ICONS = [Mail, HelpCircle, Building2, GitBranch] as const
 
@@ -137,9 +136,6 @@ export default function ContactPage() {
           <Link to="/privacy">{t('footer.privacy')}</Link>
           <Link to="/help">{t('footer.help')}</Link>
           <Link to="/pricing">{t('contact.pricing')}</Link>
-          <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer">
-            {t('footer.github')}
-          </a>
         </nav>
       </div>
     </AppShell>

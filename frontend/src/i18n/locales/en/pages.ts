@@ -7,7 +7,6 @@ export const enPages = {
     lede: 'AI drama from script to episodic film. AI short video from offer to storyboard to film. One studio, two ways to ship.',
     startCreate: 'Start creating',
     browseTools: 'Browse tools',
-    githubCta: 'Open source · View on GitHub',
     products: 'Products',
     dramaTitle: 'AI Drama',
     dramaFor: 'For short-drama makers',
@@ -195,12 +194,6 @@ export const enPages = {
         desc: 'For bulk credits, API partnerships, or invoices, email your company name and request.',
         href: 'mailto:x.novalife@gmail.com?subject=NOVAFILM%20Enterprise',
         actionLabel: 'Email partnerships',
-      },
-      {
-        title: 'Open source',
-        desc: 'Source, issues, and deployment docs are on GitHub. Stars, issues, and PRs welcome.',
-        href: 'https://github.com/lorisvietnam-gif/novafilm',
-        actionLabel: 'github.com/lorisvietnam-gif/novafilm',
       },
     ],
     topics: [

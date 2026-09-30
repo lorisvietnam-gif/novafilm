@@ -4,12 +4,10 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import AppShell from '../components/layout/AppShell'
 import Button from '../components/ui/Button'
-import { IconGithub } from '../components/ui/Icons'
 import ComingSoon from '../components/ui/ComingSoon'
 import CreateChoiceModal from '../components/ui/CreateChoiceModal'
 import { useI18n } from '../i18n'
 import { getDramaImageStylePreviewUrl } from '../lib/dramaImageStylePreviews'
-import { GITHUB_REPO_URL } from '../lib/siteLinks'
 import { PRODUCT_ICONS, localizeToolDefs } from '../lib/toolsCatalog'
 
 export default function HomePage() {
@@ -56,16 +54,6 @@ export default function HomePage() {
               <ArrowRight size={16} strokeWidth={2} aria-hidden />
             </Button>
           </div>
-          <a
-            className="pf-land-github"
-            href={GITHUB_REPO_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <IconGithub size={16} />
-            <span>{t('home.githubCta')}</span>
-            <ArrowRight size={14} strokeWidth={2.2} aria-hidden />
-          </a>
         </div>
         <div className="pf-land-frames" aria-hidden>
           <figure className="pf-land-frame is-drama">
@@ -229,9 +217,6 @@ export default function HomePage() {
           <Link to="/terms">{t('footer.terms')}</Link>
           <Link to="/privacy">{t('footer.privacy')}</Link>
           <Link to="/contact">{t('footer.contact')}</Link>
-          <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer">
-            {t('footer.github')}
-          </a>
         </nav>
         <p className="pf-land-copy">© {new Date().getFullYear()} NOVAFILM. All rights reserved.</p>
       </footer>
