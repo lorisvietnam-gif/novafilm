@@ -7019,3 +7019,153 @@
   font-size: 12px;
   color: var(--pf-danger);
 }
+
+/* —— Ảnh thật thay ô trống ——
+ * Dùng ảnh thật từ public/image-styles cho mọi trạng thái rỗng.
+ * Ảnh nằm dưới nội dung, phủ một lớp mờ để chữ luôn đủ tương phản. */
+
+.drama-still {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
+}
+
+.drama-still-wrap {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.drama-still-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 50% 20%, transparent 0%, var(--drama-still-veil, rgba(9, 12, 20, 0.55)) 100%),
+    linear-gradient(180deg, rgba(9, 12, 20, 0.18) 0%, rgba(9, 12, 20, 0.62) 100%);
+}
+
+.drama-still-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* Ô trống của thẻ tư liệu: ảnh phong cách làm nền, nhãn loại nổi lên trên */
+.drama-asset-placeholder {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--drama-line);
+}
+
+.drama-asset-placeholder .drama-still {
+  opacity: 0.32;
+  filter: saturate(0.72) contrast(1.02);
+}
+
+.drama-asset-placeholder > span {
+  position: relative;
+  z-index: 1;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--drama-still-chip, rgba(9, 12, 20, 0.62));
+  color: var(--drama-still-chip-ink, #f4f6fb);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  backdrop-filter: blur(6px);
+}
+
+/* Trạng thái rỗng: khung cao hơn, ảnh làm trọng tâm thị giác */
+.drama-episodes-empty,
+.drama-project-empty,
+.drama-episode-dir-empty {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.drama-episodes-empty {
+  min-height: 220px;
+}
+
+.drama-episodes-empty .drama-still,
+.drama-project-empty .drama-still,
+.drama-episode-dir-empty .drama-still {
+  opacity: 0.28;
+  filter: saturate(0.7);
+}
+
+.drama-episodes-empty > p,
+.drama-project-empty > p {
+  max-width: 34ch;
+  line-height: 1.6;
+  color: var(--drama-ink);
+}
+
+/* Hero của bước Tư liệu: dải ảnh mờ phía sau tiêu đề */
+.drama-step-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 18px 20px;
+  border-radius: var(--drama-radius, 14px);
+  border: 1px solid var(--drama-line);
+  background: var(--drama-card);
+}
+
+.drama-step-hero > .drama-still {
+  opacity: 0.26;
+  filter: saturate(0.78);
+}
+
+.drama-step-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    var(--drama-card) 0%,
+    rgba(9, 12, 20, 0.58) 46%,
+    rgba(9, 12, 20, 0.34) 100%
+  );
+}
+
+.drama-step-hero-main {
+  position: relative;
+  z-index: 1;
+}
+
+/* Khung chờ của node trên canvas: ảnh phong cách mờ, nhãn vẫn đọc được */
+.fc-asset-card .fc-placeholder-icon {
+  position: relative;
+  z-index: 1;
+}
+
+.fc-asset-body.is-waiting {
+  background: var(--fc-line);
+}
+
+/* Danh mục tập bên trái rỗng: ô nhỏ nên ảnh mờ hơn, không lấn át chữ */
+.drama-episode-dir-empty {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 10px;
+}
+
+.drama-episode-dir-empty .drama-still {
+  opacity: 0.22;
+  filter: saturate(0.7);
+}
+
+.drama-episode-dir-empty > p {
+  position: relative;
+  z-index: 1;
+}

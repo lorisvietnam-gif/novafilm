@@ -20,6 +20,8 @@ import {
 import { AudioLines, Image as ImageIcon, Landmark, Loader2, Maximize2, Play, UserRound } from 'lucide-react'
 import { resolveDramaMediaUrl } from '../../../api/drama'
 import { isAudioUrl, isPlayableVideoUrl } from '../../../lib/canvasNodeMedia'
+import { DramaImageStylePreviewImg } from '../../../components/drama/DramaImageStylePreviewImg'
+import type { ImageStyleId } from '../../../lib/dramaImageStyles'
 import { useCanvasStore } from './CanvasStore'
 import {
   CANVAS_GENERATABLE_KINDS,
@@ -72,6 +74,27 @@ function PlaceholderIcon({ kind }: { kind: CanvasAssetNodeData['kind'] }) {
   if (kind === 'audio') return <AudioLines className={className} size={32} strokeWidth={1.4} />
   if (kind === 'text') return null
   return <ImageIcon className={className} size={40} strokeWidth={1.4} />
+}
+
+/** Ảnh nền cho ô chờ, chọn theo loại tư liệu; loại không có ảnh thì chỉ hiện icon */
+const NODE_WAITING_STILL: Partial<Record<CanvasAssetNodeData['kind'], ImageStyleId>> = {
+  character: 'wuxia-realistic-photo',
+  scene: 'palace-intrigue-cold',
+  image: 'retro-narrative-film',
+  video: 'neon-cyberpunk-film',
+}
+
+/** Khung chờ của node: ảnh thật làm nền mờ, icon phủ lên trên */
+function NodeWaitingStill({ kind }: { kind: CanvasAssetNodeData['kind'] }) {
+  const styleId = NODE_WAITING_STILL[kind]
+  return (
+    <div className="fc-asset-waiting">
+      {styleId ? (
+        <DramaImageStylePreviewImg styleId={styleId} alt="" loading="lazy" />
+      ) : null}
+      <PlaceholderIcon kind={kind} />
+    </div>
+  )
 }
 
 /** Dựng một node tư liệu trên canvas */
@@ -282,7 +305,7 @@ function CanvasAssetNodeComponent({ id, data, selected }: NodeProps<Node<CanvasA
               onLoad={handleImageLoad}
             />
           ) : (
-            <PlaceholderIcon kind={data.kind} />
+            <NodeWaitingStill kind={data.kind} />
           )}
           {canPreview ? (
             <button

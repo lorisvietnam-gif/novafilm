@@ -1,6 +1,7 @@
 /** Danh sách tập ở cột trái (dùng chung cho dàn ý / trang sửa tập / trang storyboard) */
 import type { ReactNode } from 'react'
 import type { DramaEpisode } from '../../api/drama'
+import { DramaImageStylePreviewImg } from '../../components/drama/DramaImageStylePreviewImg'
 
 export type DramaEpisodeDirItem = {
   id: number
@@ -54,7 +55,10 @@ export function DramaEpisodeDir({
         {footer}
       </div>
       {items.length === 0 ? (
-        <p className="drama-episode-dir-empty">{emptyText}</p>
+        <div className="drama-episode-dir-empty">
+          <DramaImageStylePreviewImg styleId="90s-realistic-film" alt="" loading="lazy" />
+          <p>{emptyText}</p>
+        </div>
       ) : (
         <ul>
           {items.map((item) => (

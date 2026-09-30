@@ -12,6 +12,8 @@ import {
 } from '../../lib/dramaGenerationOptions'
 import { getImageStyleId } from './dramaWorkspaceUtils'
 import { DramaImageGenOptionsBar } from './canvas/nodes/DramaImageGenOptionsBar'
+import { DramaImageStylePreviewImg } from '../../components/drama/DramaImageStylePreviewImg'
+import type { ImageStyleId } from '../../lib/dramaImageStyles'
 import {
   CharacterVoiceBindModal,
   readAssetVoiceBinding,
@@ -668,7 +670,12 @@ export function AssetsStep({ projectId, onError }: AssetsStepProps) {
 
   return (
     <div className="drama-assets-step">
-      <header className="drama-assets-hero">
+      <header className="drama-assets-hero drama-step-hero">
+        <DramaImageStylePreviewImg
+          styleId={(genOptions.image_style_id as ImageStyleId) || 'ancient-chinese-mythology'}
+          alt=""
+          loading="lazy"
+        />
         <div className="drama-step-hero-main">
           <div className="drama-step-hero-icon" aria-hidden>
             <Boxes size={22} strokeWidth={1.75} />
@@ -861,7 +868,14 @@ export function AssetsStep({ projectId, onError }: AssetsStepProps) {
                   <img key={mediaSrc} src={mediaSrc} alt={asset.name || ''} />
                 </button>
               ) : (
-                <div className="drama-asset-placeholder">{asset.type || 'tư liệu'}</div>
+                <div className="drama-asset-placeholder">
+                  <DramaImageStylePreviewImg
+                    styleId={(genOptions.image_style_id as ImageStyleId) || 'palace-intrigue-cold'}
+                    alt=""
+                    loading="lazy"
+                  />
+                  <span>{asset.type || 'tư liệu'}</span>
+                </div>
               )}
               <h3>{asset.name || 'Chưa đặt tên'}</h3>
               <p>

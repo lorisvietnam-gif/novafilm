@@ -7,6 +7,7 @@ import { dialog } from '../../lib/dialog'
 import { loadDramaEpisodes } from '../../lib/dramaStoryboardNav'
 import { readEpisodeSubtitleMode, subtitleModeUsesModelOutput } from '../../lib/dramaSubtitleBoard'
 import { FragmentPlanSkillModal } from '../../components/drama/FragmentPlanSkillModal'
+import { DramaImageStylePreviewImg } from '../../components/drama/DramaImageStylePreviewImg'
 import { readFragmentGenerationStatus } from './dramaEpisodeEditUtils'
 
 type EpisodesStepProps = {
@@ -259,6 +260,11 @@ export function EpisodesStep({ projectId, onError }: EpisodesStepProps) {
         </div>
       ) : episodes.length === 0 ? (
         <div className="drama-episodes-empty">
+          <DramaImageStylePreviewImg
+            styleId="retro-narrative-film"
+            alt=""
+            loading="lazy"
+          />
           <Clapperboard size={40} strokeWidth={1.25} aria-hidden />
           <p>Chưa có tập nào; hãy hoàn tất bước viết kịch bản theo tập trước.</p>
         </div>
