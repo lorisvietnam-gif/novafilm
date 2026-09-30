@@ -84,6 +84,7 @@ async def db_session(billing_enabled: None) -> AsyncIterator[AsyncSession]:
     import app.models_agent  # noqa: F401
     import app.models_api  # noqa: F401
     import app.models_drama  # noqa: F401
+    import app.models_oauth  # noqa: F401
     import app.models_settings  # noqa: F401
     import app.models_tasks  # noqa: F401
 

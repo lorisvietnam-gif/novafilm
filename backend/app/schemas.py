@@ -24,6 +24,25 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class OAuthProviderOut(BaseModel):
+    """一个真正配置好凭据、可用的第三方登录入口。"""
+
+    id: str
+    label: str
+    # 前端把它拼在 VITE_API_BASE 之后即可发起登录
+    login_url: str
+    # 必须原样登记到 Google / Azure 的回调地址，方便对照排查
+    redirect_uri: str
+
+
+class OAuthProvidersResponse(BaseModel):
+    providers: list[OAuthProviderOut] = Field(default_factory=list)
+
+
+class OAuthExchangeRequest(BaseModel):
+    code: str = Field(min_length=1, max_length=512)
+
+
 class UserOut(BaseModel):
     id: int
     email: EmailStr

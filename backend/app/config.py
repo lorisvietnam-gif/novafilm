@@ -3,7 +3,7 @@ from functools import lru_cache
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from pydantic import field_validator, model_validator
+from pydantic import ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -256,6 +256,30 @@ class Settings(BaseSettings):
     epay_notify_url: str = ""
     epay_return_url: str = ""
 
+    # OAuth login (Authorization Code + PKCE, backend-held client secret).
+    # A provider counts as available only when BOTH the client id and the client secret
+    # are set: GET /api/auth/providers reads these very values, so the frontend can never
+    # render a button the backend is unable to serve. Leaving them blank disables the
+    # provider entirely and the endpoint reports an empty list.
+    # Register the redirect URI in the provider console exactly as
+    # OAUTH_REDIRECT_BASE_URL + /api/auth/<provider>/callback builds it, e.g.
+    # http://localhost:8000/api/auth/google/callback
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    microsoft_client_id: str = ""
+    microsoft_client_secret: str = ""
+    # Scheme + host + port of the backend as the provider sees it. Google and Microsoft
+    # compare the redirect_uri byte for byte, so http://localhost:8000 and
+    # http://127.0.0.1:8000 are two different values and only the registered one works.
+    oauth_redirect_base_url: str = "http://localhost:8000"
+    # Where the callback sends the browser once the login succeeded or failed. This is the
+    # frontend route that reads the one-time code and calls /api/auth/oauth/exchange.
+    oauth_post_login_redirect_url: str = "http://localhost:5173/auth"
+    # Attach a provider-verified address to an already existing local account instead of
+    # refusing the login. Turn off to force every returning user to sign in with a password
+    # first and link the provider by hand.
+    oauth_auto_link_email: bool = True
+
     public_base_url: str = "http://127.0.0.1:8000"
     ffmpeg_path: str = "ffmpeg"
     ffprobe_path: str = "ffprobe"
@@ -321,6 +345,32 @@ class Settings(BaseSettings):
                 f"{', '.join(sorted(KNOWN_APP_ENVS))}"
             )
         return normalized
+
+    # Surrounding whitespace in a pasted client secret is the classic silent failure: the
+    # provider answers invalid_client and the operator blames the console. Strip it here.
+    @field_validator(
+        "google_client_id",
+        "google_client_secret",
+        "microsoft_client_id",
+        "microsoft_client_secret",
+    )
+    @classmethod
+    def _strip_oauth_credentials(cls, value: str) -> str:
+        return (value or "").strip()
+
+    # An OAuth redirect URI that is not absolute http(s) can never be registered with a
+    # provider, so refuse the typo at startup instead of at the first login attempt.
+    @field_validator("oauth_redirect_base_url", "oauth_post_login_redirect_url")
+    @classmethod
+    def _validate_oauth_urls(cls, value: str, info: ValidationInfo) -> str:
+        url = (value or "").strip().rstrip("/")
+        variable = str(info.field_name).upper()
+        parts = urlsplit(url)
+        if parts.scheme not in ("http", "https") or not parts.netloc:
+            raise ValueError(
+                f"{variable} has an invalid URL {value!r}: expected http(s)://host[:port]"
+            )
+        return url
 
     # Fail fast, in production only, when SECRET_KEY is unset or still a shipped placeholder.
     # The gate lives on Settings() itself, so every entry point (uvicorn, celery, scripts,

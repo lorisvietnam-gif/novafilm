@@ -55,6 +55,7 @@ async def init_db() -> None:
     from app import models_agent  # noqa: F401
     from app import models_drama  # noqa: F401
     from app import models_api  # noqa: F401
+    from app import models_oauth  # noqa: F401
     from app import models_settings  # noqa: F401
     from app import models_tasks  # noqa: F401
 
