@@ -47,6 +47,19 @@ import {
   sumDuration,
   validateSegmentScriptDuration,
 } from '../../lib/segmentDuration'
+import { getDramaImageStylePreviewUrl } from '../../lib/dramaImageStylePreviews'
+import type { ImageStyleId } from '../../lib/dramaImageStyles'
+import './studio.css'
+
+const IMAGE_TEXT_LABEL = 'Ảnh tĩnh'
+const FULL_LABEL = 'AI video'
+
+/** Ảnh trang trí cho các ô trống, đổi theo ngữ cảnh */
+const EMPTY_ART: Record<'cover' | 'shot' | 'board', ImageStyleId> = {
+  cover: 'ghibli-handdrawn-anime',
+  shot: 'wuxia-realistic-photo',
+  board: 'pixel-art',
+}
 
 function csvEscape(value: string | number | null | undefined) {
   const s = String(value ?? '')
@@ -55,7 +68,7 @@ function csvEscape(value: string | number | null | undefined) {
 }
 
 function downloadStoryboardCsv(project: Project) {
-  const header = ['镜号', '旁白', '画面描述', '时长秒', '状态', '镜头标题']
+  const header = ['Số cảnh', 'Lời dẫn', 'Mô tả hình ảnh', 'Thời lượng (giây)', 'Trạng thái', 'Tiêu đề cảnh quay']
   const rows = (project.shots || [])
     .slice()
     .sort((a, b) => a.shot_no - b.shot_no)
@@ -98,7 +111,7 @@ function shotCaption(shot: Shot) {
   if (shot.overlay_title) {
     return `${shot.overlay_title}${
       shot.overlay_subtitle ? ` · ${shot.overlay_subtitle}` : ''
-    }${shot.narration ? `｜旁白：${shot.narration}` : ''}`
+    }${shot.narration ? `｜Lời dẫn: ${shot.narration}` : ''}`
   }
   return shot.narration
 }
@@ -112,7 +125,7 @@ function hasActiveUnifiedTasks(project: Project | null): boolean {
   )
 }
 
-/** 有任务平台数据时以 active_tasks 为准；COMPOSING 无任务视为拼接失败残留，可重试 */
+/** Có dữ liệu từ nền tảng tác vụ thì tin active_tasks; COMPOSING mà không có tác vụ coi là rác của lần ghép lỗi, thử lại được */
 function isProjectBusy(project: Project | null): boolean {
   if (!project) return false
   if (hasActiveUnifiedTasks(project)) return true
@@ -129,12 +142,12 @@ export default function StoryboardPage() {
   const [project, setProject] = useState<Project | null>(null)
   const [template, setTemplate] = useState<Template | null>(null)
   const [busy, setBusy] = useState(false)
-  // busyShotIds 正在提交单镜图/视频的镜号，可并行，finally 只删自己
+  // busyShotIds là số cảnh đang gửi yêu cầu tạo ảnh/video riêng lẻ, chạy song song được; finally chỉ xoá key của mình
   const [busyShotIds, setBusyShotIds] = useState<Set<number>>(() => new Set())
   const [error, setError] = useState('')
   const [editing, setEditing] = useState<Shot | null>(null)
   const [editFocus, setEditFocus] = useState<string>('')
-  /** 表格入口：旁白列 / 逐段分镜列 / 操作栏「编辑」 */
+  /** Lối vào bảng: cột Lời dẫn / cột Storyboard theo đoạn / nút Sửa trong cột thao tác */
   const [editMode, setEditMode] = useState<'full' | 'narration' | 'segment'>('full')
   const [promptEdit, setPromptEdit] = useState<{
     style_prompt: string
@@ -166,13 +179,13 @@ export default function StoryboardPage() {
           setTemplate(list.find((t) => t.id === p.template_id) || null)
         })
       })
-      .catch((err) => setError(err instanceof Error ? err.message : '加载失败'))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Không tải được dự án.'))
   }, [nav, projectId])
 
   useEffect(() => {
     if (!project) return
-    // Only poll while pipeline is actively running — idle checkpoints
-    // (IMAGE_READY / VIDEO_READY / SCRIPT_READY) must not spin forever.
+    // Chỉ thăm dò khi pipeline đang chạy thật — các mốc dừng
+    // (IMAGE_READY / VIDEO_READY / SCRIPT_READY) không được quay vô hạn.
     if (!isProjectBusy(project)) return
     const timer = setInterval(() => {
       api
@@ -199,16 +212,16 @@ export default function StoryboardPage() {
     [project?.shots],
   )
 
-  // editScriptText 弹窗中当前编辑的逐段脚本
+  // editScriptText: kịch bản storyboard theo đoạn đang sửa trong hộp thoại
   const editScriptText = editing?.segment_script || editing?.video_prompt || ''
-  // editDurationCheck 弹窗脚本时长校验
+  // editDurationCheck: kết quả kiểm tra thời lượng của kịch bản trong hộp thoại
   const editDurationCheck = useMemo(
     () => validateSegmentScriptDuration(editScriptText),
     [editScriptText],
   )
 
   const shots = useMemo(() => shotsByNo(project?.shots), [project?.shots])
-  /** 项目字段为空时回显模板默认（与后端 _effective_* 一致） */
+  /** Khi trường của dự án rỗng thì hiện giá trị mặc định của mẫu (khớp với _effective_* ở backend) */
   const promptDefaults = useMemo(
     () => (template ? defaultsFromTemplate(template) : null),
     [template],
@@ -226,16 +239,16 @@ export default function StoryboardPage() {
   }, [project, promptDefaults])
   const isFullPipeline = project?.pipeline_mode !== 'image_text'
   /**
-   * Full pipeline: need AI videos before compose.
-   * VIDEO_READY+ means video stage finished (incl. privacy skips without video_url).
-   * image_text skips the video stage entirely.
+   * Pipeline đầy đủ: cần video AI trước khi ghép.
+   * VIDEO_READY trở đi nghĩa là đã xong bước video (kể cả các cảnh bị bỏ qua vì riêng tư mà không có video_url).
+   * Chế độ ảnh tĩnh bỏ qua hoàn toàn bước video.
    */
   const phase = project ? kepuBillingPhase(project) : 'script'
   const readyToCompose = phase === 'compose'
   const needsVideos = phase === 'videos'
   const needsScriptConfirm = phase === 'assets'
   const hasFinal = Boolean(project?.final_video_url)
-  /** Primary CTA: confirm script → generate → (videos) → compose → preview */
+  /** Nút chính: duyệt kịch bản → tạo → (video) → ghép → xem */
   const primaryAction: 'generate' | 'compose' | 'preview' | 'busy' = running
     ? 'busy'
     : hasFinal
@@ -244,17 +257,18 @@ export default function StoryboardPage() {
         ? 'compose'
         : 'generate'
 
+  const BUSY_LABEL = 'Đang tạo…'
   const generateLabel = running
-    ? '生成中…'
+    ? BUSY_LABEL
     : shots.length === 0
-      ? '去风格页生成分镜'
+      ? 'Đi tới trang phong cách để tạo storyboard'
       : needsScriptConfirm
-        ? '确认分镜，逐镜出图与配音'
+        ? 'Duyệt storyboard, tạo ảnh và lồng tiếng từng cảnh'
         : needsVideos
-          ? '逐镜出视频'
-          : '继续生成'
+          ? 'Tạo video từng cảnh'
+          : 'Tiếp tục tạo'
 
-  // 工作台进度：完整模式要镜头视频 + 外部 TTS，静图模式只配音合成
+  // Tiến độ bàn làm việc: chế độ đầy đủ cần video từng cảnh + TTS ngoài; chế độ ảnh tĩnh chỉ cần lồng tiếng rồi ghép
   const progressItems = useMemo(() => {
     if (!project) return []
     const list = project.shots || []
@@ -265,16 +279,16 @@ export default function StoryboardPage() {
     const stage = effectiveStatus(project)
     type ProgressItem = { label: string; done: boolean; run?: boolean; pct?: number }
     const items: ProgressItem[] = [
-      { label: '主题解析', done: true },
-      { label: '分镜脚本', done: list.length > 0 || !['DRAFT', 'SCRIPTING'].includes(project.status) },
+      { label: 'Phân tích chủ đề', done: true },
+      { label: 'Kịch bản storyboard', done: list.length > 0 || !['DRAFT', 'SCRIPTING'].includes(project.status) },
       {
-        label: `画面生成 (${imgs}/${list.length || 0})`,
+        label: `Tạo ảnh (${imgs}/${list.length || 0})`,
         done: list.length > 0 && imgs === list.length,
       },
     ]
     if (full) {
       items.push({
-        label: `镜头视频 (${vids}/${list.length || 0})`,
+        label: `Video từng cảnh (${vids}/${list.length || 0})`,
         done:
           list.length > 0 &&
           (vids === list.length ||
@@ -284,13 +298,13 @@ export default function StoryboardPage() {
       })
     }
     items.push({
-      label: `配音合成 (${auds}/${list.length || 0})`,
+      label: `Lồng tiếng (${auds}/${list.length || 0})`,
       done: list.length > 0 && auds === list.length,
       run: stage === 'AUDIOING',
       pct: stage === 'AUDIOING' ? project.progress : undefined,
     })
     items.push({
-      label: full ? '镜头拼接' : '成片渲染',
+      label: full ? 'Ghép các cảnh lại' : 'Dựng phim',
       done: Boolean(project.final_video_url) || project.status === 'DONE',
       run: stage === 'COMPOSING',
       pct: stage === 'COMPOSING' ? project.progress : undefined,
@@ -315,13 +329,13 @@ export default function StoryboardPage() {
     try {
       setProject(await api.generate(project.id))
     } catch (err) {
-      const msg = err instanceof Error ? err.message : '继续生成失败'
+      const msg = err instanceof Error ? err.message : 'Không tiếp tục tạo được.'
       if (msg.includes('合成成片')) {
         try {
           setError('')
           setProject(await api.compose(project.id))
         } catch (e2) {
-          setError(e2 instanceof Error ? e2.message : '合成失败')
+          setError(e2 instanceof Error ? e2.message : 'Không ghép được phim.')
         }
         return
       }
@@ -335,10 +349,10 @@ export default function StoryboardPage() {
   async function restartGenerate() {
     if (!project) return
     const ok = await dialog.confirm({
-      title: '推倒重做',
-      message: '将清空当前分镜与素材，重新拆分镜（生成后仍可先确认再继续）。',
-      confirmText: '确认重做',
-      cancelText: '再想想',
+      title: 'Làm lại từ đầu',
+      message: 'Xoá storyboard và tư liệu hiện tại, rồi chia lại các cảnh quay. Sau khi tạo bạn vẫn có thể duyệt rồi mới tiếp tục.',
+      confirmText: 'Làm lại',
+      cancelText: 'Để sau',
       tone: 'danger',
     })
     if (!ok) return
@@ -347,7 +361,7 @@ export default function StoryboardPage() {
     try {
       setProject(await api.generate(project.id, { restart: true }))
     } catch (err) {
-      const msg = err instanceof Error ? err.message : '重做失败'
+      const msg = err instanceof Error ? err.message : 'Không làm lại được.'
       setError(msg)
       await handleBillingError(err, nav)
     } finally {
@@ -358,10 +372,10 @@ export default function StoryboardPage() {
   async function deleteProject() {
     if (!project) return
     const ok = await dialog.confirm({
-      title: '删除项目',
-      message: '确定删除该项目？素材与成片将一并清除，此操作不可恢复。',
-      confirmText: '删除',
-      cancelText: '取消',
+      title: 'Xoá dự án',
+      message: 'Xoá dự án này? Tư liệu và phim hoàn chỉnh sẽ mất luôn, thao tác này không hoàn tác được.',
+      confirmText: 'Xoá',
+      cancelText: 'Huỷ',
       tone: 'danger',
     })
     if (!ok) return
@@ -370,7 +384,7 @@ export default function StoryboardPage() {
       await api.deleteProject(project.id)
       nav('/history')
     } catch (err) {
-      setError(err instanceof Error ? err.message : '删除失败')
+      setError(err instanceof Error ? err.message : 'Xoá dự án thất bại.')
     } finally {
       setBusy(false)
     }
@@ -382,7 +396,7 @@ export default function StoryboardPage() {
     try {
       setProject(await api.compose(project.id))
     } catch (err) {
-      setError(err instanceof Error ? err.message : '合成失败')
+      setError(err instanceof Error ? err.message : 'Không ghép được phim.')
     } finally {
       setBusy(false)
     }
@@ -395,7 +409,7 @@ export default function StoryboardPage() {
     try {
       setProject(await api.uploadCover(project.id, file))
     } catch (err) {
-      setError(err instanceof Error ? err.message : '封面上传失败')
+      setError(err instanceof Error ? err.message : 'Tải ảnh bìa lên thất bại.')
     } finally {
       setBusy(false)
       if (coverInputRef.current) coverInputRef.current.value = ''
@@ -408,7 +422,7 @@ export default function StoryboardPage() {
       .sort((a, b) => a.shot_no - b.shot_no)
       .find((s) => s.image_url)
     if (!first?.image_url) {
-      setError('暂无可用镜头画面')
+      setError('Chưa có cảnh quay nào có hình để làm ảnh bìa.')
       return
     }
     setBusy(true)
@@ -416,7 +430,7 @@ export default function StoryboardPage() {
     try {
       setProject(await api.updateProject(project.id, { cover_url: first.image_url }))
     } catch (err) {
-      setError(err instanceof Error ? err.message : '设置封面失败')
+      setError(err instanceof Error ? err.message : 'Đặt ảnh bìa thất bại.')
     } finally {
       setBusy(false)
     }
@@ -434,11 +448,11 @@ export default function StoryboardPage() {
     if (!project || batchSelected.length === 0) return
     const durationVal = batchDuration.trim() === '' ? null : Number(batchDuration)
     if (durationVal != null && (!Number.isFinite(durationVal) || durationVal <= 0)) {
-      setError('请输入有效时长（秒）')
+      setError('Hãy nhập thời lượng hợp lệ (giây).')
       return
     }
     if (durationVal == null && !batchRegenAudio) {
-      setError('请设置时长，或勾选重配音')
+      setError('Hãy đặt thời lượng, hoặc tích lồng tiếng lại.')
       return
     }
     setBusy(true)
@@ -455,7 +469,7 @@ export default function StoryboardPage() {
       setProject(await api.getProject(project.id))
       setBatchOpen(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : '批量调整失败')
+      setError(err instanceof Error ? err.message : 'Chỉnh hàng loạt thất bại.')
       try {
         setProject(await api.getProject(project.id))
       } catch {
@@ -473,18 +487,18 @@ export default function StoryboardPage() {
       await api.publish(project.id)
       nav('/history')
     } catch (err) {
-      setError(err instanceof Error ? err.message : '发布失败')
+      setError(err instanceof Error ? err.message : 'Phát hành thất bại.')
     } finally {
       setBusy(false)
     }
   }
 
-  // 标记本镜请求进行中，不覆盖其它镜
+  // Đánh dấu yêu cầu của riêng cảnh này đang chạy, không ghi đè cảnh khác
   function markShotBusy(shotId: number) {
     setBusyShotIds((ids) => new Set(ids).add(shotId))
   }
 
-  // 只清自己，避免并行请求互相冲掉锁
+  // Chỉ xoá key của mình, tránh các yêu cầu song song giẫn khoá của nhau
   function markShotIdle(shotId: number) {
     setBusyShotIds((ids) => {
       const next = new Set(ids)
@@ -499,7 +513,7 @@ export default function StoryboardPage() {
     try {
       setProject(await api.regenImage(project.id, shot.id))
     } catch (err) {
-      setError(err instanceof Error ? err.message : '生成画面失败')
+      setError(err instanceof Error ? err.message : 'Tạo ảnh thất bại.')
     } finally {
       markShotIdle(shot.id)
     }
@@ -511,7 +525,7 @@ export default function StoryboardPage() {
     try {
       setProject(await api.regenVideo(project.id, shot.id))
     } catch (err) {
-      setError(err instanceof Error ? err.message : '生成视频失败')
+      setError(err instanceof Error ? err.message : 'Tạo video thất bại.')
     } finally {
       markShotIdle(shot.id)
     }
@@ -519,12 +533,12 @@ export default function StoryboardPage() {
 
   async function regenAudio(shot: Shot) {
     if (!project) return
-    // 重配音会重写整片口播，锁整表避免两路抢写
+    // Lồng tiếng lại sẽ viết lại toàn bộ lời dẫn của phim, khoá cả bảng để hai luồng không tranh nhau
     setBusy(true)
     try {
       setProject(await api.regenAudio(project.id, shot.id))
     } catch (err) {
-      setError(err instanceof Error ? err.message : '重配音失败')
+      setError(err instanceof Error ? err.message : 'Lồng tiếng lại thất bại.')
     } finally {
       setBusy(false)
     }
@@ -545,7 +559,7 @@ export default function StoryboardPage() {
     setEditMode('full')
   }
 
-  // 改旁白时同步写入脚本旁白段
+  // Sửa lời dẫn thì ghi luôn vào đoạn lời dẫn trong kịch bản
   function patchEditingNarration(value: string) {
     if (!editing) return
     const script = editing.segment_script || editing.video_prompt || ''
@@ -558,7 +572,7 @@ export default function StoryboardPage() {
     })
   }
 
-  // 改首帧画面时同步写入脚本第一段 visual
+  // Sửa khung hình mở đầu thì ghi luôn vào đoạn visual đầu tiên trong kịch bản
   function patchEditingVisual(value: string) {
     if (!editing) return
     const script = editing.segment_script || editing.video_prompt || ''
@@ -571,7 +585,7 @@ export default function StoryboardPage() {
     })
   }
 
-  // 改脚本时回填旁白与首帧画面，并同步时长为 @duration 合计
+  // Sửa kịch bản thì điền lại lời dẫn và khung hình mở đầu, đồng thời đặt thời lượng bằng tổng @duration
   function patchEditingScript(value: string) {
     if (!editing) return
     const tagged = sumDuration(value)
@@ -587,12 +601,12 @@ export default function StoryboardPage() {
 
   async function saveShot() {
     if (!project || !editing) return
-    // scriptText 当前编辑中的逐段脚本
+    // scriptText: kịch bản storyboard theo đoạn đang sửa
     const scriptText = editing.segment_script || editing.video_prompt || ''
-    // durationCheck 时长校验结果
+    // durationCheck: kết quả kiểm tra thời lượng
     const durationCheck = validateSegmentScriptDuration(scriptText)
     if (!durationCheck.valid) {
-      setError(durationCheck.message || '分镜时长不合法')
+      setError(durationCheck.message || 'Thời lượng storyboard không hợp lệ.')
       return
     }
     setBusy(true)
@@ -610,13 +624,13 @@ export default function StoryboardPage() {
       closeShotEdit()
       setProject(await api.getProject(project.id))
     } catch (err) {
-      setError(err instanceof Error ? err.message : '保存失败')
+      setError(err instanceof Error ? err.message : 'Lưu thất bại.')
     } finally {
       setBusy(false)
     }
   }
 
-  // 保存项目提示词；与后台模板相同则清空覆盖
+  // Lưu prompt của dự án; giống mẫu ở trang quản trị thì xoá lớp ghi đè
   async function saveProjectPrompts() {
     if (!project || !promptEdit) return
     setBusy(true)
@@ -633,13 +647,13 @@ export default function StoryboardPage() {
       setProject(updated)
       setPromptEdit(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : '保存提示词失败')
+      setError(err instanceof Error ? err.message : 'Lưu prompt thất bại.')
     } finally {
       setBusy(false)
     }
   }
 
-  // 清空项目覆盖，后续生成跟随后台模板
+  // Xoá lớp ghi đè của dự án, các lần tạo sau sẽ theo mẫu ở trang quản trị
   async function restoreTemplatePrompts() {
     if (!project) return
     setBusy(true)
@@ -652,7 +666,7 @@ export default function StoryboardPage() {
       setProject(updated)
       setPromptEdit(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : '恢复模板失败')
+      setError(err instanceof Error ? err.message : 'Không khôi phục được mẫu.')
     } finally {
       setBusy(false)
     }
@@ -661,7 +675,7 @@ export default function StoryboardPage() {
   if (!project && !error) {
     return (
       <AppShell active="studio">
-        <p className="pf-muted">加载中…</p>
+        <p className="pf-muted">Đang tải…</p>
       </AppShell>
     )
   }
@@ -675,18 +689,18 @@ export default function StoryboardPage() {
   }
 
   const structure = (project.shots || []).slice(0, 5).map((s, i) => {
-    const labels = ['开端', '发展', '转折', '高潮', '结局']
-    return { label: labels[i] || `段落 ${i + 1}`, text: s.narration || s.overlay_title || '—' }
+    const labels = ['Mở đầu', 'Phát triển', 'Bước ngoặt', 'Đỉnh cao', 'Kết']
+    return { label: labels[i] || `Đoạn ${i + 1}`, text: s.narration || s.overlay_title || '—' }
   })
 
   return (
     <AppShell active="studio" wide>
-      <header className="pf-page-head">
+      <header className="pf-page-head studio-scoped">
         <div className="pf-page-head-row">
           <div>
             <button type="button" className="pf-back" onClick={() => nav(`/studio/${project.id}/style`)}>
               <IconChevronLeft size={18} />
-              AI 生成故事板 / 分镜工作台
+              AI tạo storyboard / Bàn dựng storyboard
             </button>
             <h1 className="pf-page-title">{project.title}</h1>
           </div>
@@ -699,7 +713,7 @@ export default function StoryboardPage() {
                 onClick={openFinalPreview}
               >
                 <IconMonitor size={14} />
-                预览成片
+                Xem phim
               </button>
             ) : primaryAction === 'compose' ? (
               <button
@@ -709,7 +723,7 @@ export default function StoryboardPage() {
                 onClick={composeOnly}
               >
                 <IconPlay size={14} />
-                拼接成片
+                Ghép phim
               </button>
             ) : (
               <button
@@ -731,7 +745,7 @@ export default function StoryboardPage() {
               onClick={openBatchAdjust}
             >
               <IconSliders size={15} />
-              批量调整
+              Chỉnh hàng loạt
             </button>
             <button
               type="button"
@@ -740,12 +754,12 @@ export default function StoryboardPage() {
               onClick={restartGenerate}
             >
               <IconRefresh size={15} />
-              推倒重做
+              Làm lại từ đầu
             </button>
             {primaryAction !== 'preview' && hasFinal ? (
               <button type="button" className="pf-btn-text" onClick={openFinalPreview}>
                 <IconMonitor size={15} />
-                预览成片
+                Xem phim
               </button>
             ) : null}
             {primaryAction === 'preview' && readyToCompose ? (
@@ -754,10 +768,10 @@ export default function StoryboardPage() {
                 className="pf-btn-text"
                 disabled={busy || running}
                 onClick={composeOnly}
-title="用当前镜头重新拼接"
-            >
-              重新拼接
-            </button>
+                title="Ghép lại bằng các cảnh quay hiện tại"
+              >
+                Ghép lại
+              </button>
             ) : null}
             {primaryAction !== 'generate' && !readyToCompose ? (
               <button
@@ -766,7 +780,7 @@ title="用当前镜头重新拼接"
                 disabled={busy || running}
                 onClick={continueGenerate}
               >
-                {generateLabel === '生成中…' ? '继续生成' : generateLabel}
+                {generateLabel === BUSY_LABEL ? 'Tiếp tục tạo' : generateLabel}
               </button>
             ) : null}
             <button
@@ -775,7 +789,7 @@ title="用当前镜头重新拼接"
               onClick={() => nav(`/studio/${project.id}/editor`)}
             >
               <IconEdit size={14} />
-              打开编辑器
+              Mở trình soạn thảo
             </button>
           </div>
         </div>
@@ -792,28 +806,20 @@ title="用当前镜头重新拼接"
       {error ? <BillingErrorNotice message={error} /> : null}
       {project.error_msg ? <p className="pf-error">{project.error_msg}</p> : null}
 
-      <div className="pf-board">
+      <div className="pf-board studio-scoped">
         <aside className="pf-create-col">
-          <h3>项目设置</h3>
-          {(project.cover_url || template?.preview_cover) ? (
+          <h3>Thiết lập dự án</h3>
+          {project.cover_url || template?.preview_cover ? (
             <img
+              className="studio-cover"
               src={api.assetUrl(project.cover_url || template?.preview_cover)}
               alt=""
               style={{ width: '100%', borderRadius: 12, aspectRatio: '16/10', objectFit: 'cover' }}
             />
           ) : (
-            <div
-              style={{
-                width: '100%',
-                aspectRatio: '16/10',
-                borderRadius: 12,
-                background: '#e8eaee',
-                display: 'grid',
-                placeItems: 'center',
-                color: 'var(--pf-muted)',
-              }}
-            >
-              <IconImage size={28} />
+            <div className="studio-still studio-still--placeholder studio-cover-empty">
+              <img src={getDramaImageStylePreviewUrl(EMPTY_ART.cover)} alt="" />
+              <span className="studio-still-note">Chưa có ảnh bìa cho dự án</span>
             </div>
           )}
           <input
@@ -831,17 +837,17 @@ title="用当前镜头重新拼接"
               onClick={() => coverInputRef.current?.click()}
             >
               <IconImage size={14} />
-              更换封面
+              Đổi ảnh bìa
             </button>
             <button
               type="button"
               className="pf-btn pf-btn-ghost pf-btn-sm pf-btn-icon"
               disabled={busy || running || !shots.some((s) => s.image_url)}
               onClick={useFirstShotCover}
-              title="使用第一个有画面的镜头作为封面"
+              title="Lấy cảnh quay đầu tiên có hình làm ảnh bìa"
             >
               <IconImage size={14} />
-              用首镜封面
+              Dùng ảnh cảnh đầu
             </button>
             <button
               type="button"
@@ -850,24 +856,24 @@ title="用当前镜头重新拼接"
               onClick={() => downloadStoryboardCsv(project)}
             >
               <IconDownload size={14} />
-              草稿导出
+              Xuất nháp
             </button>
           </div>
           <ul className="pf-meta-list" style={{ marginTop: '0.85rem' }}>
             <li>
-              <span>项目名称</span>
+              <span>Tên dự án</span>
               <span>{project.title}</span>
             </li>
             <li>
-              <span>状态</span>
+              <span>Trạng thái</span>
               <span>{statusLabel(project)}</span>
             </li>
             <li>
-              <span>进度</span>
+              <span>Tiến độ</span>
               <span>{project.progress}%</span>
             </li>
             <li>
-              <span>时长</span>
+              <span>Thời lượng</span>
               <span>
                 {Math.floor(totalDuration / 60)
                   .toString()
@@ -879,15 +885,17 @@ title="用当前镜头重新拼接"
               </span>
             </li>
             <li>
-              <span>画面比例</span>
-              <span>{project.output_ratio || (project.pipeline_mode === 'image_text' ? '9:16' : '16:9')}</span>
+              <span>Tỉ lệ khung hình</span>
+              <span>
+                {project.output_ratio || (project.pipeline_mode === 'image_text' ? '9:16' : '16:9')}
+              </span>
             </li>
             <li>
-              <span>成片方式</span>
-              <span>{project.pipeline_mode === 'image_text' ? '静图成片' : 'AI 视频'}</span>
+              <span>Cách dựng phim</span>
+              <span>{project.pipeline_mode === 'image_text' ? IMAGE_TEXT_LABEL : FULL_LABEL}</span>
             </li>
             <li>
-              <span>风格</span>
+              <span>Phong cách</span>
               <span>{template?.name || project.template_id}</span>
             </li>
           </ul>
@@ -897,18 +905,19 @@ title="用当前镜头重新拼接"
             onClick={() => nav(`/studio/${project.id}/style`)}
             disabled={running}
           >
-            编辑项目设置
+            Sửa thiết lập dự án
           </button>
           <div className="pf-prompt-panel">
-            <h4>内置提示词</h4>
+            <h4>Prompt tích hợp</h4>
             <p className="pf-muted" style={{ fontSize: '0.72rem', margin: '0 0 0.45rem' }}>
-              画风来自模板。角色是否出镜由 AI 按模板与主题决定；只有这里改过才覆盖本项目。
+              Phong cách hình ảnh đến từ mẫu. Có nhân vật xuất hiện hay không do AI quyết theo mẫu và
+              chủ đề; chỉ khi bạn sửa ở đây thì dự án này mới dùng bản riêng.
             </p>
             {(
               [
-                ['风格', displayPrompts.style_prompt],
-                ['角色', displayPrompts.character_prompt],
-                ['额外', displayPrompts.extra_prompt],
+                ['Phong cách', displayPrompts.style_prompt],
+                ['Nhân vật', displayPrompts.character_prompt],
+                ['Bổ sung', displayPrompts.extra_prompt],
               ] as const
             ).map(([label, value]) => (
               <button
@@ -925,29 +934,29 @@ title="用当前镜头重新拼接"
                 }
               >
                 <strong>{label}</strong>
-                <span>{(value || '').trim() || '（空，点击编辑）'}</span>
+                <span>{(value || '').trim() || '(trống — bấm để sửa)'}</span>
               </button>
             ))}
           </div>
           <p className="pf-muted" style={{ fontSize: '0.75rem', marginTop: '0.75rem' }}>
-            内容由 AI 生成，请注意核对准确性
+            Nội dung do AI tạo ra, hãy kiểm tra lại độ chính xác trước khi dùng.
           </p>
         </aside>
 
         <div className="pf-board-main">
           <div className="pf-outline-grid">
             <article className="pf-create-col">
-              <h3>AI 生成大纲</h3>
+              <h3>Dàn ý do AI tạo</h3>
               <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.65 }}>
                 {project.source_text}
               </p>
               <div className="pf-tags">
-                <span>核心主题</span>
-                <span>{project.source_type === 'script' ? '完整文案' : '一句话主题'}</span>
+                <span>Chủ đề chính</span>
+                <span>{project.source_type === 'script' ? 'Lời dẫn đầy đủ' : 'Chủ đề một câu'}</span>
               </div>
             </article>
             <article className="pf-create-col">
-              <h3>结构摘要</h3>
+              <h3>Tóm tắt cấu trúc</h3>
               <ul className="pf-meta-list">
                 {structure.length ? (
                   structure.map((s) => (
@@ -958,7 +967,7 @@ title="用当前镜头重新拼接"
                   ))
                 ) : (
                   <li>
-                    <span>等待分镜</span>
+                    <span>Chờ storyboard</span>
                     <span>—</span>
                   </li>
                 )}
@@ -968,16 +977,16 @@ title="用当前镜头重新拼接"
 
           <section className="pf-shot-card">
             <div className="pf-shot-card-head">
-              <h3>分镜列表（共 {project.shots.length} 个场景）</h3>
+              <h3>Danh sách storyboard (tổng {project.shots.length} cảnh)</h3>
               <div className="pf-toolbar">
                 {project.status === 'DONE' && hasFinal ? (
                   <button type="button" className="pf-btn pf-btn-lime pf-btn-sm" disabled={busy} onClick={publish}>
-                    发布
+                    Phát hành
                   </button>
                 ) : null}
                 {hasFinal ? (
                   <button type="button" className="pf-btn pf-btn-ghost pf-btn-sm" onClick={openFinalPreview}>
-                    预览成片
+                    Xem phim
                   </button>
                 ) : (
                   <button
@@ -986,20 +995,28 @@ title="用当前镜头重新拼接"
                     disabled={busy || running || !readyToCompose}
                     onClick={composeOnly}
                   >
-                    拼接成片
+                    Ghép phim
                   </button>
                 )}
               </div>
             </div>
             {project.shots.length === 0 ? (
-              <p className="pf-muted" style={{ margin: '1.5rem 0', textAlign: 'center' }}>
-                {running
-                  ? '正在拆分镜…'
-                  : '暂无分镜。从风格配置页开始生成后，可先确认修改，再手动开始画面生成。'}
-              </p>
+              <div className="studio-board-empty">
+                <span className="studio-board-art" aria-hidden>
+                  <img src={getDramaImageStylePreviewUrl(EMPTY_ART.board)} alt="" />
+                </span>
+                <p className="pf-muted">
+                  {running
+                    ? 'Đang chia các cảnh quay…'
+                    : 'Chưa có storyboard. Bắt đầu tạo ở trang cấu hình phong cách, duyệt và sửa xong bạn mới bấm tạo ảnh.'}
+                </p>
+              </div>
             ) : needsScriptConfirm ? (
               <p className="pf-muted" style={{ margin: '0 0 1rem' }}>
-                分镜已就绪。点表格「旁白」改口播（会同步脚本并影响整片配音），点「逐段分镜」改画面节奏与 @duration。确认后按阶段预扣：画面+配音 → 镜头视频 → 合成。
+                Storyboard đã sẵn sàng. Bấm cột “Lời dẫn” để sửa lời đọc (kịch bản sẽ đồng bộ và
+                ảnh hưởng tới lồng tiếng cả phim), bấm cột “Storyboard theo đoạn” để chỉnh nhịp hình
+                và @duration. Duyệt xong hãy bấm: phí trừ theo từng bước — ảnh + lồng tiếng → video
+                từng cảnh → ghép phim.
               </p>
             ) : null}
             {project.shots.length === 0 ? null : (
@@ -1007,22 +1024,22 @@ title="用当前镜头重新拼接"
                 <table className="pf-shot-table">
                   <thead>
                     <tr>
-                      <th className="col-no">场景</th>
-                      <th className="col-thumb">画面</th>
-                      <th className="col-narr">旁白/台词</th>
-                      <th className="col-seg">逐段分镜</th>
-                      <th className="col-dur">时长</th>
-                      <th className="col-status">状态</th>
-                      <th className="col-ops">操作</th>
+                      <th className="col-no">Cảnh</th>
+                      <th className="col-thumb">Hình ảnh</th>
+                      <th className="col-narr">Lời dẫn / thoại</th>
+                      <th className="col-seg">Storyboard theo đoạn</th>
+                      <th className="col-dur">Thời lượng</th>
+                      <th className="col-status">Trạng thái</th>
+                      <th className="col-ops">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
                     {shots.map((shot) => {
                       /*
-                       * localBusy 本镜请求已发出、任务尚未回写
-                       * shotGenerating 本镜任务或本地提交中
-                       * pipelineLocked 整片流水线/配音占用
-                       * displayKind / done / failed 按素材完备度展示
+                       * localBusy yêu cầu của riêng cảnh này đã gửi, tác vụ chưa ghi kết quả
+                       * shotGenerating tác vụ của cảnh này hoặc đang gửi ở cục bộ
+                       * pipelineLocked cả pipeline/lồng tiếng của cả phim đang chiếm
+                       * displayKind / done / failed hiển thị theo độ đầy đủ của tư liệu
                        */
                       const localBusy = busyShotIds.has(shot.id)
                       const shotGenerating = isShotGenerating(project, shot.id) || localBusy
@@ -1035,7 +1052,7 @@ title="用当前镜头重新拼接"
                       const done = shotDisplayDone(displayKind)
                       const failed = displayKind === 'failed'
                       const sceneTitle =
-                        shot.overlay_title?.trim() || `场景 ${String(shot.shot_no).padStart(2, '0')}`
+                        shot.overlay_title?.trim() || `Cảnh ${String(shot.shot_no).padStart(2, '0')}`
                       const narration = (shot.narration || '').trim()
                       const script = shot.segment_script || shot.video_prompt || ''
                       const { cues, beats } = parseSegmentScript(script)
@@ -1047,6 +1064,7 @@ title="用当前镜头重新拼接"
                             <button
                               type="button"
                               className="pf-shot-thumb-btn"
+                              aria-label={`Xem trước ${sceneTitle}`}
                               onClick={() =>
                                 setPreview({
                                   kind: 'shot',
@@ -1063,11 +1081,27 @@ title="用当前镜头重新拼接"
                                   className="pf-shot-thumb"
                                   src={api.assetUrl(shot.image_url, shot.version)}
                                   alt=""
+                                  loading="lazy"
                                 />
                               ) : (
-                                <div className="pf-shot-thumb empty">
-                                  {shotGenerating ? '生成中' : '待出图'}
-                                </div>
+                                <span
+                                  className={[
+                                    'studio-still studio-still--placeholder',
+                                    'pf-shot-thumb empty',
+                                    shotGenerating ? 'is-busy' : '',
+                                  ]
+                                    .filter(Boolean)
+                                    .join(' ')}
+                                >
+                                  <img
+                                    src={getDramaImageStylePreviewUrl(EMPTY_ART.shot)}
+                                    alt=""
+                                    loading="lazy"
+                                  />
+                                  <span className="studio-still-note">
+                                    {shotGenerating ? 'Đang tạo' : 'Chờ tạo ảnh'}
+                                  </span>
+                                </span>
                               )}
                             </button>
                           </td>
@@ -1076,7 +1110,7 @@ title="用当前镜头重新拼接"
                               type="button"
                               className="pf-shot-narration pf-shot-editable"
                               disabled={rowBusy}
-                              title="点击编辑旁白与标题"
+                              title="Bấm để sửa lời dẫn và tiêu đề"
                               onClick={() => openShotEdit(shot, 'narration')}
                             >
                               <span className="title">{sceneTitle}</span>
@@ -1090,7 +1124,7 @@ title="用当前镜头重新拼接"
                               type="button"
                               className="pf-shot-desc pf-shot-editable"
                               disabled={rowBusy}
-                              title="点击编辑逐段分镜脚本"
+                              title="Bấm để sửa kịch bản storyboard theo từng đoạn"
                               onClick={() => openShotEdit(shot, 'segment_script')}
                               style={{ textAlign: 'left', width: '100%' }}
                             >
@@ -1127,12 +1161,12 @@ title="用当前镜头重新拼接"
                                   ))}
                                   {beats.length > 4 ? (
                                     <span className="pf-muted" style={{ fontSize: '0.75rem' }}>
-                                      另有 {beats.length - 4} 段…
+                                      Còn {beats.length - 4} đoạn…
                                     </span>
                                   ) : null}
                                 </div>
                               ) : (
-                                desc || '（点击填写逐段分镜）'
+                                desc || '(bấm để điền storyboard theo đoạn)'
                               )}
                             </button>
                           </td>
@@ -1158,7 +1192,7 @@ title="用当前镜头重新拼接"
                                 disabled={rowBusy}
                                 onClick={() => openShotEdit(shot)}
                               >
-                                编辑
+                                Sửa
                               </button>
                               <button
                                 type="button"
@@ -1166,23 +1200,23 @@ title="用当前镜头重新拼接"
                                 disabled={rowBusy}
                                 onClick={() => regenImage(shot)}
                               >
-                                {shot.image_url ? '重绘画面' : '生成画面'}
+                                {shot.image_url ? 'Vẽ lại ảnh' : 'Tạo ảnh'}
                               </button>
                               {isFullPipeline ? (
                                 <button
                                   type="button"
                                   className="op op-video"
                                   disabled={rowBusy || !shot.image_url}
-                                  title={!shot.image_url ? '请先生成该镜画面' : undefined}
+                                  title={!shot.image_url ? 'Hãy tạo ảnh cho cảnh này trước' : undefined}
                                   onClick={() => regenVideo(shot)}
                                 >
-                                  {shot.video_url ? '重生视频' : '出视频'}
+                                  {shot.video_url ? 'Tạo lại video' : 'Tạo video'}
                                 </button>
                               ) : null}
                               <button
                                 type="button"
                                 className="more"
-                                aria-label="更多操作"
+                                aria-label="Thao tác khác"
                                 disabled={rowBusy}
                                 onClick={(e) => {
                                   e.stopPropagation()
@@ -1201,7 +1235,7 @@ title="用当前镜头重新拼接"
                                       regenAudio(shot)
                                     }}
                                   >
-                                    重配音
+                                    Lồng tiếng lại
                                   </button>
                                 </div>
                               ) : null}
@@ -1216,8 +1250,9 @@ title="用当前镜头重新拼接"
             )}
             <div className="pf-shot-footer">
               <span className="pf-muted" style={{ fontSize: '0.82rem' }}>
-                总时长: {formatMmSs(totalDuration)} | 画面: {project.shots.length} 个 | 音频:{' '}
-                {project.shots.filter((s) => s.audio_url).length} 段 | 分辨率: 预览
+                Tổng thời lượng: {formatMmSs(totalDuration)} | Ảnh: {project.shots.length} | Âm
+                thanh: {project.shots.filter((s) => s.audio_url).length} đoạn | Độ phân giải: xem
+                trước
               </span>
               <div className="pf-toolbar">
                 <button
@@ -1227,7 +1262,7 @@ title="用当前镜头重新拼接"
                   onClick={() => downloadStoryboardCsv(project)}
                 >
                   <IconDownload size={15} />
-                  导出分镜脚本
+                  Xuất kịch bản storyboard
                 </button>
                 <button
                   type="button"
@@ -1236,7 +1271,7 @@ title="用当前镜头重新拼接"
                   onClick={deleteProject}
                 >
                   <IconTrash size={15} />
-                  删除项目
+                  Xoá dự án
                 </button>
               </div>
             </div>
@@ -1244,7 +1279,7 @@ title="用当前镜头重新拼接"
         </div>
 
         <aside className="pf-create-col pf-board-settings">
-          <h3>生成进度</h3>
+          <h3>Tiến độ tạo</h3>
           <ul className="pf-progress-list">
             {progressItems.map((item) => (
               <li key={item.label}>
@@ -1272,21 +1307,12 @@ title="用当前镜头重新拼接"
 
       {batchOpen && project ? (
         <div className="modal-backdrop" onClick={() => !busy && setBatchOpen(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>批量调整分镜</h3>
+          <div className="modal studio-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Chỉnh hàng loạt storyboard</h3>
             <p className="pf-muted" style={{ marginTop: 0 }}>
-              已选 {batchSelected.length} / {project.shots.length} 个镜头
+              Đã chọn {batchSelected.length} / {project.shots.length} cảnh quay
             </p>
-            <div
-              style={{
-                maxHeight: 160,
-                overflow: 'auto',
-                border: '1px solid var(--pf-border, #e5e7eb)',
-                borderRadius: 10,
-                padding: '0.5rem 0.75rem',
-                marginBottom: '0.75rem',
-              }}
-            >
+            <div className="studio-pick-list">
               <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
                 <input
                   type="checkbox"
@@ -1295,7 +1321,7 @@ title="用当前镜头重新拼接"
                     setBatchSelected(e.target.checked ? project.shots.map((s) => s.id) : [])
                   }
                 />
-                全选
+                Chọn tất cả
               </label>
               {project.shots
                 .slice()
@@ -1314,17 +1340,18 @@ title="用当前镜头重新拼接"
                         )
                       }
                     />
-                    镜头 {String(s.shot_no).padStart(2, '0')} · {formatMmSs(shotDisplayDurationSec(s))}
+                    Cảnh quay {String(s.shot_no).padStart(2, '0')} ·{' '}
+                    {formatMmSs(shotDisplayDurationSec(s))}
                   </label>
                 ))}
             </div>
             <label>
-              统一时长（秒，留空则不改）
+              Thời lượng đồng nhất (giây, để trống nếu không đổi)
               <input
                 type="number"
                 min={1}
                 step={0.5}
-                placeholder="例如 6"
+                placeholder="Ví dụ 6"
                 value={batchDuration}
                 onChange={(e) => setBatchDuration(e.target.value)}
               />
@@ -1335,7 +1362,7 @@ title="用当前镜头重新拼接"
                 checked={batchRegenAudio}
                 onChange={(e) => setBatchRegenAudio(e.target.checked)}
               />
-              对所选镜头重新配音
+              Lồng tiếng lại cho các cảnh đã chọn
             </label>
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
               <button
@@ -1344,7 +1371,7 @@ title="用当前镜头重新拼接"
                 disabled={busy || batchSelected.length === 0}
                 onClick={applyBatchAdjust}
               >
-                应用
+                Áp dụng
               </button>
               <button
                 type="button"
@@ -1352,7 +1379,7 @@ title="用当前镜头重新拼接"
                 disabled={busy}
                 onClick={() => setBatchOpen(false)}
               >
-                取消
+                Huỷ
               </button>
             </div>
           </div>
@@ -1374,37 +1401,39 @@ title="用当前镜头重新拼接"
           >
             <h3>
               {editMode === 'narration'
-                ? `编辑镜头 ${editing.shot_no} · 旁白与标题`
+                ? `Sửa cảnh quay ${editing.shot_no} · Lời dẫn và tiêu đề`
                 : editMode === 'segment'
-                  ? `编辑镜头 ${editing.shot_no} · 逐段分镜`
-                  : `编辑镜头 ${editing.shot_no} · 全部提示词`}
+                  ? `Sửa cảnh quay ${editing.shot_no} · Storyboard theo đoạn`
+                  : `Sửa cảnh quay ${editing.shot_no} · Toàn bộ prompt`}
             </h3>
             <div className="pf-prompt-modal-scroll">
               {editMode === 'narration' || editMode === 'full' ? (
                 <>
                   <label>
-                    镜头标题
+                    Tiêu đề cảnh quay
                     <input
                       autoFocus={editFocus === 'title' || editMode === 'narration'}
                       value={editing.overlay_title || ''}
                       onChange={(e) => setEditing({ ...editing, overlay_title: e.target.value })}
                     />
                     <span className="pf-muted pf-prompt-hint">
-                      分镜列表名称；图文成片会叠到画面顶部
+                      Tên hiển thị trong danh sách storyboard; chế độ ảnh tĩnh sẽ đè lên đầu khung
+                      hình
                     </span>
                   </label>
                   <label>
-                    副标题
+                    Tiêu đề phụ
                     <input
                       value={editing.overlay_subtitle || ''}
                       onChange={(e) => setEditing({ ...editing, overlay_subtitle: e.target.value })}
                     />
                     <span className="pf-muted pf-prompt-hint">
-                      图文成片叠字；AI 视频成片不烧这行，只作分镜说明
+                      Dòng chữ đè trong chế độ ảnh tĩnh; chế độ AI video không khắc dòng này, nó chỉ
+                      làm ghi chú cho storyboard
                     </span>
                   </label>
                   <label>
-                    旁白
+                    Lời dẫn
                     <textarea
                       autoFocus={editFocus === 'narration'}
                       value={editing.narration}
@@ -1412,14 +1441,15 @@ title="用当前镜头重新拼接"
                       rows={editMode === 'narration' ? 6 : 3}
                     />
                     <span className="pf-muted pf-prompt-hint">
-                      会同步到脚本旁白段，并影响整片配音（改完需重新生成配音/成片）
+                      Đồng bộ vào đoạn lời dẫn của kịch bản và ảnh hưởng tới lồng tiếng cả phim (sửa
+                      xong cần tạo lại lồng tiếng hoặc ghép lại phim)
                     </span>
                   </label>
                 </>
               ) : null}
               {editMode === 'full' ? (
                 <label>
-                  画面提示词（首帧）
+                  Prompt hình ảnh (khung mở đầu)
                   <textarea
                     autoFocus={editFocus === 'img_prompt'}
                     value={editing.img_prompt}
@@ -1427,14 +1457,15 @@ title="用当前镜头重新拼接"
                     rows={3}
                   />
                   <span className="pf-muted pf-prompt-hint">
-                    会同步到脚本首段画面，出图与视频都用这一段
+                    Đồng bộ vào đoạn hình ảnh đầu tiên của kịch bản; cả tạo ảnh lẫn tạo video đều
+                    dùng đoạn này
                   </span>
                 </label>
               ) : null}
               {editMode === 'segment' || editMode === 'full' ? (
                 <>
                   <label>
-                    逐段分镜脚本（画面节奏与 @duration）
+                    Kịch bản storyboard theo đoạn (nhịp hình và @duration)
                     <textarea
                       className="pf-prompt-segment"
                       autoFocus={editFocus === 'segment_script' || editMode === 'segment'}
@@ -1453,7 +1484,7 @@ title="用当前镜头重新拼接"
                       ))
                     ) : (
                       <span className="pf-muted" style={{ fontSize: '0.8rem' }}>
-                        暂无 @duration 标签
+                        Chưa có nhãn @duration nào
                       </span>
                     )}
                     <span
@@ -1464,14 +1495,14 @@ title="用当前镜头重新拼接"
                         color: editDurationCheck.valid ? undefined : 'var(--pf-danger, #c0392b)',
                       }}
                     >
-                      合计 {editDurationCheck.total}s / {SHOT_DURATION_MAX}s
+                      Tổng {editDurationCheck.total}s / {SHOT_DURATION_MAX}s
                     </span>
                   </div>
                   {!editDurationCheck.valid && editDurationCheck.message ? (
                     <p className="pf-error pf-prompt-duration-error">{editDurationCheck.message}</p>
                   ) : null}
                   <label>
-                    运镜备注
+                    Ghi chú cử động máy
                     <input
                       value={editing.camera || ''}
                       onChange={(e) => setEditing({ ...editing, camera: e.target.value })}
@@ -1479,7 +1510,7 @@ title="用当前镜头重新拼接"
                   </label>
                   <div className="pf-prompt-modal-row">
                     <label>
-                      时长（秒，保存后按 @duration 重算）
+                      Thời lượng (giây, sau khi lưu sẽ tính lại theo @duration)
                       <input
                         type="number"
                         value={editing.duration}
@@ -1500,7 +1531,7 @@ title="用当前镜头重新拼接"
                     setEditFocus('segment_script')
                   }}
                 >
-                  逐段分镜…
+                  Storyboard theo đoạn…
                 </button>
               ) : null}
               {editMode !== 'narration' ? (
@@ -1512,7 +1543,7 @@ title="用当前镜头重新拼接"
                     setEditFocus('narration')
                   }}
                 >
-                  旁白与标题…
+                  Lời dẫn và tiêu đề…
                 </button>
               ) : null}
               {editMode !== 'full' ? (
@@ -1524,7 +1555,7 @@ title="用当前镜头重新拼接"
                     setEditFocus('')
                   }}
                 >
-                  全部字段
+                  Toàn bộ trường
                 </button>
               ) : null}
               <span className="pf-prompt-modal-foot-spacer" />
@@ -1534,10 +1565,10 @@ title="用当前镜头重新拼接"
                 disabled={busy || !editDurationCheck.valid}
                 onClick={saveShot}
               >
-                保存
+                Lưu
               </button>
               <button type="button" className="pf-btn pf-btn-ghost" onClick={closeShotEdit}>
-                取消
+                Huỷ
               </button>
             </div>
           </div>
@@ -1547,12 +1578,13 @@ title="用当前镜头重新拼接"
       {promptEdit ? (
         <div className="modal-backdrop" onClick={() => setPromptEdit(null)}>
           <div className="modal pf-prompt-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>项目内置提示词</h3>
+            <h3>Prompt tích hợp của dự án</h3>
             <p className="pf-muted" style={{ fontSize: '0.8rem', marginTop: 0 }}>
-              默认跟随后台模板。保存为与模板相同的内容会自动清除覆盖；已生成镜头需点重生成才会更新。
+              Mặc định theo mẫu ở trang quản trị. Lưu nội dung trùng với mẫu sẽ tự xoá lớp ghi đè;
+              các cảnh đã tạo phải bấm tạo lại mới cập nhật.
             </p>
             <label>
-              风格提示词
+              Prompt phong cách
               <textarea
                 value={promptEdit.style_prompt}
                 onChange={(e) => setPromptEdit({ ...promptEdit, style_prompt: e.target.value })}
@@ -1560,7 +1592,7 @@ title="用当前镜头重新拼接"
               />
             </label>
             <label>
-              角色提示词
+              Prompt nhân vật
               <textarea
                 autoFocus
                 value={promptEdit.character_prompt}
@@ -1569,7 +1601,7 @@ title="用当前镜头重新拼接"
               />
             </label>
             <label>
-              额外要求
+              Yêu cầu bổ sung
               <textarea
                 value={promptEdit.extra_prompt}
                 onChange={(e) => setPromptEdit({ ...promptEdit, extra_prompt: e.target.value })}
@@ -1583,7 +1615,7 @@ title="用当前镜头重新拼接"
                 disabled={busy}
                 onClick={saveProjectPrompts}
               >
-                保存
+                Lưu
               </button>
               <button
                 type="button"
@@ -1591,10 +1623,10 @@ title="用当前镜头重新拼接"
                 disabled={busy}
                 onClick={() => void restoreTemplatePrompts()}
               >
-                恢复后台模板
+                Khôi phục mẫu gốc
               </button>
               <button type="button" className="pf-btn pf-btn-ghost" onClick={() => setPromptEdit(null)}>
-                取消
+                Huỷ
               </button>
             </div>
           </div>
@@ -1606,10 +1638,10 @@ title="用当前镜头重新拼接"
           <div className="modal preview-modal" onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0 }}>
-                {preview.kind === 'final' ? preview.title : `镜头 ${preview.shotNo}`}
+                {preview.kind === 'final' ? preview.title : `Cảnh quay ${preview.shotNo}`}
               </h3>
               <button type="button" className="pf-btn pf-btn-ghost pf-btn-sm" onClick={() => setPreview(null)}>
-                关闭
+                Đóng
               </button>
             </div>
             {preview.kind === 'final' ? (
@@ -1625,7 +1657,10 @@ title="用当前镜头重新拼接"
             ) : preview.imageUrl ? (
               <img className="preview-media" src={api.assetUrl(preview.imageUrl)} alt="" />
             ) : (
-              <p className="pf-muted">暂无预览</p>
+              <div className="studio-still studio-still--placeholder studio-preview-none">
+                <img src={getDramaImageStylePreviewUrl(EMPTY_ART.shot)} alt="" />
+                <span className="studio-still-note">Cảnh này chưa có hình để xem trước</span>
+              </div>
             )}
             {preview.kind === 'shot' && preview.audioUrl ? (
               <audio src={api.assetUrl(preview.audioUrl)} controls style={{ width: '100%' }} />

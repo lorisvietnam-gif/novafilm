@@ -9,6 +9,8 @@ import PillTabs from '../../components/ui/PillTabs'
 import { IconChevronLeft, IconRefresh, IconSparkles } from '../../components/ui/Icons'
 import { CATEGORY_ORDER } from '../../lib/categories'
 import { kepuStepIndex, kepuSteps } from '../../lib/status'
+import { getDramaImageStylePreviewUrl } from '../../lib/dramaImageStylePreviews'
+import './studio.css'
 
 type Inspiration = {
   title: string
@@ -16,157 +18,182 @@ type Inspiration = {
   script: string
 }
 
+const ALL_CATEGORY = 'Tất cả'
+const FEATURED_CATEGORY = 'Đề xuất'
+const THEME_TAB = 'Chủ đề một câu'
+const SCRIPT_TAB = 'Dán lời dẫn đầy đủ'
+const UNTITLED = 'Chưa có tên'
+
 const INSPIRATION_POOL: Inspiration[] = [
   {
-    title: '到店打卡怎么拍',
-    theme: '把一家本地店的卖点做成抖音获客口播：前3秒钩子、场景、1-2个体验、到店号召。只写已知事实。',
+    title: 'Cách quay check-in tại quán',
+    theme:
+      'Biến điểm bán của một quán địa phương thành video TikTok thu hút khách: 3 giây đầu phải cuốn, bối cảnh, 1-2 trải nghiệm thật, lời rủ ghé. Chỉ nói điều có thật.',
     script:
-      '路过这条街十次，这次才走进去。\n\n' +
-      '店面不大，招牌清楚，位置就在地铁口附近。\n\n' +
-      '我点了他们家主打那一项，口感按我自己的感受来：味道正、上桌快。\n\n' +
-      '想试的话，按店里现有套餐自己看，别听绝对化承诺。',
+      'Mười lần đi ngang con đường này, lần này mới bước vào.\n\n' +
+      'Quán không lớn, biển hiệu rõ, ngay gần cửa tàu điện ngầm.\n\n' +
+      'Mình gọi món đặc trưng của quán, vị thì theo trải nghiệm của mình: đúng vị, ra món nhanh.\n\n' +
+      'Muốn thử thì nhìn set menu sẵn có của quán rồi tự quyết, đừng nghe lời hứa suốt.',
   },
   {
-    title: '闺蜜安利一篇笔记',
-    theme: '小红书获客安利：钩子标题、第一印象、分点真实体验、推荐给谁。卖点只作客观陈述。',
+    title: 'Bài note giới thiệu quán cho nhóm bạn thân',
+    theme:
+      'Bài note thu hút khách kiểu Xiaohongshu: tiêu đề gây tò mò, ấn tượng đầu tiên, trải nghiệm thật theo từng ý, hợp với ai. Điểm bán chỉ nêu khách quan.',
     script:
-      '本来只是路过，结果在店里坐了很久。\n\n' +
-      '第一印象是光线干净、座位不挤。\n\n' +
-      '我点了招牌，份量如实说；环境安静，适合聊天。\n\n' +
-      '更适合想慢慢坐的人；赶时间的可以先看套餐再决定。',
+      'Đi ngang thôi, cuối cùng ngồi lại trong quán rất lâu.\n\n' +
+      'Ấn tượng đầu tiên là ánh sáng sạch, chỗ ngồi không chật.\n\n' +
+      'Mình gọi món đặc trưng, phần lượng nói thật; không gian yên tĩnh, hợp để trò chuyện.\n\n' +
+      'Hợp hơn với người muốn ngồi từ từ; ai vội thì xem set menu trước rồi hãy quyết.',
   },
   {
-    title: '口碑拆解给决策',
-    theme: '点评式获客讲解：总体评价、环境服务、推荐项带理由、性价比、适合谁。没写的价格不要猜。',
+    title: 'Phân tích đánh giá để khách quyết định',
+    theme:
+      'Video giải thích kiểu đánh giá: nhận định tổng thể, không gian và dịch vụ, món nên chọn kèm lý do, mức giá so với chất lượng, hợp với ai. Giá chưa niêm yết thì đừng đoán.',
     script:
-      '总体感受：干净、流程清楚，适合第一次来的人。\n\n' +
-      '环境通透，服务员会主动说明怎么选。\n\n' +
-      '推荐他们家主打项目，理由是我当场体验过、步骤好懂。\n\n' +
-      '人均以店内公示为准。带朋友来比一个人更合适。',
+      'Cảm nhận chung: sạch sẽ, quy trình rõ ràng, hợp với người đến lần đầu.\n\n' +
+      'Không gian thông thoáng, nhân viên chủ động giải thích nên chọn món nào.\n\n' +
+      'Nên thử món đặc trưng của quán, lý do là mình tự trải nghiệm và các bước rất dễ hiểu.\n\n' +
+      'Gá tính theo bảng niêm yết tại quán. Đi cùng nhóm bạn sẽ hợp hơn đi một mình.',
   },
   {
-    title: '熟人圈轻推荐',
-    theme: '朋友圈获客短片：一句真实感受、一个具体细节、一句轻推荐。克制，不像广告。',
+    title: 'Giới thiệu nhẹ trong nhóm bạn bè',
+    theme:
+      'Video ngắn thu hút khách qua mạng bạn bè: một câu cảm nhận thật, một chi tiết cụ thể, một lời giới thiệu nhẹ. Tiết chế, không giống quảng cáo.',
     script:
-      '今天路过顺路坐了一会儿，比想象中安静。\n\n' +
-      '窗边那张桌子有自然光，适合歇脚。\n\n' +
-      '你们要是附近，可以自己去看看。',
+      'Hôm nay đi ngang nên ghé ngồi một lát, yên tĩnh hơn mình tưởng.\n\n' +
+      'Bàn cạnh cửa sổ có ánh sáng tự nhiên, hợp để nghỉ chân.\n\n' +
+      'Nếu bạn ở gần thì tự ghé xem nhé.',
   },
   {
-    title: '黑洞是如何形成的',
-    theme: '黑洞是如何形成的？用通俗方式讲清恒星坍缩、事件视界与时空弯曲，面向中学生。',
+    title: 'Hố đen hình thành ra sao',
+    theme:
+      'Hố đen hình thành ra sao? Giải thích bằng cách dễ hiểu về sự sụp của ngôi sao, chân trời sự kiện và độ cong của không gian, hướng tới học sinh cấp hai.',
     script:
-      '夜空里最神秘的天体之一，就是黑洞。\n\n' +
-      '当一颗足够大的恒星燃料烧尽，核心会在引力下剧烈坍缩，密度高到连光都逃不出去，事件视界就此诞生。\n\n' +
-      '它不是宇宙吸尘器，而是时空被严重弯曲的区域。靠近它，时间流逝也会变得奇怪。\n\n' +
-      '记住：质量够大、坍缩够猛，黑洞就会出现。下一次看科普新闻，你就能分清传说与科学。',
+      'Một trong những thiên thể bí ẩn nhất bầu trời đêm chính là hố đen.\n\n' +
+      'Khi một ngôi sao đủ lớn cạn nhiên liệu, lõi của nó sẽ sụp mạnh dưới lực hút, mật độ cao tới mức ánh sáng cũng không thoát ra được, và chân trời sự kiện ra đời.\n\n' +
+      'Nó không phải máy hút bụi của vũ trụ, mà là một vùng không gian bị uốn cong dữ dội. Càng đến gần, thời gian càng trôi khác thường.\n\n' +
+      'Nhớ một điều: khối lượng đủ lớn và sụp đủ mạnh thì hố đen sẽ xuất hiện. Lần sau đọc tin khoa học, bạn sẽ phân biệt được truyền thuyết với khoa học.',
   },
   {
-    title: '为什么天空是蓝色的',
-    theme: '为什么天空是蓝色的？用瑞利散射解释阳光、空气分子与傍晚火烧云，适合科普入门。',
+    title: 'Vì sao bầu trời lại xanh',
+    theme:
+      'Vì sao bầu trời lại xanh? Dùng hiệu ứng tán Rayleigh để giải thích ánh nắng, phân tử không khí và mây đỏ lúc hoàng hôn, hợp với người mới bắt đầu học khoa học.',
     script:
-      '抬头一看，白天的天空常常是蓝的，这是巧合吗？\n\n' +
-      '阳光看起来发白，其实包含多种颜色。空气分子对蓝光散射更强，蓝光更容易被「弹」向四面八方，于是我们眼里的天空偏蓝。\n\n' +
-      '早晚太阳更低，光穿过更厚大气，蓝光散得更干净，剩下的红橙光就染红了天边。\n\n' +
-      '所以天空的颜色，是光与空气的一场合作。',
+      'Ngẩng lên, bầu trời ban ngày thường xanh, vậy là ngẫu nhiên sao?\n\n' +
+      'Ánh nắng trông trắng nhưng thực ra chứa nhiều màu. Phân tử không khí tán màu xanh mạnh hơn, ánh sáng xanh dễ bị "bật" ra mọi phía, nên bầu trời ta thấy ngả xanh.\n\n' +
+      'Buổi sớm và chiều muộn mặt trời thấp hơn, ánh sáng phải xuyên qua lớp không khí dày hơn, màu xanh bị tán hết, phần ánh sáng đỏ cam còn lại nhuộm đỏ chân trời.\n\n' +
+      'Nên màu bầu trời chính là kết quả cộng tác giữa ánh sáng và không khí.',
   },
   {
-    title: 'AI 如何改变生活',
-    theme: 'AI 如何改变生活：从推荐、语音助手到医疗影像，讲清便利与需要警惕的偏见。',
+    title: 'AI thay đổi cuộc sống ra sao',
+    theme:
+      'AI thay đổi cuộc sống ra sao: từ gợi ý nội dung, trợ lý giọng nói đến ảnh y tế, làm rõ sự tiện lợi và thiên lệch cần thận trọng.',
     script:
-      '打开手机，推荐视频、导航路线、语音助手——人工智能已经悄悄进了日常。\n\n' +
-      '它擅长从海量数据里找规律：帮医生看影像线索，帮工厂预判故障，也帮你把搜索变成对话。\n\n' +
-      '但 AI 不是魔法。数据有偏见，模型会犯错，隐私也需要边界。真正有用的，是把 AI 当工具，而不是当权威。\n\n' +
-      '理解它能做什么、不能做什么，你才能用得更聪明。',
+      'Mở điện thoại, gợi ý video, chỉ đường, trợ lý giọng nói — trí tuệ nhân tạo đã lặng lẽ bước vào đời sống hằng ngày.\n\n' +
+      'Nó giỏi tìm quy luật trong lượng dữ liệu khổng lồ: giúp bác sĩ phát hiện dấu hiệu trên ảnh, giúp nhà máy dự báo sự cố, và giúp bạn biến tìm kiếm thành cuộc trò chuyện.\n\n' +
+      'Nhưng AI không phải phép thuật. Dữ liệu có thiên lệch, mô hình sẽ sai, và quyền riêng tư vẫn cần có ranh giới. Cái thực sự hữu ích là coi AI là công cụ, chứ không phải là chân lý.\n\n' +
+      'Hiểu rõ nó làm được gì và không làm được gì, bạn mới dùng nó khôn ngoan hơn.',
   },
   {
-    title: '火星上的一天',
-    theme: '火星上的一天长什么样？对比地球日长、气温、沙尘与人类基地想象，做成场景化科普。',
+    title: 'Một ngày trên sao Hỏa',
+    theme:
+      'Một ngày trên sao Hỏa trông như thế nào? So sánh độ dài ngày với Trái Đất, nhiệt độ, bụi cát và hình dung về trạm nghiên cứu của con người, thành video khoa học có bối cảnh.',
     script:
-      '想象你在火星醒来：太阳更远更小，天空偏奶油色，一天大约 24 小时 39 分钟。\n\n' +
-      '白天可能「温暖」到零下，夜晚更冷。薄薄的二氧化碳大气留不住热量，沙尘暴偶尔遮天。\n\n' +
-      '科学家仍在规划基地：要防辐射、造氧气、种食物。火星不是第二地球，却是最近的外太空课堂。\n\n' +
-      '了解火星的一天，就是在预习人类下一次远行。',
+      'Hãy tưởng tượng bạn tỉnh dậy trên sao Hỏa: mặt trời xa hơn và nhỏ hơn, bầu trời ngả màu kem, một ngày dài khoảng 24 giờ 39 phút.\n\n' +
+      'Ban ngày có thể "ấm" tới dưới 0 độ, ban đêm còn lạnh hơn. Lớp khí CO2 mỏng không giữ được nhiệt, bão bụi thỉnh thoảng che kín bầu trời.\n\n' +
+      'Các nhà khoa học vẫn đang lên kế hoạch trạm cơ sở: chắn bức xạ, tạo oxy, trồng thức ăn. Sao Hỏa không phải Trái Đất thứ hai, nhưng nó là lớp học ngoài không gian gần nhất.\n\n' +
+      'Tìm hiểu một ngày trên sao Hỏa, chính là xem trước chuyến đi xa tiếp theo của con người.',
   },
   {
-    title: '梦的力量',
-    theme: '梦的力量：睡眠周期、快速眼动与记忆整理，用故事讲清做梦如何帮助大脑「复盘」。',
+    title: 'Sức mạnh của giấc mơ',
+    theme:
+      'Sức mạnh của giấc mơ: chu kỳ ngủ, pha REM và việc sắp xếp trí nhớ, dùng một câu chuyện để giải thích giấc mơ giúp não "tổng kết" ra sao.',
     script:
-      '你睡着以后，大脑并没有下班。\n\n' +
-      '进入快速眼动睡眠时，大脑像在回放白天的片段，拼接成奇幻的梦。科学家认为，这有助于整理记忆、调节情绪。\n\n' +
-      '睡不够，注意力和创造力都会打折；规律睡眠，则像给大脑做夜间维护。\n\n' +
-      '下次做怪梦，别只觉得荒唐——那可能是大脑在加班学习。',
+      'Khi bạn ngủ, bộ não không tan cao.\n\n' +
+      'Ở pha REM, bộ não như đang chiếu lại các mảnh của ban ngày rồi ghép lại thành giấc mơ kỳ lạ. Các nhà khoa học cho rằng điều này giúp sắp xếp trí nhớ và ổn định cảm xúc.\n\n' +
+      'Ngủ thiếu, cả tập trung lẫn sáng tạo đều giảm; ngủ đúng giờ thì giống như bảo trì đêm cho não.\n\n' +
+      'Lần sau gặp giấc mơ kỳ, đừng chỉ thấy vô lý — có thể não đang tăng ca học thêm.',
   },
   {
-    title: '一只流浪猫的春天',
-    theme: '一只流浪猫的春天：用拟人旁白讲城市生态、投喂边界与人宠共处，温暖向科普叙事。',
+    title: 'Mùa xuân của một mèo hoang',
+    theme:
+      'Mùa xuân của một mèo hoang: lời dẫn xuyên suốt giải thích sinh thái đô thị, ranh giới khi cho ăn và cách sống chung với người, theo hướng ấm áp.',
     script:
-      '春天来了，巷口的橘猫开始换毛，也开始寻找更安全的角落。\n\n' +
-      '城市里的流浪动物，靠的是残存野性与人类不经意的善意。科学投喂、绝育与尊重距离，比冲动更重要。\n\n' +
-      '它们不是风景，也不是麻烦，而是城市生态的一部分。\n\n' +
-      '这个春天，愿每一只猫，都能遇见更稳妥的明天。',
+      'Mùa xuân về, mèo lý mèo ở đầu ngõ bắt đầu thay lông và cũng bắt đầu tìm một góc nào đó an toàn hơn.\n\n' +
+      'Động vật hoang trong thành phố sống nhờ phần bản năng hoang dã còn sót lại và thiện ý vô tình của con người. Cho ăn đúng khoa học, triệt sản và giữ đúng khoảng cách quan trọng hơn lúc bốc đồng.\n\n' +
+      'Chúng không phải cảnh tượng, cũng không phải phiền phức, mà là một phần của hệ sinh thái đô thị.\n\n' +
+      'Trong mùa xuân này, mong mỗi con mèo đều gặp một ngày mai đàng hoàng hơn.',
   },
   {
-    title: '光合作用的秘密',
-    theme: '光合作用的秘密：叶子如何把阳光变成糖，讲清叶绿体、能量转化与地球氧气来源。',
+    title: 'Bí mật của quang hợp',
+    theme:
+      'Bí mật của quang hợp: lá cây biến ánh nắng thành đường ra sao, làm rõ lục lạp, chuyển hóa năng lượng và nguồn oxy của Trái Đất.',
     script:
-      '绿叶不只是装饰，它们是地球上最安静的化工厂。\n\n' +
-      '叶绿体抓住阳光，把水和二氧化碳做成糖，并释放氧气。没有这个过程，绝大多数食物链都会断裂。\n\n' +
-      '你呼吸的氧气、餐桌上的米饭和蔬菜，都间接来自这场光的魔法。\n\n' +
-      '看懂光合作用，就看懂了生命运转的底层账本。',
+      'Lá xanh không chỉ để trang trí, chúng là những nhà máy hóa học yên tĩnh nhất trên Trái Đất.\n\n' +
+      'Lục lạp bắt ánh nắng, biến nước và CO2 thành đường rồi giải phóng oxy. Không có quá trình này, phần lớn chuỗi thức ăn sẽ đứt gãy.\n\n' +
+      'Oxy bạn hít vào, cơm và rau trên bàn ăn, đều gián tiếp đến từ phép màu của ánh sáng này.\n\n' +
+      'Hiểu quang hợp là hiểu sổ cái nền tảng của sự sống.',
   },
   {
-    title: '地震来了怎么办',
-    theme: '地震来了怎么办：用场景教学讲清震前准备、避险姿势与谣言辨别，实用安全科普。',
+    title: 'Khi động đất xảy ra thì làm gì',
+    theme:
+      'Khi động đất xảy ra thì làm gì: dạy theo tình huống thật về việc chuẩn bị trước, tư thế tránh và cách phân biệt tin đồn, mang tính an toàn thực dụng.',
     script:
-      '地面突然晃起来，第一反应往往是慌。\n\n' +
-      '正确做法是就近伏地、掩护、抓稳，远离窗户与高架物；不要一窝蜂挤电梯。提前准备应急包，比临时抱佛脚更管用。\n\n' +
-      '震后还要警惕余震和谣言。权威信息、互助秩序，才是真正的安全感。\n\n' +
-      '懂一点地震知识，关键时刻就能多一分从容。',
+      'Mặt đất bỗng rung lên, phản xạ đầu tiên thường là hoảng.\n\n' +
+      'Cách làm đúng là nằm sấp xuống chỗ gần, che đầu, bám chắc, tránh xa cửa sổ và vật treo cao; đừng chen nhau bước vào thang máy. Chuẩn bị sẵn túi cứu hộ từ trước còn hữu ích hơn chạy vội lúc sự cố.\n\n' +
+      'Sau động đất vẫn phải cảnh giác dư chấn và tin đồn. Thông tin chính thống và trật tự giúp nhau mới là cảm giác an toàn thực sự.\n\n' +
+      'Biết một chút về động đất, khoảnh khắc quyết định bạn sẽ bình tĩnh hơn một phần.',
   },
   {
-    title: '咖啡因如何提神',
-    theme: '咖啡因如何提神：腺苷受体、耐受与睡眠代价，帮上班族科学喝咖啡。',
+    title: 'Caffeine tỉnh táo thế nào',
+    theme:
+      'Caffeine tỉnh táo thế nào: thụ cảm adenosine, hiện tượng dung nạp và cái giá phải trả cho giấc ngủ, giúp dân văn phòng uống cà phê đúng cách.',
     script:
-      '困的时候来杯咖啡，真的是「叫醒大脑」吗？\n\n' +
-      '咖啡因会抢占腺苷的位置，让你暂时感觉不困。但它不能替代睡眠，下午喝太多，夜里更容易翻来覆去。\n\n' +
-      '逐渐耐受后，同样一杯效果会变弱。更聪明的用法是：需要专注时再用，并给睡眠留窗口。\n\n' +
-      '提神可以靠咖啡，恢复还是得靠睡。',
+      'Buồn ngủ mà uống một ly cà phê, có thật sự là "đánh thức não" không?\n\n' +
+      'Caffeine chiếm chỗ của adenosine khiến bạn tạm thấy tỉnh. Nhưng nó không thay thế được giấc ngủ, uống nhiều vào buổi chiều thì đêm dễ trằn trọc hơn.\n\n' +
+      'Khi cơ thể quen dần, hiệu quả của cùng một ly sẽ giảm. Cách dùng khôn ngoan hơn là chỉ dùng lúc cần tập trung, và chừa khoảng trống cho giấc ngủ.\n\n' +
+      'Tỉnh táo thì có thể nhờ cà phê, nhưng lấy lại sức thì vẫn phải nhờ ngủ.',
   },
   {
-    title: '塑料去哪了',
-    theme: '塑料去哪了：微塑料、海洋环流与可替代材料，做成环保主题科普短片。',
+    title: 'Nhựa đi đâu rồi',
+    theme:
+      'Nhựa đi đâu rồi: vi nhựa, hệ lưu hành đại dương và vật liệu thay thế, thành video khoa học chủ đề bảo vệ môi trường.',
     script:
-      '扔掉的塑料袋，真的消失了吗？\n\n' +
-      '多数只是被撕成更小的碎片。微塑料进入河流与海洋，再进入食物链，最终可能回到我们的餐桌。\n\n' +
-      '减少一次性塑料、做好分类、推动更好的材料，比事后清理便宜得多。\n\n' +
-      '问「塑料去哪了」，其实是在问：我们愿为未来留什么。',
+      'Cái túi nhựa bỏ đi, thật sự biến mất chứ?\n\n' +
+      'Phần lớn chỉ bị bẻ vụn thành những mảnh nhỏ hơn. Vi nhựa đi vào sông và biển, rồi vào chuỗi thức ăn, cuối cùng có thể quay lại bàn ăn của chúng ta.\n\n' +
+      'Giảm nhựa dùng một lần, phân loại đúng và thúc đẩy vật liệu tốt hơn rẻ hơn nhiều so với dọn dẹp sau.\n\n' +
+      'Hỏi "nhựa đi đâu rồi" thực chất là hỏi: chúng ta sẵn sàng để lại gì cho tương lai.',
   },
   {
-    title: '疫苗为什么有效',
-    theme: '疫苗为什么有效：用「预演」比喻讲清抗原、抗体与群体免疫，澄清常见误解。',
+    title: 'Vì sao vaccine hiệu quả',
+    theme:
+      'Vì sao vaccine hiệu quả: dùng hình ảnh "diễn tập" để nói rõ kháng nguyên, kháng thể và miễn dịch cộng đồng, đồng thời xóa các hiểu lầm thường gặp.',
     script:
-      '疫苗不是药，更像给免疫系统发的预告片。\n\n' +
-      '它让身体提前认识病原体的关键特征，真正遇到时能更快调动抗体。这不是改写基因，而是训练记忆。\n\n' +
-      '足够多人获得保护，传播链会被削弱，这就是群体免疫的意义。\n\n' +
-      '科学接种，是把自己和身边人一起放进更安全的网络。',
+      'Vaccine không phải thuốc, nó giống một đoạn xem trước gửi cho hệ miễn dịch hơn.\n\n' +
+      'Nó cho cơ thể biết trước những đặc điểm quan trọng của mầm bệnh, để khi gặp thật thì kháng thể được huy động nhanh hơn. Đây không phải sửa gen, mà là huấn luyện trí nhớ.\n\n' +
+      'Khi đủ nhiều người được bảo vệ, chuỗi lây lan sẽ bị cắt đứt, đó là ý nghĩa của miễn dịch cộng đồng.\n\n' +
+      'Tiêm chủng đúng cách là đặt bản thân và những người bên cạnh vào chung một mạng lưới an toàn hơn.',
   },
   {
-    title: '潮汐的涨落',
-    theme: '潮汐为何涨落：月球引力、离心效应与大潮小潮，海边场景化讲解。',
+    title: 'Thủy triều lên xuống',
+    theme:
+      'Thủy triều vì sao lên xuống: lực hút của Mặt Trăng, lực quán tính và triều lớn triều nhỏ, giải thích bằng bối cảnh bờ biển.',
     script:
-      '海边的人最懂：水位会按时涨、按时退。\n\n' +
-      '主要推手是月球的引力，太阳也来凑热闹。地球、月球、太阳排成一线时，潮差更大，就是大潮。\n\n' +
-      '潮汐还影响航行、发电甚至生物节律。抬头看月亮，脚下的海也在回应。\n\n' +
-      '涨落之间，是天地引力的可见痕迹。',
+      'Người biển hiểu nhất: mực nước lúc nào cũng lên đúng giờ, rút đúng giờ.\n\n' +
+      'Động lực chính là lực hút của Mặt Trăng, Mặt Trời cũng góp một tay. Khi Trái Đất, Mặt Trăng và Mặt Trời thành một đường thẳng, biên độ triều lớn hơn, đó là triều lớn.\n\n' +
+      'Thủy triều còn ảnh hưởng tới hàng hải, phát điện và cả nhịp sinh học. Ngẩng nhìn Mặt Trăng, biển dưới chân cũng đang đáp lại.\n\n' +
+      'Trong nhịp lên xuống ấy là dấu vết nhìn thấy được của lực hút trời đất.',
   },
 ]
 
 const PAGE_SIZE = 6
 
+/** Tên doạn trước khi Việt hoá vẫn được coi là "chưa đặt tên" */
+const LEGACY_UNTITLED = '未命名作品'
+
 function isDefaultTitle(value: string) {
   const t = value.trim()
-  return !t || t === '未命名作品'
+  return !t || t === UNTITLED || t === LEGACY_UNTITLED
 }
 
 function deriveTitle(text: string) {
@@ -176,7 +203,7 @@ function deriveTitle(text: string) {
     .replace(/["""'']/g, '')
     .replace(/[。！？!?：:].*$/, '')
     .trim()
-  if (!line) return '未命名作品'
+  if (!line) return UNTITLED
   return line.slice(0, 18)
 }
 
@@ -185,9 +212,9 @@ export default function CreateProjectPage() {
   const [params] = useSearchParams()
   const [templates, setTemplates] = useState<Template[]>([])
   const [templateId, setTemplateId] = useState(params.get('template') || '')
-  const [category, setCategory] = useState('全部')
+  const [category, setCategory] = useState(ALL_CATEGORY)
   const [q, setQ] = useState('')
-  const [inputTab, setInputTab] = useState('一句话主题')
+  const [inputTab, setInputTab] = useState(THEME_TAB)
   const [sourceText, setSourceText] = useState(INSPIRATION_POOL[0].theme)
   const [title, setTitle] = useState(INSPIRATION_POOL[0].title)
   const [titleTouched, setTitleTouched] = useState(false)
@@ -216,13 +243,14 @@ export default function CreateProjectPage() {
         if (CATEGORY_ORDER.includes(c)) found.add(c)
       }
     }
-    return ['全部', '热门推荐', ...CATEGORY_ORDER.filter((c) => found.has(c))]
+    return [ALL_CATEGORY, FEATURED_CATEGORY, ...CATEGORY_ORDER.filter((c) => found.has(c))]
   }, [templates])
 
   const filtered = useMemo(() => {
     let list = templates
-    if (category === '热门推荐') list = [...templates].sort((a, b) => a.sort_order - b.sort_order).slice(0, 8)
-    else if (category !== '全部') list = list.filter((t) => (t.category || []).includes(category))
+    if (category === FEATURED_CATEGORY)
+      list = [...templates].sort((a, b) => a.sort_order - b.sort_order).slice(0, 8)
+    else if (category !== ALL_CATEGORY) list = list.filter((t) => (t.category || []).includes(category))
     if (q.trim()) {
       const s = q.trim().toLowerCase()
       list = list.filter((t) => t.name.toLowerCase().includes(s))
@@ -231,17 +259,17 @@ export default function CreateProjectPage() {
   }, [templates, category, q])
 
   const selected = templates.find((t) => t.id === templateId)
-  const sourceType = inputTab === '粘贴完整文案' ? 'script' : 'theme'
+  const sourceType = inputTab === SCRIPT_TAB ? 'script' : 'theme'
   const inspTotal = Math.ceil(INSPIRATION_POOL.length / PAGE_SIZE)
   const inspirations = INSPIRATION_POOL.slice(inspPage * PAGE_SIZE, inspPage * PAGE_SIZE + PAGE_SIZE)
 
-  // 把灵感示例填进主题/文案，并同步短标题
+  // Đổ gợi ý mẫu vào ô chủ đề/lời dẫn và đồng bộ tên ngắn
   function applyInspiration(item: Inspiration) {
     if (sourceType === 'script') {
-      setInputTab('粘贴完整文案')
+      setInputTab(SCRIPT_TAB)
       setSourceText(item.script.slice(0, 8000))
     } else {
-      setInputTab('一句话主题')
+      setInputTab(THEME_TAB)
       setSourceText(item.theme.slice(0, 100))
     }
     setTitle(item.title.slice(0, 24))
@@ -254,7 +282,7 @@ export default function CreateProjectPage() {
   }
 
   async function aiExpand() {
-    const seed = sourceText.trim() || title.trim() || '人工智能如何改变生活'
+    const seed = sourceText.trim() || title.trim() || 'AI thay đổi cuộc sống ra sao'
     setAiBusy(true)
     setError('')
     try {
@@ -265,7 +293,7 @@ export default function CreateProjectPage() {
         setTitle(result.title.slice(0, 24))
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'AI 生成失败')
+      setError(err instanceof Error ? err.message : 'AI không tạo được nội dung.')
     } finally {
       setAiBusy(false)
     }
@@ -273,7 +301,7 @@ export default function CreateProjectPage() {
 
   async function next() {
     if (!templateId || !sourceText.trim()) {
-      setError('请选择模板并填写主题内容')
+      setError('Hãy chọn mẫu và nhập nội dung chủ đề.')
       return
     }
     setBusy(true)
@@ -285,7 +313,7 @@ export default function CreateProjectPage() {
       const pipeline_mode: 'full' | 'image_text' =
         modeParam === 'image_text' || modeParam === 'full' ? modeParam : 'full'
       const finalTitle =
-        title.trim() || deriveTitle(sourceText) || sourceText.trim().slice(0, 24) || '未命名作品'
+        title.trim() || deriveTitle(sourceText) || sourceText.trim().slice(0, 24) || UNTITLED
       const project = await api.createProject({
         template_id: templateId,
         title: finalTitle,
@@ -298,7 +326,7 @@ export default function CreateProjectPage() {
       })
       nav(`/studio/${project.id}/style`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : '创建失败')
+      setError(err instanceof Error ? err.message : 'Tạo dự án thất bại.')
     } finally {
       setBusy(false)
     }
@@ -306,26 +334,36 @@ export default function CreateProjectPage() {
 
   return (
     <AppShell active="studio" wide>
-      <header className="pf-page-head">
+      <header className="pf-page-head studio-scoped">
         <div className="pf-page-head-row">
           <div>
             <button type="button" className="pf-back" onClick={() => nav('/')}>
               <IconChevronLeft size={18} />
-              新建项目 / 开始创作
+              Dự án mới / Bắt đầu sáng tạo
             </button>
-            <h1 className="pf-page-title">创建项目</h1>
+            <h1 className="pf-page-title">Tạo dự án</h1>
           </div>
           <Stepper steps={kepuSteps()} current={kepuStepIndex('create')} doneThrough={-1} />
         </div>
       </header>
 
-      <div className="pf-create">
+      <div className="pf-create studio-scoped">
         <aside className="pf-create-col">
-          <h3>选择模板</h3>
+          <h3>Chọn mẫu</h3>
           <div className="pf-search">
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜索模板…" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Tìm mẫu…"
+              aria-label="Tìm mẫu theo tên"
+            />
           </div>
-          <PillTabs items={categories.slice(0, 6)} value={category} onChange={setCategory} ariaLabel="模板分类" />
+          <PillTabs
+            items={categories.slice(0, 6)}
+            value={category}
+            onChange={setCategory}
+            ariaLabel="Nhóm mẫu"
+          />
           <div className="pf-tpl-list" style={{ marginTop: '0.75rem' }}>
             {filtered.map((t) => (
               <button
@@ -334,11 +372,11 @@ export default function CreateProjectPage() {
                 className={templateId === t.id ? 'pf-tpl-mini selected' : 'pf-tpl-mini'}
                 onClick={() => setTemplateId(t.id)}
               >
-                <img src={api.assetUrl(t.preview_cover)} alt="" />
+                <img src={api.assetUrl(t.preview_cover)} alt="" loading="lazy" />
                 <div>
                   <strong>{t.name}</strong>
                   <span>
-                    {t.default_ratio} · {(t.category || [])[0] || '通用'}
+                    {t.default_ratio} · {(t.category || [])[0] || 'Đa dụng'}
                   </span>
                 </div>
               </button>
@@ -347,9 +385,9 @@ export default function CreateProjectPage() {
         </aside>
 
         <section className="pf-create-col">
-          <h3>输入内容</h3>
+          <h3>Nhập nội dung</h3>
           <div className="pf-input-tabs">
-            {['一句话主题', '粘贴完整文案'].map((tab) => (
+            {[THEME_TAB, SCRIPT_TAB].map((tab) => (
               <button
                 key={tab}
                 type="button"
@@ -362,7 +400,7 @@ export default function CreateProjectPage() {
           </div>
 
           <label className="pf-field">
-            <span className="pf-field-label">项目名称</span>
+            <span className="pf-field-label">Tên dự án</span>
             <input
               className="pf-field-input"
               value={title}
@@ -376,7 +414,7 @@ export default function CreateProjectPage() {
                   setTitleTouched(false)
                 }
               }}
-              placeholder="将根据内容自动填充"
+              placeholder="Sẽ tự động điền theo nội dung"
             />
           </label>
 
@@ -389,10 +427,16 @@ export default function CreateProjectPage() {
                 onClick={aiExpand}
               >
                 <IconSparkles size={14} />
-                {aiBusy ? '生成中…' : sourceType === 'script' ? 'AI 扩写文案' : 'AI 生成主题'}
+                {aiBusy
+                  ? 'Đang tạo…'
+                  : sourceType === 'script'
+                    ? 'AI viết dài lời dẫn'
+                    : 'AI tạo chủ đề'}
               </button>
               <span className="pf-muted" style={{ fontSize: '0.75rem' }}>
-                {sourceType === 'script' ? '可从一句话扩成完整口播' : '补全受众与知识点'}
+                {sourceType === 'script'
+                  ? 'Viết dài từ một câu thành lời dẫn đầy đủ'
+                  : 'Bổ sung đối tượng và kiến thức trọng tâm'}
               </span>
             </div>
             <textarea
@@ -406,23 +450,27 @@ export default function CreateProjectPage() {
               }}
               placeholder={
                 sourceType === 'theme'
-                  ? '例如：黑洞是如何形成的？用通俗方式讲清引力与时空'
-                  : '粘贴或 AI 生成完整口播文案…'
+                  ? 'Ví dụ: Hố đen hình thành ra sao? Giải thích dễ hiểu về lực hút và không gian'
+                  : 'Dán lời dẫn đầy đủ hoặc để AI tạo…'
               }
             />
             {sourceType === 'theme' ? (
               <span className="pf-char-count">{sourceText.length}/100</span>
             ) : (
-              <span className="pf-char-count">{sourceText.length} 字</span>
+              <span className="pf-char-count">{sourceText.length} ký tự</span>
             )}
           </div>
 
           <div className="pf-inspire">
             <div className="pf-inspire-head">
-              <strong>灵感示例</strong>
-              <button type="button" className="pf-btn pf-btn-ghost pf-btn-sm pf-btn-icon" onClick={shuffleInspirations}>
+              <strong>Gợi ý mẫu</strong>
+              <button
+                type="button"
+                className="pf-btn pf-btn-ghost pf-btn-sm pf-btn-icon"
+                onClick={shuffleInspirations}
+              >
                 <IconRefresh size={14} />
-                换一批
+                Đổi bộ khác
               </button>
             </div>
             <div className="pf-chips">
@@ -439,51 +487,54 @@ export default function CreateProjectPage() {
               ))}
             </div>
             <p className="pf-muted" style={{ fontSize: '0.78rem', margin: '0.55rem 0 0' }}>
-              点击示例会填充完整{sourceType === 'script' ? '文案' : '主题'}并自动写入项目名称
+              Bấm một ví dụ để điền đầy đủ {sourceType === 'script' ? 'lời dẫn' : 'chủ đề'} và tự đặt
+                  tên dự án.
             </p>
           </div>
 
           <div className="pf-hint" style={{ marginTop: '1rem' }}>
-            主题越具体，AI 越容易生成准确的科普分镜与旁白。可写清受众与核心知识点。
+            Chủ đề càng cụ thể, AI càng dễ tạo ra storyboard và lời dẫn đúng. Hãy nêu rõ đối tượng
+            và kiến thức trọng tâm.
           </div>
           {error ? <BillingErrorNotice message={error} /> : null}
         </section>
 
         <aside className="pf-create-col">
-          <h3>创作摘要</h3>
+          <h3>Tóm tắt dự án</h3>
           {selected ? (
-            <div style={{ marginBottom: '0.85rem' }}>
-              <img
-                src={api.assetUrl(selected.preview_cover)}
-                alt=""
-                style={{ width: '100%', borderRadius: 12, aspectRatio: '16/9', objectFit: 'cover' }}
-              />
-              <strong style={{ display: 'block', marginTop: '0.5rem' }}>{selected.name}</strong>
-              <p className="pf-muted" style={{ margin: '0.25rem 0 0', fontSize: '0.85rem' }}>
-                {selected.description}
-              </p>
-            </div>
+            <figure className="studio-summary-figure">
+              <img src={api.assetUrl(selected.preview_cover)} alt="" />
+              <figcaption>
+                <strong>{selected.name}</strong>
+                <p className="pf-muted">{selected.description}</p>
+              </figcaption>
+            </figure>
           ) : (
-            <p className="pf-muted">请选择模板</p>
+            <div className="studio-pick-hint">
+              <span className="studio-pick-art" aria-hidden>
+                <img src={getDramaImageStylePreviewUrl('shanghai-animation')} alt="" />
+              </span>
+              <p className="pf-muted">Chưa chọn mẫu nào. Bấm một mẫu bên trái để xem phần tóm tắt.</p>
+            </div>
           )}
           <div className="pf-summary-row">
-            <span>作品名称</span>
-            <span>{title.trim() || '未命名作品'}</span>
+            <span>Tên tác phẩm</span>
+            <span>{title.trim() || UNTITLED}</span>
           </div>
           <div className="pf-summary-row">
-            <span>输出模式</span>
-            <span>{selected?.default_ratio === '9:16' ? '视频 · 9:16' : '视频 · 16:9'}</span>
+            <span>Định dạng đầu ra</span>
+            <span>{selected?.default_ratio === '9:16' ? 'Video · 9:16' : 'Video · 16:9'}</span>
           </div>
           <div className="pf-summary-row">
-            <span>预估时长</span>
-            <span>~1–3 分钟</span>
+            <span>Thời lượng ước tính</span>
+            <span>~1–3 phút</span>
           </div>
           <div className="pf-summary-row">
-            <span>语言</span>
-            <span>中文（普通话）</span>
+            <span>Ngôn ngữ</span>
+            <span>Tiếng Việt</span>
           </div>
           <div className="pf-summary-row">
-            <span>输入方式</span>
+            <span>Cách nhập</span>
             <span>{inputTab}</span>
           </div>
           <button
@@ -493,7 +544,7 @@ export default function CreateProjectPage() {
             disabled={busy || aiBusy || !templateId || !sourceText.trim()}
             onClick={next}
           >
-            {busy ? '创建中…' : '下一步：风格配置'}
+            {busy ? 'Đang tạo…' : 'Bước tiếp theo: Cấu hình phong cách'}
             {!busy ? <span aria-hidden>→</span> : null}
           </button>
           <button
@@ -504,10 +555,10 @@ export default function CreateProjectPage() {
             onClick={aiExpand}
           >
             <IconSparkles size={14} />
-            {aiBusy ? 'AI 生成中…' : '不够完整？让 AI 帮你写'}
+            {aiBusy ? 'AI đang tạo…' : 'Chưa đủ ý? Để AI viết hộ'}
           </button>
           <p className="pf-muted" style={{ fontSize: '0.78rem', marginTop: '0.5rem' }}>
-            画风已随模板带上。下一步确认配音与成片方式。
+            Phong cách hình ảnh đã đi kèm mẫu. Bước sau xác nhận lồng tiếng và cách dựng phim.
           </p>
         </aside>
       </div>

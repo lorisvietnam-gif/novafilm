@@ -7,8 +7,24 @@ import AppShell from '../../components/layout/AppShell'
 import ComingSoon from '../../components/ui/ComingSoon'
 import { STATUS_CN, shotsByNo } from '../../lib/status'
 import { downloadSingleVideo } from '../../lib/clientDownload'
+import { getDramaImageStylePreviewUrl } from '../../lib/dramaImageStylePreviews'
+import type { ImageStyleId } from '../../lib/dramaImageStyles'
+import './studio.css'
 
-const PANEL_TABS = ['文案', '画面', '配音', '转场'] as const
+const SCRIPT_TAB = 'Lời dẫn'
+const VISUAL_TAB = 'Hình ảnh'
+const VOICE_TAB = 'Lồng tiếng'
+const TRANSITION_TAB = 'Chuyển cảnh'
+
+const PANEL_TABS = [SCRIPT_TAB, VISUAL_TAB, VOICE_TAB, TRANSITION_TAB] as const
+
+/** Ảnh trang trí cho các ô trống — đổi theo ngữ cảnh để không lặp cảm giác */
+const EMPTY_ART: Record<string, ImageStyleId> = {
+  list: '90s-realistic-film',
+  preview: 'retro-narrative-film',
+  strip: 'japanese-daily-natural',
+  library: 'korean-urban-soft',
+}
 
 export default function EditorPage() {
   const { id } = useParams()
@@ -16,7 +32,7 @@ export default function EditorPage() {
   const nav = useNavigate()
   const [project, setProject] = useState<Project | null>(null)
   const [activeShotId, setActiveShotId] = useState<number | null>(null)
-  const [tab, setTab] = useState<(typeof PANEL_TABS)[number]>('文案')
+  const [tab, setTab] = useState<(typeof PANEL_TABS)[number]>(SCRIPT_TAB)
   const [narration, setNarration] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -41,7 +57,7 @@ export default function EditorPage() {
           setNarration(first.narration || '')
         }
       })
-      .catch((err) => setError(err instanceof Error ? err.message : '加载失败'))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Không tải được dự án.'))
   }, [nav, projectId])
 
   const orderedShots = useMemo(() => shotsByNo(project?.shots), [project?.shots])
@@ -69,7 +85,7 @@ export default function EditorPage() {
       await api.updateShot(project.id, shot.id, { narration })
       setProject(await api.getProject(project.id))
     } catch (err) {
-      setError(err instanceof Error ? err.message : '保存失败')
+      setError(err instanceof Error ? err.message : 'Lưu lời dẫn thất bại.')
     } finally {
       setBusy(false)
     }
@@ -82,13 +98,13 @@ export default function EditorPage() {
       await api.regenImage(project.id, shot.id)
       setProject(await api.getProject(project.id))
     } catch (err) {
-      setError(err instanceof Error ? err.message : '重生成失败')
+      setError(err instanceof Error ? err.message : 'Tạo lại hình ảnh thất bại.')
     } finally {
       setBusy(false)
     }
   }
 
-  /** 在片尾追加一镜，并选中新建镜头。 */
+  /** Thêm một cảnh quay vào cuối phim và chọn cảnh mới tạo. */
   async function addShot() {
     if (!project) return
     setBusy(true)
@@ -100,13 +116,13 @@ export default function EditorPage() {
       const s = next.shots.find((x) => x.id === created.id)
       if (s) selectShot(s)
     } catch (err) {
-      setError(err instanceof Error ? err.message : '添加镜头失败')
+      setError(err instanceof Error ? err.message : 'Thêm cảnh quay thất bại.')
     } finally {
       setBusy(false)
     }
   }
 
-  /** 将当前镜与相邻镜对调顺序。 */
+  /** Đổi chỗ cảnh quay hiện tại với cảnh kế bên. */
   async function moveShot(delta: number) {
     if (!project || !shot) return
     const ordered = orderedShots
@@ -120,13 +136,13 @@ export default function EditorPage() {
     try {
       setProject(await api.reorderShots(project.id, ids))
     } catch (err) {
-      setError(err instanceof Error ? err.message : '调序失败')
+      setError(err instanceof Error ? err.message : 'Đổi thứ tự thất bại.')
     } finally {
       setBusy(false)
     }
   }
 
-  /** 上传本镜静帧，替换后需重出视频。 */
+  /** Tải lên khung hình cho cảnh này; thay xong phải tạo lại video. */
   async function onShotImageFile(file: File | null) {
     if (!project || !shot || !file) return
     setBusy(true)
@@ -134,14 +150,14 @@ export default function EditorPage() {
     try {
       setProject(await api.uploadShotImage(project.id, shot.id, file))
     } catch (err) {
-      setError(err instanceof Error ? err.message : '上传画面失败')
+      setError(err instanceof Error ? err.message : 'Tải ảnh lên thất bại.')
     } finally {
       setBusy(false)
       if (shotFileRef.current) shotFileRef.current.value = ''
     }
   }
 
-  /** 下载已合成的成片。 */
+  /** Tải phim hoàn chỉnh đã ghép. */
   async function exportFilm() {
     if (!project?.final_video_url) return
     setBusy(true)
@@ -153,7 +169,7 @@ export default function EditorPage() {
         url: api.assetUrl(project.final_video_url, project.updated_at),
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : '导出失败')
+      setError(err instanceof Error ? err.message : 'Xuất video thất bại.')
     } finally {
       setBusy(false)
     }
@@ -166,7 +182,7 @@ export default function EditorPage() {
       await api.regenAudio(project.id, shot.id)
       setProject(await api.getProject(project.id))
     } catch (err) {
-      setError(err instanceof Error ? err.message : '重配音失败')
+      setError(err instanceof Error ? err.message : 'Lồng tiếng lại thất bại.')
     } finally {
       setBusy(false)
     }
@@ -176,7 +192,7 @@ export default function EditorPage() {
     return (
       <AppShell active="studio" flush>
         <p className="pf-muted" style={{ padding: '2rem' }}>
-          加载中…
+          Đang tải…
         </p>
       </AppShell>
     )
@@ -190,354 +206,370 @@ export default function EditorPage() {
     )
   }
 
-  const isPortrait = (project.output_ratio || '') === '9:16' || (!project.output_ratio && project.pipeline_mode === 'image_text')
-  // Prefer current shot media; final film is for dedicated preview, not shot editing.
+  const isPortrait =
+    (project.output_ratio || '') === '9:16' ||
+    (!project.output_ratio && project.pipeline_mode === 'image_text')
+  // Ưu tiên tư liệu của cảnh đang chọn; phim hoàn chỉnh dành cho mục xem trước, không dùng để sửa cảnh.
   const shotVideo = shot?.video_url ? api.assetUrl(shot.video_url, shot.version) : null
   const shotImage = shot?.image_url ? api.assetUrl(shot.image_url, shot.version) : null
 
   return (
     <AppShell active="studio" flush>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0.75rem 1.25rem',
-          borderBottom: '1px solid var(--pf-line)',
-          background: '#fff',
-          flexWrap: 'wrap',
-          gap: '0.5rem',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <button type="button" className="pf-link" onClick={() => nav(`/studio/${project.id}`)}>
-            ← 返回项目
-          </button>
-          <strong>{project.title}</strong>
-          <span className="pf-muted" style={{ fontSize: '0.8rem' }}>
-            {STATUS_CN[project.status] || project.status}
-          </span>
-        </div>
-        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-          <button type="button" className="pf-btn pf-btn-ghost pf-btn-sm" disabled>
-            撤销 <ComingSoon />
-          </button>
-          <button type="button" className="pf-btn pf-btn-ghost pf-btn-sm" disabled>
-            重做 <ComingSoon />
-          </button>
-          <button type="button" className="pf-btn pf-btn-ghost pf-btn-sm" disabled>
-            保存草稿 <ComingSoon />
-          </button>
-          <button
-            type="button"
-            className="pf-btn pf-btn-ghost pf-btn-sm"
-            disabled={!shot?.video_url && !project.final_video_url}
-            onClick={() => {
-              const el = document.getElementById('pf-editor-player') as HTMLVideoElement | null
-              if (el) {
-                el.play()
-                return
-              }
-              if (project.final_video_url) {
-                window.open(api.assetUrl(project.final_video_url, project.updated_at), '_blank')
-              }
-            }}
-          >
-            预览播放
-          </button>
-          <button
-            type="button"
-            className="pf-btn pf-btn-lime pf-btn-sm"
-            disabled={busy || !project.final_video_url}
-            onClick={() => void exportFilm()}
-          >
-            导出视频
-          </button>
-        </div>
-      </div>
-
-      {error ? (
-        <BillingErrorNotice message={error} style={{ padding: '0.5rem 1.25rem' }} />
-      ) : null}
-
-      <div className="pf-editor">
-        <aside>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-            <strong>场景列表</strong>
-            <button type="button" className="pf-link" disabled={busy} onClick={() => void addShot()}>
-              + 添加镜头
+      <div className="studio-scoped">
+        <div className="studio-editor-bar">
+          <div className="studio-editor-bar-id">
+            <button type="button" className="pf-link" onClick={() => nav(`/studio/${project.id}`)}>
+              ← Quay lại dự án
             </button>
+            <strong>{project.title}</strong>
+            <span className="studio-status-chip">{STATUS_CN[project.status] || project.status}</span>
           </div>
-          {orderedShots.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              className={activeShotId === s.id ? 'pf-scene-item active' : 'pf-scene-item'}
-              onClick={() => selectShot(s)}
-            >
-              {s.image_url ? (
-                <img src={api.assetUrl(s.image_url, s.version)} alt="" />
-              ) : (
-                <div className="ph" />
-              )}
-              <div>
-                <strong style={{ fontSize: '0.82rem' }}>
-                  {String(s.shot_no).padStart(2, '0')} {s.overlay_title || '镜头'}
-                </strong>
-                <div className="pf-muted" style={{ fontSize: '0.72rem' }}>
-                  {(s.narration || '').slice(0, 28)}
-                </div>
-              </div>
+          <div className="studio-editor-bar-ops">
+            <button type="button" className="pf-btn pf-btn-ghost pf-btn-sm" disabled>
+              Hoàn tác <ComingSoon />
             </button>
-          ))}
-          <p className="pf-muted" style={{ fontSize: '0.8rem', marginTop: '0.75rem' }}>
-            总时长{' '}
-            {Math.floor(totalDuration / 60)
-              .toString()
-              .padStart(2, '0')}
-            :
-            {Math.floor(totalDuration % 60)
-              .toString()
-              .padStart(2, '0')}
-          </p>
-          <div style={{ display: 'flex', gap: 8, marginTop: '0.75rem' }}>
-            <button
-              type="button"
-              className="pf-btn pf-btn-ghost pf-btn-sm"
-              disabled={busy || !shot || shotIndex <= 0}
-              onClick={() => void moveShot(-1)}
-            >
-              上移
+            <button type="button" className="pf-btn pf-btn-ghost pf-btn-sm" disabled>
+              Làm lại <ComingSoon />
+            </button>
+            <button type="button" className="pf-btn pf-btn-ghost pf-btn-sm" disabled>
+              Lưu nháp <ComingSoon />
             </button>
             <button
               type="button"
               className="pf-btn pf-btn-ghost pf-btn-sm"
-              disabled={busy || !shot || shotIndex < 0 || shotIndex >= orderedShots.length - 1}
-              onClick={() => void moveShot(1)}
+              disabled={!shot?.video_url && !project.final_video_url}
+              onClick={() => {
+                const el = document.getElementById('pf-editor-player') as HTMLVideoElement | null
+                if (el) {
+                  el.play()
+                  return
+                }
+                if (project.final_video_url) {
+                  window.open(api.assetUrl(project.final_video_url, project.updated_at), '_blank')
+                }
+              }}
             >
-              下移
+              Xem thử
+            </button>
+            <button
+              type="button"
+              className="pf-btn pf-btn-lime pf-btn-sm"
+              disabled={busy || !project.final_video_url}
+              onClick={() => void exportFilm()}
+            >
+              Xuất video
             </button>
           </div>
-        </aside>
+        </div>
 
-        <section>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
-            <strong>
-              {shot ? `镜头 ${shot.shot_no}` : '预览'} · {isPortrait ? '9:16' : '16:9'}
-            </strong>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input
-                ref={shotFileRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                hidden
-                onChange={(e) => void onShotImageFile(e.target.files?.[0] || null)}
-              />
+        {error ? (
+          <BillingErrorNotice message={error} style={{ padding: '0.5rem 1.25rem' }} />
+        ) : null}
+
+        <div className="pf-editor">
+          <aside>
+            <div className="studio-panel-head">
+              <strong>Danh sách cảnh quay</strong>
               <button
                 type="button"
-                className="pf-btn pf-btn-ghost pf-btn-sm"
-                disabled={busy || !shot}
-                onClick={() => shotFileRef.current?.click()}
+                className="pf-link"
+                disabled={busy}
+                onClick={() => void addShot()}
               >
-                上传画面
-              </button>
-              <button type="button" className="pf-btn pf-btn-ghost pf-btn-sm" disabled={busy} onClick={regenImage}>
-                AI 重绘
+                + Thêm cảnh quay
               </button>
             </div>
-          </div>
-          <div className={isPortrait ? 'pf-editor-preview portrait' : 'pf-editor-preview'}>
-            {shotVideo ? (
-              <video
-                id="pf-editor-player"
-                key={`v-${shot?.id}-${shot?.version}`}
-                src={shotVideo}
-                poster={shotImage || undefined}
-                controls
-                playsInline
-              />
-            ) : shotImage ? (
-              <img key={`i-${shot?.id}-${shot?.version}`} src={shotImage} alt="" />
-            ) : (
-              <span className="empty">暂无画面</span>
-            )}
-          </div>
-          {shot?.audio_url ? (
-            <audio
-              src={api.assetUrl(shot.audio_url)}
-              controls
-              style={{ width: '100%', marginTop: '0.65rem' }}
-            />
-          ) : null}
-
-          <div
-            style={{
-              marginTop: '0.85rem',
-              display: 'flex',
-              gap: '0.4rem',
-              overflowX: 'auto',
-              paddingBottom: 4,
-            }}
-          >
             {orderedShots.map((s) => (
               <button
                 key={s.id}
                 type="button"
+                className={activeShotId === s.id ? 'pf-scene-item active' : 'pf-scene-item'}
                 onClick={() => selectShot(s)}
-                style={{
-                  border: activeShotId === s.id ? '2px solid var(--pf-lime)' : '1px solid var(--pf-line)',
-                  borderRadius: 8,
-                  padding: 0,
-                  background: 'transparent',
-                }}
               >
                 {s.image_url ? (
-                  <img
-                    src={api.assetUrl(s.image_url, s.version)}
-                    alt=""
-                    style={{ width: 88, height: 50, objectFit: 'cover', display: 'block', borderRadius: 6 }}
-                  />
+                  <img src={api.assetUrl(s.image_url, s.version)} alt="" loading="lazy" />
                 ) : (
-                  <div style={{ width: 88, height: 50, background: '#eee', borderRadius: 6 }} />
+                  <span className="studio-thumb-empty" aria-hidden>
+                    <img
+                      src={getDramaImageStylePreviewUrl(EMPTY_ART.list)}
+                      alt=""
+                      loading="lazy"
+                    />
+                  </span>
                 )}
+                <div>
+                  <strong style={{ fontSize: '0.82rem' }}>
+                    {String(s.shot_no).padStart(2, '0')} {s.overlay_title || 'Cảnh quay'}
+                  </strong>
+                  <div className="pf-muted" style={{ fontSize: '0.72rem' }}>
+                    {(s.narration || '').slice(0, 28)}
+                  </div>
+                </div>
               </button>
             ))}
-          </div>
+            <p className="pf-muted studio-total-time">
+              Tổng thời lượng{' '}
+              {Math.floor(totalDuration / 60)
+                .toString()
+                .padStart(2, '0')}
+              :
+              {Math.floor(totalDuration % 60)
+                .toString()
+                .padStart(2, '0')}
+            </p>
+            <div className="studio-reorder-row">
+              <button
+                type="button"
+                className="pf-btn pf-btn-ghost pf-btn-sm"
+                disabled={busy || !shot || shotIndex <= 0}
+                onClick={() => void moveShot(-1)}
+              >
+                Lên
+              </button>
+              <button
+                type="button"
+                className="pf-btn pf-btn-ghost pf-btn-sm"
+                disabled={busy || !shot || shotIndex < 0 || shotIndex >= orderedShots.length - 1}
+                onClick={() => void moveShot(1)}
+              >
+                Xuống
+              </button>
+            </div>
+          </aside>
 
-          <div
-            style={{
-              marginTop: '0.85rem',
-              border: '1px dashed var(--pf-line)',
-              borderRadius: 12,
-              padding: '1.25rem',
-              textAlign: 'center',
-              color: 'var(--pf-muted)',
-              fontSize: '0.9rem',
-            }}
-          >
-            可用「上传画面」替换本镜图，或「AI 重绘」按提示词重生。
-          </div>
+          <section>
+            <div className="studio-panel-head">
+              <strong>
+                {shot ? `Cảnh quay ${shot.shot_no}` : 'Xem trước'} ·{' '}
+                {isPortrait ? '9:16' : '16:9'}
+              </strong>
+              <div className="studio-panel-ops">
+                <input
+                  ref={shotFileRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  hidden
+                  onChange={(e) => void onShotImageFile(e.target.files?.[0] || null)}
+                />
+                <button
+                  type="button"
+                  className="pf-btn pf-btn-ghost pf-btn-sm"
+                  disabled={busy || !shot}
+                  onClick={() => shotFileRef.current?.click()}
+                >
+                  Tải ảnh lên
+                </button>
+                <button
+                  type="button"
+                  className="pf-btn pf-btn-ghost pf-btn-sm"
+                  disabled={busy}
+                  onClick={regenImage}
+                >
+                  AI vẽ lại
+                </button>
+              </div>
+            </div>
+            <div className={isPortrait ? 'pf-editor-preview portrait' : 'pf-editor-preview'}>
+              {shotVideo ? (
+                <video
+                  id="pf-editor-player"
+                  key={`v-${shot?.id}-${shot?.version}`}
+                  src={shotVideo}
+                  poster={shotImage || undefined}
+                  controls
+                  playsInline
+                />
+              ) : shotImage ? (
+                <img key={`i-${shot?.id}-${shot?.version}`} src={shotImage} alt="" />
+              ) : (
+                <div className="studio-still studio-still--placeholder studio-preview-empty">
+                  <img
+                    src={getDramaImageStylePreviewUrl(EMPTY_ART.preview)}
+                    alt=""
+                    loading="lazy"
+                  />
+                  <span className="studio-still-note">
+                    {shot
+                      ? 'Cảnh này chưa có hình. Tạo ảnh hoặc tải ảnh của bạn lên.'
+                      : 'Chọn một cảnh quay ở cột bên trái để xem trước.'}
+                  </span>
+                </div>
+              )}
+            </div>
+            {shot?.audio_url ? (
+              <audio
+                src={api.assetUrl(shot.audio_url)}
+                controls
+                style={{ width: '100%', marginTop: '0.65rem' }}
+              />
+            ) : null}
 
-          <div style={{ marginTop: '1rem' }}>
+            <div className="studio-strip">
+              {orderedShots.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className={activeShotId === s.id ? 'is-active' : ''}
+                  onClick={() => selectShot(s)}
+                  aria-label={`Cảnh quay ${s.shot_no}`}
+                  aria-pressed={activeShotId === s.id}
+                >
+                  {s.image_url ? (
+                    <img
+                      src={api.assetUrl(s.image_url, s.version)}
+                      alt=""
+                      loading="lazy"
+                      style={{ width: 88, height: 50, objectFit: 'cover', display: 'block', borderRadius: 6 }}
+                    />
+                  ) : (
+                    <span className="studio-strip-empty" aria-hidden>
+                      <img
+                        src={getDramaImageStylePreviewUrl(EMPTY_ART.strip)}
+                        alt=""
+                        loading="lazy"
+                      />
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <div className="studio-dropzone">
+              <p>
+                Bạn có thể dùng <strong>“Tải ảnh lên”</strong> để thay ảnh của cảnh này, hoặc dùng{' '}
+                <strong>“AI vẽ lại”</strong> để tạo lại từ prompt.
+              </p>
+            </div>
+
+            <div style={{ marginTop: '1rem' }}>
+              <div className="pf-panel-tabs">
+                {['Thư viện tư liệu', 'Tư liệu đã lưu', 'Tư liệu AI tạo', 'Tư liệu tôi tải lên'].map(
+                  (t) => (
+                    <button key={t} type="button" disabled>
+                      {t}
+                    </button>
+                  ),
+                )}
+              </div>
+              <div className="studio-library-teaser">
+                <span className="studio-library-art" aria-hidden>
+                  <img
+                    src={getDramaImageStylePreviewUrl(EMPTY_ART.library)}
+                    alt=""
+                    loading="lazy"
+                  />
+                </span>
+                <p className="pf-muted">
+                  Thư viện tư liệu sắp có. Hiện tại bạn dùng “Tải ảnh lên” hoặc “AI vẽ lại” ở phía
+                  trên để thay ảnh cho cảnh này.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <aside>
             <div className="pf-panel-tabs">
-              {['素材库', '收藏素材', 'AI 生成素材', '我的上传'].map((t) => (
-                <button key={t} type="button" disabled>
+              {PANEL_TABS.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  className={tab === t ? 'active' : ''}
+                  onClick={() => setTab(t)}
+                >
                   {t}
                 </button>
               ))}
             </div>
-            <p className="pf-muted" style={{ fontSize: '0.85rem' }}>
-              素材库即将推出。当前可用上方「上传画面」或「AI 重绘」替换本镜图。
-            </p>
-          </div>
-        </section>
 
-        <aside>
-          <div className="pf-panel-tabs">
-            {PANEL_TABS.map((t) => (
-              <button
-                key={t}
-                type="button"
-                className={tab === t ? 'active' : ''}
-                onClick={() => setTab(t)}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
+            {tab === SCRIPT_TAB ? (
+              <>
+                <label className="pf-muted studio-panel-label">
+                  Nội dung lời dẫn
+                  <textarea
+                    value={narration}
+                    onChange={(e) => setNarration(e.target.value)}
+                    rows={5}
+                    className="studio-narration-input"
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="pf-btn pf-btn-ghost pf-btn-sm pf-btn-block"
+                  style={{ marginTop: 8 }}
+                  disabled
+                >
+                  AI tối ưu cảnh này <ComingSoon />
+                </button>
+                <div style={{ marginTop: '0.85rem' }}>
+                  <strong style={{ fontSize: '0.88rem' }}>
+                    Trang trí chữ <ComingSoon />
+                  </strong>
+                  <p className="pf-muted" style={{ fontSize: '0.8rem' }}>
+                    Font chữ / cỡ chữ / màu / căn lề — đang phát triển
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="pf-btn pf-btn-lime pf-btn-block"
+                  style={{ marginTop: '1rem' }}
+                  disabled={busy}
+                  onClick={saveNarration}
+                >
+                  Lưu lời dẫn
+                </button>
+              </>
+            ) : null}
 
-          {tab === '文案' ? (
-            <>
-              <label className="pf-muted" style={{ fontSize: '0.85rem', display: 'block' }}>
-                文案内容
-                <textarea
-                  value={narration}
-                  onChange={(e) => setNarration(e.target.value)}
-                  rows={5}
-                  style={{
-                    width: '100%',
-                    marginTop: 6,
-                    borderRadius: 10,
-                    border: '1px solid var(--pf-line)',
-                    padding: '0.65rem',
-                  }}
-                />
-              </label>
-              <button
-                type="button"
-                className="pf-btn pf-btn-ghost pf-btn-sm pf-btn-block"
-                style={{ marginTop: 8 }}
-                disabled
-              >
-                AI 帮我优化这一镜 <ComingSoon />
-              </button>
-              <div style={{ marginTop: '0.85rem' }}>
-                <strong style={{ fontSize: '0.88rem' }}>
-                  样式设置 <ComingSoon />
-                </strong>
-                <p className="pf-muted" style={{ fontSize: '0.8rem' }}>
-                  字体 / 字号 / 颜色 / 对齐占位
+            {tab === VISUAL_TAB ? (
+              <>
+                <p className="pf-muted" style={{ fontSize: '0.88rem' }}>
+                  Dùng “Tải ảnh lên” ở vùng xem trước để thay ảnh cho cảnh này, hoặc “AI vẽ lại” để
+                  tạo lại từ prompt.
                 </p>
+                <button
+                  type="button"
+                  className="pf-btn pf-btn-lime pf-btn-block"
+                  disabled={busy}
+                  onClick={regenImage}
+                >
+                  Tạo lại cảnh quay này
+                </button>
+              </>
+            ) : null}
+
+            {tab === VOICE_TAB ? (
+              <>
+                <p className="pf-muted" style={{ fontSize: '0.88rem' }}>
+                  Lồng tiếng lại cho cảnh quay này, vẫn dùng giọng đã chọn cho dự án.
+                </p>
+                <button
+                  type="button"
+                  className="pf-btn pf-btn-lime pf-btn-block"
+                  disabled={busy}
+                  onClick={regenAudio}
+                >
+                  Lồng tiếng lại
+                </button>
+              </>
+            ) : null}
+
+            {tab === TRANSITION_TAB ? (
+              <div className="pf-hint">
+                Hiệu ứng chuyển cảnh (mờ dần, chớp sáng, nối bằng cử động máy…) sẽ có ở bản cập nhật
+                sau.
               </div>
-              <button
-                type="button"
-                className="pf-btn pf-btn-lime pf-btn-block"
-                style={{ marginTop: '1rem' }}
-                disabled={busy}
-                onClick={saveNarration}
-              >
-                保存文案
-              </button>
-            </>
-          ) : null}
+            ) : null}
 
-          {tab === '画面' ? (
-            <>
-              <p className="pf-muted" style={{ fontSize: '0.88rem' }}>
-                可用预览区「上传画面」替换本镜图，或「AI 重绘」按提示词重生。
-              </p>
-              <button
-                type="button"
-                className="pf-btn pf-btn-lime pf-btn-block"
-                disabled={busy}
-                onClick={regenImage}
-              >
-                重新生成当前镜头
-              </button>
-            </>
-          ) : null}
-
-          {tab === '配音' ? (
-            <>
-              <p className="pf-muted" style={{ fontSize: '0.88rem' }}>
-                替换当前镜头配音（沿用项目音色）。
-              </p>
-              <button
-                type="button"
-                className="pf-btn pf-btn-lime pf-btn-block"
-                disabled={busy}
-                onClick={regenAudio}
-              >
-                替换配音
-              </button>
-            </>
-          ) : null}
-
-          {tab === '转场' ? (
-            <div className="pf-hint">
-              转场效果（淡入淡出、闪白、运镜衔接等）即将推出。
-            </div>
-          ) : null}
-
-          <button
-            type="button"
-            className="pf-btn pf-btn-ghost pf-btn-block"
-            style={{ marginTop: '1rem' }}
-            disabled
-          >
-            应用到全部同类镜头 <ComingSoon />
-          </button>
-        </aside>
+            <button
+              type="button"
+              className="pf-btn pf-btn-ghost pf-btn-block"
+              style={{ marginTop: '1rem' }}
+              disabled
+            >
+              Áp dụng cho mọi cảnh cùng loại <ComingSoon />
+            </button>
+          </aside>
+        </div>
       </div>
     </AppShell>
   )
