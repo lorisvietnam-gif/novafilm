@@ -1,5 +1,5 @@
 /**
- * 漫剧生成队列：把上游/平台原始错误翻成可读文案，并附处理建议
+ * Hàng đợi tạo của AI Drama: dịch lỗi thô từ thượng nguồn / từ nền tảng thành văn bản dễ đọc và gắn cách xử lý
  *
  * RANH GIỚI QUAN TRỌNG — regex giữ tiếng Trung, chuỗi trả về thì dịch:
  *
@@ -21,24 +21,24 @@ import { isBillingError } from './billingError'
 import { localized, type LocalizedText } from './localeStrings'
 
 export type DramaGenErrorView = {
-  /** 短标题 */
+  /** Tiêu đề ngắn */
   title: string
-  /** 用户可读说明 */
+  /** Giải thích cho người dùng đọc được */
   message: string
-  /** 建议操作 */
+  /** Hành động đề xuất */
   suggestion?: string
-  /** 是否余额不足（展示充值跳转） */
+  /** Có phải hết tiền (để hiện lối tới trang nạp) không */
   billingBlocked?: boolean
-  /** 是否上游模型账户欠费（提醒管理员，非用户钱包） */
+  /** Có phải tài khoản mô hình thượng nguồn bị nợ (nhắc quản trị viên, không phải ví người dùng) không */
   upstreamAccountBlocked?: boolean
 }
 
-/** 是否为上游 Seedream 账户欠费 */
+/** Có phải tài khoản Seedream thượng nguồn bị nợ hay không */
 export function isUpstreamAccountError(message: string): boolean {
   return /AccountOverdueError|上游 Seedream 账户欠费|上游.*账户欠费/i.test(message)
 }
 
-// 从 Seedance JSON 文案里取出 content[n]
+// Lấy content[n] từ văn bản JSON của Seedance
 function extractContentIndex(raw: string): number | null {
   const m = raw.match(/content\[(\d+)\]/i)
   if (!m) return null
@@ -46,7 +46,7 @@ function extractContentIndex(raw: string): number | null {
   return Number.isFinite(n) ? n : null
 }
 
-/** 判断文案是否像「具体根因」（优先于「重试上限」等包装句） */
+/** Văn bản có giống "nguyên nhân gốc" không (được ưu tiên hơn các câu bọc kiểu "vượt giới hạn retry") */
 function looksLikeRootCause(text: string): boolean {
   return /PrivacyInformation|InputImageSensitive|SensitiveContentDetected|参考图疑似|参考音频过短|may contain real person|Seedance create error|上一镜失败|无法衔接|分镜已变更|分镜上下文|InputTextSensitive|resource download failed|audio_url|audio duration|Credits insufficient|File type not supported|参考图格式不支持/i.test(
     text,
@@ -71,7 +71,7 @@ function slotLabel(name: string): string {
   return known ? localized(known) : name
 }
 
-// 从错误里尽量抽出已标注的槽位名（后端 content_labels）
+// Cố rút tên slot đã được gán trong lỗi (content_labels từ backend)
 function extractNamedSlot(text: string): string | null {
   const named = text.match(/(角色|场景|道具|旁白|参考图|音色)「([^」]+)」/)
   if (named) return `${slotLabel(named[1])}「${named[2]}」`
@@ -79,8 +79,8 @@ function extractNamedSlot(text: string): string | null {
 }
 
 /**
- * 从多条候选错误里挑出最具体的根因（例如隐私图审核），
- * 避免只展示「重试超过上限」这类包装文案。
+ * Từ nhiều lỗi ứng viên, chọn ra nguyên nhân cụ thể nhất (ví dụ ảnh bị chặn vì riêng tư),
+ * thay vì chỉ hiện câu bọc kiểu "đã vượt giới hạn retry".
  */
 export function pickRootDramaGenError(
   candidates: Array<string | null | undefined>,
@@ -92,8 +92,8 @@ export function pickRootDramaGenError(
 }
 
 /**
- * 将任务 error / error_message 转为前端展示文案。
- * 已是中文短句时尽量保留，仅补建议。
+ * Đổi error / error_message của tác vụ thành văn bản hiển thị ở frontend.
+ * Khi đã là câu tiếng Trung ngắn thì giữ nguyên, chỉ bổ sung gợi ý.
  */
 export function formatDramaGenError(raw: string | null | undefined): DramaGenErrorView {
   const text = String(raw || '').trim()
@@ -354,7 +354,7 @@ export function formatDramaGenError(raw: string | null | undefined): DramaGenErr
     }
   }
 
-  // Seedance r2v：reference_audio 须 ≥ 1.8 秒（不是参考图）
+  // Seedance r2v: reference_audio phải dài ≥ 1.8 giây (đây là audio, không phải ảnh)
   if (/audio duration|参考音频过短|1\.8/i.test(text) && /audio|音色|reference_audio|content\[/i.test(text)) {
     const idx = extractContentIndex(text)
     const named = extractNamedSlot(text)

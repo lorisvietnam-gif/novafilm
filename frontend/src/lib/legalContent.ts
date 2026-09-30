@@ -470,7 +470,8 @@ type ContactChannelCopy = {
   title: LocalizedText
   desc: LocalizedText
   actionLabel: LocalizedText
-  subject?: string
+  /** Chủ đề gửi kèm trong mail liên hệ. */
+  subject?: LocalizedText
 }
 
 /**
@@ -508,7 +509,7 @@ const CONTACT_CHANNEL_COPY: ContactChannelCopy[] = [
       vi: 'Với nhu cầu nạp tiền số lượng lớn, hợp tác API hoặc xuất hoá đơn, hãy gửi email kèm tên công ty và nhu cầu, chúng tôi sẽ sắp xếp liên hệ.',
     },
     actionLabel: { zh: '发送合作邮件', en: 'Email us', vi: 'Gửi email cho chúng tôi' },
-    subject: 'NOVAFILM 企业合作',
+    subject: { zh: 'NOVAFILM 企业合作', en: 'NOVAFILM business enquiry', vi: 'Hợp tác doanh nghiệp NOVAFILM' },
   },
 ]
 
@@ -519,7 +520,7 @@ export const CONTACT_CHANNELS: ContactChannel[] = CONTACT_CHANNEL_COPY.map(
         ? `mailto:${SUPPORT_EMAIL}`
         : index === 1
           ? '/help'
-          : `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(copy.subject || '')}`,
+          : `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(copy.subject ? localized(copy.subject) : '')}`,
     get title() {
       return localized(copy.title)
     },
