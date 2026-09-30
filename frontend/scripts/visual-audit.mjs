@@ -16,7 +16,12 @@ import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const EDGE = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
-const PORT = 9333
+/**
+ * Cổng debug **đổi mỗi lần chạy**. Cố định `:9333` thì một phiên Edge mồ côi nào đó chiếm
+ * cổng là mọi lần chạy sau đều hoặc bị chặn, hoặc âm thầm nối nhầm vào phiên cũ và đo ra số bịa.
+ * Chọn cổng theo pid nên hai lần chạy song song không đụng nhau.
+ */
+const PORT = 9400 + (process.pid % 400)
 /**
  * `AUDIT_BASE` / `AUDIT_API` để một lane trỏ audit vào **dev server của chính nó**.
  * Không có hai biến này thì mọi lane đều đang đo `main` ở `:5173` — tức là đo nhầm thứ mình
@@ -37,9 +42,26 @@ const API = process.env.AUDIT_API || 'http://127.0.0.1:8000'
  */
 const HERE = resolve(fileURLToPath(new URL('.', import.meta.url)))
 const OUT = process.env.AUDIT_OUT || resolve(HERE, '..', '.kilo', 'audit')
-const PROFILE = join(OUT, '..', 'edge-profile')
+const PROFILE = join(OUT, '..', `edge-profile-${process.pid}`)
 
 const CJK = /[\u4e00-\u9fff]/
+
+/**
+ * Bộ đếm ký tự Trung **bị lừa** bởi trang báo lỗi: khi API chết, trang vẫn render bằng tiếng Việt
+ * nhưng không có dữ liệu nào, nên ký tự Trung = 0 và trang **trông như đã sạch**.
+ * Đã xảy ra thật: `/templates` báo `cjk=1` trong khi ảnh chụp cho thấy
+ * *"Không kết nối được máy chủ"* và *"Không có template nào khớp"*.
+ *
+ * Vì vậy: route nào chứa một trong các chuỗi lỗi này thì **không được tính là đạt** — nó bị đánh
+ * dấu `apiDown` và phải báo ra, đồng thời số ký tự của nó không được góp vào tổng.
+ */
+const API_ERROR_MARKERS = [
+  'Không kết nối được máy chủ',
+  'Máy chủ trả về dữ liệu không hợp lệ',
+  'Connection failed',
+  'Failed to fetch',
+  'NetworkError',
+]
 const RAW_KEY = /\b(common|home|nav|auth|tools|pricing|help|legal|shell|drama|studio)\.[a-zA-Z][a-zA-Z0-9]*/g
 
 /** Route cần kiểm. `:id` sẽ thay bằng giá trị thật bên dưới. */
@@ -290,7 +312,8 @@ async function main() {
       })
       const text = textRes?.result?.value || ''
 
-      const cjk = (text.match(/[\u4e00-\u9fff]/g) || []).length
+      const apiDown = API_ERROR_MARKERS.some((m) => text.includes(m))
+      const cjk = apiDown ? -1 : (text.match(/[\u4e00-\u9fff]/g) || []).length
       const rawKeys = [...new Set(text.match(RAW_KEY) || [])]
       const visible = text.trim().length
 
@@ -316,7 +339,7 @@ async function main() {
         .filter((l) => CJK.test(l))
         .slice(0, 40)
 
-      results.push({ locale, route, cjk, rawKeys, visible, errors: consoleErrors.length, cjkLines })
+      results.push({ locale, route, cjk, rawKeys, visible, apiDown, errors: consoleErrors.length, cjkLines })
 
       console.log(
         `${locale}  ${route.padEnd(34)} cjk=${String(cjk).padStart(4)}` +
@@ -328,8 +351,12 @@ async function main() {
         for (const line of cjkLines) console.log(`        | ${line.slice(0, 160)}`)
       }
 
+      // KHÔNG gọi `/json/close` ngay sau `ws.close()`. Đóng socket và đóng tab cùng lúc làm
+      // libuv trên Windows văng `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)` và giết
+      // cả tiến trình node — audit chết giữa chừng, và các route chưa tới bị đọc là "0 ký tự
+      // Trung", tức là **báo sạch trong khi thật ra là trắng trang**. Đã xảy ra vài lần.
       ws.close()
-      await fetch(`http://127.0.0.1:${PORT}/json/close/${tab.id}`)
+      await sleep(200)
     }
   }
 
@@ -338,9 +365,17 @@ async function main() {
   console.log('\n===== TONG HOP =====')
   for (const locale of ['vi', 'en']) {
     const rows = results.filter((r) => r.locale === locale)
-    const bad = rows.filter((r) => r.cjk > 0 || r.rawKeys.length || r.errors || r.visible < 40)
-    const total = rows.reduce((a, r) => a + r.cjk, 0)
-    console.log(`${locale}: ${rows.length} route · ${total} ky tu Trung · ${bad.length} route van van`)
+    const broken = rows.filter((r) => r.apiDown)
+    const scored = rows.filter((r) => !r.apiDown)
+    const bad = scored.filter((r) => r.cjk > 0 || r.rawKeys.length || r.errors || r.visible < 40)
+    const total = scored.reduce((a, r) => a + r.cjk, 0)
+    console.log(
+      `${locale}: ${rows.length} route · ${total} ky tu Trung · ${bad.length} route van van` +
+        (broken.length ? ` · ${broken.length} route API CHET (khong duoc tinh vao tong)` : ''),
+    )
+    for (const r of broken) {
+      console.log(`   ${r.route.padEnd(34)} API_CHET — trang hien loi, so 0 ky tu Trung la SAI`)
+    }
     for (const r of bad) {
       console.log(
         `   ${r.route.padEnd(34)} cjk=${r.cjk}` +
