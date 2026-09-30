@@ -268,17 +268,29 @@ class Settings(BaseSettings):
     google_client_secret: str = ""
     microsoft_client_id: str = ""
     microsoft_client_secret: str = ""
-    # Scheme + host + port of the backend as the provider sees it. Google and Microsoft
-    # compare the redirect_uri byte for byte, so http://localhost:8000 and
+    facebook_client_id: str = ""
+    facebook_client_secret: str = ""
+    # TikTok's Login Kit calls the client id "client key"; the env var name follows it so
+    # nobody pastes it into GOOGLE_CLIENT_ID by mistake.
+    tiktok_client_key: str = ""
+    tiktok_client_secret: str = ""
+    # Scheme + host + port of the backend as the provider sees it. Every provider compares
+    # the redirect_uri byte for byte, so http://localhost:8000 and
     # http://127.0.0.1:8000 are two different values and only the registered one works.
+    # TikTok additionally requires https and a static path (no query, no fragment).
     oauth_redirect_base_url: str = "http://localhost:8000"
     # Where the callback sends the browser once the login succeeded or failed. This is the
     # frontend route that reads the one-time code and calls /api/auth/oauth/exchange.
+    # An absolute ?next= is only accepted when its origin appears in this value or in
+    # CORS_ORIGINS; anything else is refused, so a login link cannot bounce a visitor to
+    # a third-party site with a fresh session behind it.
     oauth_post_login_redirect_url: str = "http://localhost:5173/auth"
     # Attach a provider-verified address to an already existing local account instead of
     # refusing the login. Turn off to force every returning user to sign in with a password
     # first and link the provider by hand.
     oauth_auto_link_email: bool = True
+    # Requests per minute per IP across /api/auth/* (start, callback, exchange, setup).
+    oauth_rate_limit_per_minute: int = 30
 
     public_base_url: str = "http://127.0.0.1:8000"
     ffmpeg_path: str = "ffmpeg"
@@ -353,6 +365,10 @@ class Settings(BaseSettings):
         "google_client_secret",
         "microsoft_client_id",
         "microsoft_client_secret",
+        "facebook_client_id",
+        "facebook_client_secret",
+        "tiktok_client_key",
+        "tiktok_client_secret",
     )
     @classmethod
     def _strip_oauth_credentials(cls, value: str) -> str:

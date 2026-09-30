@@ -1,18 +1,21 @@
 # -*- coding: utf-8 -*-
-"""OAuth login: Authorization Code + PKCE against Google and Microsoft.
+"""Đăng nhập OAuth: Authorization Code + PKCE, một đường duy nhất cho mọi provider.
 
-`configured_providers()` reads the very same settings the login endpoints use, so the
-frontend can render a button exactly when a client_id *and* a client_secret are present
-and never when only a half-filled configuration would fail at the provider.
+Provider chỉ là một dòng dữ liệu trong `oauth_providers.PROVIDERS`. Không có nhánh `if`
+theo tên provider ở đây: dựng URL authorize, đổi code lấy token, đọc userinfo và rút ra
+danh tính đều đọc cùng một registry entry.
 
-Only the Authorization Code flow with PKCE is implemented; the implicit flow is not
-supported because it needs no client secret and would leak one. The client secret never
-leaves the backend: the provider redirects the browser to the backend callback, the
-backend swaps the code for a token, and hands the browser a one-time code instead of a
-JWT so no token ends up in a URL.
+`configured_providers()` đọc đúng những biến mà các endpoint đăng nhập dùng, nên frontend
+chỉ thấy nút khi client_id **và** client_secret đều có, và không bao giờ thấy nút cho một
+cấu hình nửa vời.
 
-Every outbound call goes through an injectable httpx client, so the whole flow is
-testable with `httpx.MockTransport` and no network.
+Chỉ có Authorization Code + PKCE. Implicit flow không dùng vì nó không cần client secret
+và sẽ làm lộ một cái. Client secret không bao giờ rời backend: provider đưa trình duyệt
+về callback của backend, backend đổi code lấy token rồi đưa cho trình duyệt một mã dùng
+một lần — không có JWT nào nằm trong URL.
+
+Mọi lệnh gọi ra ngoài đi qua một httpx client tiêm vào được, nên toàn bộ luồng test được
+bằng `httpx.MockTransport`, không cần mạng.
 """
 from __future__ import annotations
 
@@ -24,7 +27,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 import httpx
 from pydantic import EmailStr, TypeAdapter, ValidationError
@@ -33,29 +36,43 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import Settings, get_settings
 from app.services import oauth_accounts, oauth_state
 from app.services.oauth_accounts import OAuthIdentity
+from app.services.oauth_providers import (
+    ProviderSpec,
+    RedirectUriError,
+    find_spec,
+    provider_specs,
+    read_text,
+    read_verified_flag,
+    scope_string,
+    validate_redirect_uri,
+)
 
 logger = logging.getLogger(__name__)
 
 _EMAIL = TypeAdapter(EmailStr)
 
-# The provider must answer fast: we are holding the browser on a 302.
+# Provider phải trả lời nhanh: ta đang giữ trình duyệt ở một 302.
 _HTTP_TIMEOUT = httpx.Timeout(connect=5.0, read=10.0, write=10.0, pool=5.0)
 _MAX_NICKNAME = 64
+_MAX_AVATAR_URL = 512
+# ?next= là đầu vào của trình duyệt: nó được lưu trong Redis rồi đưa vào Location,
+# nên phải chặn độ dài trước khi nó thành một Location dài vô hạn.
+_MAX_REDIRECT_LENGTH = 2048
 
 
 class OAuthConfigError(Exception):
-    """The requested provider is unknown or has no credentials configured."""
+    """Provider lạ, hoặc provider được hỏi nhưng chưa cấu hình xong."""
 
 
 class OAuthProviderError(Exception):
-    """The provider refused a request, or answered something unusable."""
+    """Provider từ chối yêu cầu, hoặc trả về thứ không dùng được."""
 
 
 class OAuthFlowError(Exception):
-    """A login attempt failed in a way the frontend can be told about.
+    """Một lần đăng nhập hỏng theo cách frontend biết được.
 
-    `code` is a stable machine-readable token (never an upstream error string) so the
-    browser redirect can carry it and the frontend can localise it.
+    `code` là mã máy đọc được (không bao giờ là nguyên văn lỗi từ phía trên) để frontend
+    tự bản địa hoá.
     """
 
     def __init__(self, code: str, message: str = "") -> None:
@@ -63,157 +80,164 @@ class OAuthFlowError(Exception):
         self.code = code
 
 
+@dataclass(frozen=True)
+class AuthorizeRequest:
+    """URL cần mở ở phía trình duyệt, cùng state và phiên đi kèm nó."""
+
+    url: str
+    state: str
+    session_id: str
+
 
 @dataclass(frozen=True)
-class OAuthProviderSpec:
-    """Static per-provider endpoints. Secrets are never stored here."""
+class LoginHandoff:
+    """Món quà đưa về frontend: mã một lần, và nơi cần quay lại sau khi dùng."""
 
-    name: str
-    label: str
-    authorize_url: str
-    token_url: str
-    userinfo_url: str
-    # Fields on Settings holding this provider's client_id / client_secret
-    client_id_setting: str
-    client_secret_setting: str
-    scopes: tuple[str, ...]
-    # Extra authorize-query parameters this provider requires
-    extra_authorize_params: tuple[tuple[str, str], ...] = ()
+    setup_required: bool
+    token: str
+    # Đã được kiểm tra open redirect ở lúc bắt đầu; vẫn kiểm lại ở lúc dùng.
+    next_path: str = ""
 
 
-GOOGLE = OAuthProviderSpec(
-    name="google",
-    label="Google",
-    authorize_url="https://accounts.google.com/o/oauth2/v2/auth",
-    token_url="https://oauth2.googleapis.com/token",
-    userinfo_url="https://openidconnect.googleapis.com/v1/userinfo",
-    client_id_setting="google_client_id",
-    client_secret_setting="google_client_secret",
-    scopes=("openid", "email", "profile"),
-    extra_authorize_params=(("access_type", "online"),),
-)
-
-MICROSOFT = OAuthProviderSpec(
-    name="microsoft",
-    label="Microsoft",
-    # "common" accepts both Entra tenant accounts and personal Microsoft accounts.
-    authorize_url="https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
-    token_url="https://login.microsoftonline.com/common/oauth2/v2.0/token",
-    userinfo_url="https://graph.microsoft.com/oidc/userinfo",
-    client_id_setting="microsoft_client_id",
-    client_secret_setting="microsoft_client_secret",
-    scopes=("openid", "email", "profile", "User.Read"),
-    # Without it a browser signed into another tenant lands on the wrong account.
-    extra_authorize_params=(("prompt", "select_account"),),
-)
-
-# Insertion order is the order /api/auth/providers reports.
-PROVIDERS: dict[str, OAuthProviderSpec] = {GOOGLE.name: GOOGLE, MICROSOFT.name: MICROSOFT}
+# ------------------------------------------------------------------------ registry
 
 
-def provider_specs() -> tuple[OAuthProviderSpec, ...]:
-    """Every provider this build knows about, configured or not."""
-    return tuple(PROVIDERS.values())
+def configured_providers(settings: Settings | None = None) -> list[ProviderSpec]:
+    """Provider đã có đủ client_id *và* client_secret.
 
-
-def configured_providers(settings: Settings | None = None) -> list[OAuthProviderSpec]:
-    """Providers whose client_id *and* client_secret are both set.
-
-    Half a configuration is not a working login, so it must not reach the frontend.
+    Cấu hình nửa vời không phải một cách đăng nhập chạy được, nên không được tới frontend.
     """
     cfg = settings if settings is not None else get_settings()
-    return [
-        spec
-        for spec in provider_specs()
-        if str(getattr(cfg, spec.client_id_setting, "") or "").strip()
-        and str(getattr(cfg, spec.client_secret_setting, "") or "").strip()
-    ]
+    return [spec for spec in provider_specs() if all(client_credentials(spec, cfg))]
 
 
-def find_spec(name: str) -> OAuthProviderSpec | None:
-    """Look up a provider by name, or None when the name is not one of ours."""
-    return PROVIDERS.get(str(name or "").strip().lower())
-
-
-def require_provider(name: str, settings: Settings | None = None) -> OAuthProviderSpec:
-    """Return a configured provider or raise OAuthConfigError."""
-    spec = find_spec(name)
-    if spec is None:
-        raise OAuthConfigError(f"未知的第三方登录方式: {name}")
+def client_credentials(spec: ProviderSpec, settings: Settings | None = None) -> tuple[str, str]:
+    """Cặp client_id / client_secret đã cấu hình của provider."""
     cfg = settings if settings is not None else get_settings()
-    if not str(getattr(cfg, spec.client_id_setting, "") or "").strip() or not str(
-        getattr(cfg, spec.client_secret_setting, "") or ""
-    ).strip():
+    client_id = str(getattr(cfg, spec.client_id_env, "") or "").strip()
+    client_secret = str(getattr(cfg, spec.client_secret_env, "") or "").strip()
+    return client_id, client_secret
+
+
+def require_provider(provider_id: str, settings: Settings | None = None) -> ProviderSpec:
+    """Tra registry rồi đòi đủ cấu hình; thiếu thì ném OAuthConfigError."""
+    spec = find_spec(provider_id)
+    if spec is None or not spec.implemented:
+        raise OAuthConfigError(f"未知的第三方登录方式: {provider_id}")
+    cfg = settings if settings is not None else get_settings()
+    if not all(client_credentials(spec, cfg)):
         raise OAuthConfigError(f"{spec.label} 登录未配置")
     return spec
 
 
-def client_credentials(spec: OAuthProviderSpec, settings: Settings | None = None) -> tuple[str, str]:
-    """The client_id / client_secret pair for a configured provider."""
-    cfg = settings if settings is not None else get_settings()
-    client_id = str(getattr(cfg, spec.client_id_setting, "") or "").strip()
-    client_secret = str(getattr(cfg, spec.client_secret_setting, "") or "").strip()
-    return client_id, client_secret
+def redirect_uri_for(spec: ProviderSpec, settings: Settings | None = None) -> str:
+    """Đúng URL callback phải dán vào console của provider.
 
-
-def redirect_uri_for(name: str, settings: Settings | None = None) -> str:
-    """The exact callback URL to register in the provider console.
-
-    Google and Microsoft compare the redirect_uri byte for byte, which is why
-    http://localhost:8000 and http://127.0.0.1:8000 are two different values.
+    Dựng từ `OAUTH_REDIRECT_BASE_URL` và template của provider, không bao giờ lấy từ
+    trình duyệt: provider so khớp `redirect_uri` từng byte, nên http://localhost:8000 và
+    http://127.0.0.1:8000 là hai giá trị khác nhau và chỉ giá trị đã đăng ký mới chạy.
     """
     cfg = settings if settings is not None else get_settings()
     base = str(cfg.oauth_redirect_base_url or "").rstrip("/")
-    return f"{base}/api/auth/{name}/callback"
+    return spec.redirect_uri_template.format(base=base, provider=spec.id)
 
 
-def login_url_for(name: str) -> str:
-    """Backend path the frontend points its button at (prefix it with the API base)."""
-    return f"/api/auth/{name}/login"
+def validate_configuration(settings: Settings | None = None) -> None:
+    """Kiểm tra URL callback của mọi provider đang bật; sai thì ném ngay lúc khởi động.
+
+    Không có lỗi này thì người dùng bấm nút, đi hết vòng authorize, rồi mới nhận
+    `redirect_uri_mismatch` từ phía provider.
+    """
+    cfg = settings if settings is not None else get_settings()
+    problems: list[str] = []
+    for spec in configured_providers(cfg):
+        uri = redirect_uri_for(spec, cfg)
+        try:
+            validate_redirect_uri(spec, uri)
+        except RedirectUriError as exc:
+            problems.append(str(exc))
+    if problems:
+        raise RedirectUriError("; ".join(problems))
+
+
+# ------------------------------------------------------------------ open redirect
+
+
+def allowed_redirect_origins(settings: Settings | None = None) -> frozenset[str]:
+    """Các origin mà ta chịu đưa trình duyệt tới sau khi đăng nhập."""
+    cfg = settings if settings is not None else get_settings()
+    origins = set()
+    for raw in (cfg.oauth_post_login_redirect_url, cfg.cors_origins):
+        for item in str(raw or "").split(","):
+            parts = urlsplit(item.strip())
+            if parts.scheme in ("http", "https") and parts.netloc:
+                origins.add(f"{parts.scheme}://{parts.netloc}".lower())
+    return frozenset(origins)
+
+
+def safe_next_target(candidate: str, settings: Settings | None = None) -> str:
+    """Chỉ nhận đường dẫn tương đối, hoặc URL tuyệt đối nằm trong allowlist.
+
+    URL tuyệt đối sang miền khác là open redirect: kẻ xấu gửi victim tới
+    `https://ta.com/…?next=https://evil.example` và nhận lại phiên ở trang của hắn.
+    Rỗng nghĩa là "không có ý định riêng", dùng URL mặc định.
+    """
+    value = str(candidate or "").strip()
+    if not value:
+        return ""
+    if len(value) > _MAX_REDIRECT_LENGTH:
+        raise OAuthFlowError("redirect_invalid", "登录后的跳转地址非法")
+    # `//evil.example` và `/\evil.example` là URL protocol-relative mà trình duyệt vẫn
+    # điều hướng; dấu \ trong URL cũng bị một số trình duyệt quy về /.
+    if "\\" in value or value.startswith("//"):
+        raise OAuthFlowError("redirect_invalid", "登录后的跳转地址非法")
+    if value.startswith("/"):
+        return value
+    parts = urlsplit(value)
+    origin = f"{parts.scheme}://{parts.netloc}".lower() if parts.netloc else ""
+    if parts.scheme not in ("http", "https") or origin not in allowed_redirect_origins(settings):
+        raise OAuthFlowError("redirect_invalid", "登录后的跳转地址非法")
+    return value
 
 
 # --------------------------------------------------------------------------- PKCE
 
 
 def code_challenge_s256(code_verifier: str) -> str:
-    """RFC 7636 S256 challenge: base64url(sha256(verifier)), no padding."""
+    """RFC 7636 S256: base64url(sha256(verifier)), bỏ padding."""
     digest = hashlib.sha256(code_verifier.encode("ascii")).digest()
     return base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
 
 
 def create_pkce_pair() -> tuple[str, str]:
-    """A fresh (code_verifier, code_challenge); the verifier never leaves the backend."""
-    # token_urlsafe(64) -> 86 chars, inside the RFC 7636 43..128 range.
+    """Cặp (code_verifier, code_challenge) mới; verifier không bao giờ rời backend."""
+    # token_urlsafe(64) -> 86 ký tự, nằm trong khoảng 43..128 của RFC 7636.
     verifier = secrets.token_urlsafe(64)
     return verifier, code_challenge_s256(verifier)
 
 
-# ------------------------------------------------------------------- authorize URL
-
-
-@dataclass(frozen=True)
-class AuthorizeRequest:
-    """A ready-to-open provider URL plus the state that must come back with it."""
-
-    url: str
-    state: str
+# ------------------------------------------------------------------ authorize URL
 
 
 def build_authorize_url(
-    spec: OAuthProviderSpec,
+    spec: ProviderSpec,
     *,
     redirect_uri: str,
     state: str,
     code_challenge: str,
     settings: Settings | None = None,
 ) -> str:
-    """Assemble the provider authorize URL, PKCE included."""
+    """Dựng URL authorize của provider, PKCE luôn kèm theo.
+
+    Gửi PKCE cho cả provider không *bắt buộc* nó: thêm vào không tốn gì, còn thiếu thì
+    một provider đổi yêu cầu giữa chừng sẽ làm toàn bộ đăng nhập hỏng.
+    """
     client_id, _ = client_credentials(spec, settings)
     params: list[tuple[str, str]] = [
         ("client_id", client_id),
         ("redirect_uri", redirect_uri),
         ("response_type", "code"),
-        ("scope", " ".join(spec.scopes)),
+        ("scope", scope_string(spec)),
         ("state", state),
         ("code_challenge", code_challenge),
         ("code_challenge_method", "S256"),
@@ -223,28 +247,27 @@ def build_authorize_url(
 
 
 def start_authorization(
-    spec: OAuthProviderSpec,
+    spec: ProviderSpec,
     *,
     settings: Settings | None = None,
     store: Any | None = None,
+    next_path: str = "",
 ) -> AuthorizeRequest:
-    """Issue a CSRF state bound to a fresh PKCE verifier, then build the authorize URL.
-
-    The verifier is kept server-side next to the state: the callback can only complete
-    the exchange it started.
-    """
+    """Phát state chống CSRF gắn với PKCE verifier mới, rồi dựng URL authorize."""
     cfg = settings if settings is not None else get_settings()
     redis_client = store if store is not None else oauth_state.get_redis_client()
     verifier, challenge = create_pkce_pair()
-    state = oauth_state.create_login_state(redis_client, spec.name, verifier)
+    state, session_id = oauth_state.create_login_state(
+        redis_client, spec.id, verifier, next_path=next_path
+    )
     url = build_authorize_url(
         spec,
-        redirect_uri=redirect_uri_for(spec.name, cfg),
+        redirect_uri=redirect_uri_for(spec, cfg),
         state=state,
         code_challenge=challenge,
         settings=cfg,
     )
-    return AuthorizeRequest(url=url, state=state)
+    return AuthorizeRequest(url=url, state=state, session_id=session_id)
 
 
 # ------------------------------------------------------------------ token exchange
@@ -252,7 +275,7 @@ def start_authorization(
 
 @asynccontextmanager
 async def _client_scope(client: httpx.AsyncClient | None) -> AsyncIterator[httpx.AsyncClient]:
-    """Use the caller's client (tests inject a MockTransport) or open a short-lived one."""
+    """Dùng client của người gọi (test tiêm MockTransport) hoặc mở một client ngắn hạn."""
     if client is not None:
         yield client
         return
@@ -261,10 +284,10 @@ async def _client_scope(client: httpx.AsyncClient | None) -> AsyncIterator[httpx
 
 
 def _raise_for_provider_error(response: httpx.Response, *, step: str) -> None:
-    """Turn an upstream error body into a logged OAuthProviderError.
+    """Biến lỗi từ phía trên thành OAuthProviderError, chỉ log mã lỗi.
 
-    The upstream description is logged, never returned: it can echo the client secret
-    back and has no business reaching the browser.
+    Thân lỗi của provider có thể lặp lại client_secret hoặc access token, và nó không
+    có việc gì đi tới trình duyệt — nên không ghi ra log, không trả về cho frontend.
     """
     if response.status_code < 400:
         return
@@ -275,20 +298,29 @@ def _raise_for_provider_error(response: httpx.Response, *, step: str) -> None:
     if not isinstance(payload, dict):
         payload = {}
     upstream_error = str(payload.get("error") or "")[:64]
-    upstream_desc = str(payload.get("error_description") or "")[:300]
     logger.warning(
-        "oauth %s failed provider=%s status=%s error=%s detail=%s",
+        "oauth %s failed host=%s status=%s error=%s",
         step,
         response.request.url.host,
         response.status_code,
-        upstream_error,
-        upstream_desc,
+        upstream_error or "unknown",
     )
     raise OAuthProviderError(f"{step} failed ({upstream_error or response.status_code})")
 
 
+async def _post_token_request(
+    http: httpx.AsyncClient, spec: ProviderSpec, fields: dict[str, str]
+) -> httpx.Response:
+    headers = {"Accept": "application/json"}
+    if spec.token_request_style == "json":
+        return await http.post(spec.token_url, json=fields, headers=headers)
+    if spec.token_request_style == "query":
+        return await http.post(f"{spec.token_url}?{urlencode(fields)}", headers=headers)
+    return await http.post(spec.token_url, data=fields, headers=headers)
+
+
 async def exchange_code_for_token(
-    spec: OAuthProviderSpec,
+    spec: ProviderSpec,
     *,
     code: str,
     code_verifier: str,
@@ -296,22 +328,22 @@ async def exchange_code_for_token(
     settings: Settings | None = None,
     client: httpx.AsyncClient | None = None,
 ) -> str:
-    """Swap the authorization code for an access token (backend-only secret use)."""
+    """Đổi authorization code lấy access token (chỉ backend dùng client secret).
+
+    `redirect_uri` luôn gửi kèm: Facebook bắt buộc, các provider còn lại nhận nó như
+    một phần của thứ tự đổi code và sẽ từ chối nếu thiếu.
+    """
     client_id, client_secret = client_credentials(spec, settings)
-    form = {
+    fields = {
         "grant_type": "authorization_code",
         "code": code,
         "redirect_uri": redirect_uri,
-        "client_id": client_id,
-        "client_secret": client_secret,
+        spec.token_param_client_id: client_id,
+        spec.token_param_client_secret: client_secret,
         "code_verifier": code_verifier,
     }
     async with _client_scope(client) as http:
-        response = await http.post(
-            spec.token_url,
-            data=form,
-            headers={"Accept": "application/json"},
-        )
+        response = await _post_token_request(http, spec, fields)
         _raise_for_provider_error(response, step="token exchange")
         try:
             payload = response.json()
@@ -325,25 +357,22 @@ async def exchange_code_for_token(
 
 
 async def fetch_userinfo(
-    spec: OAuthProviderSpec,
+    spec: ProviderSpec,
     *,
     access_token: str,
     client: httpx.AsyncClient | None = None,
 ) -> dict[str, Any]:
-    """Read the profile the provider vouches for.
+    """Đọc hồ sơ mà provider bảo chứng.
 
-    The identity comes from this TLS call with the access token, not from an id_token we
-    validate ourselves: the caller then never has to trust a JWT we did not check a
-    signature against.
+    Danh tính đến từ lệnh gọi TLS này chứ không phải từ một id_token ta tự kiểm chứng:
+    người gọi không bao giờ phải tin một JWT mà chưa kiểm chữ ký.
     """
+    headers = {"Authorization": f"Bearer {access_token}", "Accept": "application/json"}
     async with _client_scope(client) as http:
-        response = await http.get(
-            spec.userinfo_url,
-            headers={
-                "Authorization": f"Bearer {access_token}",
-                "Accept": "application/json",
-            },
-        )
+        if spec.userinfo_method == "post":
+            response = await http.post(spec.userinfo_url, headers=headers)
+        else:
+            response = await http.get(spec.userinfo_url, headers=headers)
         _raise_for_provider_error(response, step="userinfo")
         try:
             payload = response.json()
@@ -358,143 +387,115 @@ async def fetch_userinfo(
 # ----------------------------------------------------------------------- identity
 
 
-def _nickname_from(payload: dict[str, Any], email: str) -> str:
-    """A display name for a brand new account: provider name, else the mailbox name."""
-    parts = [
-        str(payload.get(key) or "").strip()
-        for key in ("name", "given_name", "displayName", "givenName")
-    ]
-    candidate = next((p for p in parts if p), "")
-    if not candidate:
-        candidate = email.split("@", 1)[0]
-    return candidate[:_MAX_NICKNAME]
+def _resolved_email_path(spec: ProviderSpec, payload: dict[str, Any]) -> str:
+    """Đường dẫn thực sự tạo ra email, tính cả đường dẫn dự phòng."""
+    if spec.email_path and read_text(payload, spec.email_path):
+        return spec.email_path
+    for fallback in spec.email_fallback_paths:
+        if read_text(payload, fallback):
+            return fallback
+    return spec.email_path or ""
 
 
-def _bool_claim(value: Any) -> bool:
-    """OIDC boolean claims arrive as JSON booleans, but some providers send strings."""
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        return value.strip().lower() == "true"
-    return False
+def identity_from_payload(spec: ProviderSpec, payload: dict[str, Any]) -> OAuthIdentity:
+    """Biến userinfo của provider thành danh tính, chỉ giữ những gì provider bảo chứng.
 
-
-def parse_google_identity(payload: dict[str, Any]) -> OAuthIdentity:
-    """Turn Google's userinfo into an identity, keeping only what Google verified.
-
-    Google states email_verified explicitly, so an unverified (or absent) flag is never
-    upgraded: a login then cannot claim an address Google has not confirmed.
+    Email chưa được xác minh vẫn được giữ lại (để hiển thị), nhưng cờ `email_verified`
+    đi kèm quyết định có dùng nó để liên kết tài khoản hay không.
     """
-    subject = str(payload.get("sub") or "").strip()
+    subject = read_text(payload, spec.subject_id_path)
     if not subject:
-        raise OAuthProviderError("google userinfo has no sub")
-    raw_email = str(payload.get("email") or "").strip().lower()
+        raise OAuthProviderError(f"{spec.label} userinfo has no subject id")
+
+    email_path = _resolved_email_path(spec, payload)
+    raw_email = read_text(payload, email_path).lower() if email_path else ""
     try:
         email = str(_EMAIL.validate_python(raw_email)).lower() if raw_email else ""
     except ValidationError as exc:
-        raise OAuthProviderError("google returned an unusable email claim") from exc
+        raise OAuthProviderError(f"{spec.label} returned an unusable email claim") from exc
+
+    nickname = read_text(payload, spec.name_path)[:_MAX_NICKNAME]
+    if not nickname:
+        # Không có tên thì lấy tên hộp thư; ở nhánh B (không email) thì để trống và
+        # accounts.py chịu trách nhiệm đặt tên mặc định.
+        nickname = email.split("@", 1)[0][:_MAX_NICKNAME] if email else ""
+
     return OAuthIdentity(
-        provider="google",
+        provider=spec.id,
         subject=subject,
         email=email,
-        # Google sends email_verified as a JSON boolean.
-        email_verified=_bool_claim(payload.get("email_verified")),
-        nickname=_nickname_from(payload, email),
+        email_verified=read_verified_flag(payload, spec, email_path),
+        nickname=nickname,
+        avatar_url=read_text(payload, spec.avatar_path)[:_MAX_AVATAR_URL],
     )
-
-
-def parse_microsoft_identity(payload: dict[str, Any]) -> OAuthIdentity:
-    """Turn Microsoft's userinfo into an identity.
-
-    Microsoft does not emit email_verified: it only issues the email claim for an address
-    it has verified, while a personal account that carries just preferred_username has
-    nothing verified to assert. So a present email claim counts as verified and an absent
-    one does not - the user is refused rather than logged in on an unproven address.
-    """
-    subject = str(payload.get("sub") or "").strip()
-    if not subject:
-        raise OAuthProviderError("microsoft userinfo has no sub")
-    raw_email = str(payload.get("email") or "").strip().lower()
-    try:
-        email = str(_EMAIL.validate_python(raw_email)).lower() if raw_email else ""
-    except ValidationError as exc:
-        raise OAuthProviderError("microsoft returned an unusable email claim") from exc
-
-    if "email_verified" in payload:
-        verified = _bool_claim(payload.get("email_verified"))
-    else:
-        verified = bool(email)
-    return OAuthIdentity(
-        provider="microsoft",
-        subject=subject,
-        email=email,
-        email_verified=verified,
-        nickname=_nickname_from(payload, email),
-    )
-
-
-IDENTITY_PARSERS = {
-    GOOGLE.name: parse_google_identity,
-    MICROSOFT.name: parse_microsoft_identity,
-}
 
 
 # --------------------------------------------------------------------- whole flow
 
 
 async def complete_login(
-    spec: OAuthProviderSpec,
+    spec: ProviderSpec,
     *,
     code: str,
     state: str,
+    session_id: str = "",
     db: AsyncSession,
     provider_error: str = "",
     settings: Settings | None = None,
     client: httpx.AsyncClient | None = None,
     store: Any | None = None,
-) -> str:
-    """Finish the callback: CSRF check, code swap, identity, account, one-time code.
+) -> LoginHandoff:
+    """Khép callback: kiểm CSRF, đổi code, nhận diện, mở tài khoản, phát mã một lần.
 
-    Returns the one-time code the browser hands back to /api/auth/oauth/exchange. No JWT
-    is placed in a redirect URL, where it would end up in logs and history.
+    Trả về mà frontend sẽ dùng ở POST /api/auth/oauth/exchange (hoặc
+    /api/auth/oauth/setup khi tài khoản chưa hoàn chỉnh). Không có JWT nào nằm trong
+    URL chuyển hướng, vì URL đó sẽ nằm trong log và lịch sử.
     """
     cfg = settings if settings is not None else get_settings()
     redis_client = store if store is not None else oauth_state.get_redis_client()
 
     if provider_error:
-        # The user pressed "cancel", or the provider refused before issuing a code.
-        raise OAuthFlowError("access_denied", provider_error)
+        # Người dùng bấm "Huỷ", hoặc provider từ chối trước khi phát code. Chuỗi này do
+        # trình duyệt đưa tới nên phải cắt bớt; nó cũng không đi ra frontend (chỉ mã
+        # `access_denied` mới đi).
+        raise OAuthFlowError("access_denied", str(provider_error)[:64])
     if not (code or "").strip():
         raise OAuthFlowError("missing_code")
     if not (state or "").strip():
         raise OAuthFlowError("state_invalid")
 
-    # Single use: a replayed or forged state is gone from Redis before it is trusted.
+    # Một lần dùng: state phát ra lại hoặc bịa đều biến mất khỏi Redis trước khi được tin.
     try:
-        login_state = oauth_state.consume_login_state(redis_client, spec.name, state)
+        login_state = oauth_state.consume_login_state(redis_client, spec.id, state, session_id)
     except oauth_state.OAuthStateError as exc:
         raise OAuthFlowError("state_invalid", str(exc)) from exc
-    redirect_uri = redirect_uri_for(spec.name, cfg)
+
     access_token = await exchange_code_for_token(
         spec,
         code=code,
         code_verifier=login_state.code_verifier,
-        redirect_uri=redirect_uri,
+        redirect_uri=redirect_uri_for(spec, cfg),
         settings=cfg,
         client=client,
     )
     payload = await fetch_userinfo(spec, access_token=access_token, client=client)
-
-    parser = IDENTITY_PARSERS.get(spec.name)
-    if parser is None:  # pragma: no cover - guarded by require_provider()
-        raise OAuthProviderError(f"no identity parser for provider {spec.name}")
-    identity = parser(payload)
+    identity = identity_from_payload(spec, payload)
 
     result = await oauth_accounts.resolve_oauth_user(db, identity, settings=cfg)
     logger.info(
         "oauth login ok provider=%s user_id=%s outcome=%s",
-        spec.name,
+        spec.id,
         result.user.id,
         result.outcome,
     )
-    return oauth_state.issue_login_grant(redis_client, int(result.user.id))
+    if result.needs_setup:
+        return LoginHandoff(
+            setup_required=True,
+            token=oauth_state.issue_setup_token(redis_client, int(result.user.id)),
+            next_path=login_state.next_path,
+        )
+    return LoginHandoff(
+        setup_required=False,
+        token=oauth_state.issue_login_grant(redis_client, int(result.user.id)),
+        next_path=login_state.next_path,
+    )
