@@ -22,7 +22,7 @@ const CJK = /[\u4e00-\u9fff]/
 const RAW_KEY = /\b(common|home|nav|auth|tools|pricing|help|legal|shell|drama|studio)\.[a-zA-Z][a-zA-Z0-9]*/g
 
 /** Route cần kiểm. `:id` sẽ thay bằng giá trị thật bên dưới. */
-const ROUTES = [
+const ROUTES_BASE = [
   ['/', 'trang-chu'],
   ['/method', 'phuong-phap'],
   ['/auth', 'dang-nhap'],
@@ -39,15 +39,22 @@ const ROUTES = [
   ['/history', 'lich-su'],
   ['/studio', 'studio'],
   ['/studio/new', 'studio-tao-moi'],
-  ['/studio/1/style', 'studio-phong-cach'],
-  ['/studio/1', 'studio-storyboard'],
-  ['/studio/1/editor', 'studio-trinh-soan'],
   ['/drama', 'drama-danh-sach'],
   ['/drama/assets', 'drama-tai-nguyen'],
-  ['/drama/projects/2', 'drama-du-an'],
-  ['/drama/projects/2/episodes', 'drama-tap'],
-  ['/drama/projects/2/episodes/1', 'drama-tap-chi-tiet'],
-  ['/drama/projects/2/canvas', 'drama-canvas'],
+]
+
+/**
+ * Route có `:id` sẽ được điền từ dữ liệu thật trong database. Không có dữ liệu thì
+ * trang render trống và audit cho kết quả sai — nên phải tạo trước, không đoán id.
+ */
+const DYNAMIC_ROUTES = [
+  ['/studio/{s}/style', 'studio-phong-cach'],
+  ['/studio/{s}', 'studio-storyboard'],
+  ['/studio/{s}/editor', 'studio-trinh-soan'],
+  ['/drama/projects/{d}', 'drama-du-an'],
+  ['/drama/projects/{d}/episodes', 'drama-tap'],
+  ['/drama/projects/{d}/episodes/{e}', 'drama-tap-chi-tiet'],
+  ['/drama/projects/{d}/canvas', 'drama-canvas'],
 ]
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -73,9 +80,85 @@ async function getToken() {
   }
 }
 
+/**
+ * Tạo dữ liệu thật để các route có `:id` render được. Không có bước này thì storyboard,
+ * trình soạn, chi tiết tập và canvas đều trống, và audit sẽ báo "0 ký tự Trung" một cách
+ * dễ chủ quan — tức là báo xong trong khi thực ra **chưa kiểm tra gì**.
+ */
+async function ensureData(token) {
+  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+  const out = { studio: null, drama: null, episode: null }
+
+  const existing = await api('/api/projects', { headers })
+  if (Array.isArray(existing) && existing.length) out.studio = existing[0].id
+
+  if (!out.studio) {
+    const templates = await api('/api/templates', { headers })
+    const t = templates[0]
+    if (!t) throw new Error('khong co template nao de tao project')
+    const created = await api('/api/projects', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        template_id: t.id,
+        title: 'Kiem thu giao dien',
+        source_text: 'Mot cau chuyen ngan ve mo quan ca phe va doi thuong.',
+        pipeline_mode: 'full',
+        output_ratio: '9:16',
+      }),
+    })
+    out.studio = created.id
+  }
+
+  const dramas = await api('/api/drama/projects', { headers })
+  if (Array.isArray(dramas) && dramas.length) {
+    out.drama = dramas[0].id
+    try {
+      const eps = await api(`/api/drama/projects/${out.drama}/episodes`, { headers })
+      if (Array.isArray(eps) && eps.length) out.episode = eps[0].id
+    } catch { /* chua co tap */ }
+  }
+
+  if (!out.drama) {
+    const created = await api('/api/drama/projects', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        title: 'Kiem thu Drama',
+        description: 'Du lieu gia lap de kiem chung giao dien.',
+        source: 'Mot nguoi ban cham ngay trong khu pho xa, phat hien ra dieu khac thuong.',
+        episode_count: 3,
+        image_style_id: 'pixel-art',
+        workflow: 'script',
+      }),
+    })
+    out.drama = created.id
+    try {
+      const eps = await api(`/api/drama/projects/${out.drama}/episodes`, { headers })
+      if (Array.isArray(eps) && eps.length) out.episode = eps[0].id
+    } catch { /* can co script moi co tap */ }
+  }
+
+  return out
+}
+
 async function main() {
   const token = await getToken()
   console.log('da lay token')
+
+  const ids = await ensureData(token)
+  console.log(`du lieu: studio=${ids.studio} drama=${ids.drama} episode=${ids.episode}`)
+  if (!ids.episode) {
+    console.warn('!! CHUA CO TAP — route chi tiet tap se trong. Audit khong phu day.')
+  }
+
+  const ROUTES = [
+    ...ROUTES_BASE,
+    ...DYNAMIC_ROUTES.map(([tpl, name]) => [
+      tpl.replace('{s}', ids.studio).replace('{d}', ids.drama).replace('{e}', ids.episode),
+      name,
+    ]).filter(([p]) => !p.includes('null')),
+  ]
 
   const { spawn } = await import('node:child_process')
   const edge = spawn(EDGE, [

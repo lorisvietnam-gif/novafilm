@@ -2,7 +2,7 @@
 
 export const enPages = {
   home: {
-    headlineBefore: 'Turn stories into',
+    headlineBefore: 'Turn ideas into',
     headlineEm: 'films you can play',
     lede: 'AI drama from script to episodic film. AI short video from offer to storyboard to film. One studio, two ways to ship.',
     startCreate: 'Start creating',

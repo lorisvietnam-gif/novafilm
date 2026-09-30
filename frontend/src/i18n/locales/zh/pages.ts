@@ -2,7 +2,7 @@
 
 export const zhPages = {
   home: {
-    headlineBefore: '把故事做成',
+    headlineBefore: '把想法变成',
     headlineEm: '能播的片子',
     lede: 'AI 漫剧从剧本到分集成片，AI短视频从卖点到分镜成片。一套工作台，两种出片方式。',
     startCreate: '开始创作',

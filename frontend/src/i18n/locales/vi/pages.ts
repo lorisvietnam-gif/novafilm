@@ -2,8 +2,8 @@
 
 export const viPages = {
   home: {
-    headlineBefore: 'Biến câu chuyện thành',
-    headlineEm: 'những thước phim xem được',
+    headlineBefore: 'Biến ý tưởng thành',
+    headlineEm: 'những thước phim',
     lede: 'AI Drama từ kịch bản đến phim hoàn chỉnh nhiều tập, AI Short Video từ điểm bán đến storyboard ra phim. Một không gian làm việc, hai cách ra phim.',
     startCreate: 'Bắt đầu sáng tạo',
     browseTools: 'Xem các công cụ',
