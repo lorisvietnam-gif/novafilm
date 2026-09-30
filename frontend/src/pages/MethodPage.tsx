@@ -64,7 +64,7 @@ export default function MethodPage() {
     '@type': 'Article',
     headline: copy.jsonLdHeadline,
     description: copy.metaDescription,
-    inLanguage: locale === 'zh' ? 'zh-CN' : 'en',
+    inLanguage: locale === 'zh' ? 'zh-CN' : locale === 'en' ? 'en' : 'vi-VN',
     author: { '@type': 'Organization', name: 'PRINTFILM' },
     publisher: { '@type': 'Organization', name: 'PRINTFILM' },
     mainEntityOfPage: { '@type': 'WebPage', '@id': PAGE_URL },

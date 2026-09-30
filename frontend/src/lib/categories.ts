@@ -17,6 +17,31 @@ export const CATEGORY_ORDER = [
   '图文',
 ]
 
+/**
+ * 分类显示名（越南语）。
+ * khoá vẫn là chuỗi Trung vì backend trả về và template lọc theo chuỗi này;
+ * chỉ phần hiển thị mới dịch sang tiếng Việt.
+ */
+export const HOME_CATEGORY_LABELS_VI: Record<string, string> = {
+  全部: 'Tất cả',
+  开源: 'Dự án mã nguồn mở',
+  科普: 'Kiến thức phổ thông',
+  获客: 'Video thu hút khách',
+  纪录片: 'Phim tài liệu',
+  写实感: 'Phong cách hiện thực',
+  真人感: 'Câu chuyện đời thường',
+  电影感: 'Giải thích phim',
+  儿童: 'Chữa lành tinh thần',
+  动漫: 'Hoạt hình',
+  国风: 'Phong cách cổ điển',
+  科幻: 'Khoa huyền viễn',
+  奇幻: 'Giả tưởng',
+  悬疑: 'Trinh thám',
+  商业: 'Tiếp thị thương mại',
+  复古: 'Hoài niệm',
+  图文: 'Ảnh chữ',
+}
+
 export const HOME_CATEGORY_LABELS: Record<string, string> = {
   全部: '全部',
   开源: '开源项目',
