@@ -1,8 +1,8 @@
-/** 全站右下角：Discord 社区入口（未配置邀请链接时不渲染） */
+/** Góc phải dưới toàn site: lối vào cộng đồng Discord (không có link mời thì không render) */
 import { useI18n } from '../../i18n'
 import { DISCORD_INVITE_URL } from '../../lib/siteLinks'
 
-/** 简易 Discord 图标（内联 SVG，不引第三方图标包） */
+/** Icon Discord đơn giản (SVG nội tuyến, không kéo gói icon thứ ba) */
 function DiscordIcon({ size = 22 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden fill="currentColor">
@@ -14,7 +14,7 @@ function DiscordIcon({ size = 22 }: { size?: number }) {
 export default function DiscordFab() {
   const { t } = useI18n()
 
-  // 未配置邀请链接 = 社区还没开 => 整颗 FAB 不渲染，不给用户一个点了没反应的死按钮
+  // Chưa cấu hình link mời = cộng đồng chưa mở, nên không render FAB, tránh nút chết bấm không phản hồi
   if (!DISCORD_INVITE_URL) return null
 
   return (

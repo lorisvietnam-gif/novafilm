@@ -12,7 +12,7 @@ import httpx
 
 
 class FakeRedis:
-    """最小 Redis 替身：支持 get/getdel/setex/ping（对应 Redis 6.2+ GETDEL）。"""
+    """最小 Redis 替身：get/getdel/setex/incr/expire/ttl/ping（对应 Redis 6.2+ GETDEL）。"""
 
     def __init__(self) -> None:
         self.store: dict[str, str] = {}
@@ -34,6 +34,23 @@ class FakeRedis:
         self.ttls[key] = int(ttl)
         return True
 
+    def incr(self, key: str) -> int:
+        count = int(self.store.get(key, "0")) + 1
+        self.store[key] = str(count)
+        return count
+
+    def expire(self, key: str, ttl: int) -> bool:
+        self.ttls[key] = int(ttl)
+        return True
+
+    def ttl(self, key: str) -> int:
+        return int(self.ttls.get(key, -1))
+
+    def expire_all(self) -> None:
+        """Mô phỏng TTL của Redis: mọi khoá biến mất khỏi bộ nhớ."""
+        self.store.clear()
+        self.ttls.clear()
+
 
 def fake_session(row: object | None = None) -> MagicMock:
     """AsyncSession 替身：execute() 的 scalar_one_or_none() 恒返回 row。
@@ -42,6 +59,7 @@ def fake_session(row: object | None = None) -> MagicMock:
     """
     result = MagicMock()
     result.scalar_one_or_none.return_value = row
+    result.scalars.return_value.all.return_value = []
     db = MagicMock()
     db.execute = AsyncMock(return_value=result)
     db.commit = AsyncMock()
@@ -59,9 +77,16 @@ def fake_settings(**overrides) -> SimpleNamespace:
         google_client_secret="",
         microsoft_client_id="",
         microsoft_client_secret="",
+        facebook_client_id="",
+        facebook_client_secret="",
+        tiktok_client_key="",
+        tiktok_client_secret="",
         oauth_redirect_base_url="http://localhost:8000",
         oauth_post_login_redirect_url="http://localhost:5173/auth",
         oauth_auto_link_email=True,
+        oauth_rate_limit_per_minute=30,
+        cors_origins="http://localhost:5173,http://127.0.0.1:5173",
+        secret_key="test-secret-key-for-oauth-tests",
     )
     for key, value in overrides.items():
         setattr(base, key, value)

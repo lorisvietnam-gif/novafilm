@@ -1,4 +1,4 @@
-/** 分集编辑：复刻原项目四栏布局（资产 / 脚本 / 预览 / 故事板） */
+/** Chỉnh sửa tập: dựng lại bốn cột của dự án gốc (tư liệu / kịch bản / xem trước / storyboard) */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
@@ -99,7 +99,7 @@ export default function EpisodeEditPage() {
 }
 
 function readFragmentPlanStatus(ep: DramaEpisode | null): string {
-  // 优先读取统一任务中心中的分镜规划任务；旧 params 状态作为兜底
+  // Ưu tiên đọc tác vụ lập storyboard trong trung tâm tác vụ thống nhất; params cũ chỉ là phương án dự phòng
   const active = (ep?.active_tasks || []).find((task) => task.task_type === 'fragment_plan')
   if (
     active &&
@@ -112,7 +112,7 @@ function readFragmentPlanStatus(ep: DramaEpisode | null): string {
   return typeof st === 'string' ? st : ''
 }
 
-// 统一解析项目参数里的布尔值，兼容历史字符串/数字写法。
+// Chuẩn hoá một giá trị boolean trong params của dự án, chấp nhận cả dạng chuỗi/số cũ.
 function coerceProjectBool(value: unknown, defaultValue: boolean): boolean {
   if (value == null) return defaultValue
   if (typeof value === 'boolean') return value
@@ -125,21 +125,21 @@ function coerceProjectBool(value: unknown, defaultValue: boolean): boolean {
   return Boolean(value)
 }
 
-// 分集编辑页主体
+// Thân trang chỉnh sửa tập
 function EpisodeEditInner() {
   const { projectId, episodeId } = useParams()
   const pid = Number(projectId)
   const eid = Number(episodeId)
   const navigate = useNavigate()
   /*
-   * episode 分集
-   * fragments 分镜
-   * assets 资产
-   * selectedIndex 当前分镜
-   * assetScope / assetTab 侧栏筛选
-   * editing 是否编辑模式
-   * videoStyleId / modelId / aspectRatio 生成参数（UI）
-   * busy / status / error 状态
+   * episode tập phim
+   * fragments cảnh quay
+   * assets tư liệu
+   * selectedIndex cảnh quay đang chọn
+   * assetScope / assetTab bộ lọc của thanh bên
+   * editing có đang ở chế độ sửa hay không
+   * videoStyleId / modelId / aspectRatio tham số sinh (UI)
+   * busy / status / error trạng thái
    */
   const [episode, setEpisode] = useState<DramaEpisode | null>(null)
   const [episodeList, setEpisodeList] = useState<DramaEpisode[]>([])
@@ -153,17 +153,17 @@ function EpisodeEditInner() {
   const [modelId, setModelId] = useState('')
   const mediaCatalog = useMediaModelsCatalog()
   const [aspectRatio, setAspectRatio] = useState<(typeof RATIO_OPTIONS)[number]>('9:16')
-  // subtitleMode 本集字幕方式：模型自出 / 后期拼接（默认后期）
+  // subtitleMode cách làm phụ đề của tập này: do model tự sinh / ghép sau (mặc định ghép sau)
   const [subtitleMode, setSubtitleMode] = useState<DramaSubtitleMode>('post')
-  // characterIntroMode 本集人物介绍叠字：模型叠字 / 关闭（默认关闭）
+  // characterIntroMode có chồng chữ giới thiệu nhân vật ở tập này không: model tự chồng / tắt (mặc định tắt)
   const [characterIntroMode, setCharacterIntroMode] = useState<DramaCharacterIntroMode>('off')
-  // linkLastFrame 是否用上一镜尾帧作本镜首帧（写入 project.params，默认开启）
+  // linkLastFrame có dùng khung hình cuối của cảnh trước làm khung hình đầu của cảnh này hay không (ghi vào project.params, mặc định bật)
   const [linkLastFrame, setLinkLastFrame] = useState(true)
-  // projectParams 项目 params 缓存（镜间衔接 + 分集输出规格回退）
+  // projectParams bộ nhớ params của dự án (nối tiếp giữa các cảnh + phương án dự phòng cho thông số xuất của tập)
   const [projectParams, setProjectParams] = useState<Record<string, unknown>>({})
-  // episodeParams 分集 params 缓存（画幅 / 清晰度写入此处）
+  // episodeParams bộ nhớ params của tập (tỉ lệ khung hình / độ phân giải ghi vào đây)
   const [episodeParams, setEpisodeParams] = useState<Record<string, unknown>>({})
-  // planModalOpen AI 重新分镜确认（含 Skill 勾选）
+  // planModalOpen hộp xác nhận lập lại storyboard bằng AI (kèm chọn Skill)
   const [planModalOpen, setPlanModalOpen] = useState(false)
   const [previewVersionId, setPreviewVersionId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -171,15 +171,15 @@ function EpisodeEditInner() {
   const [error, setError] = useState('')
   const [characterVoiceBusyIds, setCharacterVoiceBusyIds] = useState<Set<number>>(() => new Set())
   /*
-   * detailAsset 左侧资产详情（编辑/重新生成/上传）
-   * voiceBindAsset 音色绑定弹窗目标
-   * imageGenQueue 全局生图队列快照
+   * detailAsset chi tiết tư liệu ở cột trái (sửa / sinh lại / tải lên)
+   * voiceBindAsset tư liệu đang mở hộp gắn giọng
+   * imageGenQueue ảnh chụp của hàng đợi sinh ảnh toàn cục
    */
   const [detailAsset, setDetailAsset] = useState<DramaAsset | null>(null)
   const [voiceBindAsset, setVoiceBindAsset] = useState<DramaAsset | null>(null)
-  /** failReasonJob 底部分镜感叹号打开的失败原因 */
+  /** failReasonJob lý do lỗi mở ra từ dấu chấm than ở thanh cảnh quay phía dưới */
   const [failReasonJob, setFailReasonJob] = useState<DramaGenJob | null>(null)
-  // assetCreateBusy / libraryPickerOpen 侧栏新建与导入
+  // assetCreateBusy / libraryPickerOpen tạo mới và nhập tư liệu ở thanh bên
   const [assetCreateBusy, setAssetCreateBusy] = useState(false)
   const [libraryPickerOpen, setLibraryPickerOpen] = useState(false)
   const imageGenQueue = useDramaImageGenQueue()
@@ -192,7 +192,7 @@ function EpisodeEditInner() {
   const episodeParamsRef = useRef<Record<string, unknown>>({})
 
   useEffect(() => {
-    // 目录到达后，把旧 Kie/方舟 id 换成后台默认视频模型
+    // Khi danh mục model đã tải xong, thay id Kie/Thuyền cũ bằng model video mặc định của backend
     if (!mediaCatalog) return
     const ids = mediaCatalog.video_models.map((m) => m.id)
     if (!ids.length) return
@@ -201,7 +201,7 @@ function EpisodeEditInner() {
 
   const selected = fragments[selectedIndex] || null
   const selectedDuration = selected?.duration_sec ?? 8
-  // generatingIds 当前分集排队/生成中的分镜 id
+  // generatingIds id của các cảnh quay đang chờ hàng đợi / đang sinh trong tập hiện tại
   const generatingIds = useMemo(() => {
     const ids = new Set<number>()
     for (const task of episode?.active_tasks || []) {
@@ -218,7 +218,7 @@ function EpisodeEditInner() {
         !task.cancel_requested &&
         ['pending', 'leased', 'running', 'awaiting_poll', 'awaiting_review'].includes(task.status)
       ) {
-        // 成片已 done：忽略残留活跃任务，避免徽标长期「生成中」
+        // Cảnh quay đã xong: bỏ qua tác vụ active sót lại, tránh huy hiệu kẹt ở «đang sinh»
         const frag = fragments.find((f) => f.id === task.fragment_id)
         if (frag && readFragmentGenerationStatus(frag).status === 'done') continue
         if (!frag) continue
@@ -233,24 +233,24 @@ function EpisodeEditInner() {
     }
     return ids
   }, [eid, fragments, episode?.active_tasks])
-  // anyFragmentGenerating 本集是否有分镜在排队/生成（不锁编辑，仅锁批量生成）
+  // anyFragmentGenerating tập này có cảnh quay nào đang chờ hàng đợi / đang sinh không (không khoá sửa, chỉ khoá sinh hàng loạt)
   const anyFragmentGenerating = generatingIds.size > 0
-  // selectedIsGenerating 当前选中镜是否正在生成
+  // selectedIsGenerating cảnh đang chọn có đang sinh không
   const selectedIsGenerating = Boolean(selected?.id && generatingIds.has(selected.id))
-  // selectedHasVideo 当前镜是否已有成片（用于「重新生成」文案）
+  // selectedHasVideo cảnh đang chọn đã có video thành phẩm chưa (dùng cho chữ «Sinh lại»)
   const selectedHasVideo = Boolean(selected?.video)
-  // selectedVersions 当前镜历史成片
+  // selectedVersions các bản thành phẩm trước đó của cảnh đang chọn
   const selectedVersions = useMemo(() => readFragmentVideoVersions(selected), [selected])
-  // previewVersion 当前选中待预览的历史成片
+  // previewVersion bản thành phẩm cũ đang chọn để xem trước
   const previewVersion = useMemo(
     () => selectedVersions.find((ver) => ver.id === previewVersionId) ?? null,
     [previewVersionId, selectedVersions],
   )
   const previewVideoUrl = previewVersion ? resolveDramaMediaUrl(previewVersion.video) : null
   const previewPosterUrl = previewVersion?.cover ? resolveDramaMediaUrl(previewVersion.cover) : null
-  // generateAllLocked 仅提交入队时锁定，生成过程不阻塞编辑
+  // generateAllLocked chỉ khoá lúc vừa gửi hàng đợi, trong lúc sinh không chặn thao tác sửa
   const generateAllLocked = busy
-  // planFragmentsLocked 仅本集有视频生成或 AI 分镜进行中时锁定
+  // planFragmentsLocked chỉ khoá khi tập này đang sinh video hoặc đang lập storyboard bằng AI
   const planFragmentsLocked =
     busy || anyFragmentGenerating || readFragmentPlanStatus(episode) === 'generating'
   const selectedRefIds = useMemo(
@@ -265,13 +265,13 @@ function EpisodeEditInner() {
       }),
     [selected, assets],
   )
-  // selectedGateIssues 当前镜脚本/资产门禁（编辑区即时提示）
+  // selectedGateIssues các lỗi chặn về kịch bản / tư liệu của cảnh đang chọn (hiện ngay trong vùng sửa)
   const selectedGateIssues = useMemo(() => {
     const { blocking, warnings } = collectDramaGenerateGateIssues(selected, assets)
     return [...blocking, ...warnings]
   }, [selected, assets])
 
-  // prevLastFrameUrl 上一镜已落盘尾帧（衔接触发条件；兼容 generation / 历史版本字段）
+  // prevLastFrameUrl khung hình cuối đã lưu của cảnh trước (điều kiện kích hoạt nối tiếp; tương thích trường generation / bản thành phẩm cũ)
   const prevLastFrameUrl = useMemo(() => {
     if (selectedIndex <= 0) return ''
     const prev = fragments[selectedIndex - 1]
@@ -292,11 +292,11 @@ function EpisodeEditInner() {
     return ''
   }, [fragments, selectedIndex])
 
-  // 开启尾帧衔接时：仅上一镜从未生成过才禁止；上一镜在生成/排队时本镜可入队等待
+  // Khi bật nối tiếp khung hình cuối: chỉ cấm nếu cảnh trước chưa từng sinh; nếu cảnh trước đang sinh / chờ hàng đợi thì cảnh này vẫn xếp hàng chờ được
   const continuityBlockedReason = useMemo(() => {
     if (!linkLastFrame || selectedIndex <= 0) return ''
     const prev = fragments[selectedIndex - 1]
-    if (!prev) return '缺少上一镜，无法衔接'
+    if (!prev) return 'Thiếu cảnh trước, không thể nối tiếp'
     if (prev.id && generatingIds.has(prev.id)) {
       return ''
     }
@@ -305,7 +305,7 @@ function EpisodeEditInner() {
       readFragmentGenerationStatus(prev).status === 'done' ||
       Boolean(prevLastFrameUrl)
     if (!prevDone) {
-      return '请先生成上一镜并等待尾帧就绪'
+      return 'Hãy sinh cảnh trước và đợi khung hình cuối sẵn sàng'
     }
     return ''
   }, [linkLastFrame, selectedIndex, fragments, generatingIds, prevLastFrameUrl])
@@ -314,13 +314,13 @@ function EpisodeEditInner() {
     if (!linkLastFrame || selectedIndex <= 0) return ''
     const prev = fragments[selectedIndex - 1]
     if (!prev?.id || !generatingIds.has(prev.id)) return ''
-    return '上一镜仍在生成，本镜将入队等待上一镜完成后再开始'
+    return 'Cảnh trước vẫn đang sinh, cảnh này sẽ xếp hàng chờ cho tới khi cảnh trước hoàn tất'
   }, [linkLastFrame, selectedIndex, fragments, generatingIds])
 
-  // selectedGenerateLocked 仅锁当前镜的「生成」按钮（含尾帧衔接门禁）
+  // selectedGenerateLocked chỉ khoá nút «Sinh» của cảnh đang chọn (kể cả cổng chặn nối tiếp khung hình cuối)
   const selectedGenerateLocked = busy || selectedIsGenerating || Boolean(continuityBlockedReason)
 
-  // 持久化镜间衔接开关到项目 params，并让后端重排未开始任务
+  // Lưu công tắc nối tiếp giữa các cảnh vào params của dự án, đồng thời bảo backend xếp lại các tác vụ chưa chạy
   async function handleLinkLastFrameChange(enabled: boolean) {
     const prevEnabled = linkLastFrame
     const prevParams = projectParams
@@ -335,7 +335,7 @@ function EpisodeEditInner() {
           : (nextParams as Record<string, unknown>)
       setProjectParams(updatedParams)
       setLinkLastFrame(coerceProjectBool(updatedParams.linkLastFrame ?? updatedParams.link_last_frame, enabled))
-      // 刷新本集任务态，让底部分镜条立刻反映串行/并行调整
+      // Làm mới trạng thái tác vụ của tập để thanh cảnh quay phía dưới phản ánh ngay việc sinh nối tiếp / song song
       try {
         const ep = await dramaApi.getEpisode(eid)
         setEpisode(ep)
@@ -345,17 +345,17 @@ function EpisodeEditInner() {
       }
       setStatus(
         enabled
-          ? '已开启尾帧衔接：未开始的任务已改成按镜序排队，进行中的任务不受影响'
-          : '已关闭尾帧衔接：未开始的任务已恢复并可并发生成，进行中的任务不受影响',
+          ? 'Đã bật nối tiếp khung hình cuối: các tác vụ chưa bắt đầu đã chuyển sang xếp hàng theo thứ tự cảnh, tác vụ đang chạy không bị ảnh hưởng'
+          : 'Đã tắt nối tiếp khung hình cuối: các tác vụ chưa bắt đầu đã trở lại và có thể sinh song song, tác vụ đang chạy không bị ảnh hưởng',
       )
     } catch (err) {
       setLinkLastFrame(prevEnabled)
       setProjectParams(prevParams)
-      setError(err instanceof Error ? err.message : '保存衔接设置失败')
+      setError(err instanceof Error ? err.message : 'Lưu cài đặt nối tiếp thất bại')
     }
   }
 
-  // 持久化本集画幅 / 清晰度到 episode.params；已有成片时提示重新生成（quiet=模型自动钳制时静默）
+  // Lưu tỉ lệ khung hình / độ phân giải của tập vào episode.params; nếu đã có thành phẩm thì nhắc sinh lại (quiet = im lặng khi model tự giới hạn)
   async function handleEpisodeOutputChange(
     nextParams: Record<string, unknown>,
     opts?: { quiet?: boolean },
@@ -373,13 +373,13 @@ function EpisodeEditInner() {
 
     if (!quiet) {
       const ok = await dialog.confirm({
-        title: '切换画幅 / 清晰度',
+        title: 'Đổi tỉ lệ khung hình / độ rõ',
         message:
           generatedCount > 0
-            ? `将本集从 ${prevLabel} 改为 ${nextLabel}。已生成的 ${generatedCount} 镜不会自动更新，需要重新生成才会按新规格出片。`
-            : `将本集从 ${prevLabel} 改为 ${nextLabel}。之后生成的分镜将使用该规格。`,
-        confirmText: generatedCount > 0 ? '保存并重新生成' : '保存',
-        cancelText: '取消',
+            ? `Sẽ đổi tập này từ ${prevLabel} sang ${nextLabel}. ${generatedCount} cảnh đã sinh sẽ không tự cập nhật, phải sinh lại mới ra video theo thông số mới.`
+            : `Sẽ đổi tập này từ ${prevLabel} sang ${nextLabel}. Các cảnh sinh về sau sẽ dùng thông số này.`,
+        confirmText: generatedCount > 0 ? 'Lưu và sinh lại' : 'Lưu',
+        cancelText: 'Huỷ',
         tone: generatedCount > 0 ? 'danger' : 'default',
       })
       if (!ok) return
@@ -402,27 +402,27 @@ function EpisodeEditInner() {
       if (!quiet) {
         setStatus(
           generatedCount > 0
-            ? `已更新本集规格为 ${nextLabel}，正在按新规格重新入队…`
-            : `已更新本集规格为 ${nextLabel}`,
+            ? `Đã cập nhật thông số của tập thành ${nextLabel}, đang xếp lại hàng đợi theo thông số mới…`
+            : `Đã cập nhật thông số của tập thành ${nextLabel}`,
         )
         setError('')
         if (generatedCount > 0) {
           await generateAll({ forceRegen: true, skipConfirm: true })
         }
       } else if (generatedCount > 0) {
-        // 模型能力自动钳制：不弹确认、不重入队，但提示已生成镜头需手动重生成
-        setStatus(`规格已按当前模型调整为 ${nextLabel}，已生成镜头需重生成才会按新规格出片`)
+        // Model tự giới hạn theo năng lực: không hỏi xác nhận, không xếp lại hàng đợi, nhưng nhắc phải sinh lại các cảnh đã có
+        setStatus(`Thông số đã được điều chỉnh theo model hiện tại thành ${nextLabel}; cảnh đã sinh phải sinh lại mới ra theo thông số mới`)
       }
     } catch (err) {
       setEpisodeParams(prevParams)
       episodeParamsRef.current = prevParams
       setAspectRatio(readEpisodeAspectRatio(prevParams, projectParams))
-      setError(err instanceof Error ? err.message : '本集输出规格保存失败')
+      setError(err instanceof Error ? err.message : 'Lưu thông số xuất của tập thất bại')
       throw err
     }
   }
 
-  // 持久化本集字幕方式，并动态改写当前分镜里的字幕提示词
+  // Lưu cách làm phụ đề của tập và viết lại động câu lệnh phụ đề trong cảnh đang chọn
   async function handleEpisodeSubtitleChange(mode: DramaSubtitleMode) {
     if (mode === subtitleMode) return
     const prevParams = episodeParams
@@ -475,8 +475,8 @@ function EpisodeEditInner() {
       }
       setStatus(
         mode === 'model'
-          ? '已切换为模型自出字幕，并补回分镜字幕提示词'
-          : '已切换为后期拼接字幕，并去掉分镜里的字幕提示词',
+          ? 'Đã chuyển sang phụ đề do model tự sinh và đã bổ sung lại câu lệnh phụ đề cho cảnh quay'
+          : 'Đã chuyển sang ghép phụ đề sau hậu kỳ và đã gỡ câu lệnh phụ đề khỏi cảnh quay',
       )
       setError('')
     } catch (err) {
@@ -484,11 +484,11 @@ function EpisodeEditInner() {
       setEpisodeParams(prevParams)
       episodeParamsRef.current = prevParams
       setFragments(prevFragments)
-      setError(err instanceof Error ? err.message : '本集字幕方式保存失败')
+      setError(err instanceof Error ? err.message : 'Lưu cách làm phụ đề của tập thất bại')
     }
   }
 
-  // 持久化本集人物介绍叠字开关，并动态去掉当前分镜里的介绍行
+  // Lưu công tắc chồng chữ giới thiệu nhân vật của tập và gỡ động dòng giới thiệu trong cảnh đang chọn
   async function handleEpisodeCharacterIntroChange(mode: DramaCharacterIntroMode) {
     if (mode === characterIntroMode) return
     const prevParams = episodeParams
@@ -541,8 +541,8 @@ function EpisodeEditInner() {
       }
       setStatus(
         mode === 'model'
-          ? '已开启人物介绍叠字；重新规划分镜时会重新注入介绍行'
-          : '已关闭人物介绍，并去掉分镜里的介绍叠字行',
+          ? 'Đã bật chồng chữ giới thiệu nhân vật; khi lập lại storyboard, dòng giới thiệu sẽ được chèn lại'
+          : 'Đã tắt giới thiệu nhân vật và đã gỡ dòng chồng chữ giới thiệu khỏi cảnh quay',
       )
       setError('')
     } catch (err) {
@@ -550,7 +550,7 @@ function EpisodeEditInner() {
       setEpisodeParams(prevParams)
       episodeParamsRef.current = prevParams
       setFragments(prevFragments)
-      setError(err instanceof Error ? err.message : '本集人物介绍设置保存失败')
+      setError(err instanceof Error ? err.message : 'Lưu cài đặt giới thiệu nhân vật của tập thất bại')
     }
   }
 
@@ -568,9 +568,9 @@ function EpisodeEditInner() {
     [assets, assetScope, assetTab, referencedIds],
   )
 
-  // 应用后端生成进度并同步分镜状态 + 全局队列
+  // Áp tiến độ sinh từ backend và đồng bộ trạng thái của từng cảnh + hàng đợi toàn cục
   function applyGenerateStatus(st: Awaited<ReturnType<typeof dramaApi.generateStatus>>) {
-    setStatus(`完成 ${st.done}/${st.total} · 进行中 ${st.running} · 失败 ${st.failed}`)
+    setStatus(`Xong ${st.done}/${st.total} · Đang chạy ${st.running} · Lỗi ${st.failed}`)
     const byId = new Map(st.fragments.map((f) => [f.fragment_id, f.status]))
     setFragments((prev) => {
       const next = prev.map((f) => {
@@ -643,13 +643,13 @@ function EpisodeEditInner() {
 
   applyStatusRef.current = applyGenerateStatus
 
-  // 进页检查是否有进行中的生成任务或 AI 分镜
+  // Vào trang thì kiểm tra có tác vụ sinh hoặc lập storyboard bằng AI đang chạy không
   async function resumeGenerateIfNeeded() {
     try {
       const ep = await dramaApi.getEpisode(eid)
       if (readFragmentPlanStatus(ep) === 'generating') {
         setBusy(true)
-        setStatus('AI 分镜规划中…')
+        setStatus('AI đang lập storyboard…')
         const started = Date.now()
         while (Date.now() - started < 10 * 60 * 1000) {
           await new Promise((r) => setTimeout(r, 2500))
@@ -659,12 +659,17 @@ function EpisodeEditInner() {
             setEpisode(cur)
             setFragments(cur.fragments || [])
             setSelectedIndex(0)
-            setStatus(`AI 分镜完成 · ${(cur.fragments || []).length} 条`)
+            setStatus(`AI đã lập storyboard xong · ${(cur.fragments || []).length} cảnh`)
             setBusy(false)
             return
           }
           if (st === 'failed') {
-            setError(String(cur.params?.fragment_plan_error || 'AI 分镜失败'))
+            setError(String(cur.params?.fragment_plan_error || 'AI lập storyboard thất bại'))
+            setBusy(false)
+            return
+          }
+          if (st === 'failed') {
+            setError(String(cur.params?.fragment_plan_error || 'AI lập storyboard thất bại'))
             setBusy(false)
             return
           }
@@ -679,12 +684,12 @@ function EpisodeEditInner() {
     }
   }
 
-  // 打开全屏分镜故事板画布
+  // Mở bảng storyboard toàn màn hình
   function openEpisodeStoryboard() {
     navigate(`/drama/projects/${pid}/episodes/${eid}/canvas`)
   }
 
-  // 重新加载分集
+  // Tải lại tập
   async function reload() {
     const ep = await dramaApi.getEpisode(eid)
     setEpisode(ep)
@@ -717,7 +722,7 @@ function EpisodeEditInner() {
 
   reloadRef.current = reload
 
-  // 复用全局 generate_status 轮询，避免与 dramaGenQueue 重复请求
+  // Tái dùng vòng lặp generate_status toàn cục để khỏi gọi trùng với dramaGenQueue
   useEffect(() => {
     return subscribeEpisodeGenerateStatus(async (episodeId, st) => {
       if (episodeId !== eid) return
@@ -728,7 +733,7 @@ function EpisodeEditInner() {
     })
   }, [eid])
 
-  // 切换分镜时退出历史版本预览
+  // Chuyển cảnh thì thoát chế độ xem bản thành phẩm cũ
   useEffect(() => {
     setPreviewVersionId(null)
   }, [selectedIndex, selected?.id])
@@ -738,7 +743,7 @@ function EpisodeEditInner() {
     setBusy(false)
     setStatus('')
     setError('')
-    reload().catch((err) => setError(err instanceof Error ? err.message : '加载失败'))
+    reload().catch((err) => setError(err instanceof Error ? err.message : 'Tải dữ liệu thất bại'))
     dramaApi
       .listAssets(pid)
       .then(setAssets)
@@ -747,7 +752,7 @@ function EpisodeEditInner() {
       .listEpisodes(pid)
       .then((rows) => setEpisodeList(rows))
       .catch(() => setEpisodeList([]))
-    // 加载项目默认画面风格 / 镜间衔接等到顶栏
+    // Nạp phong cách hình ảnh mặc định của dự án / nối tiếp giữa các cảnh vào thanh trên cùng
     dramaApi
       .getProject(pid)
       .then((project) => {
@@ -770,14 +775,14 @@ function EpisodeEditInner() {
       })
   }, [eid, pid])
 
-  // 更新当前分镜
+  // Cập nhật cảnh đang chọn
   function updateSelected(patch: Partial<DramaFragment>) {
     setFragments((prev) =>
       prev.map((f, i) => (i === selectedIndex ? { ...f, ...patch } : f)),
     )
   }
 
-  // 插入空白分镜
+  // Chèn một cảnh trống
   function insertFrag(at: number) {
     setFragments((prev) => {
       const next = [...prev]
@@ -797,7 +802,7 @@ function EpisodeEditInner() {
     setEditing(true)
   }
 
-  // 复制分镜
+  // Nhân bản cảnh
   function duplicateFrag(index: number) {
     const source = fragments[index]
     if (!source) return
@@ -813,7 +818,7 @@ function EpisodeEditInner() {
     setSelectedIndex(index + 1)
   }
 
-  // 删除分镜
+  // Xoá cảnh
   function deleteFrag(index: number) {
     if (fragments.length <= 1) return
     setFragments((prev) => prev.filter((_, i) => i !== index))
@@ -824,7 +829,7 @@ function EpisodeEditInner() {
     })
   }
 
-  // 保存全部分镜（带 id 更新，避免每次重建 id 打断在途生成；标记 user_edited 防自动重切覆盖）
+  // Lưu toàn bộ cảnh quay (có gửi kèm id để cập nhật, tránh mỗi lần dựng lại id làm đứt các lần sinh đang chạy; đánh dấu user_edited để bộ tự cắt lại không ghi đè)
   async function save() {
     setBusy(true)
     setError('')
@@ -850,18 +855,18 @@ function EpisodeEditInner() {
       )
       setEpisode(ep)
       setFragments(ep.fragments || [])
-      setStatus('已保存')
+      setStatus('Đã lưu')
       setEditing(false)
       return ep
     } catch (err) {
-      setError(err instanceof Error ? err.message : '保存失败')
+      setError(err instanceof Error ? err.message : 'Lưu thất bại')
       throw err
     } finally {
       setBusy(false)
     }
   }
 
-  // 判断「一键生成」时是否可安全跳过：仅跳过未改动且已有成片的旧分镜
+  // Kiểm tra cảnh nào có thể bỏ qua an toàn khi bấm «Sinh tất cả»: chỉ bỏ qua cảnh cũ chưa sửa và đã có thành phẩm
   function shouldSkipGenerateAllFragment(frag: DramaFragment): boolean {
     if (!frag.video || !frag.id) return false
     const prev = (episode?.fragments || []).find((item) => item.id === frag.id)
@@ -879,23 +884,23 @@ function EpisodeEditInner() {
     return sameContent && sameCover && sameDuration && sameAssets
   }
 
-  // 仅生成当前选中分镜（保存按 id 更新，生成前仍用保存后返回的 id）
+  // Chỉ sinh cảnh đang chọn (lưu theo id, lúc sinh vẫn dùng id backend trả về sau khi lưu)
   async function generateSelected() {
     if (!selected) {
-      setError('请先选择一条分镜')
+      setError('Hãy chọn một cảnh quay trước')
       return
     }
     if (selectedGenerateLocked) {
       if (continuityBlockedReason) {
         setError(continuityBlockedReason)
         await dialog.alert({
-          title: '无法生成',
-          message: `${continuityBlockedReason}。开启「尾帧衔接」后须先有上一镜成片，再按镜序生成本镜。`,
+          title: 'Không thể sinh',
+          message: `${continuityBlockedReason}. Khi bật «Nối tiếp khung hình cuối», phải có thành phẩm của cảnh trước rồi mới sinh cảnh này theo đúng thứ tự.`,
         })
       } else if (selectedIsGenerating) {
-        setError('当前分镜正在生成，请等待完成后再试')
+        setError('Cảnh đang chọn đang được sinh, vui lòng đợi xong rồi thử lại')
       } else {
-        setError('请等待当前操作完成后再试')
+        setError('Vui lòng đợi thao tác hiện tại hoàn tất rồi thử lại')
       }
       return
     }
@@ -904,8 +909,8 @@ function EpisodeEditInner() {
     if (blocking.length > 0) {
       setError(blocking.map((i) => i.message).join('；'))
       await dialog.alert({
-        title: '无法生成',
-        message: formatDramaGateMessage(blocking, warnings, '请先按分集规则修复脚本后再生成。'),
+        title: 'Không thể sinh',
+        message: formatDramaGateMessage(blocking, warnings, 'Hãy sửa kịch bản theo quy tắc của tập trước khi sinh.'),
       })
       return
     }
@@ -913,33 +918,33 @@ function EpisodeEditInner() {
     const fragLabel = formatFragLabel(selectedIndex, selectedDuration)
     const isRegen = Boolean(selected.video)
     const ok = await dialog.confirm({
-      title: isRegen ? '重新生成分镜视频' : '生成分镜视频',
+      title: isRegen ? 'Sinh lại video cảnh quay' : 'Sinh video cảnh quay',
       message: formatDramaGateMessage(
         [],
         warnings,
         isRegen
-          ? `将保存并重新生成「${fragLabel}」。当前成片会清空并改存为历史版本，入队后可在右下角队列查看进度。`
+          ? `Sẽ lưu và sinh lại «${fragLabel}». Thành phẩm hiện tại sẽ bị xoá và chuyển thành phiên bản cũ; sau khi xếp hàng, bạn có thể xem tiến độ ở hàng đợi góc dưới bên phải.`
           : linkLastFrame
             ? continuityQueueHint
-              ? `将保存「${fragLabel}」并入队。${continuityQueueHint}。`
-              : `将保存并按镜序生成「${fragLabel}」。入队后可继续编辑；本镜会使用上一镜尾帧作衔接参考。`
-            : `将保存并生成「${fragLabel}」。入队后可继续编辑；当前未开启尾帧衔接，本镜会独立生成。`,
+              ? `Sẽ lưu «${fragLabel}» và xếp hàng. ${continuityQueueHint}.`
+              : `Sẽ lưu và sinh «${fragLabel}» theo thứ tự cảnh. Sau khi xếp hàng bạn vẫn sửa tiếp được; cảnh này sẽ dùng khung hình cuối của cảnh trước làm tham chiếu nối tiếp.`
+            : `Sẽ lưu và sinh «${fragLabel}». Sau khi xếp hàng bạn vẫn sửa tiếp được; hiện chưa bật nối tiếp khung hình cuối nên cảnh này được sinh độc lập.`,
       ),
-      confirmText: warnings.length > 0 ? '仍要生成' : isRegen ? '重新生成' : '开始生成',
+      confirmText: warnings.length > 0 ? 'Vẫn sinh' : isRegen ? 'Sinh lại' : 'Bắt đầu sinh',
     })
     if (!ok) return
     setBusy(true)
     setError('')
-    setStatus(isRegen ? '保存并重新排队生成…' : '保存并排队生成当前分镜…')
+    setStatus(isRegen ? 'Đang lưu và xếp lại hàng đợi để sinh lại…' : 'Đang lưu và xếp hàng để sinh cảnh đang chọn…')
     try {
       const ep = await save()
       setBusy(true)
       const frag = (ep.fragments || [])[selectedIndex]
       if (!frag?.id) {
-        throw new Error('保存后未找到当前分镜，请刷新后重试')
+        throw new Error('Sau khi lưu không tìm thấy cảnh đang chọn, vui lòng tải lại rồi thử lại')
       }
       await dramaApi.generateEpisode(eid, [frag.id], modelId)
-      // 乐观写入排队态，避免旧 video 把状态盖成已完成
+      // Ghi trạng thái chờ hàng đợi ngay (lạc quan) để video cũ không đè trạng thái thành đã xong
       setFragments((prev) =>
         prev.map((f) =>
           f.id === frag.id
@@ -947,7 +952,7 @@ function EpisodeEditInner() {
                 ...f,
                 params: {
                   ...(f.params || {}),
-                  generation: { status: 'queued', message: '已入队' },
+                  generation: { status: 'queued', message: 'Đã xếp hàng' },
                 },
               }
             : f,
@@ -964,21 +969,21 @@ function EpisodeEditInner() {
         fragmentIds: [frag.id],
       })
       setBusy(false)
-      setStatus(isRegen ? `「${fragLabel}」已重新入队，可在右下角查看队列` : `「${fragLabel}」已入队，可在右下角查看队列`)
+      setStatus(isRegen ? `«${fragLabel}» đã xếp hàng lại, xem hàng đợi ở góc dưới bên phải` : `«${fragLabel}» đã xếp hàng, xem hàng đợi ở góc dưới bên phải`)
       ensureEpisodeVideoStatusPoll()
     } catch (err) {
       setBusy(false)
-      setError(err instanceof Error ? err.message : '生成失败')
+      setError(err instanceof Error ? err.message : 'Sinh thất bại')
     }
   }
 
-  // 切换历史成片为当前预览视频
+  // Đổi một bản thành phẩm cũ thành video đang xem trước
   async function activateVideoVersion(versionId: string) {
     if (!selected?.id || selectedIsGenerating) return
     const ok = await dialog.confirm({
-      title: '切换历史版本',
-      message: '将用该历史成片替换当前预览；当前成片会进入历史版本列表。',
-      confirmText: '切换',
+      title: 'Chuyển sang phiên bản cũ',
+      message: 'Bản thành phẩm cũ này sẽ thay thế video đang xem trước; thành phẩm hiện tại sẽ nằm trong danh sách phiên bản cũ.',
+      confirmText: 'Chuyển',
     })
     if (!ok) return
     setBusy(true)
@@ -1008,22 +1013,22 @@ function EpisodeEditInner() {
         ),
       )
       setPreviewVersionId(null)
-      setStatus('已切换历史版本')
+      setStatus('Đã chuyển sang phiên bản cũ')
     } catch (err) {
-      setError(err instanceof Error ? err.message : '切换版本失败')
+      setError(err instanceof Error ? err.message : 'Chuyển phiên bản thất bại')
     } finally {
       setBusy(false)
     }
   }
 
-  // 一键生成：入队本集分镜（forceRegen 覆盖已有成片）
+  // Sinh tất cả: xếp hàng toàn bộ cảnh của tập (forceRegen ghi đè các thành phẩm đã có)
   async function generateAll(opts?: { forceRegen?: boolean; skipConfirm?: boolean }) {
     if (fragments.length === 0) {
-      setError('没有可生成的分镜')
+      setError('Không có cảnh quay nào để sinh')
       return
     }
     if (generateAllLocked) {
-      setError('正在提交，请稍候')
+      setError('Đang gửi yêu cầu, vui lòng đợi')
       return
     }
 
@@ -1042,14 +1047,14 @@ function EpisodeEditInner() {
     }
     const pendingCount = fragments.length - doneIndices.length
     if (pendingCount <= 0) {
-      setStatus('本集分镜已全部生成，已自动跳过')
+      setStatus('Các cảnh của tập đã sinh xong hết, đã tự động bỏ qua')
       return
     }
     if (allBlocking.length > 0) {
-      setError(allBlocking[0] || '分镜脚本校验未通过')
+      setError(allBlocking[0] || 'Kiểm tra kịch bản cảnh quay không đạt')
       await dialog.alert({
-        title: '无法一键生成',
-        message: ['请先修复以下问题：', '', ...allBlocking.slice(0, 8).map((m) => `· ${m}`)].join(
+        title: 'Không thể sinh tất cả',
+        message: ['Hãy sửa các vấn đề sau trước:', '', ...allBlocking.slice(0, 8).map((m) => `· ${m}`)].join(
           '\n',
         ),
       })
@@ -1058,24 +1063,24 @@ function EpisodeEditInner() {
 
     if (!opts?.skipConfirm) {
       const ok = await dialog.confirm({
-        title: opts?.forceRegen ? '按新规格重新生成' : '一键生成分镜视频',
+        title: opts?.forceRegen ? 'Sinh lại theo thông số mới' : 'Sinh toàn bộ video cảnh quay',
         message: formatDramaGateMessage(
           [],
           allWarnings.slice(0, 8).map((message) => ({ level: 'warn' as const, message })),
           opts?.forceRegen
-            ? `将按当前画幅/清晰度重新生成 ${pendingCount} 镜。当前成片会保留为历史版本。`
+            ? `Sẽ sinh lại ${pendingCount} cảnh theo tỉ lệ khung hình / độ rõ hiện tại. Thành phẩm hiện tại được giữ lại thành phiên bản cũ.`
             : linkLastFrame
-              ? `将按镜序排队生成剩余 ${pendingCount} 镜（已生成的 ${doneIndices.length} 镜会跳过）。入队后可继续编辑；后一镜会等待上一镜尾帧写好再开始。`
-              : `将并发生成剩余 ${pendingCount} 镜（已生成的 ${doneIndices.length} 镜会跳过）。入队后可继续编辑；各镜互不等待。`,
+              ? `Sẽ xếp hàng sinh ${pendingCount} cảnh còn lại theo thứ tự (bỏ qua ${doneIndices.length} cảnh đã sinh). Sau khi xếp hàng bạn vẫn sửa tiếp được; cảnh sau sẽ đợi khung hình cuối của cảnh trước được ghi xong mới bắt đầu.`
+              : `Sẽ sinh song song ${pendingCount} cảnh còn lại (bỏ qua ${doneIndices.length} cảnh đã sinh). Sau khi xếp hàng bạn vẫn sửa tiếp được; các cảnh không chờ nhau.`,
         ),
-        confirmText: allWarnings.length > 0 ? '仍要一键生成' : opts?.forceRegen ? '全部重新生成' : '一键生成',
+        confirmText: allWarnings.length > 0 ? 'Vẫn sinh tất cả' : opts?.forceRegen ? 'Sinh lại toàn bộ' : 'Sinh tất cả',
         tone: 'danger',
       })
       if (!ok) return
     }
     setBusy(true)
     setError('')
-    setStatus(`保存并排队生成剩余 ${pendingCount} 条…`)
+    setStatus(`Đang lưu và xếp hàng sinh ${pendingCount} cảnh còn lại…`)
     try {
       const ep = await save()
       setBusy(true)
@@ -1084,7 +1089,7 @@ function EpisodeEditInner() {
         .map((f) => f.id)
         .filter((id): id is number => typeof id === 'number' && id > 0)
       if (ids.length === 0) {
-        setStatus('保存后检测到分镜已全部生成，已自动跳过')
+        setStatus('Sau khi lưu phát hiện các cảnh đã sinh xong hết, đã tự động bỏ qua')
         setBusy(false)
         return
       }
@@ -1107,44 +1112,44 @@ function EpisodeEditInner() {
       const limit = Number(genResult.user_job_limit || 0)
       if (deferred > 0 && limit > 0) {
         setStatus(
-          `已入队 ${queuedIds.length} 镜：最多同时生成 ${limit} 镜，另有 ${deferred} 镜排队等待`,
+          `Đã xếp hàng ${queuedIds.length} cảnh: tối đa ${limit} cảnh sinh cùng lúc, ${deferred} cảnh còn lại đang chờ trong hàng đợi`,
         )
       } else {
-        setStatus(`已入队 ${queuedIds.length} 镜，生成中…`)
+        setStatus(`Đã xếp hàng ${queuedIds.length} cảnh, đang sinh…`)
       }
       setBusy(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : '一键生成失败')
+      setError(err instanceof Error ? err.message : 'Sinh tất cả thất bại')
       setBusy(false)
     }
   }
 
-  // 返回剧情大纲
+  // Quay lại phần dàn ý nội dung
   function handleBack() {
     navigate(`/drama/projects/${pid}`, { state: { activeStep: 'outline' } })
   }
 
-  // 左侧目录切换分集
+  // Chuyển tập ở danh mục bên trái
   function handleSelectEpisode(nextId: number) {
     if (nextId === eid) return
     navigate(`/drama/projects/${pid}/episodes/${nextId}`)
   }
 
-  // 单集 LLM 重新分镜：确认并勾选 Skill 后入队
+  // Lập lại storyboard cho một tập bằng LLM: xác nhận và chọn Skill rồi mới xếp hàng
   function planFragmentsWithLlm() {
     if (planFragmentsLocked) {
-      setError('当前有视频生成任务进行中，请稍候再重新分镜')
+      setError('Hiện có tác vụ sinh video đang chạy, vui lòng đợi rồi hãy lập lại storyboard')
       return
     }
     setPlanModalOpen(true)
   }
 
-  // 入队后轮询至完成（字幕方式沿用顶栏当前设置）
+  // Sau khi xếp hàng thì vòng lặp tới khi xong (cách làm phụ đề theo cài đặt hiện tại ở thanh trên)
   async function startPlanFragments(skillIds: number[]) {
     setPlanModalOpen(false)
     setBusy(true)
     setError('')
-    setStatus('AI 分镜规划中…')
+    setStatus('AI đang lập storyboard…')
     try {
       await dramaApi.planEpisodeFragments(eid, {
         force: true,
@@ -1169,28 +1174,28 @@ function EpisodeEditInner() {
           const count = Number(ep.params?.fragment_plan_count) || (ep.fragments || []).length
           setStatus(
             mode === 'rules_fallback'
-              ? `分镜完成（模型失败已回退规则切分）· ${count} 条`
-              : `AI 分镜完成 · ${count} 条`,
+              ? `Đã lập storyboard xong (model lỗi nên đã lùi về cách cắt theo quy tắc) · ${count} cảnh`
+              : `AI đã lập storyboard xong · ${count} cảnh`,
           )
           setBusy(false)
           return
         }
         if (st === 'failed') {
-          const msg = String(ep.params?.fragment_plan_error || 'AI 分镜失败')
+          const msg = String(ep.params?.fragment_plan_error || 'AI lập storyboard thất bại')
           setError(msg)
           setBusy(false)
           return
         }
-        setStatus('AI 分镜规划中…')
+        setStatus('AI đang lập storyboard…')
       }
-      throw new Error('AI 分镜超时，请稍后刷新查看')
+      throw new Error('AI lập storyboard quá thời gian chờ, vui lòng tải lại sau')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'AI 分镜失败')
+      setError(err instanceof Error ? err.message : 'AI lập storyboard thất bại')
       setBusy(false)
     }
   }
 
-  // 点击资产插入 @ 引用
+  // Bấm vào một tư liệu để chèn trích dẫn @
   function mentionAsset(asset: DramaAsset) {
     if (!selected) return
     const mention = `@asset:${asset.id}`
@@ -1202,12 +1207,12 @@ function EpisodeEditInner() {
     setEditing(true)
   }
 
-  // 解析侧栏当前要新建的资产类型（未选分类时默认角色）
+  // Xác định loại tư liệu đang tạo ở thanh bên (chưa chọn phân loại thì mặc định là nhân vật)
   function resolveCreateAssetTab(): AssetTab {
     return assetTab || 'character'
   }
 
-  // 新建后挂到当前分镜并打开详情，便于本集列表立刻可见
+  // Sau khi tạo thì gắn vào cảnh đang chọn và mở chi tiết, để danh sách của tập thấy ngay
   function adoptCreatedAsset(created: DramaAsset, kind: AssetTab) {
     setAssets((prev) => (prev.some((a) => a.id === created.id) ? prev : [...prev, created]))
     setAssetTab(kind)
@@ -1217,15 +1222,15 @@ function EpisodeEditInner() {
     }
   }
 
-  // 自定义新建角色 / 场景 / 道具
+  // Tự tạo nhân vật / bối cảnh / đạo cụ
   async function handleCreateSideAsset() {
     const kind = resolveCreateAssetTab()
-    const label = kind === 'scene' ? '场景' : kind === 'prop' ? '道具' : '角色'
+    const label = kind === 'scene' ? 'bối cảnh' : kind === 'prop' ? 'đạo cụ' : 'nhân vật'
     const name = await dialog.prompt({
-      title: `新建${label}`,
-      message: `输入${label}名称，创建后会插入当前分镜，并可继续生成或上传形象。`,
-      placeholder: kind === 'scene' ? '例如：深宫御花园' : kind === 'prop' ? '例如：玉佩' : '例如：白龙',
-      confirmText: '创建',
+      title: `Tạo ${label} mới`,
+      message: `Nhập tên ${label}. Sau khi tạo, nó sẽ được chèn vào cảnh đang chọn và bạn có thể tiếp tục sinh hoặc tải hình lên.`,
+      placeholder: kind === 'scene' ? 'Ví dụ: vườn thượng uyển cung đình' : kind === 'prop' ? 'Ví dụ: miếng ngọc bích' : 'Ví dụ: Bạch Long',
+      confirmText: 'Tạo',
     })
     if (!name?.trim()) return
     setAssetCreateBusy(true)
@@ -1239,15 +1244,15 @@ function EpisodeEditInner() {
         params: { kind },
       })
       adoptCreatedAsset(created, kind)
-      setStatus(`已新建${label}「${created.name}」并插入当前分镜`)
+      setStatus(`Đã tạo ${label} «${created.name}» và chèn vào cảnh đang chọn`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : `创建${label}失败`)
+      setError(err instanceof Error ? err.message : `Tạo ${label} thất bại`)
     } finally {
       setAssetCreateBusy(false)
     }
   }
 
-  // 从全局资产库导入到本项目并挂到当前分镜
+  // Nhập từ thư viện tư liệu toàn cục vào dự án này rồi gắn vào cảnh đang chọn
   async function handleImportSideAsset(source: DramaAsset) {
     const kind = normalizeAssetTab(source.type) || resolveCreateAssetTab()
     setAssetCreateBusy(true)
@@ -1256,16 +1261,16 @@ function EpisodeEditInner() {
       const created = await importGlobalAssetToProject(pid, source)
       adoptCreatedAsset(created, kind)
       setLibraryPickerOpen(false)
-      setStatus(`已导入「${created.name}」并插入当前分镜`)
+      setStatus(`Đã nhập «${created.name}» và chèn vào cảnh đang chọn`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : '导入资产失败')
+      setError(err instanceof Error ? err.message : 'Nhập tư liệu thất bại')
       throw err
     } finally {
       setAssetCreateBusy(false)
     }
   }
 
-  // 仅取消当前分镜对该资产的关联（不删除项目资产）
+  // Chỉ bỏ liên kết của cảnh đang chọn với tư liệu này (không xoá tư liệu khỏi dự án)
   function unlinkSelectedAsset(assetId: number) {
     if (!selected) return
     const content = (selected.content || '')
@@ -1279,12 +1284,12 @@ function EpisodeEditInner() {
     const name = assets.find((a) => a.id === assetId)?.name
     setStatus(
       name
-        ? `已取消本镜对「${name}」的关联，资产仍在项目中（可切到「全集」查看）`
-        : '已取消本镜关联，资产仍在项目中（可切到「全集」查看）',
+        ? `Đã bỏ liên kết của cảnh này với «${name}», tư liệu vẫn còn trong dự án (chuyển sang «Toàn bộ» để xem)`
+        : 'Đã bỏ liên kết của cảnh này, tư liệu vẫn còn trong dự án (chuyển sang «Toàn bộ» để xem)',
     )
   }
 
-  // 从关联条跳到对应分类并打开资产详情
+  // Từ thanh liên kết nhảy sang phân loại tương ứng và mở chi tiết tư liệu
   function focusLinkedAsset(assetId: number) {
     const asset = assets.find((a) => a.id === assetId)
     if (!asset) return
@@ -1296,13 +1301,13 @@ function EpisodeEditInner() {
     }
   }
 
-  // 更新资产（音色绑定 / 上传 / 生图后刷新列表与详情）
+  // Cập nhật tư liệu (sau khi gắn giọng / tải lên / sinh ảnh thì làm mới cả danh sách lẫn chi tiết)
   function handleCharacterUpdated(updated: DramaAsset) {
     setAssets((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))
     setDetailAsset((prev) => (prev?.id === updated.id ? updated : prev))
   }
 
-  // 当前排队/生成中的资产生图 id
+  // id của các tư liệu đang chờ hàng đợi / đang sinh ảnh
   const imageBusyIds = useMemo(() => {
     const ids = new Set<number>()
     for (const job of imageGenQueue) {
@@ -1311,7 +1316,7 @@ function EpisodeEditInner() {
     return ids
   }, [imageGenQueue])
 
-  // 详情弹窗生图按钮文案
+  // Chữ trên nút sinh ảnh trong hộp chi tiết
   function assetImageGenLabel(asset: DramaAsset): string {
     const job = imageGenQueue.find(
       (j) =>
@@ -1319,19 +1324,19 @@ function EpisodeEditInner() {
     )
     let queueLabel: string | null = null
     if (job) {
-      if (job.status === 'running') queueLabel = '生成中…'
+      if (job.status === 'running') queueLabel = 'Đang sinh…'
       else {
         const queuedOnly = imageGenQueue.filter(
           (j) => j.status === 'queued' || j.status === 'running',
         )
         const pos = queuedOnly.findIndex((j) => j.id === job.id) + 1
-        queueLabel = pos > 1 ? `排队 #${pos}` : '排队中…'
+        queueLabel = pos > 1 ? `Hàng đợi #${pos}` : 'Đang xếp hàng…'
       }
     }
     return dramaAssetImageGenButtonLabel(asset, queueLabel)
   }
 
-  // 将资产生图加入全局队列
+  // Đưa việc sinh ảnh của tư liệu vào hàng đợi toàn cục
   function enqueueAssetImage(asset: DramaAsset) {
     if (imageBusyIds.has(asset.id)) return
     const options = {
@@ -1348,17 +1353,17 @@ function EpisodeEditInner() {
       onAssetUpdate: handleCharacterUpdated,
     })
       .then((updated) => handleCharacterUpdated(updated))
-      .catch((err) => setError(err instanceof Error ? err.message : '生图失败'))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Sinh ảnh thất bại'))
   }
 
-  // 打开分镜失败原因（优先队列任务，否则用分镜 params.generation.error）
+  // Mở lý do lỗi của cảnh (ưu tiên tác vụ trong hàng đợi, nếu không thì dùng params.generation.error của cảnh)
   function openFragmentFailReason(frag: DramaFragment, index: number) {
     if (!frag.id) return
     const fromQueue = dramaGenQueue.find(
       (j) => j.id === videoJobId(frag.id!) || (j.kind === 'video' && j.targetId === frag.id),
     )
     const gen = readFragmentGenerationStatus(frag)
-    const title = `${episode?.name || '本集'} · ${formatFragLabel(index, frag.duration_sec)}`
+    const title = `${episode?.name || 'Tập này'} · ${formatFragLabel(index, frag.duration_sec)}`
     setFailReasonJob({
       id: fromQueue?.id || videoJobId(frag.id),
       kind: 'video',
@@ -1367,14 +1372,14 @@ function EpisodeEditInner() {
       episodeId: eid || undefined,
       taskId: fromQueue?.taskId,
       title: fromQueue?.title || title,
-      subtype: '分镜视频',
+      subtype: 'Video cảnh quay',
       status: 'failed',
-      error: fromQueue?.error || gen.error || '生成失败',
+      error: fromQueue?.error || gen.error || 'Sinh thất bại',
       createdAt: fromQueue?.createdAt || Date.now(),
     })
   }
 
-  // 一键 AI 生成角色音色并绑定（各角色独立 busy，互不阻塞）
+  // Sinh giọng cho nhân vật bằng AI và gắn luôn (mỗi nhân vật một trạng thái chờ riêng, không chặn lẫn nhau)
   async function handleGenerateCharacterVoice(asset: DramaAsset) {
     if (characterVoiceBusyIds.has(asset.id)) return
     setCharacterVoiceBusyIds((prev) => new Set(prev).add(asset.id))
@@ -1384,7 +1389,7 @@ function EpisodeEditInner() {
       handleCharacterUpdated(character)
       setAssets((prev) => (prev.some((a) => a.id === voice.id) ? prev : [...prev, voice]))
     } catch (err) {
-      setError(err instanceof Error ? err.message : '音色生成失败')
+      setError(err instanceof Error ? err.message : 'Sinh giọng thất bại')
     } finally {
       setCharacterVoiceBusyIds((prev) => {
         const next = new Set(prev)
@@ -1397,15 +1402,15 @@ function EpisodeEditInner() {
   if (!episode) {
     return (
       <div className="drama-ep-fullscreen drama-ep-center">
-        {error || '加载中…'}
+        {error || 'Đang tải…'}
       </div>
     )
   }
 
-  // 当前预览/选中分镜 id（与底部分镜条、脚本编辑联动）
+  // id của cảnh đang xem trước / đang chọn (liên kết với thanh cảnh quay phía dưới và phần sửa kịch bản)
   const playingFragmentId = selected?.id ?? null
 
-  // 切换预览分镜时同步底部分镜选中态
+  // Khi đổi cảnh đang xem trước thì đồng bộ cảnh đang chọn ở thanh phía dưới
   function handlePlayingFragmentChange(fragmentId: number) {
     const index = fragments.findIndex((f) => f.id === fragmentId)
     if (index >= 0) {
@@ -1417,7 +1422,7 @@ function EpisodeEditInner() {
     <div className="drama-ep-fullscreen">
       <header className="drama-ep-header">
         <div className="drama-ep-header-left">
-          <button type="button" className="drama-ep-icon-btn" aria-label="返回" onClick={handleBack}>
+          <button type="button" className="drama-ep-icon-btn" aria-label="Quay lại" onClick={handleBack}>
             ‹
           </button>
           <h1>{episode.name}</h1>
@@ -1446,9 +1451,9 @@ function EpisodeEditInner() {
             disabled={planFragmentsLocked}
             onClick={() => void planFragmentsWithLlm()}
           >
-            {busy && status.includes('分镜') ? '分镜中…' : 'AI 重新分镜'}
+            {busy && status.includes('lập storyboard') ? 'Đang lập storyboard…' : 'AI lập lại storyboard'}
           </button>
-          {/* 一键生成：暂时隐藏，恢复时去掉 false && */}
+          {/* Sinh tất cả: tạm ẩn, khi bật lại thì bỏ false && */}
           {false && (
             <button
               type="button"
@@ -1456,7 +1461,7 @@ function EpisodeEditInner() {
               disabled={generateAllLocked || fragments.length === 0}
               onClick={() => void generateAll()}
             >
-              {busy ? '入队中…' : '一键生成'}
+              {busy ? 'Đang xếp hàng…' : 'Sinh tất cả'}
             </button>
           )}
         </div>
@@ -1505,7 +1510,7 @@ function EpisodeEditInner() {
             <div>
               <strong>{formatFragLabel(selectedIndex, selectedDuration)}</strong>
               <p>
-                顶部显示本镜关联；键入 @ 可引用资产或插入时长标签 ·{' '}
+                Phía trên hiện các tư liệu liên kết của cảnh này; gõ @ để trích dẫn tư liệu hoặc chèn nhãn thời lượng ·{' '}
                 {formatProjectOutputLabel(
                   readEpisodeAspectRatio(episodeParams, projectParams),
                   readEpisodeResolution(episodeParams, projectParams),
@@ -1513,7 +1518,7 @@ function EpisodeEditInner() {
               </p>
             </div>
             <label className="drama-ep-duration">
-              时长
+              Thời lượng
               <input
                 type="number"
                 min={4}
@@ -1541,7 +1546,7 @@ function EpisodeEditInner() {
                 const fromContent = extractAssetIds(nextContent)
                 const prevContentIds = extractAssetIds(selected?.content || '')
                 const removed = prevContentIds.filter((id) => !fromContent.includes(id))
-                /* 正文删掉的引用同步移出 asset_ids；仅存在于 asset_ids 的额外关联保留 */
+                /* Trích dẫn bị xoá khỏi nội dung cũng bị gỡ khỏi asset_ids; liên kết chỉ tồn tại trong asset_ids thì giữ lại */
                 const prevContentIdSet = new Set(prevContentIds)
                 const keptExtra = (selected?.asset_ids || []).filter(
                   (id) => !prevContentIdSet.has(id) || fromContent.includes(id),
@@ -1551,7 +1556,7 @@ function EpisodeEditInner() {
                   asset_ids: Array.from(new Set([...keptExtra, ...fromContent])),
                 })
                 if (removed.length > 0) {
-                  setStatus('已取消本镜关联，资产仍保留在项目中（可切到「全集」查看）')
+                  setStatus('Đã bỏ liên kết của cảnh này, tư liệu vẫn còn trong dự án (chuyển sang «Toàn bộ» để xem)')
                 }
               }}
             />
@@ -1580,16 +1585,16 @@ function EpisodeEditInner() {
               }`}
             >
               {continuityBlockedReason
-                ? `已开启尾帧衔接：${continuityBlockedReason}`
+                ? `Đã bật nối tiếp khung hình cuối: ${continuityBlockedReason}`
                 : continuityQueueHint
                   ? continuityQueueHint
                   : prevLastFrameUrl
-                    ? '将使用上一镜尾帧作为衔接参考（与角色参考图一并提交）'
-                    : '上一镜已成片：生成时将自动抽取尾帧作衔接参考'}
+                    ? 'Sẽ dùng khung hình cuối của cảnh trước làm tham chiếu nối tiếp (gửi kèm ảnh tham chiếu của nhân vật)'
+                    : 'Cảnh trước đã có thành phẩm: lúc sinh sẽ tự trích khung hình cuối làm tham chiếu nối tiếp'}
             </p>
           ) : !linkLastFrame ? (
             <p className="drama-ep-continuity-hint">
-              当前未开启尾帧衔接：分镜会独立并发生成，适合快速批量出片。
+              Hiện chưa bật nối tiếp khung hình cuối: các cảnh sẽ sinh song song độc lập, phù hợp khi cần ra video hàng loạt nhanh.
             </p>
           ) : null}
 
@@ -1605,7 +1610,7 @@ function EpisodeEditInner() {
                     void reload()
                   }}
                 >
-                  取消
+                  Huỷ
                 </button>
                 <button
                   type="button"
@@ -1613,7 +1618,7 @@ function EpisodeEditInner() {
                   disabled={busy}
                   onClick={() => void save()}
                 >
-                  {busy ? '保存中…' : '保存'}
+                  {busy ? 'Đang lưu…' : 'Lưu'}
                 </button>
               </>
             ) : (
@@ -1624,7 +1629,7 @@ function EpisodeEditInner() {
                   disabled={!selected || selectedIsGenerating || busy}
                   onClick={() => setEditing(true)}
                 >
-                  编辑
+                  Sửa
                 </button>
                 <button
                   type="button"
@@ -1633,21 +1638,21 @@ function EpisodeEditInner() {
                   title={
                     continuityBlockedReason ||
                     continuityQueueHint ||
-                    (selectedIsGenerating ? '当前分镜正在生成' : undefined)
+                    (selectedIsGenerating ? 'Cảnh đang chọn đang được sinh' : undefined)
                   }
                   onClick={() => void generateSelected()}
                 >
                   {selectedIsGenerating
-                    ? '生成中…'
+                    ? 'Đang sinh…'
                     : busy
-                      ? '处理中…'
+                      ? 'Đang xử lý…'
                       : continuityQueueHint
-                        ? '排队生成'
+                        ? 'Xếp hàng sinh'
                         : continuityBlockedReason
-                          ? '待上一镜'
+                          ? 'Chờ cảnh trước'
                           : selectedHasVideo
-                          ? '重新生成'
-                          : '生成'}
+                          ? 'Sinh lại'
+                          : 'Sinh'}
                 </button>
               </>
             )}
@@ -1656,14 +1661,14 @@ function EpisodeEditInner() {
 
           {selectedVersions.length > 0 && selected?.id ? (
             <div className="drama-ep-versions">
-              <span className="drama-ep-versions-label">历史版本</span>
+              <span className="drama-ep-versions-label">Phiên bản cũ</span>
               <div className="drama-ep-versions-list">
                 {selectedHasVideo && selected.video ? (
                   <button
                     type="button"
                     className={`drama-ep-version is-active${!previewVersionId ? ' is-current' : ''}`}
                     disabled={busy || selectedIsGenerating}
-                    title="当前成片"
+                    title="Thành phẩm hiện tại"
                     onClick={() => setPreviewVersionId(null)}
                   >
                     {selected.cover ? (
@@ -1671,7 +1676,7 @@ function EpisodeEditInner() {
                     ) : (
                       <video src={resolveDramaMediaUrl(selected.video)} muted />
                     )}
-                    <em>当前</em>
+                    <em>Hiện tại</em>
                   </button>
                 ) : null}
                 {selectedVersions.map((ver, index) => {
@@ -1684,7 +1689,7 @@ function EpisodeEditInner() {
                       type="button"
                       className={`drama-ep-version${previewVersionId === ver.id ? ' is-previewing' : ''}`}
                       disabled={busy || selectedIsGenerating}
-                      title="点击预览；右侧可设为当前"
+                      title="Bấm để xem trước; có thể đặt làm bản hiện tại"
                       onClick={() => setPreviewVersionId(ver.id)}
                     >
                       {cover ? <img src={cover} alt="" /> : <video src={video} muted />}
@@ -1703,7 +1708,7 @@ function EpisodeEditInner() {
           onPlayingFragmentChange={handlePlayingFragmentChange}
           aspectRatio={aspectRatio}
           episodeId={episode?.id}
-          episodeName={episode?.name || '本集'}
+          episodeName={episode?.name || 'Tập này'}
           subtitleMode={subtitleMode}
           onOpenStoryboard={openEpisodeStoryboard}
           previewVideoUrl={previewVideoUrl}
@@ -1733,7 +1738,7 @@ function EpisodeEditInner() {
           <button
             type="button"
             className="drama-ep-insert"
-            aria-label="在开头插入分镜"
+            aria-label="Chèn cảnh quay ở đầu"
             onClick={() => insertFrag(0)}
           >
             +
@@ -1750,7 +1755,7 @@ function EpisodeEditInner() {
                   task.status,
                 ),
             )
-            // 终态优先；仅在进行中时才用平台任务态覆盖（避免 done 仍被僵尸任务刷成生成中）
+            // Trạng thái cuối được ưu tiên; chỉ khi đang chạy mới lấy trạng thái tác vụ của hệ thống đè lên (tránh done bị tác vụ zombie quay về «đang sinh»)
             const displayStatus =
               fragStatus === 'done' ||
               fragStatus === 'failed' ||
@@ -1816,8 +1821,8 @@ function EpisodeEditInner() {
                   <button
                     type="button"
                     className="drama-ep-clip-fail-btn"
-                    title="查看失败原因"
-                    aria-label={`查看片段 ${index + 1} 失败原因`}
+                    title="Xem lý do lỗi"
+                    aria-label={`Xem lý do lỗi của cảnh ${index + 1}`}
                     onClick={() => openFragmentFailReason(frag, index)}
                   >
                     <CircleAlert size={14} strokeWidth={2.25} aria-hidden />
@@ -1825,15 +1830,15 @@ function EpisodeEditInner() {
                 ) : null}
               </div>
               <div className="drama-ep-clip-ops">
-                <button type="button" aria-label="插入" onClick={() => insertFrag(index + 1)} disabled={busy}>
+                <button type="button" aria-label="Chèn" onClick={() => insertFrag(index + 1)} disabled={busy}>
                   +
                 </button>
-                <button type="button" aria-label="复制" onClick={() => duplicateFrag(index)} disabled={busy}>
+                <button type="button" aria-label="Nhân bản" onClick={() => duplicateFrag(index)} disabled={busy}>
                   ⧉
                 </button>
                 <button
                   type="button"
-                  aria-label="删除"
+                  aria-label="Xoá"
                   disabled={busy || fragments.length <= 1}
                   onClick={() => deleteFrag(index)}
                 >
@@ -1848,7 +1853,7 @@ function EpisodeEditInner() {
 
       <FragmentPlanSkillModal
         open={planModalOpen}
-        message="将调用大模型按本集剧本重新规划分镜（覆盖并清空现有分镜与已生成镜头），通常需要数十秒。可勾选本次使用的 Skill。字幕方式沿用顶栏当前设置。"
+        message="Sẽ gọi mô hình lớn lập lại storyboard theo kịch bản của tập này (ghi đè và xoá các cảnh quay hiện có cùng video đã sinh), thường mất vài chục giây. Bạn có thể chọn Skill dùng cho lần này. Cách làm phụ đề sẽ theo cài đặt đang có ở thanh trên cùng."
         onCancel={() => setPlanModalOpen(false)}
         onConfirm={(skillIds) => void startPlanFragments(skillIds)}
       />
@@ -1891,8 +1896,8 @@ function EpisodeEditInner() {
             ? ['prop', 'material', 'none']
             : [resolveCreateAssetTab()]
         }
-        title={`导入${resolveCreateAssetTab() === 'scene' ? '场景' : resolveCreateAssetTab() === 'prop' ? '道具' : '角色'}`}
-        confirmLabel="导入到本集"
+        title={`Nhập ${resolveCreateAssetTab() === 'scene' ? 'bối cảnh' : resolveCreateAssetTab() === 'prop' ? 'đạo cụ' : 'nhân vật'}`}
+        confirmLabel="Nhập vào tập này"
         onPick={handleImportSideAsset}
       />
 

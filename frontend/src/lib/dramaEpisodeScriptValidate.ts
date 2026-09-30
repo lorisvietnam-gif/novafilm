@@ -1,6 +1,15 @@
 /**
- * 漫剧分镜脚本校验（对齐 docs/EPISODE_RULES.md §3 / §9）
- * 用于生成前告警：时长、空镜误标对白、资产缺图/缺音色
+ * Kiểm tra kịch bản storyboard của một tập (khớp docs/EPISODE_RULES.md §3 / §9)
+ * Dùng để cảnh báo trước khi tạo: thời lượng, cảnh không lời bị gắn nhầm thành đối
+ * thoại, tài nguyên thiếu ảnh / thiếu giọng đọc.
+ *
+ * RANH GIỚI — token và regex giữ nguyên tiếng Trung:
+ *
+ * `DRAMA_SUBTITLE_CUE`, `VISUAL_PREFIX`, `DIALOGUE_PREFIX`, `DRAMA_NARRATION_PREFIX`
+ * và `VISUAL_SHOT_LABEL_RE` phải khớp chính xác với phía backend và với prompt mà
+ * mô hình đọc. Dịch chúng thì mọi kiểm tra trượt và mọi kịch bản người dùng viết
+ * bằng tiếng Trung (cách duy nhất được parser chấp nhận) sẽ bị từ chối. Vì vậy chỉ
+ * `message` và chú thích mới dịch.
  */
 import type { DramaAsset, DramaFragment } from '../api/drama'
 import {
@@ -12,20 +21,21 @@ import {
 } from './dramaEpisodePromptEditor'
 import { extractDurations, sumDuration } from './segmentDuration'
 import { DRAMA_VOICE_BINDING_ENABLED } from './dramaVoiceBinding'
+import { localized, type LocalizedText } from './localeStrings'
 
-/** 漫剧字幕 cue（与后端 DRAMA_SUBTITLE_CUE 一致） */
+/** Cue phụ đề của AI Drama (giống DRAMA_SUBTITLE_CUE ở backend) */
 export const DRAMA_SUBTITLE_CUE = '【字幕：底部居中·简体中文·逐句轮换·与口播同步】'
 
-/** 画面无配音前缀 */
+/** Tiền tố cho cảnh không có lời thoại */
 export const VISUAL_PREFIX = '【画面·无配音仅环境音】'
 
-/** 对白前缀 */
+/** Tiền tố cho đối thoại */
 export const DIALOGUE_PREFIX = '【对白·慢速清晰·同步字幕】'
 
-/** 旁白前缀 */
+/** Tiền tố cho lời dẫn */
 export const DRAMA_NARRATION_PREFIX = '【旁白·慢速清晰·同步字幕】'
 
-// 空镜 / 景别冒号标签（与后端 VISUAL_SHOT_LABEL_RE 对齐）
+// Nhãn cảnh quay / cỡ cảnh (khớp VISUAL_SHOT_LABEL_RE ở backend)
 const VISUAL_SHOT_LABEL_RE =
   /^(?:空镜|画面|远景|近景|中景|全景|特写|大特写|跟拍|俯拍|仰拍|航拍|推镜|拉镜|摇镜|环境|镜头|动作|转场|闪回|建立镜头|气氛镜头)\s*[：:]/
 
@@ -36,12 +46,32 @@ export type DramaScriptIssue = {
   message: string
 }
 
-// 去掉对白/旁白生产前缀
+/** Văn bản hiển thị cho người dùng; tiếng Trung chỉ để phục vụ locale zh. */
+const COPY: Record<string, LocalizedText> = {
+  emptyShotMislabeled: {
+    zh: '检测到「空镜/景别」被标成对白或旁白（会口播并烧字幕）。请改为「【画面·无配音仅环境音】」或「空镜：…」纯画面行',
+    en: 'Found a plain visual shot labelled as dialogue or narration (it would be spoken aloud and get burned-in subtitles). Change it to 【画面·无配音仅环境音】 or a plain visual line such as 空镜：…',
+    vi: 'Phát hiện cảnh không lời bị gắn thành đối thoại hoặc lời dẫn (sẽ bị đọc to và ghi phụ đề vào hình). Hãy đổi thành 【画面·无配音仅环境音】 hoặc một dòng thuần hình ảnh như 空镜：…',
+  },
+  mustFix: { zh: '【须先修复】', en: '[Must fix first]', vi: '[Phải sửa trước]' },
+  shouldHandle: {
+    zh: '【建议处理，仍可继续】',
+    en: '[Worth handling, you can still continue]',
+    vi: '[Nên xử lý, vẫn làm tiếp được]',
+  },
+}
+
+/** Thay {list} bằng danh sách tài nguyên đã ghép. */
+function withList(value: LocalizedText, list: string): string {
+  return localized(value).replace('{list}', list)
+}
+
+// Bỏ tiền tố đối thoại / lời dẫn
 function stripVoiceCuePrefix(line: string): string {
   return (line || '').replace(VOICE_CUE_PREFIX_RE, '').trim()
 }
 
-// 角色是否已绑定可提交的参考音频
+// Nhân vật đã gắn audio tham chiếu có thể gửi đi chưa
 function assetHasVoiceBinding(asset: DramaAsset): boolean {
   const params = (asset.params || {}) as Record<string, unknown>
   const raw = params.voiceAudio
@@ -66,7 +96,7 @@ function assetHasVoiceBinding(asset: DramaAsset): boolean {
   return false
 }
 
-// 合并正文 @asset 与 asset_ids
+// Gộp các @asset trong nội dung với asset_ids
 function listFragmentAssetIds(frag: DramaFragment): number[] {
   const seen = new Set<number>()
   const out: number[] = []
@@ -86,7 +116,7 @@ function listFragmentAssetIds(frag: DramaFragment): number[] {
   return out
 }
 
-// 判断正文是否为纯画面 / 空镜描写
+// Nội dung có phải chỉ là mô tả hình ảnh / cảnh không lời không
 export function isVisualDescriptionBody(text: string): boolean {
   let body = stripVoiceCuePrefix((text || '').trim())
   body = body.replace(/^【(?:画面|空镜)[^】]*】\s*/, '').trim()
@@ -96,7 +126,7 @@ export function isVisualDescriptionBody(text: string): boolean {
   return false
 }
 
-// 脚本是否含真实口播意图（排除空镜冒号）
+// Kịch bản có thật sự cần lời đọc không (loại trừ nhãn cảnh không lời)
 function scriptLikelyNeedsVoice(content: string): boolean {
   for (const raw of (content || '').replace(/\r\n/g, '\n').split('\n')) {
     const line = raw.trim()
@@ -122,7 +152,7 @@ function scriptLikelyNeedsVoice(content: string): boolean {
   return false
 }
 
-// 校验单镜脚本：时长 + 空镜误标
+// Kiểm tra kịch bản của một cảnh: thời lượng + cảnh không lời bị gắn nhầm
 export function validateDramaFragmentScript(content: string): DramaScriptIssue[] {
   const issues: DramaScriptIssue[] = []
   const durations = extractDurations(content || '')
@@ -137,24 +167,40 @@ export function validateDramaFragmentScript(content: string): DramaScriptIssue[]
   if (badSegment != null) {
     issues.push({
       level: 'error',
-      message: `单个 @duration 需在 ${DRAMA_SEGMENT_DURATION_MIN}–${DRAMA_SEGMENT_DURATION_HARD_MAX} 秒之间`,
+      message: localized({
+        zh: `单个 @duration 需在 ${DRAMA_SEGMENT_DURATION_MIN}–${DRAMA_SEGMENT_DURATION_HARD_MAX} 秒之间`,
+        en: `A single @duration must be between ${DRAMA_SEGMENT_DURATION_MIN} and ${DRAMA_SEGMENT_DURATION_HARD_MAX} seconds`,
+        vi: `Một @duration đơn lẻ phải nằm trong khoảng ${DRAMA_SEGMENT_DURATION_MIN}–${DRAMA_SEGMENT_DURATION_HARD_MAX} giây`,
+      }),
     })
   } else if (durations.some((value) => value > DRAMA_SEGMENT_DURATION_MAX)) {
     issues.push({
       level: 'warn',
-      message: `部分 @duration 超过新分镜建议 ${DRAMA_SEGMENT_DURATION_MAX}s，旧稿可继续生成`,
+      message: localized({
+        zh: `部分 @duration 超过新分镜建议 ${DRAMA_SEGMENT_DURATION_MAX}s，旧稿可继续生成`,
+        en: `Some @duration values exceed the ${DRAMA_SEGMENT_DURATION_MAX}s suggested for new shots. Older scripts can still be generated.`,
+        vi: `Một số @duration vượt quá ${DRAMA_SEGMENT_DURATION_MAX}s mà bản storyboard mới khuyến nghị. Bản cũ vẫn tạo được.`,
+      }),
     })
   }
 
   if (total > DRAMA_SHOT_DURATION_HARD_MAX) {
     issues.push({
       level: 'error',
-      message: `本镜 @duration 合计 ${total}s，超过 Seedance 上限 ${DRAMA_SHOT_DURATION_HARD_MAX}s`,
+      message: localized({
+        zh: `本镜 @duration 合计 ${total}s，超过 Seedance 上限 ${DRAMA_SHOT_DURATION_HARD_MAX}s`,
+        en: `This shot totals ${total}s of @duration, over the Seedance limit of ${DRAMA_SHOT_DURATION_HARD_MAX}s`,
+        vi: `Cảnh này cộng @duration lên ${total}s, vượt giới hạn ${DRAMA_SHOT_DURATION_HARD_MAX}s của Seedance`,
+      }),
     })
   } else if (total > FRAGMENT_CONTENT_DURATION_MAX) {
     issues.push({
       level: 'warn',
-      message: `本镜 @duration 合计 ${total}s，超过新分镜建议 ${FRAGMENT_CONTENT_DURATION_MAX}s（旧稿可继续生成）`,
+      message: localized({
+        zh: `本镜 @duration 合计 ${total}s，超过新分镜建议 ${FRAGMENT_CONTENT_DURATION_MAX}s（旧稿可继续生成）`,
+        en: `This shot totals ${total}s of @duration, over the ${FRAGMENT_CONTENT_DURATION_MAX}s suggested for new shots (older scripts can still be generated).`,
+        vi: `Cảnh này cộng @duration lên ${total}s, vượt ${FRAGMENT_CONTENT_DURATION_MAX}s mà bản storyboard mới khuyến nghị (bản cũ vẫn tạo được).`,
+      }),
     })
   }
 
@@ -167,8 +213,7 @@ export function validateDramaFragmentScript(content: string): DramaScriptIssue[]
     if (VOICE_CUE_PREFIX_RE.test(line) && isVisualDescriptionBody(line)) {
       issues.push({
         level: 'error',
-        message:
-          '检测到「空镜/景别」被标成对白或旁白（会口播并烧字幕）。请改为「【画面·无配音仅环境音】」或「空镜：…」纯画面行',
+        message: localized(COPY.emptyShotMislabeled),
       })
       break
     }
@@ -177,7 +222,7 @@ export function validateDramaFragmentScript(content: string): DramaScriptIssue[]
   return issues
 }
 
-// 校验本镜关联资产：缺图 / 说话角色缺音色（警告级，可继续生成）
+// Kiểm tra tài nguyên của cảnh: thiếu ảnh / nhân vật nói thiếu giọng (mức cảnh báo, vẫn tạo được)
 export function validateDramaFragmentAssets(
   frag: DramaFragment | null | undefined,
   assets: DramaAsset[],
@@ -211,21 +256,35 @@ export function validateDramaFragmentAssets(
   if (missingImage.length > 0) {
     issues.push({
       level: 'warn',
-      message: `以下资产缺少参考图，生成时可能自动补图或效果不稳定：${missingImage.slice(0, 5).join('、')}${missingImage.length > 5 ? '…' : ''}`,
+      message: withList(
+        {
+          zh: '以下资产缺少参考图，生成时可能自动补图或效果不稳定：{list}',
+          en: 'These assets have no reference image, so the system may have to fill one in or the result may be unstable: {list}',
+          vi: 'Các tài nguyên sau chưa có ảnh tham chiếu, nên lúc tạo hệ thống có thể phải tự bổ ảnh hoặc kết quả không ổn định: {list}',
+        },
+        `${missingImage.slice(0, 5).join('、')}${missingImage.length > 5 ? '…' : ''}`,
+      ),
     })
   }
 
   if (missingVoice.length > 0) {
     issues.push({
       level: 'warn',
-      message: `脚本含对白，但以下角色尚未绑定音色：${missingVoice.slice(0, 5).join('、')}${missingVoice.length > 5 ? '…' : ''}`,
+      message: withList(
+        {
+          zh: '脚本含对白，但以下角色尚未绑定音色：{list}',
+          en: 'The script has dialogue, but these characters have no voice bound yet: {list}',
+          vi: 'Kịch bản có đối thoại, nhưng các nhân vật sau chưa gắn giọng đọc: {list}',
+        },
+        `${missingVoice.slice(0, 5).join('、')}${missingVoice.length > 5 ? '…' : ''}`,
+      ),
     })
   }
 
   return issues
 }
 
-// 合并脚本与资产问题；有 error 则不可直接生成
+// Gộp vấn đề của kịch bản và của tài nguyên; có error thì không được tạo thẳng
 export function collectDramaGenerateGateIssues(
   frag: DramaFragment | null | undefined,
   assets: DramaAsset[],
@@ -239,7 +298,7 @@ export function collectDramaGenerateGateIssues(
   }
 }
 
-// 把问题列表拼成确认框文案
+// Ghép danh sách vấn đề thành văn bản cho hộp xác nhận
 export function formatDramaGateMessage(
   blocking: DramaScriptIssue[],
   warnings: DramaScriptIssue[],
@@ -247,10 +306,10 @@ export function formatDramaGateMessage(
 ): string {
   const parts = [baseMessage]
   if (blocking.length > 0) {
-    parts.push('', '【须先修复】', ...blocking.map((i) => `· ${i.message}`))
+    parts.push('', localized(COPY.mustFix), ...blocking.map((i) => `· ${i.message}`))
   }
   if (warnings.length > 0) {
-    parts.push('', '【建议处理，仍可继续】', ...warnings.map((i) => `· ${i.message}`))
+    parts.push('', localized(COPY.shouldHandle), ...warnings.map((i) => `· ${i.message}`))
   }
   return parts.join('\n')
 }

@@ -1,2 +1,2 @@
-/** 兼容旧路径：转发到全屏自由画布页 */
+/** Giữ tương thích đường dẫn cũ: chuyển tiếp sang trang toan vẽ tự do toàn màn hình */
 export { default } from './canvas/CanvasPage'

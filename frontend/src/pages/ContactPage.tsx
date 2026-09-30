@@ -6,14 +6,14 @@ import { useI18n } from '../i18n'
 
 const CHANNEL_ICONS = [Mail, HelpCircle, Building2, GitBranch] as const
 
-/** 联系我们：渠道说明 + 本地反馈表单（引导发邮件） */
+/** Trang liên hệ: mô tả các kênh + form phản hồi cục bộ (dẫn người dùng tới gửi email) */
 export default function ContactPage() {
   const { t, m } = useI18n()
   /*
-   * topic 反馈主题
-   * email 联系邮箱
-   * message 问题描述
-   * sent 是否已生成邮件草稿提示
+   * topic   chủ đề phản hồi
+   * email   email liên hệ
+   * message mô tả vấn đề
+   * sent    đã tạo gợi ý soạn thảo email hay chưa
    */
   const [topic, setTopic] = useState<string>(m.contact.topics[0])
   const [email, setEmail] = useState('')

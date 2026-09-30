@@ -1,4 +1,4 @@
-/** 漫剧生图：风格 / 模型 / 画幅选择条（内置风格，无手填） */
+/** Sinh ảnh cho drama: thanh chọn phong cách / model / tỉ lệ khung hình (phong cách có sẵn, không tự nhập) */
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { BarChart3, ChevronDown, RectangleVertical, Smile } from 'lucide-react'
 import {
@@ -30,13 +30,13 @@ type DramaImageGenOptionsBarProps = {
   value: ImageGenerationOptions
   onChange: (next: ImageGenerationOptions) => void
   disabled?: boolean
-  /** 是否持久化风格到项目（Assets 步骤用） */
+  /** Có lưu phong cách xuống dự án không (dùng ở bước Tư liệu) */
   onStylePersist?: (styleId: string) => void | Promise<void>
 }
 
 type OpenPanel = 'style' | 'model' | 'output' | null
 
-/** 渲染生图选项条：风格 · 模型 · 比例清晰度 */
+/** Dựng thanh chọn tham số sinh ảnh: phong cách · model · tỉ lệ và độ phân giải */
 export function DramaImageGenOptionsBar({
   value,
   onChange,
@@ -49,7 +49,7 @@ export function DramaImageGenOptionsBar({
   const imageModels = catalogImageModels(catalog)
 
   useEffect(() => {
-    // 目录到达后，把旧 Kie/方舟 id 换成后台默认图片模型，并钳制参数
+    // Khi danh mục model đã tải xong, thay id Kie/Thuyền cũ bằng model ảnh mặc định của backend và giới hạn tham số về phạm vi hợp lệ
     if (!catalog || disabled) return
     const ids = imageModels.map((m) => m.id)
     if (!ids.length) return
@@ -79,7 +79,7 @@ export function DramaImageGenOptionsBar({
   }, [catalog, disabled])
 
   useEffect(() => {
-    // 换模型后钳制比例/清晰度
+    // Sau khi đổi model thì giới hạn lại tỉ lệ / độ phân giải
     if (disabled || !value.model_id) return
     const nextRatio = clampImageAspectRatioForModel(
       value.model_id,
@@ -103,7 +103,7 @@ export function DramaImageGenOptionsBar({
 
   useEffect(() => {
     if (!open) return
-    // 点击外部关闭弹层
+    // Bấm ra ngoài thì đóng lớp tuỳ chọn
     function onDoc(e: Event) {
       const target = e.target as Node | null
       if (rootRef.current && target && !rootRef.current.contains(target)) {
@@ -118,8 +118,8 @@ export function DramaImageGenOptionsBar({
     e.stopPropagation()
   }
 
-  const styleLabel = getImageStyleLabel(value.image_style_id) || '风格'
-  const modelLabel = catalogModelLabel(value.model_id, imageModels, '图片模型')
+  const styleLabel = getImageStyleLabel(value.image_style_id) || 'Phong cách'
+  const modelLabel = catalogModelLabel(value.model_id, imageModels, 'Model ảnh')
   const outputLabel = formatOutputSettingsLabel(value.aspect_ratio, value.resolution)
 
   return (
@@ -158,8 +158,8 @@ export function DramaImageGenOptionsBar({
       </div>
 
       {open === 'style' ? (
-        <div className="fc-gen-opt-panel fc-gen-style-panel" role="dialog" aria-label="图片风格">
-          <div className="fc-gen-opt-panel-title">图片风格</div>
+        <div className="fc-gen-opt-panel fc-gen-style-panel" role="dialog" aria-label="Phong cách hình ảnh">
+          <div className="fc-gen-opt-panel-title">Phong cách hình ảnh</div>
           <div className="fc-gen-style-grid">
             {IMAGE_STYLE_OPTIONS.map((opt) => {
               const selected = value.image_style_id === opt.id
@@ -184,8 +184,8 @@ export function DramaImageGenOptionsBar({
       ) : null}
 
       {open === 'model' ? (
-        <div className="fc-gen-opt-panel" role="dialog" aria-label="生图模型">
-          <div className="fc-gen-opt-panel-title">模型</div>
+        <div className="fc-gen-opt-panel" role="dialog" aria-label="Model sinh ảnh">
+          <div className="fc-gen-opt-panel-title">Model</div>
           <DramaMediaModelPicker
             models={imageModels}
             selectedId={value.model_id}
@@ -205,8 +205,8 @@ export function DramaImageGenOptionsBar({
       ) : null}
 
       {open === 'output' ? (
-        <div className="fc-gen-opt-panel" role="dialog" aria-label="输出设置">
-          <div className="fc-gen-opt-panel-title">比例</div>
+        <div className="fc-gen-opt-panel" role="dialog" aria-label="Cài đặt đầu ra">
+          <div className="fc-gen-opt-panel-title">Tỉ lệ khung hình</div>
           <div className="fc-gen-chip-row">
             {GENERATION_ASPECT_RATIO_OPTIONS.filter((opt) => aspectOptions.includes(opt.id)).map((opt) => (
               <button
@@ -222,7 +222,7 @@ export function DramaImageGenOptionsBar({
             ))}
           </div>
           <div className="fc-gen-opt-panel-title" style={{ marginTop: 10 }}>
-            清晰度
+            Độ phân giải
           </div>
           <div className="fc-gen-chip-row">
             {resolutionOptions.map((res) => (

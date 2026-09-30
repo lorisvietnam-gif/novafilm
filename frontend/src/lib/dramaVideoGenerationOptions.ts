@@ -1,5 +1,13 @@
-/** 漫剧画布 / 分集：视频生成选项（模型列表来自后台 TokenFree 目录） */
+/** Lựa chọn tạo video cho canvas / tập của AI Drama (danh sách mô hình lấy từ danh mục TokenFree ở backend) */
 import type { MediaModelOption, MediaModelsCatalog } from '../api'
+import { localized, type LocalizedText } from './localeStrings'
+
+/** Nhãn dự phòng khi chưa có danh mục mô hình. */
+const VIDEO_MODEL_FALLBACK: LocalizedText = {
+  zh: '视频模型',
+  en: 'Video model',
+  vi: 'Mô hình tạo video',
+}
 
 export type VideoGenerationModelId = string
 
@@ -16,7 +24,7 @@ export type VideoGenerationOptions = {
 
 export const VIDEO_ASPECT_RATIO_OPTIONS: VideoAspectRatio[] = ['9:16', '16:9', '1:1']
 export const VIDEO_RESOLUTION_OPTIONS: VideoResolution[] = ['480p', '720p', '1080p']
-/** 目录未到 / 未知模型时的保守档（与后端 SAFE 一致） */
+/** Mức dự phòng khi danh mục chưa tới hoặc gặp mô hình lạ (khớp SAFE ở backend) */
 export const SAFE_VIDEO_RESOLUTION_OPTIONS: VideoResolution[] = ['480p', '720p']
 export const VIDEO_DURATION_PRESETS = [5, 8, 10, 15] as const
 export const VIDEO_DURATION_MIN = 4
@@ -39,7 +47,7 @@ function findVideoModelRow(
   return id ? models.find((m) => m.id === id) : undefined
 }
 
-/** 当前模型时长上下限 */
+/** Giới hạn trên dưới của thời lượng theo mô hình hiện tại */
 export function durationBoundsForModel(
   modelId: string | undefined | null,
   catalog?: MediaModelsCatalog | null,
@@ -51,7 +59,7 @@ export function durationBoundsForModel(
   return { min, max }
 }
 
-/** 夹紧时长到模型允许区间 */
+/** Kẹp thời lượng vào khoảng mô hình cho phép */
 export function clampVideoDuration(
   sec: number,
   modelId?: string | null,
@@ -63,7 +71,7 @@ export function clampVideoDuration(
   return Math.min(max, Math.max(min, n))
 }
 
-/** 当前模型允许的比例 */
+/** Các tỉ lệ mô hình hiện tại cho phép */
 export function aspectRatiosForVideoModel(
   modelId: string | undefined | null,
   catalog?: MediaModelsCatalog | null,
@@ -80,7 +88,7 @@ export function aspectRatiosForVideoModel(
   return [...VIDEO_ASPECT_RATIO_OPTIONS]
 }
 
-/** 将比例钳到模型允许列表 */
+/** Kẹp tỉ lệ vào danh sách mô hình cho phép */
 export function clampVideoAspectRatioForModel(
   modelId: string | undefined | null,
   aspectRatio: string | undefined | null,
@@ -93,7 +101,7 @@ export function clampVideoAspectRatioForModel(
   return allowed[0] || '9:16'
 }
 
-/** 格式化比例 · 清晰度 */
+/** Định dạng tỉ lệ · độ phân giải */
 export function formatVideoOutputLabel(
   aspectRatio: VideoAspectRatio,
   resolution: VideoResolution,
@@ -101,18 +109,18 @@ export function formatVideoOutputLabel(
   return `${aspectRatio} · ${resolution}`
 }
 
-/** 解析模型展示名（无目录时回退 id） */
+/** Lấy tên hiển thị của mô hình (không có danh mục thì lùi về id) */
 export function getVideoModelLabel(modelId: string | undefined | null) {
   const id = (modelId || '').trim()
-  return id || '视频模型'
+  return id || localized(VIDEO_MODEL_FALLBACK)
 }
 
-/** 任意非空字符串均可作为视频模型 id（后台 TokenFree 目录） */
+/** Bất kỳ chuỗi không rỗng nào cũng làm được id mô hình video (danh mục TokenFree ở backend) */
 export function isVideoGenerationModelId(id: string): id is VideoGenerationModelId {
   return Boolean((id || '').trim())
 }
 
-/** 当前模型允许的清晰度列表（目录行优先；未知时保守两档，仅展示勿静默落库） */
+/** Danh sách độ phân giải mô hình hiện tại cho phép (ưu tiên dòng trong danh mục; mô hình lạ thì dùng hai mức dự phòng, chỉ để hiển thị, không tự lưu âm thầm) */
 export function resolutionsForModel(
   modelId: string | undefined | null,
   catalog: MediaModelsCatalog | null | undefined,
@@ -129,7 +137,7 @@ export function resolutionsForModel(
   return [...SAFE_VIDEO_RESOLUTION_OPTIONS]
 }
 
-/** 目录已加载且能匹配到带清晰度白名单的视频模型行 */
+/** Danh mục đã tải và có dòng mô hình video kèm danh sách độ phân giải cho phép */
 export function hasKnownVideoModelResolutions(
   modelId: string | undefined | null,
   catalog: MediaModelsCatalog | null | undefined,
@@ -141,7 +149,7 @@ export function hasKnownVideoModelResolutions(
   return Array.isArray(raw) && raw.length > 0
 }
 
-/** 将清晰度钳到模型允许列表；非法取列表最高档 */
+/** Kẹp độ phân giải vào danh sách mô hình cho phép; giá trị lạ thì lấy mức cao nhất trong danh sách */
 export function clampVideoResolutionForModel(
   modelId: string | undefined | null,
   resolution: string | undefined | null,
@@ -154,7 +162,7 @@ export function clampVideoResolutionForModel(
   return allowed[allowed.length - 1] || '720p'
 }
 
-/** 从节点 data 恢复视频选项 */
+/** Khôi phục lựa chọn video từ data của node */
 export function readVideoGenerationOptions(raw: unknown): VideoGenerationOptions {
   const row = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
   const modelId = String(row.model_id || '').trim()

@@ -1,4 +1,4 @@
-# PRINTFILM API：FastAPI + FFmpeg，任务运行时随进程启动
+# NOVAFILM API: FastAPI + FFmpeg, tiến trình tác vụ nền chạy cùng
 FROM python:3.12-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -7,7 +7,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# 成片合成需要 FFmpeg；中文烧录字幕需要文泉驿字体
+# Dựng phim cần FFmpeg; phụ đề tiếng Việt cần font. Font có dấu đủ để
+# drawtext không vỡ dấu, nên phụ đề đốt lên video đọc được.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ffmpeg fonts-wqy-zenhei \
     && rm -rf /var/lib/apt/lists/*
@@ -18,7 +19,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 COPY static ./static
 
-RUN mkdir -p /app/static/generated /app/static/voice_previews
+# Container chạy bằng user không phải root: một lỗ hổng leo thang không đi được
+# tới tài khoản root của host. Chỉ hai thư mục dưới /app được quyền ghi.
+RUN useradd --create-home --uid 10001 novafilm \
+    && mkdir -p /app/static/generated /app/static/voice_previews \
+    && chown -R novafilm:novafilm /app
+USER novafilm
 
 EXPOSE 8000
 

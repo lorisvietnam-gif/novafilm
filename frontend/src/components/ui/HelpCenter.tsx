@@ -11,13 +11,13 @@ type Props = {
   onClose: () => void
 }
 
-/** 帮助中心抽屉（与 /help 页共用文案） */
+/** Ngăn kéo trung tâm trợ giúp (dùng chung văn bản với trang /help) */
 export default function HelpCenter({ open, onClose }: Props) {
   const { t, m } = useI18n()
   /*
-   * tab 当前分区
-   * openFaq 展开的 FAQ
-   * q 搜索词
+   * tab     mục đang xem
+   * openFaq mục FAQ đang mở
+   * q       từ khoá tìm kiếm
    */
   const [tab, setTab] = useState<Tab>('guide')
   const [openFaq, setOpenFaq] = useState<number | null>(0)

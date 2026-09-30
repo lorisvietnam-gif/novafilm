@@ -1,9 +1,9 @@
-/** 画布 store Context：独立文件，避免 CanvasStore 热更新后 Provider / hook 各持一份 Context */
+/** Context store của canvas: tách riêng để tránh Provider / hook giữ mỗi bên một Context sau khi CanvasStore hot reload */
 import { createContext, useContext } from 'react'
 
 export const CanvasStoreContext = createContext<unknown>(null)
 
-/** 读取画布状态；必须包在 CanvasStoreProvider 内 */
+/** Đọc trạng thái canvas; phải nằm trong CanvasStoreProvider */
 export function useCanvasStore<T>(): T {
   const ctx = useContext(CanvasStoreContext)
   if (!ctx) {

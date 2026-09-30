@@ -1,15 +1,15 @@
-/** 画布空白处双击：弹出新建节点类型菜单 */
+/** Double-click vùng trống của canvas: mở menu chọn loại nút mới */
 import { useEffect, useRef } from 'react'
 import { ADD_NODE_OPTIONS, type CanvasNodeKind } from './canvasTypes'
 
 type CanvasPaneAddMenuProps = {
-  /** 相对视口的屏幕坐标 */
+  /** Toạ độ màn hình tương đối với viewport */
   screen: { x: number; y: number }
   onSelect: (kind: CanvasNodeKind) => void
   onClose: () => void
 }
 
-/** 在双击位置附近展示节点类型列表 */
+/** Hiện danh sách loại nút ngay cạnh vị trí double-click */
 export function CanvasPaneAddMenu({ screen, onSelect, onClose }: CanvasPaneAddMenuProps) {
   const rootRef = useRef<HTMLDivElement>(null)
 
@@ -40,7 +40,7 @@ export function CanvasPaneAddMenu({ screen, onSelect, onClose }: CanvasPaneAddMe
       className="fc-pane-add-menu"
       style={{ left, top }}
       role="menu"
-      aria-label="双击新建节点"
+      aria-label="Double-click để tạo nút"
     >
       {ADD_NODE_OPTIONS.map((option) => {
         const Icon = option.icon

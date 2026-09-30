@@ -188,3 +188,70 @@ lỗi mới**. Đừng deploy lại để "kiểm tra". Hãy kiểm tra ở loca
 
 Một tác vụ chỉ được coi là **xong** khi đã kiểm chứng ở localhost, hoặc khi đã ghi rõ trong
 báo cáo rằng phần nào không kiểm chứng local được và vì sao.
+
+### `npm run build` KHÔNG chứng minh được code chạy được
+Sự cố thật đã xảy ra ở đây. `dramaImageStyles.ts` có `IMAGE_STYLE_OPTIONS` khai báo **trên**
+`IMAGE_STYLE_LABELS`, và dòng đó là:
+
+```ts
+IMAGE_STYLE_IDS.map((id) => ({ id, ...styleOption(id) }))
+```
+
+Object spread **gọi thẳng getter** `label`, mà getter đọc `IMAGE_STYLE_LABELS` — một `const`
+chưa khởi tạo. Dev server giữ nguyên thứ tự ESM nên ném
+`ReferenceError: Cannot access 'IMAGE_STYLE_LABELS' before initialization` và **trắng trang**.
+Rollup xếp lại thứ tự khi bundle nên `npm run build` vẫn **xanh**.
+
+Bài học:
+- **Build xanh không có nghĩa là trang chạy được.**
+- Luôn kiểm tra bằng cách **thực sự mở app** ở `localhost` sau khi sửa, không chỉ chạy build.
+- Khi báo "đã sửa", phải kèm bằng chứng đã mở trang và nhìn thấy, hoặc ghi rõ là **chưa** mở
+  kiểm tra.
+- Cẩn trọng với getter + object spread ở cấp module, và với `const` được đọc trong hàm nhưng
+  khai báo sau nơi gọi.
+
+## 8. KIỂM CHỨNG BẰNG ẢNH CHỤP THẬT — bắt buộc (chủ sản phẩm chốt 2026-09-30)
+
+Máy này có **Microsoft Edge** ở `C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`.
+Không cài Playwright, không cài Puppeteer. Đã có sẵn công cụ trong repo:
+
+```
+cd frontend
+node scripts\visual-audit.mjs
+```
+
+Nó làm 4 việc, tự động, cho **cả `vi` lẫn `en`** trên 25 route:
+1. Bật Edge headless, đăng nhập bằng tài khoản thử, **ép locale** qua `localStorage`.
+2. **Chụp màn hình từng trang** vào `%TEMP%\kilo\audit\<locale>\*.png`.
+3. Đếm **ký tự Trung còn sót** trong phần chữ nhìn thấy, và phát hiện **lệch key i18n** kiểu
+   `common.pageSizeBefore` bị in thẳng ra giao diện.
+4. Bắt **lỗi JS lúc chạy** — đây là thứ bắt được lỗi trắng trang mà `npm run build` bỏ lọt.
+
+### Quy tắc
+- **Đếm bằng mắt trong mã nguồn KHÔNG ĐỦ.** Chủ sản phẩm đã bắt được trang mà mã nguồn nhìn thì
+  đã sạch. Chạy `visual-audit.mjs` và **mở xem ảnh chụp** trước khi báo cáo.
+- Báo cáo phải kèm **ảnh chụp**, không kèm mô tả bằng lời.
+- Số liệu phải là **số đo từ công cụ**, không phải ước lượng.
+- Nếu một route vẫn còn tiếng Trung vì **dữ liệu từ backend** (tên template, tên dự án, thông báo
+  lỗi API) thì phải nói rõ **đó là nguồn nào**, không được tính vào "đã dịch xong".
+
+### Nền đo hiện tại — 2026-09-30, trước khi chạy lại
+| Route | `vi` | `en` |
+|---|---|---|
+| `/templates` | **1006** | **1006** |
+| `/studio`, `/studio/new` | 239 | 239 |
+| `/assets`, `/drama/assets` | 65 | 65 |
+| `/drama/projects/2/canvas` | 39 | 39 |
+| `/drama` | 28 | 28 |
+| `/pricing` | 20 | 20 |
+| **Tổng 25 route** | **1753** | **1751** |
+
+Lưu ý khi đọc số: mọi trang đều cộng **+1** vì nút chuyển ngôn ngữ hiện chữ `中`. Đó là hành vi
+đúng, không phải lỗi.
+
+Hai route render trống vì id không tồn tại trong database local: `/studio/1/style`,
+`/studio/1`, `/studio/1/editor`, `/drama/projects/2/episodes/1`, `/drama/projects/2`,
+`/drama/projects/2/episodes`. Cần id thật mới kiểm được các trang đó — nếu muốn, hãy tạo dữ
+liệu thử qua API rồi chạy lại audit.
+
+Audit chạy xong **không phát hiện lỗi JS nào** — xác nhận lỗi trắng trang đã hết.

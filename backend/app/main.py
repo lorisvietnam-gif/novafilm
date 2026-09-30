@@ -17,6 +17,8 @@ from app.config import get_settings
 from app.database import AsyncSessionLocal, engine, init_db
 from app.logging_setup import configure_logging
 from app.models import Template, User
+from app.services import oauth as oauth_svc
+from app.services.oauth_providers import RedirectUriError
 from app.services.tasks.runtime import runtime_summary, start_task_runtime, stop_task_runtime
 from app.services.templates_seed import TEMPLATES
 
@@ -24,6 +26,14 @@ settings = get_settings()
 # Business logs at INFO; DEBUG=true no longer turns the root logger into DEBUG (avoids SQL driver flooding)
 configure_logging(level="INFO", sql_echo=settings.sql_echo)
 logger = logging.getLogger("app.http")
+
+# Fail before the first request, not after a full provider round-trip: a callback URL the
+# provider would reject cannot be registered, so it is a deployment error worth shouting
+# about at import time (uvicorn, celery and every script all load this module).
+try:
+    oauth_svc.validate_configuration(settings)
+except RedirectUriError as exc:
+    raise RuntimeError(f"OAuth callback URL không hợp lệ: {exc}") from exc
 
 app = FastAPI(title=settings.app_name, version="0.2.0")
 
@@ -192,6 +202,20 @@ async def _apply_schema_patches() -> None:
         if "billing_alert_last_milestone_fen" not in ucols:
             await conn.execute(
                 text("ALTER TABLE users ADD COLUMN billing_alert_last_milestone_fen INTEGER DEFAULT 0")
+            )
+
+        # OAuth identities: `subject` is renamed to `subject_id` (the real identity key),
+        # `email` becomes nullable because providers such as TikTok hand out no email at
+        # all, and `needs_setup` marks an account still waiting for its own email and
+        # password. Existing rows keep their values.
+        aocols = await _pg_columns(conn, "oauth_accounts")
+        if "subject" in aocols and "subject_id" not in aocols:
+            await conn.execute(text("ALTER TABLE oauth_accounts RENAME COLUMN subject TO subject_id"))
+        if "email" in aocols:
+            await conn.execute(text("ALTER TABLE oauth_accounts ALTER COLUMN email DROP NOT NULL"))
+        if "needs_setup" not in aocols:
+            await conn.execute(
+                text("ALTER TABLE oauth_accounts ADD COLUMN needs_setup BOOLEAN DEFAULT FALSE")
             )
 
         # UsageEvent.drama_project_id for drama module billing

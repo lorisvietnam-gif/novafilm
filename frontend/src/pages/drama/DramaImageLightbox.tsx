@@ -1,4 +1,4 @@
-/** 资产图片全屏放大预览（点击遮罩 / Esc 关闭） */
+/** Xem ảnh tài nguyên toàn màn hình (bấm lớp nền hoặc Esc để đóng) */
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 
@@ -8,8 +8,8 @@ type Props = {
   onClose: () => void
 }
 
-// 渲染图片放大层
-export function DramaImageLightbox({ src, alt = '预览', onClose }: Props) {
+// Render lớp phóng to ảnh
+export function DramaImageLightbox({ src, alt = 'Xem trước', onClose }: Props) {
   useEffect(() => {
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
@@ -31,10 +31,10 @@ export function DramaImageLightbox({ src, alt = '预览', onClose }: Props) {
       className="drama-lightbox-backdrop"
       role="dialog"
       aria-modal="true"
-      aria-label="图片预览"
+      aria-label="Xem trước ảnh"
       onClick={onClose}
     >
-      <button type="button" className="drama-lightbox-close" aria-label="关闭" onClick={onClose}>
+      <button type="button" className="drama-lightbox-close" aria-label="Đóng" onClick={onClose}>
         ×
       </button>
       <img

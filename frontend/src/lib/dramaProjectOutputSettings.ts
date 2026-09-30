@@ -1,11 +1,11 @@
-/** 漫剧视频输出规格（画幅 / 清晰度）：分集 params 优先，可回退 project.params */
+/** Thông số đầu ra video của AI Drama (khung hình / độ phân giải): ưu tiên params của tập, lùi về project.params */
 export const DRAMA_RATIO_OPTIONS = ['9:16', '16:9', '1:1'] as const
 export const DRAMA_RES_OPTIONS = ['480p', '720p', '1080p'] as const
 
 export type DramaAspectRatio = (typeof DRAMA_RATIO_OPTIONS)[number]
 export type DramaResolution = (typeof DRAMA_RES_OPTIONS)[number]
 
-// 从 project.params 读取画幅，非法值回退 9:16
+// Đọc khung hình từ project.params, giá trị không hợp lệ thì rơi về 9:16
 export function readProjectAspectRatio(
   params: Record<string, unknown> | null | undefined,
 ): DramaAspectRatio {
@@ -16,7 +16,7 @@ export function readProjectAspectRatio(
   return '9:16'
 }
 
-// 从 project.params 读取清晰度，非法值回退 480p
+// Đọc độ phân giải từ project.params, giá trị không hợp lệ thì rơi về 480p
 export function readProjectResolution(
   params: Record<string, unknown> | null | undefined,
 ): DramaResolution {
@@ -27,7 +27,7 @@ export function readProjectResolution(
   return '480p'
 }
 
-// 从多层 params 中取第一个合法画幅
+// Lấy khung hình hợp lệ đầu tiên trong chuỗi params lồng nhau
 export function pickDramaAspectRatio(
   ...sources: Array<Record<string, unknown> | null | undefined>
 ): DramaAspectRatio {
@@ -40,7 +40,7 @@ export function pickDramaAspectRatio(
   return '9:16'
 }
 
-// 从多层 params 中取第一个合法清晰度
+// Lấy độ phân giải hợp lệ đầu tiên trong chuỗi params lồng nhau
 export function pickDramaResolution(
   ...sources: Array<Record<string, unknown> | null | undefined>
 ): DramaResolution {
@@ -53,7 +53,7 @@ export function pickDramaResolution(
   return '480p'
 }
 
-// 分集画幅：episode.params → project.params → 默认
+// Khung hình của tập: episode.params → project.params → mặc định
 export function readEpisodeAspectRatio(
   episodeParams: Record<string, unknown> | null | undefined,
   projectParams?: Record<string, unknown> | null | undefined,
@@ -61,7 +61,7 @@ export function readEpisodeAspectRatio(
   return pickDramaAspectRatio(episodeParams, projectParams)
 }
 
-// 分集清晰度：episode.params → project.params → 默认
+// Độ phân giải của tập: episode.params → project.params → mặc định
 export function readEpisodeResolution(
   episodeParams: Record<string, unknown> | null | undefined,
   projectParams?: Record<string, unknown> | null | undefined,
@@ -69,7 +69,7 @@ export function readEpisodeResolution(
   return pickDramaResolution(episodeParams, projectParams)
 }
 
-// 分镜规格：本镜生成时写入的 params → 分集 → 项目
+// Thông số của một cảnh: params ghi lúc tạo cảnh → của tập → của dự án
 export function readFragmentVideoDimensions(
   fragmentParams: Record<string, unknown> | null | undefined,
 ): { w: number; h: number } | null {
@@ -86,7 +86,7 @@ export function readFragmentVideoDimensions(
   return null
 }
 
-// 根据像素推断标准画幅；非标准时返回「宽×高」
+// Suy ra khung hình chuẩn từ số pixel; nếu không chuẩn thì trả về "rộng×cao"
 export function inferAspectRatioFromPixels(width: number, height: number): string {
   if (width <= 0 || height <= 0) return '9:16'
   const ratio = width / height
@@ -124,7 +124,7 @@ export function readFragmentOutputLabel(
   )
 }
 
-// 格式化顶栏展示文案
+// Định dạng văn bản hiển thị ở thanh trên
 export function formatProjectOutputLabel(aspectRatio: string, resolution: string): string {
   return `${aspectRatio} · ${resolution}`
 }

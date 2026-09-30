@@ -1,4 +1,4 @@
-/** 漫剧项目工作流：剧情大纲 → 分镜 → 生成视频；资产库为独立入口 */
+/** Quy trình dự án Drama: dàn ý cốt truyện → storyboard → tạo video; thư viện tài nguyên là lối vào riêng */
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Boxes, ChevronLeft } from 'lucide-react'
@@ -29,19 +29,19 @@ export default function ProjectWorkspacePage() {
   )
 }
 
-// 项目工作台主体
+// Thân của trang làm việc dự án
 function WorkspaceInner() {
   const { projectId } = useParams()
   const id = Number(projectId)
   const navigate = useNavigate()
   const location = useLocation()
   /*
-   * project 项目详情
-   * activeStep 当前步骤（大纲 / 分集）
-   * assetsOpen 资产库独立视图
-   * titleDraft 可编辑标题
-   * editingTitle 是否在编辑标题
-   * loading / error 加载态
+   * project chi tiết dự án
+   * activeStep bước hiện tại (dàn ý / tập)
+   * assetsOpen khung tài nguyên mở riêng
+   * titleDraft tiêu đề đang sửa
+   * editingTitle có đang sửa tiêu đề không
+   * loading / error trạng thái tải
    */
   const [project, setProject] = useState<DramaProject | null>(null)
   const [activeStep, setActiveStep] = useState<ProjectStepKey>('outline')
@@ -52,7 +52,7 @@ function WorkspaceInner() {
   const [error, setError] = useState('')
   const locationApplied = useRef(false)
 
-  // 应用路由 state：assets / 分镜类步骤跳转
+  // Áp dụng state của route: bước assets / bước kiểu storyboard sẽ điều hướng
   function applyLocationState(state: WorkspaceLocationState | null) {
     const normalized = normalizeWorkspaceStep(state?.activeStep || state?.returnStep)
     if (normalized === 'assets' || state?.activeStep === 'assets') {
@@ -62,7 +62,7 @@ function WorkspaceInner() {
     if (normalized && isEpisodesRouteStep(normalized)) {
       void resolveStoryboardPath(id)
         .then((path) => navigate(path, { replace: true }))
-        .catch((err) => setError(err instanceof Error ? err.message : '无法进入分镜'))
+                .catch((err) => setError(err instanceof Error ? err.message : 'Không mở được trang storyboard'))
       return
     }
     if (normalized && isProjectStepKey(normalized)) {
@@ -71,7 +71,7 @@ function WorkspaceInner() {
     }
   }
 
-  // 加载项目；自由画布项目强制进入画布页
+  // Tải dự án; dự án toan vẽ tự do luôn chuyển sang trang toan vẽ
   async function reload() {
     const p = await dramaApi.getProject(id)
     if (isCanvasWorkflow(p)) {
@@ -97,7 +97,7 @@ function WorkspaceInner() {
             if (isEpisodesRouteStep(initial)) {
               void resolveStoryboardPath(id)
                 .then((path) => navigate(path, { replace: true }))
-                .catch((err) => setError(err instanceof Error ? err.message : '无法进入分镜'))
+        .catch((err) => setError(err instanceof Error ? err.message : 'Không mở được trang storyboard'))
               return
             }
             setActiveStep(initial)
@@ -105,7 +105,7 @@ function WorkspaceInner() {
           locationApplied.current = true
         }
       })
-      .catch((err) => setError(err instanceof Error ? err.message : '加载失败'))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Tải thất bại'))
       .finally(() => setLoading(false))
   }, [id])
 
@@ -113,7 +113,7 @@ function WorkspaceInner() {
     applyLocationState(location.state as WorkspaceLocationState | null)
   }, [location.state])
 
-  // 切换步骤时刷新用量（生图/生视频后顶栏数字同步）
+  // Đổi bước thì làm mới mức dùng (sau khi tạo ảnh / tạo video, số trên thanh trên cùng được đồng bộ)
   useEffect(() => {
     if (!Number.isFinite(id) || id <= 0 || loading || !project) return
     void dramaApi
@@ -122,10 +122,10 @@ function WorkspaceInner() {
         setProject((prev) => (prev ? { ...prev, usage: p.usage } : p))
       })
       .catch(() => undefined)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅随视图变化刷新
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ làm mới theo thay đổi khung nhìn
   }, [activeStep, assetsOpen, id])
 
-  // 保存标题
+  // Lưu tiêu đề
   async function saveTitle() {
     const next = titleDraft.trim()
     if (!next || !project) {
@@ -138,7 +138,7 @@ function WorkspaceInner() {
       setProject(updated)
       setTitleDraft(updated.title)
     } catch (err) {
-      setError(err instanceof Error ? err.message : '标题保存失败')
+      setError(err instanceof Error ? err.message : 'Lưu tiêu đề thất bại')
     } finally {
       setEditingTitle(false)
     }
@@ -147,7 +147,7 @@ function WorkspaceInner() {
   if (!Number.isFinite(id) || id <= 0) {
     return (
       <AppShell active="drama" flush>
-        <div className="drama-workspace-status">项目 ID 无效</div>
+        <div className="drama-workspace-status">ID dự án không hợp lệ</div>
       </AppShell>
     )
   }
@@ -155,7 +155,7 @@ function WorkspaceInner() {
   if (loading) {
     return (
       <AppShell active="drama" flush>
-        <div className="drama-workspace-status">加载中…</div>
+        <div className="drama-workspace-status">Đang tải…</div>
       </AppShell>
     )
   }
@@ -171,7 +171,7 @@ function WorkspaceInner() {
   if (!project) {
     return (
       <AppShell active="drama" flush>
-        <div className="drama-workspace-status">项目不存在</div>
+        <div className="drama-workspace-status">Không tìm thấy dự án</div>
       </AppShell>
     )
   }
@@ -184,7 +184,7 @@ function WorkspaceInner() {
             <button
               type="button"
               className="drama-icon-btn"
-              aria-label="返回"
+              aria-label="Quay lại"
               onClick={() => navigate('/drama/dramas')}
             >
               <ChevronLeft size={20} strokeWidth={1.75} />
@@ -213,7 +213,7 @@ function WorkspaceInner() {
 
           <div className="drama-workspace-top-right">
             {project.usage ? (
-              <span className="drama-usage-chip" title="本剧累计费用与生成次数">
+              <span className="drama-usage-chip" title="Tổng chi phí và số lần tạo của bộ phim này">
                 {formatDramaUsageBrief(project.usage)}
               </span>
             ) : null}
@@ -223,7 +223,7 @@ function WorkspaceInner() {
               onClick={() => setAssetsOpen((open) => !open)}
             >
               <Boxes size={15} strokeWidth={2} aria-hidden />
-              资产库
+              Thư viện tài nguyên
             </button>
           </div>
         </header>

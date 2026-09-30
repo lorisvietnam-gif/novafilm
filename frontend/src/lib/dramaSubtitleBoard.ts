@@ -1,6 +1,16 @@
-/** 分镜字幕板：从分镜正文提取口播字幕，供预览与导出。 */
+/** Bảng phụ đề của storyboard: rút phần lời đọc ra khỏi nội dung cảnh, dùng để xem trước và xuất. */
 
 import type { DramaFragment } from '../api/drama'
+import { localized, type LocalizedText } from './localeStrings'
+
+const COPY: Record<string, LocalizedText> = {
+  empty: {
+    zh: '暂无可导出的字幕内容',
+    en: 'There is no subtitle content to export yet',
+    vi: 'Chưa có nội dung phụ đề nào để xuất',
+  },
+  shot: { zh: '片段 ', en: 'Shot ', vi: 'Cảnh ' },
+}
 
 export type DramaSubtitleMode = 'model' | 'post'
 
@@ -13,12 +23,12 @@ export type DramaSubtitleCue = {
   text: string
 }
 
-// 判断当前字幕方式是否由模型直接出字幕。
+// Kiểm tra phương thức phụ đề hiện tại có do mô hình tự tạo phụ đề không.
 export function subtitleModeUsesModelOutput(mode: DramaSubtitleMode): boolean {
   return mode === 'model'
 }
 
-// 兼容历史布尔值，读取分集字幕方式；默认后期拼接字幕。
+// Tương thích bool cũ: đọc phương thức phụ đề của tập, mặc định ghép phụ đề sau hậu kỳ.
 export function readEpisodeSubtitleMode(
   params: Record<string, unknown> | null | undefined,
 ): DramaSubtitleMode {
@@ -27,7 +37,7 @@ export function readEpisodeSubtitleMode(
   return readEpisodeSubtitleEnabled(params) ? 'model' : 'post'
 }
 
-// 兼容历史字符串/数字布尔值，默认关闭模型烧录字幕（后期拼接）。
+// Tương thích bool dạng chuỗi/số cũ, mặc định tắt phụ đề do mô hình ghi luôn (ghép sau hậu kỳ).
 export function readEpisodeSubtitleEnabled(params: Record<string, unknown> | null | undefined): boolean {
   const value = params?.subtitleEnabled
   if (value == null) return false
@@ -41,7 +51,7 @@ export function readEpisodeSubtitleEnabled(params: Record<string, unknown> | nul
   return Boolean(value)
 }
 
-// 提取整集字幕 cue（按 @duration 顺序累计时间轴）。
+// Rút cue phụ đề của cả tập (cộng dồn thời gian theo thứ tự @duration).
 export function buildDramaSubtitleBoard(fragments: DramaFragment[]): DramaSubtitleCue[] {
   const cues: DramaSubtitleCue[] = []
   let globalSec = 0
@@ -89,21 +99,21 @@ export function buildDramaSubtitleBoard(fragments: DramaFragment[]): DramaSubtit
   return cues
 }
 
-// 导出字幕板纯文本（预览用）。
+// Xuất bảng phụ đề dạng văn bản thuần (dùng để xem trước).
 export function exportDramaSubtitleBoardText(fragments: DramaFragment[]): string {
   const cues = buildDramaSubtitleBoard(fragments)
-  if (cues.length === 0) return '暂无可导出的字幕内容'
+  if (cues.length === 0) return localized(COPY.empty)
   return cues
     .map(
       (cue) =>
-        `${formatSubtitleClock(cue.startSec)}-${formatSubtitleClock(cue.endSec)} 片段 ${String(
+        `${formatSubtitleClock(cue.startSec)}-${formatSubtitleClock(cue.endSec)} ${localized(COPY.shot)}${String(
           cue.fragmentIndex + 1,
         ).padStart(2, '0')} ${cue.speaker}：${cue.text}`,
     )
     .join('\n')
 }
 
-// 导出剪映可导入的 SRT（仅正文，不含说话人）。
+// Xuất SRT mà JianYing nhập được (chỉ phần nội dung, không kèm tên người nói).
 export function exportDramaSubtitleBoardSrt(fragments: DramaFragment[]): string {
   const cues = buildDramaSubtitleBoard(fragments)
     .map((cue) => ({
@@ -121,7 +131,7 @@ export function exportDramaSubtitleBoardSrt(fragments: DramaFragment[]): string 
     .join('\n\n')
 }
 
-// 秒数格式化为 00:00。
+// Định dạng số giây thành 00:00.
 export function formatSubtitleClock(totalSec: number): string {
   const sec = Math.max(0, Math.floor(totalSec))
   const minutes = Math.floor(sec / 60)
@@ -129,7 +139,7 @@ export function formatSubtitleClock(totalSec: number): string {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
-// 秒数格式化为 SRT 时间轴 00:00:00,000。
+// Định dạng số giây thành mốc thời gian SRT 00:00:00,000.
 export function formatSrtTimestamp(totalSec: number): string {
   const msTotal = Math.max(0, Math.round(totalSec * 1000))
   const hours = Math.floor(msTotal / 3_600_000)
@@ -141,7 +151,7 @@ export function formatSrtTimestamp(totalSec: number): string {
   ).padStart(2, '0')},${String(millis).padStart(3, '0')}`
 }
 
-// 清理动作说明等括注，保留可上屏的口播正文。
+// Dọn các ghi chú trong ngoặc như mô tả hành động, giữ lại phần lời đọc có thể lên hình.
 function sanitizeSrtCaptionText(raw: string): string {
   return String(raw || '')
     .replace(/（[^）]*）/g, '')
@@ -193,7 +203,7 @@ const STRIP_PREFIX_MAP: Array<[string, string]> = [
   ['【内心独白·同步字幕】', '【内心独白】'],
 ]
 
-// 判断是否为字幕 cue 行（含历史文案）。
+// Kiểm tra dòng này có phải cue phụ đề không (kể cả văn bản cũ).
 function isSubtitleCueLine(line: string): boolean {
   const trimmed = line.trim()
   if (!trimmed.startsWith('【字幕')) return false
@@ -204,7 +214,7 @@ function isSubtitleCueLine(line: string): boolean {
   )
 }
 
-// 从单条分镜正文去掉模型字幕提示词，保留对白/旁白本身。
+// Bỏ prompt phụ đề của mô hình khỏi nội dung một cảnh, giữ lại đối thoại và lời dẫn.
 export function stripSubtitlePromptsFromContent(content: string): string {
   const lines = String(content || '')
     .replace(/\r\n/g, '\n')
@@ -229,7 +239,7 @@ export function stripSubtitlePromptsFromContent(content: string): string {
   return next.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()
 }
 
-// 为单条分镜正文补回模型字幕提示词（已有则不重复）。
+// Thêm lại prompt phụ đề của mô hình vào nội dung một cảnh (không thêm nếu đã có).
 export function applySubtitlePromptsToContent(content: string): string {
   const source = String(content || '').replace(/\r\n/g, '\n')
   if (!source.trim()) return source
@@ -266,7 +276,7 @@ export function applySubtitlePromptsToContent(content: string): string {
   return next.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()
 }
 
-// 按字幕方式批量改写分镜正文。
+// Viết lại hàng loạt nội dung cảnh theo phương thức phụ đề.
 export function applySubtitleModeToFragments<T extends { content?: string | null }>(
   fragments: T[],
   mode: DramaSubtitleMode,

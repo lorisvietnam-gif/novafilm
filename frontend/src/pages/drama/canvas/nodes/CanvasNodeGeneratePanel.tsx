@@ -1,4 +1,4 @@
-/** 选中节点底部：AI 提示词浮动面板（生图 / 生视频） */
+/** Bảng nổi nhập câu lệnh AI ở dưới node đang chọn (sinh ảnh / sinh video) */
 import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent } from 'react'
 import { ArrowUp, CircleHelp, Loader2, Sparkles, Wand2 } from 'lucide-react'
 import { SeedanceRulesModal } from '../../../../components/drama/SeedanceRulesModal'
@@ -25,47 +25,47 @@ type CanvasNodeGeneratePanelProps = {
   kind: CanvasNodeKind
   generating?: boolean
   defaultPrompt?: string
-  /** 节点展示名，用于过滤弱占位提示词 */
+  /** Tên hiển thị của node, dùng để lọc bỏ câu lệnh mặc định vô nghĩa */
   label?: string
-  /** 是否已有参考图（资产库/上传） */
+  /** Đã có ảnh tham chiếu chưa (từ thư viện tư liệu hoặc tải lên) */
   hasMedia?: boolean
-  /** 视频节点已保存的 Seedance 参数 */
+  /** Tham số Seedance đã lưu của node video */
   videoOptions?: Record<string, unknown>
 }
 
-/** 按节点类型返回面板文案 */
+/** Chữ của bảng theo loại node */
 function panelCopy(kind: CanvasNodeKind, hasMedia: boolean) {
   if (kind === 'video') {
     return {
-      title: hasMedia ? '编辑并重生视频' : 'AI 生成视频',
-      placeholder: '描述视频画面、镜头运动与氛围；键入 @ 引用角色/场景…',
-      hint: 'Enter 生成视频 · @ 引用 · Shift+Enter 换行',
+      title: hasMedia ? 'Sửa và sinh lại video' : 'AI tạo video',
+      placeholder: 'Mô tả hình ảnh video, chuyển động máy quay và không khí; gõ @ để trích dẫn nhân vật / bối cảnh…',
+      hint: 'Enter để tạo video · @ để trích dẫn · Shift+Enter xuống dòng',
     }
   }
   if (kind === 'character') {
     return {
-      title: hasMedia ? '编辑并重生角色' : 'AI 生角色',
-      placeholder: '描述角色外貌、服饰与气质…',
-      hint: 'Enter 生成 · Shift+Enter 换行',
+      title: hasMedia ? 'Sửa và sinh lại nhân vật' : 'AI tạo nhân vật',
+      placeholder: 'Mô tả ngoại hình, trang phục và thần thái của nhân vật…',
+      hint: 'Enter để tạo · Shift+Enter xuống dòng',
     }
   }
   if (kind === 'scene') {
     return {
-      title: hasMedia ? '编辑并重生场景' : 'AI 生场景',
-      placeholder: '描述场景环境、光线与氛围…',
-      hint: 'Enter 生成 · Shift+Enter 换行',
+      title: hasMedia ? 'Sửa và sinh lại bối cảnh' : 'AI tạo bối cảnh',
+      placeholder: 'Mô tả không gian, ánh sáng và không khí của bối cảnh…',
+      hint: 'Enter để tạo · Shift+Enter xuống dòng',
     }
   }
   return {
-    title: hasMedia ? '编辑并重生图片' : 'AI 生图',
-    placeholder: '描述画面内容；键入 @ 引用角色/场景…',
-    hint: 'Enter 生成 · @ 引用 · Shift+Enter 换行',
+    title: hasMedia ? 'Sửa và sinh lại ảnh' : 'AI tạo ảnh',
+    placeholder: 'Mô tả nội dung khung hình; gõ @ để trích dẫn nhân vật / bối cảnh…',
+    hint: 'Enter để tạo · @ để trích dẫn · Shift+Enter xuống dòng',
   }
 }
 
 const PLACEHOLDER_PROMPT = /^(character|scene|prop|material|none|image|audio|video)\s+\S+$/i
 
-/** 清洗默认提示词：只去掉「video 新视频」这类占位，保留用户短描述与 @ 引用 */
+/** Làm sạch câu lệnh mặc định: chỉ bỏ loại chỗ như «video video mới», giữ lại mô tả ngắn của người dùng và các trích dẫn @ */
 function sanitizePrompt(raw: string, kind: CanvasNodeKind, label: string): string {
   const text = (raw || '').trim()
   if (!text) return ''
@@ -74,7 +74,7 @@ function sanitizePrompt(raw: string, kind: CanvasNodeKind, label: string): strin
   return text
 }
 
-/** 渲染 AI 提示词编辑面板 */
+/** Dựng bảng chỉnh câu lệnh AI */
 export function CanvasNodeGeneratePanel({
   nodeId,
   kind,
@@ -95,21 +95,21 @@ export function CanvasNodeGeneratePanel({
   } = useCanvasStore()
   const [prompt, setPrompt] = useState(() => sanitizePrompt(defaultPrompt, kind, label))
   /*
-   * busy 正在提交生成
-   * rulesOpen Seedance 规则弹窗
-   * optimizing Skill 改写进行中
+   * busy đang gửi yêu cầu tạo
+   * rulesOpen hộp luật của Seedance
+   * optimizing đang viết lại bằng Skill
    */
   const [busy, setBusy] = useState(false)
   const [rulesOpen, setRulesOpen] = useState(false)
   const [optimizing, setOptimizing] = useState(false)
   const { skills, selectedIds, toggleSkill, selectAll, selectNone, uploadSkill, uploading, uploadError } =
     useAgentSkillSelection()
-  // imageOptions 生图风格/模型/画幅
+  // imageOptions phong cách / model / tỉ lệ khung hình khi sinh ảnh
   const [imageOptions, setImageOptions] = useState<ImageGenerationOptions>(() => ({
     ...defaultOptionsForAssetKind(kind),
     image_style_id: projectImageStyleId || undefined,
   }))
-  // videoOpts Seedance 时长/比例/清晰度
+  // videoOpts thời lượng / tỉ lệ / độ rõ của Seedance
   const [videoOpts, setVideoOpts] = useState<VideoGenerationOptions>(() => {
     const saved = readVideoGenerationOptions(savedVideoOptions)
     return {
@@ -122,7 +122,7 @@ export function CanvasNodeGeneratePanel({
   const allowMention = kind === 'video' || kind === 'image'
   const isVideo = kind === 'video'
 
-  /* 可引用：排除当前节点自身 */
+  /* Có thể trích dẫn: loại trừ chính node hiện tại */
   const mentionItems = useMemo(
     () => mentionableNodes.filter((n) => n.nodeId !== nodeId),
     [mentionableNodes, nodeId],
@@ -130,7 +130,7 @@ export function CanvasNodeGeneratePanel({
 
   const lastNodeIdRef = useRef(nodeId)
 
-  /* 换节点时强制同步；同一节点不要用空默认值清掉用户正文 */
+  /* Khi đổi node thì ép đồng bộ; cùng một node thì không dùng giá trị mặc định rỗng để xoá nội dung người dùng đã gõ */
   useEffect(() => {
     const switched = lastNodeIdRef.current !== nodeId
     lastNodeIdRef.current = nodeId
@@ -142,7 +142,7 @@ export function CanvasNodeGeneratePanel({
     setPrompt((prev) => next || prev)
   }, [defaultPrompt, nodeId, kind, label])
 
-  /* 节点类型或项目风格变化时同步默认选项 */
+  /* Đồng bộ tuỳ chọn mặc định khi loại node hoặc phong cách của dự án đổi */
   useEffect(() => {
     setImageOptions((prev) => ({
       ...defaultOptionsForAssetKind(kind),
@@ -159,7 +159,7 @@ export function CanvasNodeGeneratePanel({
       ...saved,
       image_style_id: saved.image_style_id || projectImageStyleId || undefined,
     })
-    // 仅切换节点时恢复已保存参数，避免编辑选项时被回写覆盖
+    // Chỉ khôi phục tham số đã lưu khi chuyển node, để lúc sửa tuỳ chọn không bị ghi đè
   }, [nodeId, projectImageStyleId])
 
   const isBusy = busy || generating || optimizing
@@ -186,7 +186,7 @@ export function CanvasNodeGeneratePanel({
         await generateNodeImage(nodeId, prompt, imageOptions)
       }
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : '生成失败')
+      setErrorMessage(err instanceof Error ? err.message : 'Sinh thất bại')
     } finally {
       setBusy(false)
     }
@@ -197,7 +197,7 @@ export function CanvasNodeGeneratePanel({
     void submit()
   }
 
-  // 按勾选 Skill 改写当前提示词，保留 @asset 引用
+  // Viết lại câu lệnh hiện tại theo các Skill đã chọn, giữ nguyên trích dẫn @asset
   const optimizePrompt = async () => {
     if (!canOptimize) return
     setOptimizing(true)
@@ -213,7 +213,7 @@ export function CanvasNodeGeneratePanel({
         updateNodePrompt(nodeId, next)
       }
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Skill 优化失败')
+      setErrorMessage(err instanceof Error ? err.message : 'Tối ưu bằng Skill thất bại')
     } finally {
       setOptimizing(false)
     }
@@ -235,13 +235,13 @@ export function CanvasNodeGeneratePanel({
       <div className="fc-generate-head">
         <Sparkles size={14} strokeWidth={1.8} />
         <span>{copy.title}</span>
-        {hasMedia ? <em className="fc-generate-tag">可再次生成</em> : null}
+        {hasMedia ? <em className="fc-generate-tag">Có thể tạo lại</em> : null}
         {isVideo ? (
           <button
             type="button"
             className="fc-generate-help"
-            title="Seedance 传值与使用规则"
-            aria-label="Seedance 传值与使用规则"
+            title="Cách truyền giá trị và quy tắc dùng của Seedance"
+            aria-label="Cách truyền giá trị và quy tắc dùng của Seedance"
             disabled={isBusy}
             onClick={() => setRulesOpen(true)}
           >
@@ -290,13 +290,13 @@ export function CanvasNodeGeneratePanel({
             type="button"
             className="fc-generate-optimize"
             disabled={!canOptimize}
-            title={selectedIds.length ? '按所选 Skill 改写提示词' : '请先选择 Skill'}
+            title={selectedIds.length ? 'Viết lại câu lệnh theo các Skill đã chọn' : 'Hãy chọn Skill trước'}
             onClick={() => void optimizePrompt()}
           >
             {optimizing ? <Loader2 size={14} className="fc-spin" /> : <Wand2 size={14} strokeWidth={1.8} />}
-            Skill 优化
+            Tối ưu bằng Skill
           </button>
-          <button type="submit" className="fc-generate-submit" disabled={!canSubmit} aria-label="生成">
+          <button type="submit" className="fc-generate-submit" disabled={!canSubmit} aria-label="Tạo">
             {isBusy && !optimizing ? (
               <Loader2 size={16} className="fc-spin" />
             ) : (

@@ -1,4 +1,4 @@
-/** 画面风格选择：触发器 + Modal 卡片网格 */
+/** Chọn phong cách hình ảnh: nút mở + lưới thẻ trong Modal */
 import { useState } from 'react'
 import { BookOpen, ChevronDown } from 'lucide-react'
 import { DramaImageStyleCardGrid } from '../../components/drama/DramaImageStyleCardGrid'
@@ -10,32 +10,32 @@ type Props = {
   value: ImageStyleId | ''
   onChange: (id: ImageStyleId | '') => void
   disabled?: boolean
-  /** toolbar：列表页胶囊按钮；field：大纲页带缩略图字段 */
+  /** toolbar: nút viên thuốc ở trang danh sách; field: ô kèm ảnh nhỏ ở trang dàn ý */
   variant?: 'toolbar' | 'field'
-  /** field 变体左侧文案，默认「项目风格」 */
+  /** Chữ bên trái của biến thể field, mặc định là "Phong cách dự án" */
   fieldLabel?: string
-  /** Modal 标题 */
+  /** Tiêu đề Modal */
   title?: string
-  /** 未选时的触发文案 */
+  /** Chữ trên nút mở khi chưa chọn */
   emptyLabel?: string
 }
 
-// 渲染风格库触发器与画面风格 Modal
+// Render nút mở thư viện phong cách và Modal phong cách hình ảnh
 export function DramaImageStyleModal({
   value,
   onChange,
   disabled = false,
   variant = 'toolbar',
-  fieldLabel = '项目风格',
-  title = '画面风格',
+  fieldLabel = 'Phong cách dự án',
+  title = 'Phong cách hình ảnh',
   emptyLabel,
 }: Props) {
   const [open, setOpen] = useState(false)
   const styleLabel = getImageStyleLabel(value)
-  const triggerLabel = styleLabel || emptyLabel || (variant === 'field' ? '选择风格' : '风格库')
+  const triggerLabel = styleLabel || emptyLabel || (variant === 'field' ? 'Chọn phong cách' : 'Thư viện phong cách')
   const active = Boolean(value) || open
 
-  // 选中风格并关闭
+  // Chọn phong cách rồi đóng
   function select(id: ImageStyleId | '') {
     onChange(id)
     setOpen(false)
@@ -79,11 +79,11 @@ export function DramaImageStyleModal({
       )}
 
       <Modal open={open} onClose={() => setOpen(false)} title={title} size="md" className="drama-style-modal">
-        {/* 封面即画风参考图，避免用户以为只是缩略预览 */}
+        {/* Ảnh bìa chính là ảnh tham chiếu phong cách, tránh khiến người dùng tưởng chỉ là xem trước */}
         <p className="drama-style-modal-hint">
-          封面图会作为画风参考一并提交。模型只借色调、笔触和光影，不会照抄封面里的人物或构图。
+          Ảnh bìa sẽ được gửi kèm làm ảnh tham chiếu phong cách. Mô hình chỉ mượn tông màu, nét vẽ và ánh sáng, không sao chép nhân vật hay bố cục trong ảnh bìa.
         </p>
-        <DramaImageStyleCardGrid value={value} onChange={select} noneLabel="无风格" />
+        <DramaImageStyleCardGrid value={value} onChange={select} noneLabel="Không có phong cách" />
       </Modal>
     </>
   )

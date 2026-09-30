@@ -1,4 +1,4 @@
-/** 分集脚本 contentEditable：时长/资产 chip + @ 弹层 */
+/** contentEditable cho kịch bản tập: chip thời lượng/tài nguyên + popover khi gõ @ */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { resolveDramaMediaUrl, type DramaAsset } from '../../api/drama'
 import {
@@ -29,13 +29,13 @@ type Props = {
   onOpenAsset?: (assetId: number) => void
 }
 
-// 渲染可编辑分镜脚本
+// Render kịch bản storyboard có thể sửa
 export function EpisodeEditPromptEditor({
   content,
   assets,
   referencedIds,
   editing,
-  placeholder = '输入画面描述、对白、旁白；键入 @ 引用资产或插入时长…',
+  placeholder = 'Nhập mô tả hình ảnh, thoại, lời dẫn; gõ @ để tham chiếu tài nguyên hoặc chèn thời lượng…',
   onContentChange,
   onOpenAsset,
 }: Props) {
@@ -50,7 +50,7 @@ export function EpisodeEditPromptEditor({
   const [mentionActiveIndex, setMentionActiveIndex] = useState(0)
   const [mentionItemsCount, setMentionItemsCount] = useState(0)
 
-  // 按资产 id 解析 chip 展示数据
+  // Tra chip theo id tài nguyên để hiển thị
   const resolveChip = useCallback(
     (assetId: number) => {
       const asset = assets.find((a) => a.id === assetId)
@@ -60,7 +60,7 @@ export function EpisodeEditPromptEditor({
     [assets],
   )
 
-  // 关闭 @ 弹层
+  // Đóng popover @
   const closeMentionPopover = useCallback(() => {
     setMentionOpen(false)
     setMentionQuery('')
@@ -69,7 +69,7 @@ export function EpisodeEditPromptEditor({
     mentionTriggerRangeRef.current = null
   }, [])
 
-  // 把 content 刷到编辑器 DOM
+  // Đẩy content vào DOM của trình soạn thảo
   const paint = useCallback(
     (next: string) => {
       const editor = editorRef.current
@@ -79,20 +79,20 @@ export function EpisodeEditPromptEditor({
     [resolveChip],
   )
 
-  // 外部 content 变化时同步到 DOM（编辑中忽略本编辑器回写）
+  // Đồng bộ content từ ngoài vào DOM (khi đang sửa thì bỏ qua chính lần ghi của trình soạn thảo)
   useEffect(() => {
     if (editing && content === lastEmittedRef.current) return
     paint(content)
     lastEmittedRef.current = content
   }, [content, editing, paint])
 
-  // 只读态资产列表变化时刷新 chip 展示
+  // Ở chế độ chỉ đọc, làm mới chip khi danh sách tài nguyên đổi
   useEffect(() => {
     if (editing) return
     paint(content)
   }, [assets, content, editing, paint])
 
-  // 进入编辑时聚焦
+  // Vào chế độ sửa thì focus
   useEffect(() => {
     if (!editing) {
       closeMentionPopover()
@@ -101,7 +101,7 @@ export function EpisodeEditPromptEditor({
     requestAnimationFrame(() => editorRef.current?.focus())
   }, [closeMentionPopover, editing])
 
-  // 同步 @ 触发状态
+  // Đồng bộ trạng thái kích hoạt @
   const syncMentionTrigger = useCallback(() => {
     const editor = editorRef.current
     if (!editor || !editing) {
@@ -121,7 +121,7 @@ export function EpisodeEditPromptEditor({
     setMentionActiveIndex(0)
   }, [closeMentionPopover, editing])
 
-  // 把编辑器内容回写到父级
+  // Gửi nội dung trình soạn thảo lên component cha
   const emitContent = useCallback(() => {
     const editor = editorRef.current
     if (!editor) return
@@ -130,7 +130,7 @@ export function EpisodeEditPromptEditor({
     onContentChange(next)
   }, [onContentChange])
 
-  // 选择资产插入 chip
+  // Chọn tài nguyên để chèn chip
   const handleSelectAsset = useCallback(
     (asset: DramaAsset) => {
       const editor = editorRef.current
@@ -146,7 +146,7 @@ export function EpisodeEditPromptEditor({
     [closeMentionPopover, emitContent],
   )
 
-  // 选择时长插入 chip
+  // Chọn thời lượng để chèn chip
   const handleSelectDuration = useCallback(
     (seconds: number) => {
       const editor = editorRef.current
@@ -161,7 +161,7 @@ export function EpisodeEditPromptEditor({
     [closeMentionPopover, emitContent],
   )
 
-  // 插入景别 / 运镜前缀纯文本
+  // Chèn tiền tố cỡ cảnh / cử động máy dạng text thuần
   const handleSelectCameraPhrase = useCallback(
     (text: string) => {
       const editor = editorRef.current
@@ -189,7 +189,7 @@ export function EpisodeEditPromptEditor({
         className={`drama-ep-prompt-editor${editing ? ' is-editing' : ''}`}
         role="textbox"
         aria-multiline="true"
-        aria-label="分镜脚本"
+        aria-label="Kịch bản storyboard"
         aria-readonly={!editing}
         contentEditable={editing}
         suppressContentEditableWarning
@@ -247,7 +247,7 @@ export function EpisodeEditPromptEditor({
           }
           if (e.key === 'Enter' && mentionItemsCount > 0) {
             e.preventDefault()
-            // Enter 由弹层资产列表在父级通过 activeIndex 处理较复杂，这里仅拦截避免换行打断触发
+            // Enter do danh sách tài nguyên trong popover xử lý qua activeIndex ở component cha, phức tạp hơn; ở đây chỉ chặn để xuống dòng không làm đứt trigger
           }
         }}
       />

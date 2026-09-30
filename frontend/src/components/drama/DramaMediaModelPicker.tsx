@@ -1,4 +1,4 @@
-/** 图/视频模型选择列表：图标 + 简介 + 耗时 + 选用提示 */
+/** Danh sách chọn mô hình ảnh/video: icon + mô tả + thời gian + gợi ý dùng */
 import type { ReactNode } from 'react'
 import { Check, Clapperboard, Film, Image as ImageIcon, Sparkles, Wand2, Zap } from 'lucide-react'
 import type { MediaModelOption } from '../../api'
@@ -9,6 +9,8 @@ import {
   mediaModelIconKind,
   type MediaModelIconKind,
 } from '../../lib/dramaMediaModelMeta'
+import { useLocalizedText } from '../../lib/useLocalizedText'
+import type { LocalizedText } from '../../lib/localeStrings'
 
 type Props = {
   models: MediaModelOption[]
@@ -17,7 +19,22 @@ type Props = {
   onSelect: (model: MediaModelOption) => void
 }
 
-/** 按模型族渲染图标 */
+const EMPTY_HINT: LocalizedText = {
+  zh: '请先在管理后台「模型」保存预设默认模型',
+  en: 'Save a default preset under Models in the admin first',
+  vi: 'Hãy lưu một bộ mặc định trong mục "Mô hình" ở trang quản trị trước',
+}
+
+const RECOMMENDED: LocalizedText = {
+  zh: '默认',
+  en: 'Default',
+  vi: 'Mặc định',
+}
+
+/** Dấu phân cách ghép các mảnh thông tin trong aria-label, đúng với từng ngôn ngữ. */
+const ITEM_SEPARATOR: LocalizedText = { zh: '，', en: ', ', vi: ', ' }
+
+/** Render icon theo họ mô hình */
 function ModelIcon({ kind }: { kind: MediaModelIconKind }) {
   const common = { size: 16, strokeWidth: 1.9 } as const
   switch (kind) {
@@ -38,15 +55,16 @@ function ModelIcon({ kind }: { kind: MediaModelIconKind }) {
   }
 }
 
-/** 渲染可选模型卡片列表 */
+/** Render danh sách thẻ mô hình bấm được */
 export function DramaMediaModelPicker({
   models,
   selectedId,
-  emptyHint = '请先在管理后台「模型」保存预设默认模型',
+  emptyHint,
   onSelect,
 }: Props) {
+  const lt = useLocalizedText()
   if (models.length === 0) {
-    return <p className="fc-gen-model-empty">{emptyHint}</p>
+    return <p className="fc-gen-model-empty">{emptyHint || lt(EMPTY_HINT)}</p>
   }
 
   return (
@@ -60,13 +78,15 @@ export function DramaMediaModelPicker({
         const eta = (m.eta_hint || '').trim()
         const clip = mediaModelClipDurationLabel(m)
         const metaBits = [clip, eta].filter(Boolean)
+        const sep = lt(ITEM_SEPARATOR)
+        const spoken = [m.label, desc, metaBits.join(sep), price].filter(Boolean).join(sep)
         return (
           <button
             key={m.id}
             type="button"
             className={`fc-gen-model-card${selected ? ' selected' : ''}`}
             title={mediaModelHoverText(m)}
-            aria-label={`${m.label}${desc ? `，${desc}` : ''}${metaBits.length ? `，${metaBits.join('，')}` : ''}${price ? `，${price}` : ''}`}
+            aria-label={spoken}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => onSelect(m)}
           >
@@ -76,7 +96,7 @@ export function DramaMediaModelPicker({
             <span className="fc-gen-model-card-body">
               <span className="fc-gen-model-card-head">
                 <strong>{m.label}</strong>
-                {m.recommended ? <em className="fc-gen-model-card-rec">默认</em> : null}
+                {m.recommended ? <em className="fc-gen-model-card-rec">{lt(RECOMMENDED)}</em> : null}
                 <em className="fc-gen-model-card-badge">{badge}</em>
                 {selected ? (
                   <Check className="fc-gen-model-card-check" size={15} strokeWidth={2.4} aria-hidden />
@@ -95,7 +115,7 @@ export function DramaMediaModelPicker({
   )
 }
 
-/** 供外部需要自定义点击时复用图标节点 */
+/** Cho bên ngoài tái dùng node icon khi cần tự xử lý click */
 export function dramaMediaModelIconNode(modelId: string): ReactNode {
   return <ModelIcon kind={mediaModelIconKind(modelId)} />
 }

@@ -7,9 +7,9 @@ import { filterHelpFaq } from '../lib/helpContent'
 import type { ImageStyleId } from '../lib/dramaImageStyles'
 
 /**
- * 分类入口卡的配图：仓库内既有画风素材，懒加载；纯装饰。
- * 只给有视觉产物的分类配图（漫剧 / 短视频 / 工具 / 起点），
- * 「个人中心」和「充值说明」没有画面语言，保持纯色卡面。
+ * Ảnh của thẻ mục: dùng ảnh phong cách đã có sẵn trong repo, tải trễ, thuần trang trí.
+ * Chỉ mục nào có sản phẩm hình ảnh mới gán ảnh (AI Drama / video / công cụ / điểm khởi đầu),
+ * còn "Trung tâm cá nhân" và "Hướng dẫn nạp tiền" không có hình ảnh nào đi kèm nên giữ nền màu trơn.
  */
 const HELP_CAT_ART: Record<string, ImageStyleId> = {
   start: 'ancient-chinese-mythology',
@@ -18,12 +18,12 @@ const HELP_CAT_ART: Record<string, ImageStyleId> = {
   tools: 'retro-sci-fi-atompunk',
 }
 
-/** 帮助中心整页：分类入口、上手步骤、可搜索 FAQ */
+/** Cả trang trung tâm trợ giúp: lối vào theo mục, các bước bắt đầu, FAQ có tìm kiếm */
 export default function HelpPage() {
   const { t, m } = useI18n()
   /*
-   * q 搜索关键词
-   * openFaq 当前展开的 FAQ 下标
+   * q       từ khoá tìm kiếm
+   * openFaq chỉ số FAQ đang mở
    */
   const [q, setQ] = useState('')
   const [openFaq, setOpenFaq] = useState<number | null>(0)

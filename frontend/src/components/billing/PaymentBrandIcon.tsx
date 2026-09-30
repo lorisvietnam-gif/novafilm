@@ -1,25 +1,29 @@
+import { useLocalizedText } from '../../lib/useLocalizedText'
+import type { LocalizedText } from '../../lib/localeStrings'
+
 type PayBrand = 'alipay' | 'wxpay' | 'unionpay'
 
 type Props = {
   brand: PayBrand
-  /** sm 用于按钮内；md 用于弹窗标题 */
+  /** sm dùng trong nút; md dùng ở tiêu đề popup */
   size?: 'sm' | 'md'
   className?: string
 }
 
-const BRAND_META: Record<PayBrand, { src: string; alt: string }> = {
-  alipay: { src: '/payment/alipay.svg', alt: '支付宝' },
-  wxpay: { src: '/payment/wechatpay.svg', alt: '微信支付' },
-  unionpay: { src: '/payment/unionpay.svg', alt: '银联支付' },
+const BRAND_META: Record<PayBrand, { src: string; alt: LocalizedText }> = {
+  alipay: { src: '/payment/alipay.svg', alt: { zh: '支付宝', en: 'Alipay', vi: 'Alipay' } },
+  wxpay: { src: '/payment/wechatpay.svg', alt: { zh: '微信支付', en: 'WeChat Pay', vi: 'WeChat Pay' } },
+  unionpay: { src: '/payment/unionpay.svg', alt: { zh: '银联支付', en: 'UnionPay', vi: 'UnionPay' } },
 }
 
-/** 支付渠道品牌图标 */
+/** Icon thương hiệu của kênh thanh toán */
 export default function PaymentBrandIcon({ brand, size = 'sm', className = '' }: Props) {
+  const lt = useLocalizedText()
   const meta = BRAND_META[brand]
   return (
     <img
       src={meta.src}
-      alt={meta.alt}
+      alt={lt(meta.alt)}
       className={`pf-pay-brand-icon is-${size}${className ? ` ${className}` : ''}`}
       width={size === 'md' ? 28 : 22}
       height={size === 'md' ? 28 : 22}

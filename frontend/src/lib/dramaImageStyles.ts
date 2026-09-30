@@ -35,10 +35,6 @@ export const IMAGE_STYLE_IDS = [
 
 export type ImageStyleId = (typeof IMAGE_STYLE_IDS)[number]
 
-export const IMAGE_STYLE_OPTIONS: Array<{ id: ImageStyleId; label: string }> = IMAGE_STYLE_IDS.map(
-  (id) => ({ id, ...styleOption(id) }),
-)
-
 /** Display name per style id, in every interface language. */
 const IMAGE_STYLE_LABELS: Record<ImageStyleId, LocalizedText> = {
   'retro-sci-fi-atompunk': {
@@ -155,6 +151,19 @@ function styleOption(id: ImageStyleId): { label: string } {
     },
   }
 }
+
+/**
+ * Khai báo SAU `IMAGE_STYLE_LABELS` và `styleOption` là bắt buộc.
+ * `...styleOption(id)` là object spread, nó **gọi thẳng getter** `label` tại đây chứ không giữ
+ * lazy. Nếu dòng này nằm trên `IMAGE_STYLE_LABELS` thì getter đọc một `const` chưa khởi tạo và
+ * ném `ReferenceError: Cannot access 'IMAGE_STYLE_LABELS' before initialization` — làm trắng
+ * trang ngay khi module chạy.
+ * Lỗi này chỉ nổ ở dev server (Vite giữ nguyên thứ tự ESM); bản build Rollup vô tình xếp lại
+ * nên `npm run build` vẫn xanh. Đừng đặt dòng này lên trên.
+ */
+export const IMAGE_STYLE_OPTIONS: Array<{ id: ImageStyleId; label: string }> = IMAGE_STYLE_IDS.map(
+  (id) => ({ id, ...styleOption(id) }),
+)
 
 export const EPISODE_COUNT_PRESETS = [1, 12, 24, 36, 48] as const
 

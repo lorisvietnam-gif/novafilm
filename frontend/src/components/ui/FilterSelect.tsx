@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { cn } from '../../lib/cn'
+import { useLocalizedText } from '../../lib/useLocalizedText'
+import type { LocalizedText } from '../../lib/localeStrings'
 
 export type FilterOption = {
   value: string
@@ -16,7 +18,13 @@ type Props = {
   disabled?: boolean
 }
 
-/** 品牌风格自定义下拉，避免原生 option 的蓝色高亮 */
+const PLACEHOLDER: LocalizedText = {
+  zh: '请选择',
+  en: 'Select',
+  vi: 'Chọn',
+}
+
+/** Dropdown tuỳ biến theo phong cách thương hiệu, tránh màu xanh mặc định của option gốc */
 export default function FilterSelect({
   label,
   options,
@@ -25,6 +33,7 @@ export default function FilterSelect({
   className,
   disabled,
 }: Props) {
+  const lt = useLocalizedText()
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const listId = useId()
@@ -59,7 +68,7 @@ export default function FilterSelect({
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
       >
-        <span className="pf-filter-trigger-label">{current?.label || '请选择'}</span>
+        <span className="pf-filter-trigger-label">{current?.label || lt(PLACEHOLDER)}</span>
         <ChevronDown size={15} strokeWidth={2} className="pf-filter-chevron" aria-hidden />
       </button>
       {open ? (

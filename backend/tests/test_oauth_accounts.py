@@ -1,4 +1,4 @@
-"""OAuth 身份与本地账号的绑定规则：认人只认 provider+subject，邮箱必须已验证。"""
+"""Danh tính bên thứ ba và tài khoản cục bộ: nhận người bằng (provider, subject_id), không phải bằng email."""
 
 from __future__ import annotations
 
@@ -36,15 +36,18 @@ def _user(**over):
     return SimpleNamespace(**base)
 
 
+# ------------------------------------------------------------------------- kế hoạch
+
+
 def test_plan_signs_in_a_known_identity() -> None:
-    # 已经绑过的 (provider, subject) 直接登录，邮箱变没变都不影响
+    # Đã từng đăng nhập bằng đúng cặp này: email có đổi cũng không sao
     assert (
         oa.plan_oauth_link(_identity(email="other@example.com"), linked_user=_user(), email_user=None)
         == "signin"
     )
 
 
-def test_plan_creates_an_account_for_an_unknown_address() -> None:
+def test_plan_creates_an_account_for_an_unknown_verified_address() -> None:
     assert oa.plan_oauth_link(_identity(), linked_user=None, email_user=None) == "create"
 
 
@@ -53,22 +56,113 @@ def test_plan_links_a_verified_address_to_the_existing_account() -> None:
 
 
 def test_plan_refuses_when_autolink_is_off() -> None:
-    # 关掉自动合并后，老用户必须先用密码登录再手动绑定
+    # Tắt tự liên kết thì người dùng cũ phải tự chứng minh bằng mật khẩu trước
     with pytest.raises(OAuthIdentityError) as err:
         oa.plan_oauth_link(_identity(), linked_user=None, email_user=_user(), auto_link_email=False)
     assert err.value.code == "email_taken"
 
 
+def test_plan_refuses_to_stack_a_second_provider_on_one_account() -> None:
+    # Chống chiếm tài khoản: tài khoản đã gắn provider khác thì không ghi đè
+    with pytest.raises(OAuthIdentityError) as err:
+        oa.plan_oauth_link(
+            _identity(provider="google"),
+            linked_user=None,
+            email_user=_user(),
+            email_user_providers=frozenset({"microsoft"}),
+        )
+    assert err.value.code == "email_link_conflict"
+
+
+def test_another_provider_on_the_same_account_still_blocks_linking() -> None:
+    # Google đã gắn, giờ đến ký danh từ một provider khác -> vẫn phải từ chối
+    with pytest.raises(OAuthIdentityError) as err:
+        oa.plan_oauth_link(
+            _identity(provider="microsoft"),
+            linked_user=None,
+            email_user=_user(),
+            email_user_providers=frozenset({"google"}),
+        )
+    assert err.value.code == "email_link_conflict"
+
+
+def test_same_provider_with_a_different_subject_still_links() -> None:
+    # Cùng provider, khác open_id/sub: chưa từng gắn nên vẫn gắn được
+    assert (
+        oa.plan_oauth_link(
+            _identity(provider="google"),
+            linked_user=None,
+            email_user=_user(),
+            email_user_providers=frozenset({"google"}),
+        )
+        == "link"
+    )
+
+
 @pytest.mark.parametrize(
     "over",
-    [{"email_verified": False}, {"email": ""}, {"email": "", "email_verified": False}],
+    [
+        {"provider": "tiktok", "email": "", "email_verified": False},
+        {"provider": "facebook", "email": "a@b.co", "email_verified": False},
+        {"provider": "facebook", "email": "", "email_verified": True},
+    ],
 )
-def test_plan_refuses_an_unverified_address_even_when_free(over: dict) -> None:
-    # 邮箱没被 provider 确认时，既不建号也不绑定：
-    # 否则可以用 preferred_username 之类的字段占住别人的邮箱
-    with pytest.raises(OAuthIdentityError) as err:
-        oa.plan_oauth_link(_identity(**over), linked_user=None, email_user=None)
-    assert err.value.code == "email_unverified"
+def test_plan_falls_back_to_a_pending_account_without_a_verified_email(over: dict) -> None:
+    # Nhánh B: không có email, hoặc email chưa xác minh -> không dùng email để liên kết,
+    # không tạo tài khoản theo email. Chỉ nhận diện bằng (provider, subject_id).
+    assert oa.plan_oauth_link(_identity(**over), linked_user=None, email_user=None) == "create_pending"
+
+
+def test_pending_branch_ignores_the_autolink_switch() -> None:
+    # Nhánh B không có email để mà liên kết, nên cờ auto_link không có ý nghĩa gì ở đây
+    for auto_link in (True, False):
+        assert (
+            oa.plan_oauth_link(
+                _identity(provider="tiktok", email="", email_verified=False),
+                linked_user=None,
+                email_user=None,
+                auto_link_email=auto_link,
+            )
+            == "create_pending"
+        )
+
+
+@pytest.mark.asyncio
+async def test_resolve_never_looks_up_an_email_owner_without_an_email(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # TikTok không có email: không được đi tra cứu ai theo email (tra cứu rỗng là lộ
+    # đường liên kết sai, và tệ hơn là tra nhầm vào một hàng không liên quan)
+    db = _fake_db()
+
+    async def no_account(*_a, **_k):
+        return None, None
+
+    async def forbidden_email_lookup(*_a, **_k):  # pragma: no cover - must not run
+        raise AssertionError("an identity without an email must not be matched by email")
+
+    async def fake_provision(_db, *, email, nickname, hashed_password, **kw):
+        return _user(id=303, email=email, hashed_password=hashed_password)
+
+    monkeypatch.setattr(oa, "_load_linked_user", no_account)
+    monkeypatch.setattr(oa, "get_user_by_email", forbidden_email_lookup)
+    monkeypatch.setattr(oa, "provision_new_user", fake_provision)
+
+    result = await oa.resolve_oauth_user(
+        db,
+        _identity(provider="tiktok", subject="open-1", email="", email_verified=False),
+        settings=fake_settings(),
+    )
+
+    assert result.outcome == "create_pending"
+    assert result.needs_setup is True
+    row = next(a for a in db.added if isinstance(a, oa.OAuthAccount))
+    assert (row.provider, row.subject_id, row.email, row.needs_setup) == (
+        "tiktok",
+        "open-1",
+        None,
+        True,
+    )
 
 
 def test_oauth_only_password_can_never_be_guessed_but_never_crashes_login() -> None:
@@ -78,6 +172,23 @@ def test_oauth_only_password_can_never_be_guessed_but_never_crashes_login() -> N
     assert hashed.startswith("$2")
     assert verify_password("anything", hashed) is False
     assert verify_password("", hashed) is False
+
+
+# ------------------------------------------------------------ địa chỉ nội bộ nhánh B
+
+
+def test_placeholder_email_is_stable_undeliverable_and_unique_per_identity() -> None:
+    # Không bịa hộp thư của ai: .invalid không bao giờ phân giải được (RFC 2606),
+    # và cùng một danh tính luôn ra cùng một khoá nội bộ.
+    first = oa.placeholder_email("tiktok", "open-1")
+    assert first == oa.placeholder_email("tiktok", "open-1")
+    assert first != oa.placeholder_email("tiktok", "open-2")
+    assert first != oa.placeholder_email("facebook", "open-1")
+    assert first.endswith("@users.invalid")
+    assert first.startswith("tiktok_")
+
+
+# ------------------------------------------------------------------------- resolve
 
 
 @pytest.mark.asyncio
@@ -94,7 +205,7 @@ async def test_resolve_creates_the_user_and_the_identity_row(
     async def no_email_user(*_a, **_k):
         return None
 
-    async def fake_provision(_db, *, email, nickname, hashed_password):
+    async def fake_provision(_db, *, email, nickname, hashed_password, **kw):
         return _user(id=101, email=email, hashed_password=hashed_password)
 
     monkeypatch.setattr(oa, "_load_linked_user", no_account)
@@ -104,14 +215,16 @@ async def test_resolve_creates_the_user_and_the_identity_row(
     result = await oa.resolve_oauth_user(db, identity, settings=fake_settings())
 
     assert result.outcome == "create"
+    assert result.needs_setup is False
     assert result.user.id == 101
     row = next(a for a in added if isinstance(a, oa.OAuthAccount))
-    assert (row.provider, row.subject, row.email, row.user_id) == (
+    assert (row.provider, row.subject_id, row.email, row.user_id) == (
         "google",
         "google-sub-1",
         "user@example.com",
         101,
     )
+    assert row.needs_setup is False
     db.commit.assert_awaited()
 
 
@@ -150,7 +263,9 @@ async def test_resolve_signs_in_and_touches_last_login(
 ) -> None:
     db = _fake_db()
     known = _user(id=7)
-    account = oa.OAuthAccount(provider="google", subject="google-sub-1", user_id=7, email="a@b.co")
+    account = oa.OAuthAccount(
+        provider="google", subject_id="google-sub-1", user_id=7, email="a@b.co"
+    )
 
     async def found_account(*_a, **_k):
         return known, account
@@ -164,17 +279,43 @@ async def test_resolve_signs_in_and_touches_last_login(
     result = await oa.resolve_oauth_user(db, _identity(), settings=fake_settings())
 
     assert result.outcome == "signin"
+    assert result.needs_setup is False
     assert result.user.id == 7
     assert account.last_login_at is not None
+
+
+@pytest.mark.asyncio
+async def test_resolve_keeps_asking_for_setup_while_the_account_is_incomplete(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Lần đăng nhập sau với cùng open_id của một tài khoản chưa hoàn chỉnh vẫn không được
+    # phát JWT — nếu phát, tài khoản đó lọt vào màn hình yêu cầu quyền trả phí.
+    db = _fake_db()
+    known = _user(id=7)
+    account = oa.OAuthAccount(
+        provider="tiktok", subject_id="open-1", user_id=7, email=None, needs_setup=True
+    )
+
+    async def found_account(*_a, **_k):
+        return known, account
+
+    monkeypatch.setattr(oa, "_load_linked_user", found_account)
+    result = await oa.resolve_oauth_user(
+        db, _identity(provider="tiktok", subject="open-1", email="", email_verified=False),
+        settings=fake_settings(),
+    )
+    assert result.outcome == "needs_setup"
+    assert result.needs_setup is True
+    assert result.user.id == 7
 
 
 @pytest.mark.asyncio
 async def test_resolve_refuses_an_orphaned_identity_row(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # oauth_accounts 还在但 users 行没了：不能默默建号，要报错让人来处理
+    # oauth_accounts còn nhưng hàng users đã mất: không âm thầm tạo tài khoản mới
     db = _fake_db()
-    account = oa.OAuthAccount(provider="google", subject="ghost", user_id=7, email="a@b.co")
+    account = oa.OAuthAccount(provider="google", subject_id="ghost", user_id=7, email="a@b.co")
 
     async def orphaned(*_a, **_k):
         return None, account

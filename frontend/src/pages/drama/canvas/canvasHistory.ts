@@ -1,4 +1,4 @@
-/** 画布撤销/重做历史栈纯函数 */
+/** Hàm thuần cho ngăn lịch sử Hoàn tác / Làm lại của canvas */
 import type { Edge, Node } from '@xyflow/react'
 import { MAX_CANVAS_HISTORY, type CanvasAssetNodeData } from './canvasTypes'
 
@@ -12,17 +12,17 @@ export type CanvasHistoryState = {
   future: CanvasSnapshot[]
 }
 
-/** 创建空历史栈 */
+/** Tạo ngăn lịch sử rỗng */
 export function createEmptyCanvasHistory(): CanvasHistoryState {
   return { past: [], future: [] }
 }
 
-/** 深拷贝画布快照 */
+/** Sao chép sâu một snapshot canvas */
 export function cloneCanvasSnapshot(snapshot: CanvasSnapshot): CanvasSnapshot {
   return JSON.parse(JSON.stringify(snapshot)) as CanvasSnapshot
 }
 
-/** 将快照压入 past 并清空 future */
+/** Đẩy snapshot vào past rồi xoá future */
 export function pushHistory(
   history: CanvasHistoryState,
   snapshot: CanvasSnapshot,
@@ -39,7 +39,7 @@ export function pushHistory(
   }
 }
 
-/** 从 past 弹出上一快照并恢复 */
+/** Lấy snapshot trước trong past để khôi phục */
 export function undoHistory(
   current: CanvasSnapshot,
   history: CanvasHistoryState,
@@ -56,7 +56,7 @@ export function undoHistory(
   }
 }
 
-/** 从 future 弹出下一快照并恢复 */
+/** Lấy snapshot kế trong future để khôi phục */
 export function redoHistory(
   current: CanvasSnapshot,
   history: CanvasHistoryState,

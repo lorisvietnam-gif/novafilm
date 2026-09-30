@@ -1,4 +1,4 @@
-/** 项目卡片「更多」菜单：点选项、移出或点外部即收起 */
+/** Menu "Thêm" của thẻ dự án: chọn mục, rời chuột hoặc bấm ra ngoài là đóng */
 import { useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { MoreHorizontal } from 'lucide-react'
@@ -8,30 +8,30 @@ type Props = {
   onDelete: () => void
 }
 
-// 鼠标离开后延迟收起，避免滑向菜单项时被立刻关掉
+// Đóng trễ sau khi rời chuột, tránh đóng ngay lúc đang trượt tới mục menu
 const HIDE_DELAY_MS = 120
 
-// 渲染项目卡片重命名 / 删除菜单
+// Render menu đổi tên / xoá của thẻ dự án
 export function DramaProjectCardMenu({ onRename, onDelete }: Props) {
   /*
-   * open 菜单是否展开
-   * rootRef 用于点外部关闭
-   * hideTimerRef 移出后延迟收起
-   * ignoreToggleRef 挡住菜单卸掉后穿透到「⋯」的同一次 click
+   * open menu đã mở hay chưa
+   * rootRef dùng để đóng khi bấm ra ngoài
+   * hideTimerRef đóng trễ sau khi rời chuột
+   * ignoreToggleRef chặn cú click xuyên xuống nút "⋯" ngay sau khi menu bị gỡ
    */
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const ignoreToggleRef = useRef(false)
 
-  // 取消待收起
+  // Huỷ đếm ngược đóng
   function cancelHide() {
     if (!hideTimerRef.current) return
     clearTimeout(hideTimerRef.current)
     hideTimerRef.current = null
   }
 
-  // 延迟收起菜单
+  // Hẹn đóng menu sau trễ
   function scheduleHide() {
     cancelHide()
     hideTimerRef.current = setTimeout(() => {
@@ -40,7 +40,7 @@ export function DramaProjectCardMenu({ onRename, onDelete }: Props) {
     }, HIDE_DELAY_MS)
   }
 
-  // 立刻收起后再执行操作，避免弹窗打开后菜单仍挂着
+  // Đóng ngay rồi mới chạy hành động, tránh menu còn treo sau khi hộp thoại mở
   function closeThenRun(action: () => void) {
     cancelHide()
     ignoreToggleRef.current = true
@@ -53,7 +53,7 @@ export function DramaProjectCardMenu({ onRename, onDelete }: Props) {
 
   useEffect(() => () => cancelHide(), [])
 
-  // 点外部、滚动或 Esc 时收起
+  // Đóng khi bấm ra ngoài, cuộn trang hoặc bấm Esc
   useEffect(() => {
     if (!open) return
     function onPointerDown(event: PointerEvent) {
@@ -87,7 +87,7 @@ export function DramaProjectCardMenu({ onRename, onDelete }: Props) {
       <button
         type="button"
         className="drama-project-row-more-btn"
-        aria-label="更多操作"
+        aria-label="Thao tác khác"
         aria-expanded={open}
         aria-haspopup="menu"
         onClick={(event) => {
@@ -115,7 +115,7 @@ export function DramaProjectCardMenu({ onRename, onDelete }: Props) {
               closeThenRun(onRename)
             }}
           >
-            重命名
+            Đổi tên
           </button>
           <button
             type="button"
@@ -132,7 +132,7 @@ export function DramaProjectCardMenu({ onRename, onDelete }: Props) {
               closeThenRun(onDelete)
             }}
           >
-            删除
+            Xoá
           </button>
         </div>
       ) : null}

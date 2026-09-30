@@ -1,4 +1,4 @@
-/** 分镜顶部：已关联资产缩略图条 */
+/** Đầu storyboard: dải ảnh nhỏ các tài nguyên đã liên kết */
 import type { FragmentRefStripItem } from './dramaEpisodeEditUtils'
 import { DRAMA_VOICE_BINDING_ENABLED } from '../../lib/dramaVoiceBinding'
 
@@ -7,18 +7,18 @@ type Props = {
   onSelect?: (assetId: number) => void
 }
 
-// 渲染当前分镜关联资产条
+// Render dải tài nguyên liên kết của cảnh hiện tại
 export function EpisodeEditReferenceStrip({ items, onSelect }: Props) {
   if (items.length === 0) {
     return (
       <div className="drama-ep-ref-strip is-empty">
-        <span className="drama-ep-ref-strip-hint">暂无关联资产 · 点击左侧卡片或键入 @asset:id</span>
+        <span className="drama-ep-ref-strip-hint">Chưa có tài nguyên liên kết · Bấm thẻ bên trái hoặc gõ @asset:id</span>
       </div>
     )
   }
 
   return (
-    <div className="drama-ep-ref-strip" aria-label="本镜关联资产">
+    <div className="drama-ep-ref-strip" aria-label="Tài nguyên liên kết của cảnh này">
       {items.map((item) => (
         <button
           key={item.assetId}
@@ -29,8 +29,8 @@ export function EpisodeEditReferenceStrip({ items, onSelect }: Props) {
           title={`${item.name}${item.type ? ` · ${item.type}` : ''}${
             DRAMA_VOICE_BINDING_ENABLED && item.isCharacter
               ? item.voiceLabel
-                ? ` · 音色：${item.voiceLabel}`
-                : ' · 未绑定音色'
+                ? ` · Giọng đọc: ${item.voiceLabel}`
+                : ' · Chưa gán giọng đọc'
               : ''
           }`}
           onClick={() => onSelect?.(item.assetId)}
@@ -42,7 +42,7 @@ export function EpisodeEditReferenceStrip({ items, onSelect }: Props) {
           )}
           {DRAMA_VOICE_BINDING_ENABLED && item.isCharacter ? (
             <span className={`drama-ep-ref-voice-badge${item.voiceUrl ? ' bound' : ''}`}>
-              {item.voiceUrl ? '音' : '无音'}
+              {item.voiceUrl ? 'Có' : '—'}
             </span>
           ) : null}
           <em>{item.name}</em>

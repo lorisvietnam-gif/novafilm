@@ -1,7 +1,20 @@
-/** 漫剧画布资产生视频队列：入队即提交 Seedance Worker，刷新后可从资产状态恢复 */
+/** Hàng đợi tạo video cho tài nguyên trên canvas của AI Drama: vào hàng đợi là gửi Seedance Worker ngay, tải lại trang vẫn khôi phục được từ trạng thái tài nguyên */
 import { dramaApi, type DramaAsset } from '../api/drama'
 import type { VideoGenerationOptions } from './dramaVideoGenerationOptions'
 import { syncAssetVideoJobToUnified } from './dramaGenQueue'
+import { localized, type LocalizedText } from './localeStrings'
+
+/** Thông báo lỗi người dùng đọc. `资产不存在` bên dưới cũng do backend trả về. */
+const COPY: Record<string, LocalizedText> = {
+  assetMissing: { zh: '资产不存在', en: 'That asset no longer exists', vi: 'Tài nguyên này không còn tồn tại' },
+  failed: { zh: '生视频失败', en: 'Video generation failed', vi: 'Tạo video thất bại' },
+  timedOut: {
+    zh: '生视频超时，请刷新后重试',
+    en: 'Video generation timed out. Reload and try again.',
+    vi: 'Tạo video đã hết thời gian chờ. Hãy tải lại trang rồi thử lại.',
+  },
+  unnamedAsset: { zh: '视频', en: 'Video', vi: 'Video' },
+}
 
 export type DramaVideoGenStatus = 'queued' | 'running' | 'done' | 'failed'
 
@@ -26,7 +39,7 @@ type EnqueueInput = {
   prompt: string
   options?: Partial<VideoGenerationOptions>
   referenceAssetIds?: number[]
-  /** 仅恢复轮询（后端已在 generating，不再重复 POST） */
+  /** Chỉ khôi phục việc poll (backend đã generating, không POST lại) */
   resumeOnly?: boolean
 }
 
@@ -37,8 +50,8 @@ type InternalJob = DramaVideoGenJob & {
 }
 
 /*
- * MAX_POLL_CONCURRENT 同时轮询路数
- * POLL_TIMEOUT_MS Seedance 等待上限
+ * MAX_POLL_CONCURRENT số luồng poll đồng thời
+ * POLL_TIMEOUT_MS thời gian chờ tối đa cho Seedance
  */
 const MAX_POLL_CONCURRENT = 4
 const DONE_RETENTION_MS = 45_000
@@ -54,7 +67,7 @@ let pollingCount = 0
 let pumping = false
 const waitingPoll: InternalJob[] = []
 
-// 将内部 job 转为对外结构
+// Đổi job nội bộ sang cấu trúc đưa ra ngoài
 function toPublicJob(job: InternalJob): DramaVideoGenJob {
   return {
     id: job.id,
@@ -71,7 +84,7 @@ function toPublicJob(job: InternalJob): DramaVideoGenJob {
   }
 }
 
-// 两个快照内容是否一致
+// Hai ảnh chụp có cùng nội dung không
 function snapshotsEqual(a: DramaVideoGenJob[], b: DramaVideoGenJob[]): boolean {
   if (a === b) return true
   if (a.length !== b.length) return false
@@ -90,7 +103,7 @@ function snapshotsEqual(a: DramaVideoGenJob[], b: DramaVideoGenJob[]): boolean {
   return true
 }
 
-// 清理过期完成项
+// Dọn các mục đã xong quá hạn
 function pruneFinished() {
   const now = Date.now()
   jobs = jobs.filter((job) => {
@@ -100,7 +113,7 @@ function pruneFinished() {
   })
 }
 
-// 重建并缓存对外快照
+// Dựng lại và cache ảnh chụp đưa ra ngoài
 function refreshSnapshot() {
   pruneFinished()
   const next = jobs.length === 0 ? EMPTY_SNAPSHOT : jobs.map((job) => toPublicJob(job))
@@ -109,7 +122,7 @@ function refreshSnapshot() {
   }
 }
 
-// 通知订阅者，并同步到统一生成队列
+// Báo các subscriber, đồng thời đồng bộ sang hàng đợi tạo thống nhất
 function emit() {
   refreshSnapshot()
   listeners.forEach((listener) => listener())
@@ -126,7 +139,7 @@ function emit() {
   }
 }
 
-// 某资产是否正在生视频
+// Tài nguyên này có đang tạo video không
 export function isDramaAssetVideoBusy(assetId: number): boolean {
   return jobs.some(
     (job) =>
@@ -134,28 +147,28 @@ export function isDramaAssetVideoBusy(assetId: number): boolean {
   )
 }
 
-// 读取资产 generation 状态
+// Đọc trạng thái generation của tài nguyên
 function readGenerationStatus(asset: DramaAsset): string {
   const gen = (asset.params || {}).generation as { status?: string } | undefined
   return String(gen?.status || '')
 }
 
-// 成片 URL 是否已是视频文件
+// URL của phim đã phải là tệp video chưa
 function isVideoMediaUrl(url: string | null | undefined): boolean {
   return Boolean(url && VIDEO_URL_RE.test(url))
 }
 
-// 轮询直到资产生视频结束（必须等到 mp4，不能把旧封面图当完成）
+// Poll tới khi tạo video của tài nguyên kết thúc (phải chờ tới mp4, không được coi ảnh bìa cũ là xong)
 async function waitForAssetVideo(projectId: number, assetId: number): Promise<DramaAsset> {
   const started = Date.now()
   while (Date.now() - started < POLL_TIMEOUT_MS) {
     const list = await dramaApi.listAssets(projectId)
     const latest = list.find((a) => a.id === assetId)
-    if (!latest) throw new Error('资产不存在')
+    if (!latest) throw new Error(localized(COPY.assetMissing))
     const status = readGenerationStatus(latest)
     if (status === 'failed') {
       const gen = (latest.params || {}).generation as { error?: string } | undefined
-      throw new Error(String(gen?.error || '生视频失败'))
+      throw new Error(String(gen?.error || localized(COPY.failed)))
     }
     if (status === 'done' && latest.url) {
       return latest
@@ -165,10 +178,10 @@ async function waitForAssetVideo(projectId: number, assetId: number): Promise<Dr
     }
     await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS))
   }
-  throw new Error('生视频超时，请刷新后重试')
+  throw new Error(localized(COPY.timedOut))
 }
 
-// 有限并发轮询后端结果
+// Poll kết quả ở backend với số luồng song song có giới hạn
 async function pollJob(job: InternalJob) {
   pollingCount += 1
   try {
@@ -178,7 +191,7 @@ async function pollJob(job: InternalJob) {
     emit()
     job.resolve(asset)
   } catch (err) {
-    const message = err instanceof Error ? err.message : '生视频失败'
+    const message = err instanceof Error ? err.message : localized(COPY.failed)
     job.status = 'failed'
     job.error = message
     job.finishedAt = Date.now()
@@ -191,7 +204,7 @@ async function pollJob(job: InternalJob) {
   }
 }
 
-// 调度轮询槽位
+// Lên lịch cho một slot poll
 function pump() {
   if (pumping) return
   pumping = true
@@ -207,7 +220,7 @@ function pump() {
   })
 }
 
-// 提交后端后进入轮询
+// Gửi backend xong thì bắt đầu poll
 function startJob(job: InternalJob) {
   void (async () => {
     try {
@@ -229,7 +242,7 @@ function startJob(job: InternalJob) {
       waitingPoll.push(job)
       pump()
     } catch (err) {
-      const message = err instanceof Error ? err.message : '生视频失败'
+      const message = err instanceof Error ? err.message : localized(COPY.failed)
       job.status = 'failed'
       job.error = message
       job.finishedAt = Date.now()
@@ -239,14 +252,14 @@ function startJob(job: InternalJob) {
   })()
 }
 
-// 生成本地任务 id
+// Sinh id tác vụ cục bộ
 function makeJobId() {
   return `vid-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
 /**
- * 将画布资产生视频加入队列：立刻 POST 到后端 Worker，再本地轮询结果。
- * 同资产已在排队/生成中时复用同一 Promise。
+ * Cho tạo video tài nguyên trên canvas vào hàng đợi: POST ngay tới Worker của backend, rồi poll kết quả ở máy.
+ * Nếu tài nguyên đã được xếp hoặc đang tạo thì dùng lại cùng một Promise.
  */
 export function enqueueDramaVideoGen(input: EnqueueInput): Promise<DramaAsset> {
   const existing = jobs.find(
@@ -274,7 +287,7 @@ export function enqueueDramaVideoGen(input: EnqueueInput): Promise<DramaAsset> {
       id: makeJobId(),
       projectId: input.projectId,
       assetId: input.assetId,
-      assetName: (input.assetName || '').trim() || `视频 ${input.assetId}`,
+      assetName: (input.assetName || '').trim() || `${localized(COPY.unnamedAsset)} ${input.assetId}`,
       prompt: input.prompt,
       options: input.options || {},
       referenceAssetIds: input.referenceAssetIds || [],
@@ -291,7 +304,7 @@ export function enqueueDramaVideoGen(input: EnqueueInput): Promise<DramaAsset> {
 }
 
 /**
- * 从资产列表恢复「后端仍在 generating」的视频任务。
+ * Khôi phục các tác vụ video "backend vẫn đang generating" từ danh sách tài nguyên.
  */
 export function resumeDramaVideoGensFromAssets(
   projectId: number,
@@ -310,7 +323,7 @@ export function resumeDramaVideoGensFromAssets(
       prompt: '',
       resumeOnly: true,
     }).catch(() => {
-      /* 面板会显示失败 */
+      /* Panel sẽ hiện lỗi */
     })
   }
 }

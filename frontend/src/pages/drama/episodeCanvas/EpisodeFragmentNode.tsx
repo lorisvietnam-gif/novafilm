@@ -1,4 +1,4 @@
-/** 分镜故事板节点：上方视频，下方提示词；出境资产通过左侧节点连线关联 */
+/** Nút storyboard: video ở trên, prompt ở dưới; tài nguyên trong cảnh quay liên kết bằng đường nối từ nút bên trái */
 import { memo, useCallback, type ChangeEvent } from 'react'
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
 import { Clapperboard, Plus } from 'lucide-react'
@@ -9,7 +9,7 @@ type Props = NodeProps<Node<EpisodeFragmentNodeData>> & {
   onRequestLinkAsset?: (fragmentId: number) => void
 }
 
-// 渲染单个分镜视频节点
+// Render một nút cảnh quay
 function EpisodeFragmentNodeComponent({
   data,
   selected,
@@ -35,14 +35,14 @@ function EpisodeFragmentNodeComponent({
           <button
             type="button"
             className="ep-frag-link-btn nodrag nopan"
-            title="关联出境资产"
-            aria-label="关联出境资产"
+            title="Liên kết tài nguyên trong cảnh quay"
+            aria-label="Liên kết tài nguyên trong cảnh quay"
             onClick={() => onRequestLinkAsset?.(data.fragmentId)}
           >
             <Plus size={14} strokeWidth={2} />
           </button>
         ) : (
-          <em className="ep-frag-link-count">{data.linkedCount || 0} 资产</em>
+          <em className="ep-frag-link-count">{data.linkedCount || 0} tài nguyên</em>
         )}
       </div>
 
@@ -60,25 +60,25 @@ function EpisodeFragmentNodeComponent({
           <img src={media} alt="" draggable={false} />
         ) : (
           <div className="ep-frag-media-empty">
-            <span>暂无成片</span>
-            <small>生成后显示在此</small>
+            <span>Chưa có bản dựng</span>
+            <small>Sẽ hiện ở đây sau khi tạo</small>
           </div>
         )}
       </div>
 
       <div className="ep-frag-prompt">
-        <label>提示词</label>
+        <label>Prompt</label>
         {selected ? (
           <textarea
             className="ep-frag-prompt-input nodrag nowheel"
             value={data.content}
             onChange={handlePromptChange}
-            placeholder="分镜脚本 / Seedance 提示词…"
+            placeholder="Kịch bản storyboard / prompt Seedance…"
             rows={5}
           />
         ) : (
           <p className="ep-frag-prompt-text">
-            {(data.content || '').trim() || '（空提示词）'}
+            {(data.content || '').trim() || '(Chưa có prompt)'}
           </p>
         )}
       </div>

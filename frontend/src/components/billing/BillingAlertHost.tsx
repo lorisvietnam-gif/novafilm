@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { api } from '../../api'
 import { dialog } from '../../lib/dialog'
+import { localized, type LocalizedText } from '../../lib/localeStrings'
 
 type BillingAlertItem = {
   id: number
@@ -12,9 +13,21 @@ type BillingAlertItem = {
   created_at?: string | null
 }
 
-/** 轮询待展示的用户额度告警并弹窗提示。 */
+// Tiêu đề và nút dự phòng khi backend không gửi kèm; tiếng Trung chỉ để phục vụ locale zh.
+const FALLBACK_TITLE: LocalizedText = {
+  zh: '消费提醒',
+  en: 'Spending reminder',
+  vi: 'Nhắc mức tiêu thụ',
+}
+const CONFIRM_LABEL: LocalizedText = {
+  zh: '知道了',
+  en: 'Got it',
+  vi: 'Đã hiểu',
+}
+
+/** Poll các cảnh báo hạn mức chờ hiển thị rồi bật popup. */
 export default function BillingAlertHost() {
-  // 在发起 pending 请求前就上锁，避免 focus/interval/StrictMode 并发重入
+  // Khoá trước khi gửi request pending, để focus/interval/StrictMode không chạy chồng
   const showingRef = useRef(false)
 
   const checkAlerts = useCallback(async () => {
@@ -26,18 +39,18 @@ export default function BillingAlertHost() {
       if (!items.length) return
       for (const item of items) {
         await dialog.alert({
-          title: item.title || '消费提醒',
+          title: item.title || localized(FALLBACK_TITLE),
           message: item.message,
-          confirmText: '知道了',
+          confirmText: localized(CONFIRM_LABEL),
         })
         try {
           await api.billingAlertAck(item.id)
         } catch {
-          // 已确认或并发 ack 导致 404 时忽略，避免反复重试刷屏
+          // Đã xác nhận, hoặc 404 do hai lần ack chạy song song — bỏ qua để khỏi lặp vô hạn
         }
       }
     } catch {
-      // 未登录或网络异常时静默跳过
+      // Chưa đăng nhập hoặc lỗi mạng thì bỏ qua im lặng
     } finally {
       showingRef.current = false
     }

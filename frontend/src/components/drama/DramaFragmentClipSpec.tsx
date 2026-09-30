@@ -1,4 +1,4 @@
-/** 分镜条规格标签：优先展示成片真实像素，legacy 无 meta 时探测 video 元数据 */
+/** Nhãn thông số của một cảnh: ưu tiên pixel thật của clip, khi bản cũ không có meta thì dò metadata video */
 import { useEffect, useState } from 'react'
 import {
   formatProjectOutputLabel,
@@ -16,7 +16,7 @@ type DramaFragmentClipSpecProps = {
   videoUrl?: string
 }
 
-// 渲染单个分镜的画幅 · 清晰度标签
+// Render nhãn khung hình · độ phân giải của một cảnh
 export function DramaFragmentClipSpec({
   fragmentParams,
   episodeParams,

@@ -1,4 +1,4 @@
-/** 将项目资产与已保存画布布局合并为 React Flow 节点/边 */
+/** Gộp tài nguyên dự án với bố cục canvas đã lưu thành node / edge của React Flow */
 import type { Edge, Node } from '@xyflow/react'
 import { resolveDramaMediaUrl, type DramaAsset } from '../../../api/drama'
 import { readEditableVisualPrompt } from '../../../lib/dramaVisualPrompt'
@@ -12,7 +12,7 @@ import {
 } from './canvasTypes'
 import { normalizeCanvasEdges, normalizeCanvasNodes } from './canvasNormalize'
 
-/** Drama 资产 type → 画布节点 kind */
+/** type của tài nguyên Drama → kind của node canvas */
 export function dramaAssetTypeToKind(type: string | null | undefined): CanvasNodeKind {
   const t = String(type || '').toLowerCase()
   if (t === 'character') return 'character'
@@ -20,16 +20,16 @@ export function dramaAssetTypeToKind(type: string | null | undefined): CanvasNod
   if (t === 'video') return 'video'
   if (t === 'audio') return 'audio'
   if (t === 'text') return 'text'
-  /* prop / material / none / 其他 → 图片卡片 */
+  /* prop / material / none / khác → thẻ ảnh */
   return 'image'
 }
 
-/** 根据资产 ID 生成稳定节点 ID */
+/** Sinh node ID ổn định từ ID tài nguyên */
 export function getCanvasNodeId(assetId: number) {
   return `asset-${assetId}`
 }
 
-/** 从资产构建节点 data */
+/** Dựng data của node từ tài nguyên */
 export function buildNodeDataFromAsset(asset: DramaAsset): CanvasAssetNodeData {
   const kind = dramaAssetTypeToKind(asset.type)
   const params = (asset.params || {}) as Record<string, unknown>
@@ -60,7 +60,7 @@ type SavedLayoutIndex = {
   edges: Edge[]
 }
 
-/** 索引已保存画布节点（按 assetId） */
+/** Lập chỉ mục node canvas đã lưu (theo assetId) */
 function indexSavedLayout(rawNodes: unknown, rawEdges: unknown): SavedLayoutIndex {
   const nodes = normalizeCanvasNodes(rawNodes)
   const edges = normalizeCanvasEdges(rawEdges)
@@ -80,9 +80,9 @@ function indexSavedLayout(rawNodes: unknown, rawEdges: unknown): SavedLayoutInde
 }
 
 /**
- * 合并项目资产与已保存布局：
- * - 普通项目：资产列表决定节点；已保存布局提供位置与连线
- * - 自由画布：仅恢复「已保存在画布上」的资产节点，避免删除后刷新又冒出来
+ * Gộp tài nguyên dự án với bố cục đã lưu:
+ * - Dự án thường: danh sách tài nguyên quyết định node; bố cục đã lưu cung cấp vị trí và đường nối
+ * - Canvas tự do: chỉ khôi phục các node asset «đã nằm trên canvas», tránh xoá xong refresh lại mọc lên
  */
 export function mergeAssetsWithCanvasLayout(
   assets: DramaAsset[],
@@ -97,7 +97,7 @@ export function mergeAssetsWithCanvasLayout(
   const assetById = new Map(assets.map((a) => [a.id, a]))
 
   if (freeCanvas) {
-    /* 自由画布：只渲染布局里仍存在、且资产未删的节点（不按资产列表回补） */
+    /* Canvas tự do: chỉ render node còn trong bố cục và có asset chưa bị xoá (không bổ sung lại theo danh sách asset) */
     for (const [assetId, savedNode] of saved.byAssetId) {
       const asset = assetById.get(assetId)
       if (!asset) continue
@@ -121,7 +121,7 @@ export function mergeAssetsWithCanvasLayout(
       })
       maxRight = Math.max(maxRight, savedNode.position.x + size.width + 40)
     }
-    /* 无 assetId 的孤儿节点仍保留 */
+    /* Node mồ côi không có assetId vẫn được giữ */
     for (const orphan of saved.orphanNodes) {
       nodes.push(orphan)
     }
@@ -161,7 +161,7 @@ export function mergeAssetsWithCanvasLayout(
       }
     }
 
-    /* 无 assetId 的旧自由节点仍保留，排在资产行下方 */
+    /* Node tự do cũ không có assetId vẫn được giữ, xếp dưới hàng asset */
     for (const orphan of saved.orphanNodes) {
       nodes.push({
         ...orphan,
@@ -172,7 +172,7 @@ export function mergeAssetsWithCanvasLayout(
       })
     }
 
-    /* 首次进入（无任何已保存位置）时整行横向排布 */
+    /* Lần đầu vào (chưa có vị trí nào được lưu) thì xếp ngang cả hàng */
     if (saved.byAssetId.size === 0 && assets.length > 0) {
       let i = 0
       for (const node of nodes) {
@@ -184,7 +184,7 @@ export function mergeAssetsWithCanvasLayout(
     }
   }
 
-  /* 过滤掉指向已删除资产的边 */
+  /* Lọc bỏ các edge trỏ tới asset đã xoá */
   const nodeIds = new Set(nodes.map((n) => n.id))
   const edges = saved.edges.filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target))
 

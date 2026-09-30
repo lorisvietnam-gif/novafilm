@@ -1,23 +1,35 @@
 import { useEffect, useState } from 'react'
 import Modal from '../ui/Modal'
+import EmptyState from '../ui/EmptyState'
 import { api, type BillingOrder } from '../../api'
+import { localized, type LocalizedText } from '../../lib/localeStrings'
+import { useLocalizedText } from '../../lib/useLocalizedText'
 
 type Props = {
   open: boolean
   onClose: () => void
 }
 
-const SKU_LABELS: Record<string, string> = {
-  topup_10: '体验充值',
-  topup_49: '基础充值',
-  topup_99: '进阶充值',
-  topup_199: '专业充值',
+// Khoá là sku_id và status do backend trả về: dữ liệu, chỉ nhãn hiển thị mới dịch
+const SKU_LABELS: Record<string, LocalizedText> = {
+  topup_10: { zh: '体验充值', en: 'Starter top-up', vi: 'Nạp thử nghiệm' },
+  topup_49: { zh: '基础充值', en: 'Basic top-up', vi: 'Nạp cơ bản' },
+  topup_99: { zh: '进阶充值', en: 'Plus top-up', vi: 'Nạp nâng cao' },
+  topup_199: { zh: '专业充值', en: 'Pro top-up', vi: 'Nạp chuyên nghiệp' },
 }
 
-const STATUS_CN: Record<string, string> = {
-  pending: '待支付',
-  paid: '已到账',
-  closed: '已关闭',
+const STATUS_LABEL: Record<string, LocalizedText> = {
+  pending: { zh: '待支付', en: 'Awaiting payment', vi: 'Chờ thanh toán' },
+  paid: { zh: '已到账', en: 'Credited', vi: 'Đã vào số dư' },
+  closed: { zh: '已关闭', en: 'Closed', vi: 'Đã đóng' },
+}
+
+const COPY: Record<string, LocalizedText> = {
+  title: { zh: '充值记录', en: 'Top-up history', vi: 'Lịch sử nạp tiền' },
+  loading: { zh: '加载中…', en: 'Loading…', vi: 'Đang tải…' },
+  loadFailed: { zh: '加载失败', en: 'Could not load the history', vi: 'Không tải được lịch sử' },
+  empty: { zh: '暂无充值记录', en: 'No top-ups yet', vi: 'Chưa có lần nạp nào' },
+  credited: { zh: '到账 ¥{amount}', en: 'Adds ¥{amount}', vi: 'Cộng ¥{amount}' },
 }
 
 function yuan(fen: number) {
@@ -32,12 +44,13 @@ function formatTime(iso?: string | null) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-/** 充值记录弹窗：列出近期订单与到账状态（过期待支付由后台自动关闭） */
+/** Popup lịch sử nạp: liệt kê đơn gần đây và trạng thái vào số dư (đơn quá hạn do backend tự đóng) */
 export default function TopupHistoryModal({ open, onClose }: Props) {
+  const lt = useLocalizedText()
   /*
-   * orders 订单列表
-   * loading 加载中
-   * error 错误信息
+   * orders  danh sách đơn
+   * loading đang tải
+   * error   thông báo lỗi
    */
   const [orders, setOrders] = useState<BillingOrder[]>([])
   const [loading, setLoading] = useState(false)
@@ -54,7 +67,7 @@ export default function TopupHistoryModal({ open, onClose }: Props) {
         if (!cancelled) setOrders(r.orders || [])
       })
       .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : '加载失败')
+        if (!cancelled) setError(e instanceof Error ? e.message : localized(COPY.loadFailed))
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -65,29 +78,37 @@ export default function TopupHistoryModal({ open, onClose }: Props) {
   }, [open])
 
   return (
-    <Modal open={open} onClose={onClose} title="充值记录" size="lg" className="pf-topup-history-modal">
-      {loading ? <p className="pf-muted">加载中…</p> : null}
+    <Modal open={open} onClose={onClose} title={lt(COPY.title)} size="lg" className="pf-topup-history-modal">
+      {loading ? <p className="pf-muted">{lt(COPY.loading)}</p> : null}
       {error ? <p className="pf-error">{error}</p> : null}
       {!loading && !error && orders.length === 0 ? (
-        <p className="pf-muted">暂无充值记录</p>
+        <EmptyState imageStyle="american-retro-hollywood" className="pf-topup-empty">
+          <p>{lt(COPY.empty)}</p>
+        </EmptyState>
       ) : null}
       {!loading && orders.length > 0 ? (
         <ul className="pf-topup-list">
-          {orders.map((o) => (
-            <li key={o.out_trade_no} className="pf-topup-item">
-              <div className="pf-topup-main">
-                <strong>{SKU_LABELS[o.sku_id] || o.sku_name}</strong>
-                <span className="pf-muted">{formatTime(o.paid_at || o.created_at)}</span>
-              </div>
-              <div className="pf-topup-meta">
-                <em>¥{yuan(o.amount_fen)}</em>
-                <span className="pf-muted">到账 ¥{yuan(o.credit_fen)}</span>
-                <span className={`pf-topup-status is-${o.status}`}>
-                  {STATUS_CN[o.status] || o.status}
-                </span>
-              </div>
-            </li>
-          ))}
+          {orders.map((o) => {
+            const sku = SKU_LABELS[o.sku_id]
+            const status = STATUS_LABEL[o.status]
+            return (
+              <li key={o.out_trade_no} className="pf-topup-item">
+                <div className="pf-topup-main">
+                  <strong>{sku ? lt(sku) : o.sku_name}</strong>
+                  <span className="pf-muted">{formatTime(o.paid_at || o.created_at)}</span>
+                </div>
+                <div className="pf-topup-meta">
+                  <em>¥{yuan(o.amount_fen)}</em>
+                  <span className="pf-muted">
+                    {lt(COPY.credited).replace('{amount}', yuan(o.credit_fen))}
+                  </span>
+                  <span className={`pf-topup-status is-${o.status}`}>
+                    {status ? lt(status) : o.status}
+                  </span>
+                </div>
+              </li>
+            )
+          })}
         </ul>
       ) : null}
     </Modal>

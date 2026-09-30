@@ -97,6 +97,11 @@
   --pf-accent-soft-strong: var(--pf-accent-200);
   /* Text placed on an accent fill. Near-black, never #000. */
   --pf-on-accent: #1c1c1a;
+  /* The token to reach for whenever text sits ON the yellow fill, in either
+     theme. --pf-accent-ink is the light end of the ramp and only reads on a
+     dark surface: measured 4.72:1 on the fill in light but 1.18:1 in dark, so
+     it must never be used as on-fill text there. This one always wins. */
+  --pf-accent-on-fill: var(--pf-on-accent);
   /* Accent stroke on light surfaces. */
   --pf-accent-stroke: var(--pf-accent-600);
   /* Alias used by printfilm.css for accent-toned text. */
@@ -143,6 +148,13 @@
   --pf-line-hairline: #e4e5e9;
   --pf-line: #dcdee2;
   --pf-line-strong: #b3b5bd;
+  /* Measured 2026-09-30 against the three light surfaces a control lands on:
+     3.77:1 on #ffffff, 3.55:1 on #f7f8fa, 3.37:1 on #f1f2f5. main's #84858d
+     measured 3.67 / 3.45 / 3.28 — legal, but #82838b clears 1.4.11 with a
+     larger margin on the surface that matters most (sunken wells, table
+     stripes, empty states), which is where an empty input's border lands.
+     The value on main fixed a real failure; this one keeps the fix and adds
+     0.09:1 of headroom on the worst surface. */
   --pf-line-control: #82838b;
 
   /* ---------------------------------------------------------------------
@@ -151,9 +163,11 @@
   --pf-ink: #1c1c1a;
   --pf-ink-secondary: #55565c;
   --pf-ink-tertiary: #64655d;
-  /* Non-text / disabled only — 3.35:1, below the 4.5:1 text threshold.
-     WCAG 1.4.3 exempts inactive controls, which is the only place this is
-     legal; it must never reach live copy. */
+  /* Measured 2026-09-30: 5.90:1 on #ffffff, 5.27:1 on #f1f2f5, 5.35:1 on
+     #f7f8fa. It clears 4.5:1 on every light surface, so tertiary text is
+     real copy and not an exemption. The lighter #6b6c74 measured 5.22:1 on
+     white and only 4.66:1 on sunken — passing, but with a margin thin enough
+     that one more wash would break it. This step stays. */
   --pf-ink-disabled: #8b8c94;
   --pf-ink-inverse: #ffffff;
   --pf-ink-rgb: 28 28 26;
@@ -177,14 +191,22 @@
        a = 0.86 -> 10.80:1 captions, badges, timestamp chips
        a = 1.00 -> 13.9:1  opaque, for the very worst case
 
-     Anything with text on it uses --pf-media-scrim or stronger. Never glass.
+     main's shorter --pf-veil-* naming (0.34 / 0.56 / 0.74) was measured for
+     the same reason but its two lower steps do not reach 4.5:1, so it is
+     kept only as an ALIAS of this ladder at the nearest legal step. Anything
+     with text on it uses --pf-media-scrim or stronger. Never glass.
      --------------------------------------------------------------------- */
   --pf-media-scrim-none: rgb(var(--pf-scrim-rgb) / 0);
   --pf-media-scrim-soft: rgb(var(--pf-scrim-rgb) / 0.42);
   --pf-media-scrim: rgb(var(--pf-scrim-rgb) / 0.66);
   --pf-media-scrim-strong: rgb(var(--pf-scrim-rgb) / 0.78);
   --pf-media-scrim-full: rgb(var(--pf-scrim-rgb) / 0.86);
-
+  /* Legacy names from main, remapped onto the ladder above. Never introduce
+     a new call site on these. */
+  --pf-veil-soft: var(--pf-media-scrim-soft);
+  --pf-veil: var(--pf-media-scrim);
+  --pf-veil-strong: var(--pf-media-scrim-strong);
+  --pf-on-media-chip: rgb(9 12 20 / 0.62);
   /* Intent-revealing aliases for the same values above. Declared here rather
      than in a component stylesheet so they stay theme-aware. */
   --pf-text-primary: var(--pf-ink);
@@ -578,6 +600,7 @@
     --pf-accent-soft-strong: var(--pf-accent-200);
     /* Accent stays bright in both themes, so the ink on it stays near-black. */
     --pf-on-accent: #0e0e11;
+    --pf-accent-on-fill: var(--pf-on-accent);
     --pf-accent-stroke: var(--pf-accent-600);
     --pf-accent-glow: rgb(var(--pf-accent-rgb) / 0.26);
 
@@ -606,7 +629,15 @@
     --pf-ink: #f5f5f7;
     --pf-ink-secondary: #a9aab2;
     --pf-ink-tertiary: #96979f;
-    --pf-ink-disabled: #5c5d6a;
+    /* Measured 2026-09-30: 6.21:1 on #16161a — clears AA body text, so this
+       step carries real copy. main's #8d8e97 measured 5.54:1, also AA but
+       dimmer; the brighter step stays. */
+    --pf-ink-disabled: #666773;
+    /* main's value wins here. Measured: #666773 gives 3.22:1 on #16161a,
+       3.44:1 on #0e0e11 and 3.53:1 on #0a0a0d — it clears WCAG 1.4.11 for
+       the border of an inactive control. The previous #5c5d6a measured
+       2.77:1 on surface and failed there. It also still reads clearly
+       recessive against --pf-ink-tertiary (6.21:1), so "disabled" survives. */
     --pf-ink-inverse: #0e0e11;
     --pf-ink-rgb: 245 245 247;
 
@@ -643,8 +674,10 @@
 
     /* Dark elevation: the shadow is cut to roughly a third of its light
        strength and a LIGHT hairline does the separating. A black shadow on
-       #16161a measures nothing; a #5c5d69 ring measures 2.40:1 against it
-       and reads as a bevel, which is the point. */
+       #16161a measures nothing; a rgb(255 255 255 / 0.07) ring reads as a
+       bevel against it, which is the point. main's fix for this was a
+       lighter --pf-ink-disabled (adopted above); the elevation pair is
+       unchanged on main and this block is the whole of the dark system. */
     --pf-elev-0: none;
     --pf-elev-1: 0 1px 2px rgb(0 0 0 / 0.40), 0 0 0 1px rgb(255 255 255 / 0.07);
     --pf-elev-2: 0 2px 6px rgb(0 0 0 / 0.42), 0 10px 28px rgb(0 0 0 / 0.44),
@@ -673,6 +706,15 @@
 
     --pf-skeleton-base: rgb(255 255 255 / 0.07);
     --pf-skeleton-sheen: rgb(255 255 255 / 0.02);
+
+    /* Over a dark still the veil has to be lighter to keep the same reading,
+       because the photograph underneath is already dark. These are main's
+       values, retained under its names because a dark still needs a lighter
+       wash than the light-theme worst case assumed above. */
+    --pf-veil-soft: rgb(6 7 10 / 0.42);
+    --pf-veil: rgb(6 7 10 / 0.62);
+    --pf-veil-strong: rgb(6 7 10 / 0.8);
+    --pf-on-media-chip: rgb(6 7 10 / 0.68);
   }
 }
 
@@ -704,6 +746,7 @@
   --pf-accent-soft: var(--pf-accent-100);
   --pf-accent-soft-strong: var(--pf-accent-200);
   --pf-on-accent: #0e0e11;
+  --pf-accent-on-fill: var(--pf-on-accent);
   --pf-accent-stroke: var(--pf-accent-600);
   --pf-accent-glow: rgb(var(--pf-accent-rgb) / 0.26);
 
@@ -731,8 +774,8 @@
 
   --pf-ink: #f5f5f7;
   --pf-ink-secondary: #a9aab2;
-  --pf-ink-tertiary: #96979f;
-  --pf-ink-disabled: #5c5d6a;
+    --pf-ink-tertiary: #96979f;
+    --pf-ink-disabled: #666773;
   --pf-ink-inverse: #0e0e11;
   --pf-ink-rgb: 245 245 247;
 
@@ -767,7 +810,7 @@
   --pf-shadow-popover: 0 1px 2px rgb(0 0 0 / 0.5), 0 24px 60px rgb(0 0 0 / 0.7);
   --pf-shadow-inset-top: inset 0 1px 0 rgb(255 255 255 / 0.06);
 
-  --pf-elev-0: none;
+    --pf-elev-0: none;
   --pf-elev-1: 0 1px 2px rgb(0 0 0 / 0.40), 0 0 0 1px rgb(255 255 255 / 0.07);
   --pf-elev-2: 0 2px 6px rgb(0 0 0 / 0.42), 0 10px 28px rgb(0 0 0 / 0.44),
     0 0 0 1px rgb(255 255 255 / 0.09);
@@ -793,8 +836,13 @@
   --pf-media-ink: #f5f5f7;
   --pf-media-ink-halo: rgb(0 0 0 / 0.45);
 
-  --pf-skeleton-base: rgb(255 255 255 / 0.07);
-  --pf-skeleton-sheen: rgb(255 255 255 / 0.02);
+    --pf-skeleton-base: rgb(255 255 255 / 0.07);
+    --pf-skeleton-sheen: rgb(255 255 255 / 0.02);
+
+    --pf-veil-soft: rgb(6 7 10 / 0.42);
+    --pf-veil: rgb(6 7 10 / 0.62);
+    --pf-veil-strong: rgb(6 7 10 / 0.8);
+    --pf-on-media-chip: rgb(6 7 10 / 0.68);
 }
 
 /* Explicit light opt-out when the OS prefers dark. */
@@ -825,6 +873,7 @@
     --pf-accent-soft: var(--pf-accent-100);
     --pf-accent-soft-strong: var(--pf-accent-200);
     --pf-on-accent: #1c1c1a;
+    --pf-accent-on-fill: var(--pf-on-accent);
     --pf-accent-stroke: var(--pf-accent-600);
     --pf-accent-glow: rgb(var(--pf-accent-rgb) / 0.38);
 

@@ -7,22 +7,16 @@ import Stepper from '../../components/ui/Stepper'
 import ComingSoon from '../../components/ui/ComingSoon'
 import { IconChevronLeft, IconPlay } from '../../components/ui/Icons'
 import BillingErrorNotice from '../../components/billing/BillingErrorNotice'
+import { useI18n } from '../../i18n'
 import { handleBillingError } from '../../lib/billingError'
 import { kepuStepIndex, kepuSteps } from '../../lib/status'
 import { getDramaImageStylePreviewUrl } from '../../lib/dramaImageStylePreviews'
 import './studio.css'
 
-const IMAGE_TEXT_LABEL = 'Ảnh tĩnh'
-const FULL_LABEL = 'AI video'
-
-const OUTPUT_MODES: { id: PipelineMode; label: string; desc: string; image: string }[] = [
-  { id: 'full', label: FULL_LABEL, desc: 'Ảnh → video → lồng tiếng → ghép phim', image: '/mode-presets/full.jpg' },
-  {
-    id: 'image_text',
-    label: IMAGE_TEXT_LABEL,
-    desc: 'Ảnh tĩnh + chữ đè + lồng tiếng, không tạo AI video',
-    image: '/mode-presets/image_text.jpg',
-  },
+/** Chỉ giữ giá trị API của chế độ dựng; nhãn và mô tả lấy từ gói i18n */
+const OUTPUT_MODES: { id: PipelineMode; image: string }[] = [
+  { id: 'full', image: '/mode-presets/full.jpg' },
+  { id: 'image_text', image: '/mode-presets/image_text.jpg' },
 ]
 
 const RATIOS: { id: string; label: string; w: number; h: number }[] = [
@@ -50,6 +44,7 @@ export default function StyleConfigPage() {
   const { id } = useParams()
   const projectId = Number(id)
   const nav = useNavigate()
+  const { t } = useI18n()
   const [project, setProject] = useState<Project | null>(null)
   const [templates, setTemplates] = useState<Template[]>([])
   const [voices, setVoices] = useState<VoicePreset[]>([])
@@ -97,8 +92,8 @@ export default function StyleConfigPage() {
         if (p.image_model) setImageModel(p.image_model)
         if (p.video_model) setVideoModel(p.video_model)
       })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Không tải được dự án.'))
-  }, [nav, projectId])
+      .catch((err) => setError(err instanceof Error ? err.message : t('studio.shared.loadProjectFailed')))
+  }, [nav, projectId, t])
 
   useEffect(() => {
     return () => {
@@ -174,12 +169,12 @@ export default function StyleConfigPage() {
       audio.onended = () => setPlayingId(null)
       audio.onerror = () => {
         setPlayingId(null)
-        setError('Không phát được mẫu âm thanh.')
+        setError(t('studio.style.voicePlaybackFailed'))
       }
       setPlayingId(vid)
       await audio.play()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không nghe thử được giọng này.')
+      setError(err instanceof Error ? err.message : t('studio.style.voicePreviewFailed'))
       setPlayingId(null)
     } finally {
       setPreviewBusy(null)
@@ -214,14 +209,14 @@ export default function StyleConfigPage() {
       const started = await api.generate(project.id)
       nav(`/studio/${started.id}`)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Không khởi động được quy trình tạo.'
+      const msg = err instanceof Error ? err.message : t('studio.style.startFailed')
       if (msg.includes('合成成片')) {
         try {
           const composed = await api.compose(project.id)
           nav(`/studio/${composed.id}`)
           return
         } catch (e2) {
-          setError(e2 instanceof Error ? e2.message : 'Không ghép được phim.')
+          setError(e2 instanceof Error ? e2.message : t('studio.shared.composeFailed'))
           return
         }
       }
@@ -237,7 +232,11 @@ export default function StyleConfigPage() {
     return (
       <AppShell active="studio">
         <div className="studio-scoped">
-          {error ? <BillingErrorNotice message={error} /> : <p className="pf-muted">Đang tải…</p>}
+          {error ? (
+            <BillingErrorNotice message={error} />
+          ) : (
+            <p className="pf-muted">{t('studio.shared.loading')}</p>
+          )}
         </div>
       </AppShell>
     )
@@ -250,9 +249,9 @@ export default function StyleConfigPage() {
           <div>
             <button type="button" className="pf-back" onClick={() => nav('/studio/new')}>
               <IconChevronLeft size={18} />
-              Quay lại bàn tạo dự án
+              {t('studio.style.back')}
             </button>
-            <h1 className="pf-page-title">{project?.title || 'Cấu hình phong cách'}</h1>
+            <h1 className="pf-page-title">{project?.title || t('studio.style.titleFallback')}</h1>
           </div>
           <Stepper
             steps={kepuSteps(pipelineMode)}
@@ -264,7 +263,7 @@ export default function StyleConfigPage() {
 
       <div className="pf-style-layout studio-scoped">
         <aside className="pf-create-col">
-          <h3>Thông tin dự án</h3>
+          <h3>{t('studio.style.projectInfo')}</h3>
           {currentTpl ? (
             <div>
               <div
@@ -287,32 +286,30 @@ export default function StyleConfigPage() {
           ) : null}
           <ul className="pf-meta-list" style={{ marginTop: '0.85rem' }}>
             <li>
-              <span>Chủ đề</span>
+              <span>{t('studio.style.topicLabel')}</span>
               <span style={{ maxWidth: '55%', textAlign: 'right' }}>
                 {(project?.source_text || '').slice(0, 40)}
               </span>
             </li>
             <li>
-              <span>Thời lượng</span>
-              <span>~1–3 phút</span>
+              <span>{t('studio.style.durationLabel')}</span>
+              <span>{t('studio.shared.durationShort')}</span>
             </li>
             <li>
-              <span>Số storyboard</span>
-              <span>AI tự tính</span>
+              <span>{t('studio.style.shotCountLabel')}</span>
+              <span>{t('studio.style.shotCountValue')}</span>
             </li>
           </ul>
           <button type="button" className="pf-btn pf-btn-ghost pf-btn-block pf-btn-sm" disabled>
-            Xem trước mẫu <ComingSoon />
+            {t('studio.style.previewTemplateSoon')} <ComingSoon />
           </button>
         </aside>
 
         <section className="pf-create-col">
           <div className="pf-style-block">
-            <h3>Phong cách hình ảnh</h3>
+            <h3>{t('studio.style.imageStyleHeading')}</h3>
             <p className="pf-muted" style={{ fontSize: '0.78rem', margin: '0 0 0.65rem' }}>
-              Đã bị khoá bởi mẫu bạn chọn ở bước trước, nên ảnh và video tạo ra đều mang đúng phong cách
-              đó. Có nhân vật xuất hiện hay không do AI quyết dựa trên quy tắc của mẫu và chủ đề, bạn
-              không cần chọn thêm bộ nhân vật.
+              {t('studio.style.imageStyleLocked')}
             </p>
             {currentTpl ? (
               <div
@@ -332,11 +329,11 @@ export default function StyleConfigPage() {
                   ) : null}
                 </span>
                 <div className="cap">{currentTpl.name}</div>
-                <div className="cap-sub">Phong cách của mẫu</div>
+                <div className="cap-sub">{t('studio.style.templateStyleCaption')}</div>
               </div>
             ) : null}
             <label className="pf-field" style={{ marginTop: '0.75rem' }}>
-              <span className="pf-field-label">Prompt phong cách (ghi đè nếu cần)</span>
+              <span className="pf-field-label">{t('studio.style.stylePromptLabel')}</span>
               <textarea
                 className="pf-field-input"
                 value={stylePrompt}
@@ -349,9 +346,9 @@ export default function StyleConfigPage() {
 
           <div className="pf-style-block">
             <h3>
-              Giọng lồng tiếng
+              {t('studio.style.voiceHeading')}
               <button type="button" className="pf-btn pf-btn-ghost pf-btn-sm" disabled>
-                Thêm giọng <ComingSoon />
+                {t('studio.style.addVoiceSoon')} <ComingSoon />
               </button>
             </h3>
             <div className="pf-voice-row">
@@ -376,7 +373,11 @@ export default function StyleConfigPage() {
                   >
                     <strong className="pf-voice-name">{v.label}</strong>
                     <span className="pf-voice-meta">
-                      {v.gender === 'female' ? 'Giọng nữ' : v.gender === 'male' ? 'Giọng nam' : v.gender}
+                      {v.gender === 'female'
+                        ? t('studio.style.voiceFemale')
+                        : v.gender === 'male'
+                          ? t('studio.style.voiceMale')
+                          : v.gender}
                     </span>
                     <button
                       type="button"
@@ -391,13 +392,13 @@ export default function StyleConfigPage() {
                       onClick={(e) => previewVoice(v, e)}
                     >
                       {loading ? (
-                        'Đang tải…'
+                        t('studio.style.voiceLoading')
                       ) : playing ? (
-                        'Đang phát'
+                        t('studio.style.voicePlaying')
                       ) : (
                         <>
                           <IconPlay size={12} />
-                          Nghe thử
+                          {t('studio.style.voicePreview')}
                         </>
                       )}
                     </button>
@@ -407,52 +408,62 @@ export default function StyleConfigPage() {
             </div>
             {selectedVoice ? (
               <p className="pf-muted" style={{ fontSize: '0.78rem', margin: '0.55rem 0 0' }}>
-                Đang chọn: {selectedVoice.label} · Cả phim sẽ lồng tiếng bằng giọng này. Bấm “Nghe
-                thử” để nghe đoạn mẫu khoảng 5 giây.
+                {t('studio.style.voiceSelected', { name: selectedVoice.label })}
               </p>
             ) : null}
           </div>
 
           <div className="pf-style-block">
-            <h3>Cách dựng phim</h3>
+            <h3>{t('studio.style.modeHeading')}</h3>
             <p className="pf-muted" style={{ fontSize: '0.78rem', margin: '0 0 0.65rem' }}>
-              Mọi mẫu đều có thể chọn có tạo AI video hay không, không phụ thuộc khung hình.
+              {t('studio.style.modeHint')}
             </p>
             <div className="pf-style-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
-              {OUTPUT_MODES.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  className={pipelineMode === m.id ? 'pf-style-opt selected' : 'pf-style-opt'}
-                  onClick={() => setPipelineMode(m.id)}
-                >
-                  <img src={m.image} alt="" loading="lazy" />
-                  <div className="cap">{m.label}</div>
-                  <div className="cap-sub">{m.desc}</div>
-                </button>
-              ))}
+              {OUTPUT_MODES.map((mode) => {
+                const isImage = mode.id === 'image_text'
+                return (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    className={
+                      pipelineMode === mode.id ? 'pf-style-opt selected' : 'pf-style-opt'
+                    }
+                    onClick={() => setPipelineMode(mode.id)}
+                  >
+                    <img src={mode.image} alt="" loading="lazy" />
+                    <div className="cap">
+                      {isImage ? t('studio.shared.modeImageLabel') : t('studio.shared.modeFullLabel')}
+                    </div>
+                    <div className="cap-sub">
+                      {isImage ? t('studio.shared.modeImageDesc') : t('studio.shared.modeFullDesc')}
+                    </div>
+                  </button>
+                )
+              })}
             </div>
           </div>
 
           {mediaCatalog ? (
             <div className="pf-style-block">
-              <h3>Mô hình ảnh</h3>
+              <h3>{t('studio.style.imageModelHeading')}</h3>
               <p className="pf-muted" style={{ fontSize: '0.78rem', margin: '0 0 0.65rem' }}>
-                Dùng các mô hình TokenFree đã bật trong mục “Mô hình” của trang quản trị.
+                {t('studio.style.imageModelHint')}
               </p>
               <div className="pf-model-grid">
-                {mediaCatalog.image_models.map((m: MediaModelOption) => (
+                {mediaCatalog.image_models.map((opt: MediaModelOption) => (
                   <button
-                    key={m.id}
+                    key={opt.id}
                     type="button"
-                    className={imageModel === m.id ? 'pf-model-opt selected' : 'pf-model-opt'}
-                    onClick={() => setImageModel(m.id)}
+                    className={imageModel === opt.id ? 'pf-model-opt selected' : 'pf-model-opt'}
+                    onClick={() => setImageModel(opt.id)}
                   >
                     <div className="pf-model-opt-title">
-                      <span>{m.label}</span>
-                      {m.recommended ? <span className="pf-model-badge">Khuyên dùng</span> : null}
+                      <span>{opt.label}</span>
+                      {opt.recommended ? (
+                        <span className="pf-model-badge">{t('studio.style.recommended')}</span>
+                      ) : null}
                     </div>
-                    <div className="pf-model-opt-desc">{m.description}</div>
+                    <div className="pf-model-opt-desc">{opt.description}</div>
                     <div className="pf-model-opt-provider">TokenFree</div>
                   </button>
                 ))}
@@ -462,23 +473,25 @@ export default function StyleConfigPage() {
 
           {mediaCatalog && pipelineMode === 'full' ? (
             <div className="pf-style-block">
-              <h3>Mô hình video</h3>
+              <h3>{t('studio.style.videoModelHeading')}</h3>
               <p className="pf-muted" style={{ fontSize: '0.78rem', margin: '0 0 0.65rem' }}>
-                Mô hình dùng cho bước tạo video từ ảnh; chế độ ảnh tĩnh sẽ không gọi tới.
+                {t('studio.style.videoModelHint')}
               </p>
               <div className="pf-model-grid">
-                {mediaCatalog.video_models.map((m: MediaModelOption) => (
+                {mediaCatalog.video_models.map((opt: MediaModelOption) => (
                   <button
-                    key={m.id}
+                    key={opt.id}
                     type="button"
-                    className={videoModel === m.id ? 'pf-model-opt selected' : 'pf-model-opt'}
-                    onClick={() => setVideoModel(m.id)}
+                    className={videoModel === opt.id ? 'pf-model-opt selected' : 'pf-model-opt'}
+                    onClick={() => setVideoModel(opt.id)}
                   >
                     <div className="pf-model-opt-title">
-                      <span>{m.label}</span>
-                      {m.recommended ? <span className="pf-model-badge">Khuyên dùng</span> : null}
+                      <span>{opt.label}</span>
+                      {opt.recommended ? (
+                        <span className="pf-model-badge">{t('studio.style.recommended')}</span>
+                      ) : null}
                     </div>
-                    <div className="pf-model-opt-desc">{m.description}</div>
+                    <div className="pf-model-opt-desc">{opt.description}</div>
                     <div className="pf-model-opt-provider">TokenFree</div>
                   </button>
                 ))}
@@ -487,7 +500,7 @@ export default function StyleConfigPage() {
           ) : null}
 
           <div className="pf-style-block">
-            <h3>Tỉ lệ khung hình</h3>
+            <h3>{t('studio.style.ratioHeading')}</h3>
             <div className="pf-ratio-row">
               {RATIOS.map((r) => (
                 <button
@@ -505,7 +518,7 @@ export default function StyleConfigPage() {
         </section>
 
         <aside className="pf-create-col">
-          <h3>Xem trước trực tiếp</h3>
+          <h3>{t('studio.style.livePreviewHeading')}</h3>
           <div
             className={[
               'pf-editor-preview',
@@ -520,35 +533,38 @@ export default function StyleConfigPage() {
             ) : (
               <div className="studio-still studio-still--placeholder">
                 <img src={getDramaImageStylePreviewUrl('neon-cyberpunk-film')} alt="" />
-                <span className="studio-still-note">Chưa có mẫu để xem trước</span>
+                <span className="studio-still-note">{t('studio.style.livePreviewEmpty')}</span>
               </div>
             )}
           </div>
           <p className="pf-muted" style={{ fontSize: '0.8rem' }}>
-            Sau khi tạo, bạn xem được khung hình thật ở bàn storyboard. Hiện tại đang là ảnh xem
-            trước của mẫu.
+            {t('studio.style.livePreviewNote')}
           </p>
-          <h3 style={{ marginTop: '1rem' }}>Tóm tắt cấu hình</h3>
+          <h3 style={{ marginTop: '1rem' }}>{t('studio.style.summaryHeading')}</h3>
           <ul className="pf-meta-list">
             <li>
-              <span>Phong cách</span>
-              <span>{currentTpl?.name || '—'}</span>
+              <span>{t('studio.style.summaryStyle')}</span>
+              <span>{currentTpl?.name || t('studio.shared.dash')}</span>
             </li>
             <li>
-              <span>Nhân vật</span>
-              <span>AI tự quyết theo mẫu và chủ đề</span>
+              <span>{t('studio.style.summaryCharacter')}</span>
+              <span>{t('studio.style.summaryCharacterValue')}</span>
             </li>
             <li>
-              <span>Lồng tiếng</span>
-              <span>{selectedVoice?.label || 'Mặc định'}</span>
+              <span>{t('studio.style.summaryVoice')}</span>
+              <span>{selectedVoice?.label || t('studio.style.summaryVoiceDefault')}</span>
             </li>
             <li>
-              <span>Tỉ lệ</span>
+              <span>{t('studio.style.summaryRatio')}</span>
               <span>{ratio}</span>
             </li>
             <li>
-              <span>Cách dựng</span>
-              <span>{pipelineMode === 'image_text' ? IMAGE_TEXT_LABEL : FULL_LABEL}</span>
+              <span>{t('studio.style.summaryMode')}</span>
+              <span>
+                {pipelineMode === 'image_text'
+                  ? t('studio.shared.modeImageLabel')
+                  : t('studio.shared.modeFullLabel')}
+              </span>
             </li>
           </ul>
           {selectedVoice ? (
@@ -561,8 +577,8 @@ export default function StyleConfigPage() {
             >
               <IconPlay size={14} />
               {playingId === voiceKey(selectedVoice)
-                ? 'Dừng nghe thử'
-                : `Nghe thử “${selectedVoice.label}”`}
+                ? t('studio.style.stopPreview')
+                : t('studio.style.previewNamed', { name: selectedVoice.label })}
             </button>
           ) : null}
           {error ? <BillingErrorNotice message={error} style={{ marginTop: '0.75rem' }} /> : null}
@@ -573,11 +589,15 @@ export default function StyleConfigPage() {
             disabled={busy || Boolean(previewBusy)}
             onClick={generate}
           >
-            {busy ? 'Đang khởi động…' : project.shots?.length ? 'Lưu và tiếp tục' : 'Tạo storyboard'}
+            {busy
+              ? t('studio.style.starting')
+              : project.shots?.length
+                ? t('studio.style.saveContinue')
+                : t('studio.style.createStoryboard')}
             {!busy ? <span aria-hidden>→</span> : null}
           </button>
           <p className="pf-muted" style={{ fontSize: '0.78rem', marginTop: '0.5rem' }}>
-            Bước này tạo kịch bản storyboard. Xem và sửa xong bạn mới bắt đầu tạo ảnh và lồng tiếng.
+            {t('studio.style.footNote')}
           </p>
         </aside>
       </div>

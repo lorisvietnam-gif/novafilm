@@ -1,4 +1,4 @@
-/** 从资产 params 读取/拼装视觉生图提示词（对齐 manju buildCharacterParams + 弱提示检测） */
+/** Đọc/ghép prompt tạo ảnh từ params của tài nguyên (khớp manju buildCharacterParams và phát hiện prompt yếu) */
 import type { DramaAsset } from '../api/drama'
 
 const WEAK_PROMPT = /^(character|scene|prop|material|none|image|audio|video)\s+\S+$/i
@@ -20,16 +20,16 @@ const MIN_LEN: Record<string, number> = {
   video: 8,
 }
 
-// 是否模板化套话
+//  có phải câu bộc lệch mẫu không
 function isGenericTemplate(text: string): boolean {
   if (text.length >= 180) return false
   return GENERIC_MARKERS.some((m) => text.includes(m))
 }
 
-// 判断提示词是否过短、占位或模板化
+// Kiểm tra prompt có quá ngắn, là placeholder hay bộc lệch mẫu không
 function isWeakVisualPrompt(prompt: string, assetName: string, kind: string): boolean {
   const text = prompt.trim()
-  /* 含 @asset: 引用的是用户正文，不要当弱占位清掉 */
+  /* Nội dung có tham chiếu @asset: là chữ người dùng viết, không được xoá như placeholder yếu */
   if (/@asset:\d+/.test(text)) return false
   const kindLower = kind.toLowerCase()
   const minLen = MIN_LEN[kindLower] ?? 60
@@ -43,7 +43,7 @@ function isWeakVisualPrompt(prompt: string, assetName: string, kind: string): bo
   return false
 }
 
-// 按 manju buildCharacterParams 规则拼接
+// Ghép theo quy tắc buildCharacterParams của manju
 function manjuJoinCharacterPrompt(params: Record<string, unknown>): string {
   const visual = String(params.visualImage || params.visualPrompt || '').trim()
   const title = String(params.title || '').trim()
@@ -61,7 +61,7 @@ function manjuJoinCharacterPrompt(params: Record<string, unknown>): string {
 }
 
 /**
- * 读取资产视觉提示词：完整描述优先，过短/模板化时从角色字段拼装。
+ * Đọc prompt hình ảnh của tài nguyên: ưu tiên mô tả đầy đủ, nếu quá ngắn hoặc bộc lệch mẫu thì ghép từ các trường nhân vật.
  */
 export function readVisualPrompt(asset: DramaAsset): string {
   const params = (asset.params || {}) as Record<string, unknown>
@@ -98,7 +98,7 @@ export function readVisualPrompt(asset: DramaAsset): string {
 }
 
 /**
- * 画布/编辑用提示词：过滤「character 新角色」等弱占位，避免误填。
+ * Prompt dùng cho canvas / trình sửa: lọc các placeholder yếu kiểu "character 新角色" để không lấp nhầm.
  */
 export function readEditableVisualPrompt(asset: DramaAsset): string {
   const kind = (asset.type || '').toLowerCase()
@@ -108,7 +108,7 @@ export function readEditableVisualPrompt(asset: DramaAsset): string {
   return prompt
 }
 
-/** 文本是否为弱视觉提示词（占位/过短/模板） */
+/** Văn bản có phải prompt hình ảnh yếu (placeholder / quá ngắn / bộc lệch mẫu) không */
 export function isWeakEditablePrompt(prompt: string, name = '', kind = ''): boolean {
   return isWeakVisualPrompt(prompt, name, kind)
 }

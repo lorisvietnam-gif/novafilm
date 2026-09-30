@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.database import get_db
-from app.deps import get_current_user
+from app.deps import client_ip, get_current_user, require_setup_complete
 from app.models import Order, Project, UsageEvent, User
 from app.models_tasks import TaskRun
 from app.services import billing, epay
@@ -107,25 +107,12 @@ async def billing_preflight(
     }
 
 
-def _client_ip(request: Request) -> str:
-    """Prefer proxy headers, fall back to direct peer address."""
-    forwarded = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
-    if forwarded:
-        return forwarded
-    real = (request.headers.get("x-real-ip") or "").strip()
-    if real:
-        return real
-    if request.client and request.client.host:
-        return request.client.host
-    return "127.0.0.1"
-
-
 @router.post("/orders")
 async def create_order(
     body: CreateOrderBody,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_setup_complete),
 ) -> dict:
     # 下单前先清理该用户已过期的待支付单
     await billing.close_expired_pending_orders(db, user_id=user.id)
@@ -151,14 +138,14 @@ async def create_order(
             name=str(sku["name"]),
             money_yuan=money_yuan,
             pay_type=body.pay_type,
-            clientip=_client_ip(request),
+            clientip=client_ip(request),
         )
         fields = epay.build_submit_fields(
             out_trade_no=out_trade_no,
             name=str(sku["name"]),
             money_yuan=money_yuan,
             pay_type=body.pay_type,
-            clientip=_client_ip(request),
+            clientip=client_ip(request),
         )
     except ValueError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
