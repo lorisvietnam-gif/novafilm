@@ -1,6 +1,13 @@
-/** 漫剧生图：模型 / 比例 / 清晰度选项（模型列表与参数来自后台 TokenFree 目录） */
+/** Tạo ảnh cho AI Drama: lựa chọn mô hình / tỉ lệ / độ phân giải (danh sách mô hình và tham số lấy từ danh mục TokenFree ở backend) */
 
 import type { MediaModelOption, MediaModelsCatalog } from '../api'
+import { localized, type LocalizedText } from './localeStrings'
+
+/** Nhãn hiển thị; `id` bên cạnh là giá trị gửi API nên giữ nguyên. */
+const COPY: Record<string, LocalizedText> = {
+  auto: { zh: '自动', en: 'Auto', vi: 'Tự động' },
+  imageModel: { zh: '图片模型', en: 'Image model', vi: 'Mô hình tạo ảnh' },
+}
 
 export type ImageGenerationModelId = string
 
@@ -24,17 +31,17 @@ export type ImageGenerationOptions = {
   resolution: GenerationResolution
 }
 
-/** 全量清晰度（实际展示按模型 allowed_resolutions 过滤） */
+/** Danh sách độ phân giải đầy đủ (thực tế hiển thị sẽ lọc theo allowed_resolutions của mô hình) */
 export const GENERATION_RESOLUTION_OPTIONS: GenerationResolution[] = ['1K', '2K', '3K', '4K']
-/** 目录未到时的保守档（与后端 Pro / gpt-image 一致） */
+/** Mức dự phòng khi danh mục chưa tới (khớp Pro / gpt-image ở backend) */
 export const SAFE_IMAGE_RESOLUTION_OPTIONS: GenerationResolution[] = ['1K', '2K']
 
-/** 比例列表 */
+/** Danh sách tỉ lệ khung hình */
 export const GENERATION_ASPECT_RATIO_OPTIONS: Array<{
   id: GenerationAspectRatioId
   label: string
 }> = [
-  { id: 'auto', label: '自动' },
+  { id: 'auto', get label() { return localized(COPY.auto) } },
   { id: '16:9', label: '16:9' },
   { id: '21:9', label: '21:9' },
   { id: '9:16', label: '9:16' },
@@ -45,21 +52,21 @@ export const GENERATION_ASPECT_RATIO_OPTIONS: Array<{
   { id: '1:1', label: '1:1' },
 ]
 
-/** 生图模型由 /api/media-models 提供；此处仅占位默认 id */
+/** Mô hình tạo ảnh do /api/media-models cung cấp; ở đây chỉ để trỏ chỗ cho id mặc định */
 export const IMAGE_GENERATION_MODELS: Array<{
   id: ImageGenerationModelId
   label: string
   description: string
 }> = []
 
-/** 默认生图选项（角色偏竖构图；清晰度默认 2K，避免 Pro 静默降档） */
+/** Lựa chọn mặc định khi tạo ảnh (nhân vật thiên về khung dọc; độ phân giải mặc định 2K để Pro không bị hạ âm thầm) */
 export const DEFAULT_IMAGE_GENERATION_OPTIONS: ImageGenerationOptions = {
   model_id: '',
   aspect_ratio: '3:4',
   resolution: '2K',
 }
 
-/** 场景默认横构图 */
+/** Bối cảnh thì mặc định khung ngang */
 export function defaultOptionsForAssetKind(kind: string | undefined | null): ImageGenerationOptions {
   const k = String(kind || '').toLowerCase()
   if (k === 'scene') {
@@ -68,22 +75,22 @@ export function defaultOptionsForAssetKind(kind: string | undefined | null): Ima
   return { ...DEFAULT_IMAGE_GENERATION_OPTIONS }
 }
 
-/** 格式化比例·清晰度触发文案 */
+/** Định dạng văn bản mô tả tỉ lệ · độ phân giải */
 export function formatOutputSettingsLabel(
   aspectRatio: GenerationAspectRatioId,
   resolution: GenerationResolution,
 ): string {
-  if (aspectRatio === 'auto') return `自动 · ${resolution}`
+  if (aspectRatio === 'auto') return `${localized(COPY.auto)} · ${resolution}`
   return `${aspectRatio} · ${resolution}`
 }
 
-/** 解析模型展示名（无目录时回退 id） */
+/** Lấy tên hiển thị của mô hình (không có danh mục thì lùi về id) */
 export function getImageModelLabel(modelId: string | undefined | null): string {
   const id = (modelId || '').trim()
-  return id || '图片模型'
+  return id || localized(COPY.imageModel)
 }
 
-/** 任意非空字符串均可作为生图模型 id */
+/** Bất kỳ chuỗi không rỗng nào cũng làm được id mô hình tạo ảnh */
 export function isImageGenerationModelId(id: string): id is ImageGenerationModelId {
   return Boolean((id || '').trim())
 }
@@ -98,7 +105,7 @@ function findImageModelRow(
   return id ? models.find((m) => m.id === id) : undefined
 }
 
-/** 当前模型允许的清晰度 */
+/** Các độ phân giải mô hình hiện tại cho phép */
 export function resolutionsForImageModel(
   modelId: string | undefined | null,
   catalog?: MediaModelsCatalog | null,
@@ -115,7 +122,7 @@ export function resolutionsForImageModel(
   return [...SAFE_IMAGE_RESOLUTION_OPTIONS]
 }
 
-/** 当前模型允许的比例 */
+/** Các tỉ lệ mô hình hiện tại cho phép */
 export function aspectRatiosForImageModel(
   modelId: string | undefined | null,
   catalog?: MediaModelsCatalog | null,
@@ -133,7 +140,7 @@ export function aspectRatiosForImageModel(
   return [...allIds]
 }
 
-/** 将清晰度钳到模型允许列表 */
+/** Kẹp độ phân giải vào danh sách mô hình cho phép */
 export function clampImageResolutionForModel(
   modelId: string | undefined | null,
   resolution: string | undefined | null,
@@ -146,7 +153,7 @@ export function clampImageResolutionForModel(
   return allowed[allowed.length - 1] || '2K'
 }
 
-/** 将比例钳到模型允许列表 */
+/** Kẹp tỉ lệ vào danh sách mô hình cho phép */
 export function clampImageAspectRatioForModel(
   modelId: string | undefined | null,
   aspectRatio: string | undefined | null,
