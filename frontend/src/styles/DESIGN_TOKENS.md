@@ -160,16 +160,21 @@ glyphs both resolve to a designed serif face; CJK still falls through to
 fallback last. `Noto Serif` is loaded at `500;700`, matching `Noto Serif SC` and
 covering the only two weights any serif rule uses.
 
-Five stacks carry the ordering. Three are literals, and should adopt
-`--pf-font-serif`:
+**No literal serif stack survives.** All five rules below read the token, so
+there is exactly one place where the ordering is defined:
 
-| Location | Stack | Weight |
+| Location | Font stack | Weight |
 |---|---|---|
 | `tokens.css` `--pf-font-serif` | `'Noto Serif', 'Noto Serif SC', Georgia, serif` | — |
-| `printfilm.css` `.pf-modal-head h3` | same | 500 |
-| `method.css` `.pf-method-hero h1` | `'Noto Serif', 'Noto Serif SC', 'Noto Sans SC', serif` | 700 |
-| `method.css` `.pf-method-section > h2` | `'Noto Serif', 'Noto Serif SC', serif` | 700 |
-| `method.css` `.pf-method-close h2` | `'Noto Serif', 'Noto Serif SC', serif` | inherited |
+| `printfilm.css` `.pf-modal-head h3` | `var(--pf-font-serif)` | 500 |
+| `method.css` `.pf-method-hero h1` | `var(--pf-font-serif)` | 700 |
+| `method.css` `.pf-method-section > h2` | `var(--pf-font-serif)` | 700 |
+| `method.css` `.pf-method-close h2` | `var(--pf-font-serif)` | inherited |
+
+Adopting the token on `.pf-method-hero h1` also drops the stray `'Noto Sans SC'`
+entry that literal carried. That is deliberate and inert for CJK:
+`Noto Serif SC` precedes it and covers CJK, so the generic `serif` fallback is
+only reached for glyphs neither face has.
 
 **Space.** `--pf-space-0` … `--pf-space-24` on 8pt steps (0.25rem … 6rem).
 

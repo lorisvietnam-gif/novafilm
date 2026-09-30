@@ -6580,7 +6580,7 @@ button.pf-shot-editable:disabled {
 
 .pf-modal-head h3 {
   margin: 0;
-  font-family: 'Noto Serif', 'Noto Serif SC', Georgia, serif;
+  font-family: var(--pf-font-serif);
   font-size: 1.2rem;
   font-weight: 500;
 }
