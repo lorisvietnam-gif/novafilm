@@ -4,19 +4,31 @@
  * Không cài gì thêm: dùng Microsoft Edge có sẵn ở chế độ headless, điều khiển qua
  * Chrome DevTools Protocol bằng WebSocket của Node 24.
  *
- * Chạy:  node audit.mjs
- * Xem:   C:\Users\NOVAST~1\AppData\Local\Temp\kilo\audit\<locale>\<route>.png
+ * Chạy:  node scripts\visual-audit.mjs     (từ thư mục `frontend`)
+ * Xem:   frontend\.kilo\audit\<locale>\<route>.png
+ *
+ * Ảnh nằm trong workspace và trong `.gitignore` — lane đọc được, commit không bị bẩn.
  */
 
 import { mkdirSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const EDGE = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
 const PORT = 9333
 const BASE = 'http://127.0.0.1:5173'
 const API = 'http://127.0.0.1:8000'
-const OUT = 'C:\\Users\\NOVAST~1\\AppData\\Local\\Temp\\kilo\\audit'
-const PROFILE = 'C:\\Users\\NOVAST~1\\AppData\\Local\\Temp\\kilo\\edge-profile'
+
+/**
+ * Ảnh phải nằm TRONG workspace thì các lane mới đọc được.
+ * Lần đầu script ghi vào `%TEMP%\kilo\audit` và rule `external_directory: deny *` chặn
+ * mọi lần đọc từ đó — tức là yêu cầu "mở ảnh ra nhìn" trong brief là không thực hiện được.
+ * `frontend/.kilo/` đã được `.gitignore` (dòng 95) nên ghi vào đây vừa đọc được vừa không
+ * làm bẩn commit. Muốn chỗ khác thì đặt biến môi trường `AUDIT_OUT`.
+ */
+const HERE = resolve(fileURLToPath(new URL('.', import.meta.url)))
+const OUT = process.env.AUDIT_OUT || resolve(HERE, '..', '.kilo', 'audit')
+const PROFILE = join(OUT, '..', 'edge-profile')
 
 const CJK = /[\u4e00-\u9fff]/
 const RAW_KEY = /\b(common|home|nav|auth|tools|pricing|help|legal|shell|drama|studio)\.[a-zA-Z][a-zA-Z0-9]*/g
@@ -143,6 +155,7 @@ async function ensureData(token) {
 }
 
 async function main() {
+  console.log(`anh chup o: ${OUT}`)
   const token = await getToken()
   console.log('da lay token')
 
