@@ -1,4 +1,4 @@
-/** Trang mẫu (lưới thẻ + bộ lọc) và hộp thoại soạn thảo mẫu */
+﻿/** Trang mẫu (lưới thẻ + bộ lọc) và hộp thoại soạn thảo mẫu */
 export const enTemplates = {
   templates: {
     statusActive: "Listed",
@@ -6,6 +6,7 @@ export const enTemplates = {
     statusPremium: "Premium",
     description: "Styles, characters and prompts are defined here; existing projects only follow once the template is restored on the shots page.",
     newTemplate: "New template",
+    itemUnit: "items",
     searchPlaceholder: "Search name / ID / description / category",
     categoryLabel: "Category",
     allCategories: "All categories",
@@ -92,5 +93,10 @@ export const enTemplates = {
     demoHint: "Demo account: demo / demo123",
     failed: "Sign-in failed",
     succeeded: "Signed in",
+  },
+  api: {
+    requestFailed: "Request failed ({status})",
+    sessionExpired: "Not signed in, or the session has expired",
+    notAdmin: "This account is not an administrator",
   },
 } as const

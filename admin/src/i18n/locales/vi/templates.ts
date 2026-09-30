@@ -1,4 +1,4 @@
-/** Trang mẫu (lưới thẻ + bộ lọc) và hộp thoại soạn thảo mẫu */
+﻿/** Trang mẫu (lưới thẻ + bộ lọc) và hộp thoại soạn thảo mẫu */
 export const viTemplates = {
   templates: {
     statusActive: "Đang bán",
@@ -6,6 +6,7 @@ export const viTemplates = {
     statusPremium: "Premium",
     description: "Phong cách / nhân vật / prompt lấy theo trang này; dự án đã tạo chỉ đi theo sau khi khôi phục mẫu ở trang cảnh.",
     newTemplate: "Tạo mẫu",
+    itemUnit: "mục",
     searchPlaceholder: "Tìm theo tên / ID / mô tả / phân loại",
     categoryLabel: "Phân loại",
     allCategories: "Tất cả phân loại",
@@ -92,5 +93,10 @@ export const viTemplates = {
     demoHint: "Tài khoản thử: demo / demo123",
     failed: "Đăng nhập thất bại",
     succeeded: "Đã đăng nhập",
+  },
+  api: {
+    requestFailed: "Yêu cầu thất bại ({status})",
+    sessionExpired: "Chưa đăng nhập hoặc phiên đăng nhập đã hết hạn",
+    notAdmin: "Tài khoản này không có quyền quản trị viên",
   },
 } as const

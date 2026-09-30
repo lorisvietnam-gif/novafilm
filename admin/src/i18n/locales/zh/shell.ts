@@ -1,4 +1,4 @@
-/** Văn bản dùng chung cho toàn bảng quản trị: tiêu đề tài liệu, thanh điều hướng và các nút dùng lại */
+﻿/** Văn bản dùng chung cho toàn bảng quản trị: tiêu đề tài liệu, thanh điều hướng và các nút dùng lại */
 export const zhShell = {
   meta: {
     title: "NOVAFILM 管理后台",
@@ -110,6 +110,7 @@ export const zhShell = {
       source: "来源",
       progress: "进度",
       shotCount: "镜头",
+      episode: "分集",
       charge: "扣费",
       cost: "成本",
       tokens: "Tokens",

@@ -1,4 +1,4 @@
-/** Văn bản dùng chung cho toàn bảng quản trị: tiêu đề tài liệu, thanh điều hướng và các nút dùng lại */
+﻿/** Văn bản dùng chung cho toàn bảng quản trị: tiêu đề tài liệu, thanh điều hướng và các nút dùng lại */
 export const enShell = {
   meta: {
     title: "NOVAFILM Admin",
@@ -110,6 +110,7 @@ export const enShell = {
       source: "Source",
       progress: "Progress",
       shotCount: "Shots",
+      episode: "Episode",
       charge: "Charged",
       cost: "Cost",
       tokens: "Tokens",

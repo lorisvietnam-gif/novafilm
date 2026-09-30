@@ -1,4 +1,5 @@
-﻿import { enDashboard } from './en/dashboard'
+﻿import { enDrama } from './en/drama'
+import { enDashboard } from './en/dashboard'
 import { enLabels } from './en/labels'
 import { enOrders } from './en/orders'
 import { enProjects } from './en/projects'
@@ -12,6 +13,7 @@ import { enShell } from './en/shell'
 export const en = {
   ...enShell,
   labels: enLabels,
+  ...enDrama,
   ...enDashboard,
   ...enQueues,
   ...enTasks,

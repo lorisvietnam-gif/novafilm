@@ -1,4 +1,4 @@
-/** Văn bản dùng chung cho toàn bảng quản trị: tiêu đề tài liệu, thanh điều hướng và các nút dùng lại */
+﻿/** Văn bản dùng chung cho toàn bảng quản trị: tiêu đề tài liệu, thanh điều hướng và các nút dùng lại */
 export const viShell = {
   meta: {
     title: "NOVAFILM — Bảng quản trị",
@@ -110,6 +110,7 @@ export const viShell = {
       source: "Nguồn",
       progress: "Tiến độ",
       shotCount: "Số cảnh",
+      episode: "Tập",
       charge: "Tiền trừ",
       cost: "Chi phí",
       tokens: "Tokens",
