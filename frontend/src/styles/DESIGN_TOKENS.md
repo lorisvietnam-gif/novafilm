@@ -148,6 +148,29 @@ designed. `--pf-font-display` is Space Grotesk. Scale runs
 `--pf-text-2xs` (0.6875rem) to `--pf-text-4xl` (2.75rem) on an 8pt rhythm, with
 `--pf-leading-tight` 1.2 through `--pf-leading-relaxed` 1.65.
 
+**Serif.** `--pf-font-serif` puts `'Noto Serif'` ahead of `'Noto Serif SC'`, for
+the same reason the sans stack does: `Noto Serif SC` is CJK-first and its
+Vietnamese coverage is incidental rather than designed, so Vietnamese text in a
+serif context used to fall through to `Georgia` — which has no precomposed
+`ệ / ộ / ầ / ằ / ễ / ữ / đ` — and then to the generic `serif`, breaking the
+serif texture mid-line. `Noto Serif` is listed first, so Vietnamese and Latin
+glyphs both resolve to a designed serif face; CJK still falls through to
+`Noto Serif SC`, so Chinese is unchanged. This mirrors
+`--pf-font-sans` exactly: generic Latin face first, SC face second, system
+fallback last. `Noto Serif` is loaded at `500;700`, matching `Noto Serif SC` and
+covering the only two weights any serif rule uses.
+
+Five stacks carry the ordering. Three are literals, and should adopt
+`--pf-font-serif`:
+
+| Location | Stack | Weight |
+|---|---|---|
+| `tokens.css` `--pf-font-serif` | `'Noto Serif', 'Noto Serif SC', Georgia, serif` | — |
+| `printfilm.css` `.pf-modal-head h3` | same | 500 |
+| `method.css` `.pf-method-hero h1` | `'Noto Serif', 'Noto Serif SC', 'Noto Sans SC', serif` | 700 |
+| `method.css` `.pf-method-section > h2` | `'Noto Serif', 'Noto Serif SC', serif` | 700 |
+| `method.css` `.pf-method-close h2` | `'Noto Serif', 'Noto Serif SC', serif` | inherited |
+
 **Space.** `--pf-space-0` … `--pf-space-24` on 8pt steps (0.25rem … 6rem).
 
 **Radius.** `--pf-radius-xs` 6px, `--pf-radius-sm` 10px, `--pf-radius-md` 14px,
@@ -210,23 +233,25 @@ they are the known tail.
 
 ## 9. Remaining polish, highest priority first
 
-1. **Serif heading stack has no Vietnamese face.** `printfilm.css:6583` uses
-   `'Noto Serif SC', Georgia, serif`. Needs the `Noto Serif` family, or a switch
-   to the display stack. Not done in Wave 1 — it adds a font request.
-2. **Interaction states are not yet complete on every control.** Focus, hover,
+1. **Interaction states are not yet complete on every control.** Focus, hover,
    active and disabled tokens all exist and are wired globally, but several
    components still rely on bespoke `box-shadow` focus treatments rather than
    `--pf-focus-ring`. Sweep these so the ring is uniform.
-3. **Type scale is not yet adopted.** `printfilm.css` still carries raw
+2. **Type scale is not yet adopted.** `printfilm.css` still carries raw
    `0.82rem` / `0.88rem` / `0.78rem` sizes; they should map onto
    `--pf-text-xs` … `--pf-text-lg` so vertical rhythm follows the 8pt grid.
-4. **Spacing is only partly tokenised.** Radii, shadows, easings and colours are
+3. **Spacing is only partly tokenised.** Radii, shadows, easings and colours are
    converted; `padding` / `gap` / `margin` values are still literals in most
    rules.
-5. **The dark island in Pricing** (`.pf-pricing-wallet-dark`) reads as a hole in
+4. **The dark island in Pricing** (`.pf-pricing-wallet-dark`) reads as a hole in
    dark mode. It should probably become a raised surface instead of a fixed
    gradient.
-6. **`.pf-badge.ok` and friends** were lime-tinted and are now on the success
+5. **`.pf-badge.ok` and friends** were lime-tinted and are now on the success
    palette, which is correct, but the `.pf-badge` family still has no
    `info` / `warning` / `accent` variants — add them so the vocabulary is
    complete.
+
+**Resolved in Wave 1.1b:** the serif heading stack had no Vietnamese face
+(`'Noto Serif SC', Georgia, serif` in `printfilm.css:6583` and four other
+stacks). `Noto Serif` is now loaded and listed ahead of `Noto Serif SC` in all
+five. See section 6.

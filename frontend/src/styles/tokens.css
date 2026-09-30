@@ -156,7 +156,7 @@
     'Noto Sans SC', 'PingFang SC', system-ui, sans-serif;
   --pf-font-display: 'Space Grotesk', 'SF Pro Display', 'Noto Sans', 'Noto Sans SC',
     system-ui, sans-serif;
-  --pf-font-serif: 'Noto Serif SC', Georgia, serif;
+  --pf-font-serif: 'Noto Serif', 'Noto Serif SC', Georgia, serif;
   --pf-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   /* 8pt type scale */
