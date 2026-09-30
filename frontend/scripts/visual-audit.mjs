@@ -15,7 +15,7 @@ const EDGE = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
 const PORT = 9333
 const BASE = 'http://127.0.0.1:5173'
 const API = 'http://127.0.0.1:8000'
-const OUT = 'C:\\Users\\NOVAST~1\\AppData\\Local\\Temp\\kilo\\audit'
+const OUT = process.env.AUDIT_OUT || 'C:\\Users\\NOVAST~1\\AppData\\Local\\Temp\\kilo\\audit'
 const PROFILE = 'C:\\Users\\NOVAST~1\\AppData\\Local\\Temp\\kilo\\edge-profile'
 
 const CJK = /[\u4e00-\u9fff]/
@@ -245,12 +245,29 @@ async function main() {
       const rawKeys = [...new Set(text.match(RAW_KEY) || [])]
       const visible = text.trim().length
 
-      const shot = await send('Page.captureScreenshot', { format: 'png' })
+      const metrics = await send('Page.getLayoutMetrics')
+      const shot = await send('Page.captureScreenshot', {
+        format: 'png',
+        captureBeyondViewport: true,
+        clip: {
+          x: 0,
+          y: 0,
+          width: Math.ceil(metrics?.cssContentSize?.width || 1280),
+          height: Math.min(Math.ceil(metrics?.cssContentSize?.height || 900), 4000),
+          scale: 1,
+        },
+      })
       if (shot?.data) {
         writeFileSync(join(dir, `${name}.png`), Buffer.from(shot.data, 'base64'))
       }
 
-      results.push({ locale, route, cjk, rawKeys, visible, errors: consoleErrors.length })
+      const cjkLines = text
+        .split('\n')
+        .map((l) => l.trim())
+        .filter((l) => CJK.test(l))
+        .slice(0, 40)
+
+      results.push({ locale, route, cjk, rawKeys, visible, errors: consoleErrors.length, cjkLines })
 
       console.log(
         `${locale}  ${route.padEnd(34)} cjk=${String(cjk).padStart(4)}` +
@@ -258,6 +275,9 @@ async function main() {
           (consoleErrors.length ? `  JS_ERROR=${consoleErrors.length}` : '') +
           (visible < 40 ? '  <-- TRANG RONG' : ''),
       )
+      if (process.env.AUDIT_VERBOSE && cjk > 0) {
+        for (const line of cjkLines) console.log(`        | ${line.slice(0, 160)}`)
+      }
 
       ws.close()
       await fetch(`http://127.0.0.1:${PORT}/json/close/${tab.id}`)
