@@ -112,7 +112,7 @@ class Settings(BaseSettings):
     # Deployment environment. Unset means development, so a fresh clone runs with no
     # configuration at all; APP_ENV=prod|production turns on the SECRET_KEY startup gate.
     app_env: str = "development"
-    app_name: str = "PRINTFILM"
+    app_name: str = "NOVAFILM"
     debug: bool = True
     # In raw SQLAlchemy SQL (off by default to avoid flooding; set SQL_ECHO=true to debug SQL)
     sql_echo: bool = False

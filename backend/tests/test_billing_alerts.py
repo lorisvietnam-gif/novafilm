@@ -107,7 +107,7 @@ async def test_admin_cost_alert_sends_email_once_per_level(db_session: AsyncSess
     monkeypatch.setattr(settings, "billing_admin_cost_alert_emails", "ops@test.local")
     monkeypatch.setattr(settings, "billing_admin_cost_alert_last_period_key", "")
     monkeypatch.setattr(settings, "billing_admin_cost_alert_last_level", 0)
-    monkeypatch.setattr(settings, "app_name", "PRINTFILM")
+    monkeypatch.setattr(settings, "app_name", "NOVAFILM")
 
     user = await make_user(db_session)
     await _add_settled_usage(db_session, user_id=user.id, charge_fen=100, cost_fen=1500)
