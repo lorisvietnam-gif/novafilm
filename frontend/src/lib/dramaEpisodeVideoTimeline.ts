@@ -1,7 +1,7 @@
-/** 分集视频预览：跨分镜全局时间轴工具 */
+/** Xem trước video của tập: bộ công cụ thanh thời gian chung xuyên suốt các cảnh */
 import type { DramaFragment } from '../api/drama'
 
-// DramaEpisodeVideoTimelineSegment 分集时间轴上的分镜区间
+// DramaEpisodeVideoTimelineSegment khoảng của một cảnh trên thanh thời gian của tập
 export type DramaEpisodeVideoTimelineSegment = {
   fragmentId: number
   index: number
@@ -11,7 +11,7 @@ export type DramaEpisodeVideoTimelineSegment = {
   hasVideo: boolean
 }
 
-// 从分镜正文合计 @duration 秒数
+// Cộng các @duration trong nội dung cảnh
 function sumFragmentContentDuration(content: string): number {
   const re = /@duration:(\d+)/g
   let total = 0
@@ -23,7 +23,7 @@ function sumFragmentContentDuration(content: string): number {
   return total
 }
 
-// 解析分镜在时间轴上的时长（秒）
+// Tính thời lượng của một cảnh trên thanh thời gian (giây)
 function resolveEpisodeFragmentTimelineDuration(fragment: DramaFragment): number {
   const fromTags = sumFragmentContentDuration(fragment.content)
   if (fromTags > 0) return Math.min(15, Math.max(4, fromTags))
@@ -31,7 +31,7 @@ function resolveEpisodeFragmentTimelineDuration(fragment: DramaFragment): number
   return Math.min(15, Math.max(4, fallback))
 }
 
-// 根据分集全部分镜构建时间轴分段
+// Dựng các đoạn của thanh thời gian từ toàn bộ cảnh trong tập
 export function buildEpisodeVideoTimelineSegments(
   fragments: DramaFragment[],
 ): DramaEpisodeVideoTimelineSegment[] {
@@ -62,7 +62,7 @@ export function buildEpisodeVideoTimelineSegments(
   })
 }
 
-// 计算分集时间轴总时长
+// Tính tổng thời lượng của thanh thời gian tập
 export function resolveEpisodeVideoTimelineTotalDuration(
   segments: DramaEpisodeVideoTimelineSegment[],
 ): number {
@@ -73,7 +73,7 @@ export function resolveEpisodeVideoTimelineTotalDuration(
   return segments[segments.length - 1]?.endSec ?? 0
 }
 
-// 将分镜内播放时间映射为全局时间轴位置
+// Ánh xạ thời gian phát trong một cảnh sang vị trí trên thanh thời gian chung
 export function resolveGlobalTimeFromFragmentPlayback(
   segment: DramaEpisodeVideoTimelineSegment,
   localTimeSec: number,
@@ -88,7 +88,7 @@ export function resolveGlobalTimeFromFragmentPlayback(
   return segment.startSec + ratio * segment.durationSec
 }
 
-// 将全局时间轴位置映射为分镜内播放时间
+// Ánh xạ vị trí trên thanh thời gian chung sang thời gian phát trong một cảnh
 export function resolveFragmentPlaybackFromGlobalTime(
   segments: DramaEpisodeVideoTimelineSegment[],
   globalTimeSec: number,
@@ -125,7 +125,7 @@ export function resolveFragmentPlaybackFromGlobalTime(
   }
 }
 
-// 解析当前全局时间所在的分镜索引
+// Tìm chỉ số của cảnh chứa thời gian chung hiện tại
 export function resolveEpisodeVideoTimelineSegmentIndex(
   segments: DramaEpisodeVideoTimelineSegment[],
   globalTimeSec: number,
@@ -141,7 +141,7 @@ export function resolveEpisodeVideoTimelineSegmentIndex(
   return matched?.index ?? segments[segments.length - 1]?.index ?? 0
 }
 
-// 计算单个分镜区间内的已播放比例（0–1）
+// Tính tỉ lệ đã phát trong một đoạn cảnh (0–1)
 export function resolveEpisodeTimelineSegmentFillRatio(
   segment: DramaEpisodeVideoTimelineSegment,
   globalTimeSec: number,
@@ -163,7 +163,7 @@ export function resolveEpisodeTimelineSegmentFillRatio(
   return (globalTimeSec - segment.startSec) / span
 }
 
-// 将秒数格式化为 mm:ss
+// Định dạng số giây thành mm:ss
 export function formatVideoTimelineClock(seconds: number): string {
   const safeSeconds = Math.max(0, Math.floor(seconds))
   const minutes = Math.floor(safeSeconds / 60)
@@ -172,7 +172,7 @@ export function formatVideoTimelineClock(seconds: number): string {
   return `${String(minutes).padStart(2, '0')}:${String(remainSeconds).padStart(2, '0')}`
 }
 
-// 将进度条点击比例映射为全局播放时间
+// Ánh xạ tỉ lệ bấm trên thanh tiến độ sang thời gian phát chung
 export function resolveVideoTimelineSeekTime(ratio: number, totalDurationSec: number): number {
   if (totalDurationSec <= 0) {
     return 0
@@ -183,7 +183,7 @@ export function resolveVideoTimelineSeekTime(ratio: number, totalDurationSec: nu
   return clampedRatio * totalDurationSec
 }
 
-// 查找下一个可播放视频的分镜 ID
+// Tìm id của cảnh kế tiếp có video phát được
 export function resolveNextPlayableFragmentId(
   segments: DramaEpisodeVideoTimelineSegment[],
   currentFragmentId: number,

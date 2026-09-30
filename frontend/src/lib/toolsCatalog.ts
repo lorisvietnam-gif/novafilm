@@ -20,7 +20,7 @@ export type ToolDef = {
   desc: string
   soon: boolean
   icon: LucideIcon
-  /** 左侧控件区文案提示 */
+  /** Gợi ý ở khu vực điều khiển bên trái */
   panelHint: string
   fields: ToolField[]
   cta: string
@@ -118,14 +118,14 @@ export const TOOL_DEFS: ToolDef[] = [
   },
 ]
 
-// 按 id 查找工具定义
+// Tìm định nghĩa công cụ theo id
 export function getToolDef(id: string | undefined): ToolDef | undefined {
   return TOOL_DEFS.find((t) => t.id === id)
 }
 
 export const PRODUCT_ICONS = { drama: Clapperboard, kepu: Video }
 
-// 芯片字段的默认选中项（取 options 第一项；值为中文枚举，给后端）
+// Chip được chọn mặc định (lấy phần tử đầu của options; giá trị là enum tiếng Trung để gửi cho backend)
 export function defaultToolChips(tool: ToolDef): Record<string, string> {
   const chips: Record<string, string> = {}
   for (const field of tool.fields) {
@@ -134,7 +134,8 @@ export function defaultToolChips(tool: ToolDef): Record<string, string> {
   return chips
 }
 
-// 用当前语言覆盖工具标题、说明与字段文案（options 值保持中文给 API）
+// Ghi đè tiêu đề, mô tả và văn bản trường của công cụ theo ngôn ngữ hiện tại
+// (giá trị options của chip vẫn giữ tiếng Trung để gửi API)
 export function localizeToolDef(tool: ToolDef, m: Messages): ToolDef {
   const pack = m.tools.items[tool.id]
   return {
@@ -160,7 +161,7 @@ export function localizeToolDefs(m: Messages): ToolDef[] {
   return TOOL_DEFS.map((tool) => localizeToolDef(tool, m))
 }
 
-// 芯片展示文案；未知值原样返回
+// Văn bản hiển thị của một chip; giá trị lạ thì trả về nguyên văn
 export function chipDisplayLabel(value: string, m: Messages): string {
   const chips = m.tools.chips as Record<string, string>
   return chips[value] || value

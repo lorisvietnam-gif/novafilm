@@ -1,6 +1,6 @@
 /**
- * 漫剧运镜 / 景别词库（对齐 docs/EPISODE_RULES.md §5）
- * 供分集编辑 @ 菜单插入画面行前缀或运镜短语
+ * Từ vựng cỡ cảnh và cử động máy của AI Drama (khớp docs/EPISODE_RULES.md §5)
+ * Dùng cho menu @ ở trang sửa tập để chèn tiền tố dòng hình ảnh hoặc cụm cử động máy
  *
  * LƯU Ý KỸ THUẬT — vì sao `insert` vẫn giữ tiếng Trung:
  *
@@ -21,11 +21,11 @@ export type DramaCameraLexiconGroup = 'shot' | 'move'
 export type DramaCameraLexiconItem = {
   id: string
   group: DramaCameraLexiconGroup
-  /** 列表展示名 */
+  /** Tên hiển thị trong danh sách */
   label: string
-  /** 插入到脚本的文本（用户可继续补描写） */
+  /** Văn bản chèn vào kịch bản (người dùng có thể viết thêm mô tả) */
   insert: string
-  /** 一行说明 */
+  /** Mô tả một dòng */
   hint: string
 }
 
@@ -67,7 +67,7 @@ function item(seed: LexiconSeed): DramaCameraLexiconItem {
   }
 }
 
-/** 景别标签：写入画面行，勿标成对白 */
+/** Nhãn cỡ cảnh: ghi vào dòng hình ảnh, tuyệt đối đừng gắn thành đối thoại */
 export const DRAMA_SHOT_SIZE_LEXICON: DramaCameraLexiconItem[] = [
   seed(
     'empty',
@@ -134,7 +134,7 @@ export const DRAMA_SHOT_SIZE_LEXICON: DramaCameraLexiconItem[] = [
   ),
 ].map(item)
 
-/** 运镜短语：单段运动轴建议 ≤ 2 */
+/** Cụm cử động máy: mỗi đoạn nên có không quá 2 trục cử động */
 export const DRAMA_CAMERA_MOVE_LEXICON: DramaCameraLexiconItem[] = [
   seed(
     'push',
@@ -194,13 +194,13 @@ export const DRAMA_CAMERA_MOVE_LEXICON: DramaCameraLexiconItem[] = [
   ),
 ].map(item)
 
-/** 合并词库（插入列表用） */
+/** Gộp hai từ vựng (dùng cho danh sách chèn) */
 export const DRAMA_CAMERA_LEXICON: DramaCameraLexiconItem[] = [
   ...DRAMA_SHOT_SIZE_LEXICON,
   ...DRAMA_CAMERA_MOVE_LEXICON,
 ]
 
-/** 运镜使用提示（只展示，不插入） */
+/** Gợi ý dùng cử động máy (chỉ để hiển thị, không chèn) */
 export const DRAMA_CAMERA_USAGE_TIPS: string[] = localizedList([
   {
     zh: '公式：主体 + 动作 + 场景 +（景别/运镜）+（光影）',
@@ -224,7 +224,7 @@ export const DRAMA_CAMERA_USAGE_TIPS: string[] = localizedList([
   },
 ])
 
-// 按关键字过滤词库（匹配 label / insert / hint）
+// Lọc từ vựng theo từ khoá (khớp label / insert / hint)
 export function filterDramaCameraLexicon(
   items: DramaCameraLexiconItem[],
   query: string,
