@@ -45,7 +45,11 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const t = useCallback<TFunction>(
     (path, vars) => {
       const raw = lookupMessage(m, path)
-      if (!raw) return path
+      // Chỉ khi **khoá thiếu** mới trả về đường dẫn, để lỗi lộ ra giao diện như một
+      // lỗi nhìn thấy được. Chuỗi rỗng là một lựa chọn có chủ đích — `common.pageSizeBefore`
+      // để rỗng ở `en` và `vi` nghĩa là "không hiện", và `if (!raw)` từng biến nó thành
+      // chuỗi `common.pageSizeBefore` in thẳng ra giao diện.
+      if (raw === undefined) return path
       return interpolate(raw, vars)
     },
     [m],

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Clapperboard, Film, Layers, Sparkles, Wand2 } from 'lucide-react'
 import { dramaApi, resolveDramaMediaUrl, type DramaEpisode } from '../../api/drama'
+import { localizeBackendMessage } from '../../lib/backendMessages'
 import { dialog } from '../../lib/dialog'
 import { loadDramaEpisodes } from '../../lib/dramaStoryboardNav'
 import { readEpisodeSubtitleMode, subtitleModeUsesModelOutput } from '../../lib/dramaSubtitleBoard'
@@ -124,7 +125,7 @@ export function EpisodesStep({ projectId, onError }: EpisodesStepProps) {
           setEpisodes(await dramaApi.listEpisodes(projectId))
         }
       } catch (err) {
-        onError(err instanceof Error ? err.message : 'Tải danh sách tập thất bại')
+        onError(localizeBackendMessage(err instanceof Error ? err.message : 'Tải danh sách tập thất bại'))
         try {
           setEpisodes(await dramaApi.listEpisodes(projectId))
         } catch {
@@ -156,7 +157,7 @@ export function EpisodesStep({ projectId, onError }: EpisodesStepProps) {
         tone: 'success',
       })
     } catch (err) {
-      onError(err instanceof Error ? err.message : 'Cắt lại thất bại')
+      onError(localizeBackendMessage(err instanceof Error ? err.message : 'Cắt lại thất bại'))
     } finally {
       setReseeding(false)
     }
@@ -205,7 +206,7 @@ export function EpisodesStep({ projectId, onError }: EpisodesStepProps) {
       }
       throw new Error('Storyboard AI quá thời gian chờ, hãy tải lại trang sau')
     } catch (err) {
-      onError(err instanceof Error ? err.message : 'Storyboard AI thất bại')
+      onError(localizeBackendMessage(err instanceof Error ? err.message : 'Storyboard AI thất bại'))
     } finally {
       setPlanningId(null)
     }

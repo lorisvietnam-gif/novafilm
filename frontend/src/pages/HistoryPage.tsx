@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api'
-import type { Project } from '../api'
+import type { Project, Template } from '../api'
 import BillingErrorNotice from '../components/billing/BillingErrorNotice'
 import AppShell from '../components/layout/AppShell'
 import PillTabs from '../components/ui/PillTabs'
@@ -27,6 +27,7 @@ import {
 } from '../lib/clientDownload'
 import { hasActiveTasks, isRunning, STATUS_CN, statusTone } from '../lib/status'
 import { pageCountOf } from '../lib/pagination'
+import { templateNameLabel } from '../lib/templateLabels'
 import { formatDateTime, useI18n } from '../i18n'
 
 type HistoryItem = Omit<Project, 'shots'> & {
@@ -90,7 +91,7 @@ export default function HistoryPage() {
   const [items, setItems] = useState<HistoryItem[]>([])
   const [total, setTotal] = useState(0)
   const [stats, setStats] = useState({ total: 0, generating: 0, done: 0, published: 0 })
-  const [templates, setTemplates] = useState<Record<string, string>>({})
+  const [templates, setTemplates] = useState<Record<string, Template>>({})
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<number | null>(null)
@@ -152,8 +153,8 @@ export default function HistoryPage() {
       return
     }
     api.templates().then((list) => {
-      const map: Record<string, string> = {}
-      for (const t of list) map[t.id] = t.name
+      const map: Record<string, Template> = {}
+      for (const tpl of list) map[tpl.id] = tpl
       setTemplates(map)
     })
   }, [nav])
@@ -386,7 +387,9 @@ export default function HistoryPage() {
               const badge = statusBadgeClass(p.status)
               const ratio =
                 p.output_ratio || (p.pipeline_mode === 'image_text' ? '9:16' : '16:9')
-              const tplName = templates[p.template_id] || p.template_id
+              const tplName = templates[p.template_id]
+                ? templateNameLabel(templates[p.template_id])
+                : p.template_id
               return (
                 <article key={p.id} className="pf-project-card">
                   <label className="pf-project-check">

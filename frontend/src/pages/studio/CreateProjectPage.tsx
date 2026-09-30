@@ -8,7 +8,8 @@ import Stepper from '../../components/ui/Stepper'
 import PillTabs from '../../components/ui/PillTabs'
 import { IconChevronLeft, IconRefresh, IconSparkles } from '../../components/ui/Icons'
 import { useI18n, type Messages } from '../../i18n'
-import { CATEGORY_ORDER } from '../../lib/categories'
+import { CATEGORY_ORDER, homeCategoryLabel } from '../../lib/categories'
+import { templateDescriptionLabel, templateNameLabel } from '../../lib/templateLabels'
 import { kepuStepIndex, kepuSteps } from '../../lib/status'
 import { getDramaImageStylePreviewUrl } from '../../lib/dramaImageStylePreviews'
 import './studio.css'
@@ -96,7 +97,7 @@ export default function CreateProjectPage() {
     () =>
       categories.slice(0, 6).map((key) => ({
         key,
-        label: CATEGORY_LABEL_KEYS[key] ? t(CATEGORY_LABEL_KEYS[key]) : key,
+        label: CATEGORY_LABEL_KEYS[key] ? t(CATEGORY_LABEL_KEYS[key]) : homeCategoryLabel(key),
       })),
     [categories, t],
   )
@@ -108,7 +109,11 @@ export default function CreateProjectPage() {
     else if (category !== ALL_CATEGORY) list = list.filter((t) => (t.category || []).includes(category))
     if (q.trim()) {
       const s = q.trim().toLowerCase()
-      list = list.filter((t) => t.name.toLowerCase().includes(s))
+      // Tìm trên cả tên gốc lẫn tên đang hiển thị: tên gốc tiếng Trung không ai gõ, nhưng
+      // mẫu cũ trong DB vẫn còn tên gốc nên không bỏ hẳn đi cũng không.
+      list = list.filter(
+        (t) => t.name.toLowerCase().includes(s) || templateNameLabel(t).toLowerCase().includes(s),
+      )
     }
     return list
   }, [templates, category, q])
@@ -237,9 +242,12 @@ export default function CreateProjectPage() {
               >
                 <img src={api.assetUrl(tpl.preview_cover)} alt="" loading="lazy" />
                 <div>
-                  <strong>{tpl.name}</strong>
+                  <strong>{templateNameLabel(tpl)}</strong>
                   <span>
-                    {tpl.default_ratio} · {(tpl.category || [])[0] || t('studio.shared.categoryGeneral')}
+                    {tpl.default_ratio} ·{' '}
+                    {tpl.category?.length
+                      ? homeCategoryLabel(tpl.category[0])
+                      : t('studio.shared.categoryGeneral')}
                   </span>
                 </div>
               </button>
@@ -370,8 +378,8 @@ export default function CreateProjectPage() {
             <figure className="studio-summary-figure">
               <img src={api.assetUrl(selected.preview_cover)} alt="" />
               <figcaption>
-                <strong>{selected.name}</strong>
-                <p className="pf-muted">{selected.description}</p>
+                <strong>{templateNameLabel(selected)}</strong>
+                <p className="pf-muted">{templateDescriptionLabel(selected)}</p>
               </figcaption>
             </figure>
           ) : (
