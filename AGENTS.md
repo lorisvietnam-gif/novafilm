@@ -133,3 +133,58 @@ báo origin của frontend.
   xử lý video mà băng thông video chạy trên một VPS là khoản chi phí cần tính trước.
   Cơ chế OSS có sẵn là Aliyun (Trung Quốc) — độ trễ tới Việt Nam và người dùng quốc tế sẽ tệ.
   Cần chọn nhà cung cấp lưu trữ trước khi ra mắt.
+
+## 7. MÔ HÌNH GIAI ĐOẠN — LOCALHOST TRƯỚC, VPS SAU (chủ sản phẩm chốt 2026-09-30)
+
+Đây là luật quan trọng nhất của `AGENTS.md`. Board đã từng đặt sai thứ tự, coi VPS là
+điều kiện để phát triển. **Không phải vậy.**
+
+### Bốn giai đoạn, đúng thứ tự này
+1. **Dựng và kiểm thử trên localhost.** Tính năng, việt hoá, thiết kế, OAuth — tất cả phải
+   chạy và kiểm chứng được ở đây.
+2. **Chỉnh sửa giao diện** theo phản hồi thị giác của chủ sản phẩm.
+3. **Rà soát code và tối ưu** — dọn code chết, siết bảo mật, đo hiệu năng.
+4. **Cuối cùng mới lên VPS.** Chỉ khi 1–3 đã xanh và chủ sản phẩm đã duyệt.
+
+### Hệ thống chạy cục bộ (đây là nơi kiểm thử duy nhất ở giai đoạn 1–3)
+| Thành phần | Cổng | Ghi chú |
+|---|---|---|
+| Postgres | `5432` | user/db `printfilm` |
+| Backend FastAPI | `8000` | `.venv\Scripts\python.exe -m uvicorn app.main:app` |
+| Frontend Vite | `5173` | `npm run dev -- --host 127.0.0.1 --port 5173` |
+
+Kiểm tra backend sống:
+```
+Invoke-WebRequest http://127.0.0.1:8000/api/health    # kỳ vọng {"ok":true,...,"app":"NOVAFILM"}
+```
+
+### Cách frontend tìm API — đây là hành vi ĐÚNG, đừng "sửa"
+`frontend/src/api.ts` có `defaultApiBase()` trả về `<protocol>//<hostname>:8000`.
+Ở `localhost:5173` nó ra `http://localhost:8000` — **đúng**. Nên ở giai đoạn 1–3,
+**không đặt** `VITE_API_BASE` rỗng trong `.env.production`. File đó chỉ dùng cho build deploy.
+
+### Đăng nhập OAuth trên localhost
+Luồng với provider thật **không chạy trọn được ở localhost**: Google, Microsoft, Facebook và
+TikTok đều bắt buộc redirect URI là `https` + tên miền công khai, từ chối `localhost`.
+
+Cách làm đúng ở giai đoạn này:
+- Luồng, state, PKCE, liên kết tài khoản được kiểm chứng bằng **test offline** (`pytest`).
+  Đó là lớp kiểm thử chính, và nó phải xanh.
+- Cần xác minh với provider thật thì dùng tunnel (cloudflared / ngrok) — làm khi cần, không
+  phải điều kiện để làm việc. Không dùng tunnel như lý do để trì hoãn.
+- `/api/auth/providers` phải trả `{"providers":[]}` khi chưa cấu hình client_id/secret. Đó là
+  hành vi đúng. Không được hard-code provider để "cho có nút".
+
+### Site đã deploy là gì
+`novastudio.rr.kg` là **bản xem trước**, không phải môi trường kiểm thử.
+Firebase Hosting không phục vụ `/api`, nên mọi lệnh gọi API trên đó nhận về `index.html` với
+HTTP 200 và mọi tính năng cần backend **đều hỏng ở đó — đó là điều được biết trước, không phải
+lỗi mới**. Đừng deploy lại để "kiểm tra". Hãy kiểm tra ở localhost.
+
+### Điều KHÔNG được dùng làm lý do
+- ❌ "Chưa có VPS nên chưa kiểm thử được."
+- ❌ "Chỉ kiểm được trên domain thật."
+- ✅ Cách nói đúng: "Chạy ở localhost, dùng test offline cho phần không thể chạy thật."
+
+Một tác vụ chỉ được coi là **xong** khi đã kiểm chứng ở localhost, hoặc khi đã ghi rõ trong
+báo cáo rằng phần nào không kiểm chứng local được và vì sao.
