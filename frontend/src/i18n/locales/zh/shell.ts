@@ -149,7 +149,7 @@ export const zhShell = {
     saveFailed: '保存失败',
     requestDelete: '申请注销',
     language: '界面语言',
-    languageHint: '未手动选择时，跟随浏览器语言。当前支持中文与 English。',
+    languageHint: '未手动选择时，跟随浏览器语言。当前支持中文、Tiếng Việt 与 English。',
     languageAuto: '跟随浏览器',
     dramaLead: '你的 AI 漫剧创作与分集进度',
     allProjects: '全部项目',

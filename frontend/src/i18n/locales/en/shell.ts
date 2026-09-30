@@ -150,7 +150,8 @@ export const enShell = {
     saveFailed: 'Save failed',
     requestDelete: 'Delete account',
     language: 'Interface language',
-    languageHint: 'Follows the browser until you pick a language. Chinese and English for now.',
+    languageHint:
+      'Follows the browser until you pick a language. Chinese, Tiếng Việt and English are supported.',
     languageAuto: 'Follow browser',
     dramaLead: 'Your AI drama projects and episode progress',
     allProjects: 'All projects',
