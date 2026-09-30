@@ -7,6 +7,7 @@ import {
   resolveSelectedSkillIds,
   saveStoredSkillIds,
 } from '../lib/agentSkillSelection'
+import { localized } from '../lib/localeStrings'
 
 type UseAgentSkillSelectionResult = {
   skills: AgentSkill[]
@@ -92,7 +93,11 @@ export function useAgentSkillSelection(): UseAgentSkillSelectionResult {
         return next
       })
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : '上传失败')
+      setUploadError(
+        err instanceof Error
+          ? err.message
+          : localized({ zh: '上传失败', en: 'Upload failed', vi: 'Tải lên thất bại' }),
+      )
     } finally {
       setUploading(false)
     }
