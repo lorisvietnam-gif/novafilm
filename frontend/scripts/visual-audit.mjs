@@ -167,7 +167,7 @@ async function ensureData(token) {
   if (asList(dramas).length) {
     out.drama = dramas[0].id
     try {
-      const eps = asList(await api(`/api/drama/projects/${out.drama}/episodes`, { headers }))
+      const eps = asList(await api(`/api/drama/episodes?project_id=${out.drama}`, { headers }))
       if (asList(eps).length) out.episode = eps[0].id
     } catch { /* chua co tap */ }
   }
@@ -187,7 +187,7 @@ async function ensureData(token) {
     })
     out.drama = created.id
     try {
-      const eps = asList(await api(`/api/drama/projects/${out.drama}/episodes`, { headers }))
+      const eps = asList(await api(`/api/drama/episodes?project_id=${out.drama}`, { headers }))
       if (asList(eps).length) out.episode = eps[0].id
     } catch { /* can co script moi co tap */ }
   }
