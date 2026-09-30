@@ -161,7 +161,8 @@ export const zhPages = {
     introLink: '帮助中心',
     introSuffix: '。',
     formTitle: '留言反馈',
-    // TODO: Đăng ký và cấu hình nhận mail cho domain novafilm.vn, thay địa chỉ gmail này khi domain sẵn sàng.
+    // TODO: Tạm dùng địa chỉ gmail này. Khi mua tên miền production (novafilm.vn hoặc novafilm.ai,
+    // tùy chọn), đổi sang một địa chỉ @<domain production> và cấu hình nhận mail cho nó.
     formLead:
       '填写后将打开您的邮件客户端，预填发往 x.novalife@gmail.com 的草稿，请确认后发送。',
     topic: '问题类型',
@@ -183,7 +184,7 @@ export const zhPages = {
       {
         title: '邮箱支持',
         desc: '工作日一般 1–2 个工作日内回复；请附上账号邮箱与订单号（如有）。',
-        // TODO: Đổi cùng địa chỉ gmail ở formLead và channels[2].href khi domain novafilm.vn sẵn sàng.
+        // TODO: Khi có địa chỉ @<domain production>, đổi cùng lúc với formLead và channels[2].href.
         href: 'mailto:x.novalife@gmail.com',
         actionLabel: 'x.novalife@gmail.com',
       },

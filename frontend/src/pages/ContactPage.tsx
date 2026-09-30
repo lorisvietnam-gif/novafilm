@@ -30,7 +30,7 @@ export default function ContactPage() {
       message.trim() || t('contact.mailEmpty'),
     ].join('\n')
     const href = `mailto:x.novalife@gmail.com?subject=${encodeURIComponent(
-      `[PRINTFILM] ${topic}`,
+      `[NOVAFILM] ${topic}`,
     )}&body=${encodeURIComponent(body)}`
     window.location.href = href
     setSent(true)
