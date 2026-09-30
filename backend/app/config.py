@@ -1,10 +1,58 @@
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import urlsplit
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _BACKEND_DIR = Path(__file__).resolve().parent.parent
 _ENV_FILE = _BACKEND_DIR / ".env"
+
+
+def parse_origin_list(value: str, *, variable: str) -> list[str]:
+    """Parse a comma-separated origin list, failing loudly on a malformed entry.
+
+    Browsers compare CORS origins against the exact scheme+host+port string, so an
+    entry carrying a path or missing a scheme never matches anything and would be
+    silently dead config. Raise instead, naming the variable at fault.
+    """
+    origins: list[str] = []
+    for raw in (value or "").split(","):
+        item = raw.strip()
+        if not item:
+            continue
+        parts = urlsplit(item)
+        if any(ch.isspace() for ch in item):
+            raise ValueError(f"{variable} has an invalid origin {item!r}: contains whitespace")
+        if parts.scheme not in ("http", "https") or not parts.netloc:
+            raise ValueError(
+                f"{variable} has an invalid origin {item!r}: expected http(s)://host[:port]"
+            )
+        if (parts.path or "").rstrip("/") or parts.query or parts.fragment:
+            raise ValueError(
+                f"{variable} has an invalid origin {item!r}: "
+                "an origin must not carry a path, query or fragment"
+            )
+        origins.append(item.rstrip("/"))
+    return origins
+
+
+def parse_host_list(value: str, *, variable: str) -> list[str]:
+    """Parse a comma-separated host[:port] list, failing loudly on a malformed entry."""
+    hosts: list[str] = []
+    for raw in (value or "").split(","):
+        item = raw.strip()
+        if not item:
+            continue
+        if any(ch.isspace() for ch in item):
+            raise ValueError(f"{variable} has an invalid host {item!r}: contains whitespace")
+        if "://" in item or "/" in item:
+            raise ValueError(
+                f"{variable} has an invalid host {item!r}: "
+                "expected host[:port] without a scheme or a path"
+            )
+        hosts.append(item.lower())
+    return hosts
 
 
 class Settings(BaseSettings):
@@ -184,8 +232,30 @@ class Settings(BaseSettings):
         "http://localhost:5173,http://127.0.0.1:5173,"
         "http://localhost:5174,http://127.0.0.1:5174"
     )
+    # Extra origins merged into the OSS bucket CORS rule, comma-separated
+    # http(s)://host[:port]. Empty by default: loopback dev origins are hard-coded
+    # in oss.cors_origin_list, so no real site host is baked in as a fallback.
+    oss_cors_extra_origins: str = ""
+    # Extra hosts whose /static/ URLs are served from backend/static, comma-separated
+    # host[:port] (no scheme). Empty by default: loopback debug hosts are hard-coded
+    # in storage.is_local_static_url for the same reason.
+    static_host_allowlist: str = ""
     # Comma-separated emails promoted to admin on startup (existing users only)
     admin_bootstrap_emails: str = ""
+
+    # Reject a malformed allowlist at settings construction rather than at first use,
+    # so a typo surfaces on startup with the offending variable named.
+    @field_validator("oss_cors_extra_origins")
+    @classmethod
+    def _validate_oss_cors_extra_origins(cls, value: str) -> str:
+        parse_origin_list(value, variable="OSS_CORS_EXTRA_ORIGINS")
+        return value
+
+    @field_validator("static_host_allowlist")
+    @classmethod
+    def _validate_static_host_allowlist(cls, value: str) -> str:
+        parse_host_list(value, variable="STATIC_HOST_ALLOWLIST")
+        return value
 
 
 @lru_cache

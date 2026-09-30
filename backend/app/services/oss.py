@@ -12,7 +12,7 @@ from functools import lru_cache
 from io import BufferedIOBase
 from pathlib import Path
 
-from app.config import get_settings
+from app.config import Settings, get_settings, parse_origin_list
 
 logger = logging.getLogger(__name__)
 
@@ -68,31 +68,21 @@ def public_url(object_key: str) -> str:
     return f"{public_base()}/{key}"
 
 
-def ensure_browser_cors() -> None:
-    """Allow SPA origins to fetch OSS media (needed for client-side zip)."""
-    if not oss_enabled():
-        return
-    s = get_settings()
+def cors_origin_list(s: Settings | None = None) -> list[str]:
+    """Origins allowed to read OSS media straight from a browser.
+
+    Loopback Vite dev/preview origins are hard-coded so a fresh checkout works with
+    no configuration at all. Every real site host is opt-in through
+    OSS_CORS_EXTRA_ORIGINS: no third-party domain is baked in as a default, and a
+    malformed value raises at call time instead of being quietly dropped.
+    """
+    s = s or get_settings()
     origins = [
         o.strip()
         for o in (s.cors_origins or "").split(",")
         if o.strip()
     ]
-    # Production site + common local/dev（主站 www 优先）
     for extra in (
-        "https://www.printfilm.com",
-        "http://www.printfilm.com",
-        "https://printfilm.com",
-        "http://printfilm.com",
-        "https://admin.printfilm.com",
-        "http://admin.printfilm.com",
-        "https://kepu.printfilm.com",
-        "http://kepu.printfilm.com",
-        "https://admin.kepu.printfilm.com",
-        "https://kepu.printtfilm.com",
-        "http://kepu.printtfilm.com",
-        "https://admin.kepu.printtfilm.com",
-        "http://admin.kepu.printtfilm.com",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://localhost:4173",
@@ -100,9 +90,22 @@ def ensure_browser_cors() -> None:
     ):
         if extra not in origins:
             origins.append(extra)
+    for extra in parse_origin_list(
+        s.oss_cors_extra_origins, variable="OSS_CORS_EXTRA_ORIGINS"
+    ):
+        if extra not in origins:
+            origins.append(extra)
     pub = (s.public_base_url or "").rstrip("/")
     if pub and pub not in origins:
         origins.append(pub)
+    return origins
+
+
+def ensure_browser_cors() -> None:
+    """Allow SPA origins to fetch OSS media (needed for client-side zip)."""
+    if not oss_enabled():
+        return
+    origins = cors_origin_list()
     try:
         import oss2
         from oss2.models import BucketCors, CorsRule
