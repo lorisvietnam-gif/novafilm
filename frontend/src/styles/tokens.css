@@ -266,14 +266,40 @@
 
     --pf-accent-rgb: 248 220 135;
 
+    /* Accent ramp, re-threaded for dark. The ramp has two halves and only one
+       of them flips:
+         50–200  surface tints — the only steps whose job is to sit BEHIND
+                 text, so they have to go dark or light ink disappears on them.
+         300–500 ink and fill steps — read ON a dark surface, so they keep
+                 their light values. 400 is the brand and does not move.
+         600–900 shades — read ON the yellow fill and used as strokes; held.
+       All ten are declared here and in the [data-theme='dark'] block below so
+       that no step can again exist in only one theme-space. */
+    --pf-accent-50: #2a2415;
+    --pf-accent-100: #363229;
+    --pf-accent-200: #484232;
+    --pf-accent-300: #f8dc87;
+    --pf-accent-400: #f2c94c;
+    --pf-accent-500: #ebb81e;
+    --pf-accent-600: #c19315;
+    --pf-accent-700: #926f16;
+    --pf-accent-800: #6a5116;
+    --pf-accent-900: #493813;
+
     --pf-accent: var(--pf-accent-400);
-    --pf-accent-hover: var(--pf-accent-300);
-    --pf-accent-active: var(--pf-accent-200);
+    /* Deepening, not brightening. A yellow fill that gets lighter on hover
+       glares on a dark UI, and 300 is where the dark ink lives, so a
+       brightening hover also collides with the ink end of the ramp. */
+    --pf-accent-hover: var(--pf-accent-500);
+    --pf-accent-active: var(--pf-accent-600);
     /* On dark, accent text is the light end of the ramp: 14.30:1 on #0e0e11. */
     --pf-accent-ink: var(--pf-accent-300);
     --pf-accent-ink-soft: var(--pf-accent-400);
-    --pf-accent-soft: rgb(248 220 135 / 0.14);
-    --pf-accent-soft-strong: rgb(248 220 135 / 0.22);
+    /* Same relationship as light, so the wash is opaque and reads the same
+       whatever it composites over. 100 is the old 0.14 alpha resolved over
+       --pf-surface and 200 the old 0.22, to the same byte. */
+    --pf-accent-soft: var(--pf-accent-100);
+    --pf-accent-soft-strong: var(--pf-accent-200);
     /* Accent stays bright in both themes, so the ink on it stays near-black. */
     --pf-on-accent: #0e0e11;
     --pf-accent-stroke: var(--pf-accent-600);
@@ -334,13 +360,28 @@
 
   --pf-accent-rgb: 248 220 135;
 
+  /* The same ten steps as the prefers-color-scheme block above, restated so
+     an explicit data-theme='dark' is self-contained. Both blocks must stay in
+     step; a step declared in one and not the other is the exact defect this
+     fixes, and it is invisible until someone reads a light literal in dark. */
+  --pf-accent-50: #2a2415;
+  --pf-accent-100: #363229;
+  --pf-accent-200: #484232;
+  --pf-accent-300: #f8dc87;
+  --pf-accent-400: #f2c94c;
+  --pf-accent-500: #ebb81e;
+  --pf-accent-600: #c19315;
+  --pf-accent-700: #926f16;
+  --pf-accent-800: #6a5116;
+  --pf-accent-900: #493813;
+
   --pf-accent: var(--pf-accent-400);
-  --pf-accent-hover: var(--pf-accent-300);
-  --pf-accent-active: var(--pf-accent-200);
+  --pf-accent-hover: var(--pf-accent-500);
+  --pf-accent-active: var(--pf-accent-600);
   --pf-accent-ink: var(--pf-accent-300);
   --pf-accent-ink-soft: var(--pf-accent-400);
-  --pf-accent-soft: rgb(248 220 135 / 0.14);
-  --pf-accent-soft-strong: rgb(248 220 135 / 0.22);
+  --pf-accent-soft: var(--pf-accent-100);
+  --pf-accent-soft-strong: var(--pf-accent-200);
   --pf-on-accent: #0e0e11;
   --pf-accent-stroke: var(--pf-accent-600);
 
@@ -400,6 +441,21 @@
     color-scheme: light;
 
     --pf-accent-rgb: 242 201 76;
+
+    /* Restated for the same reason as the dark blocks: every theme block
+       declares every step, so none of them can silently inherit a value that
+       belongs to the other theme-space. */
+    --pf-accent-50: #fffbf0;
+    --pf-accent-100: #fef6dc;
+    --pf-accent-200: #fceab6;
+    --pf-accent-300: #f8dc87;
+    --pf-accent-400: #f2c94c;
+    --pf-accent-500: #ebb81e;
+    --pf-accent-600: #c19315;
+    --pf-accent-700: #926f16;
+    --pf-accent-800: #6a5116;
+    --pf-accent-900: #493813;
+
     --pf-accent-hover: var(--pf-accent-500);
     --pf-accent-active: var(--pf-accent-600);
     --pf-accent-ink: var(--pf-accent-800);

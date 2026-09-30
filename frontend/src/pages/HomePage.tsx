@@ -7,8 +7,16 @@ import Button from '../components/ui/Button'
 import ComingSoon from '../components/ui/ComingSoon'
 import CreateChoiceModal from '../components/ui/CreateChoiceModal'
 import { useI18n } from '../i18n'
+import { DramaImageStylePreviewImg } from '../components/drama/DramaImageStylePreviewImg'
 import { getDramaImageStylePreviewUrl } from '../lib/dramaImageStylePreviews'
+import type { ImageStyleId } from '../lib/dramaImageStyles'
 import { PRODUCT_ICONS, localizeToolDefs } from '../lib/toolsCatalog'
+
+/** 产品入口卡的配图（仓库内既有素材，懒加载；纯装饰）。 */
+const PRODUCT_ART = {
+  drama: 'palace-intrigue-cold',
+  kepu: 'retro-sci-fi-atompunk',
+} as const satisfies Record<string, ImageStyleId>
 
 export default function HomePage() {
   const nav = useNavigate()
@@ -69,8 +77,11 @@ export default function HomePage() {
 
       <section className="pf-land-products" id="products" aria-label={t('home.products')}>
         <button type="button" className="pf-land-product is-drama" onClick={() => goAuthOr('/drama')}>
-          <span className="pf-land-product-icon" aria-hidden>
-            <DramaIcon size={26} strokeWidth={1.6} />
+          <span className="pf-land-product-art" aria-hidden>
+            <DramaImageStylePreviewImg styleId={PRODUCT_ART.drama} />
+            <span className="pf-land-product-icon">
+              <DramaIcon size={26} strokeWidth={1.6} />
+            </span>
           </span>
           <span className="pf-land-product-body">
             <strong>{t('home.dramaTitle')}</strong>
@@ -87,8 +98,11 @@ export default function HomePage() {
           </span>
         </button>
         <button type="button" className="pf-land-product is-kepu" onClick={() => goAuthOr('/studio/new')}>
-          <span className="pf-land-product-icon" aria-hidden>
-            <KepuIcon size={26} strokeWidth={1.6} />
+          <span className="pf-land-product-art" aria-hidden>
+            <DramaImageStylePreviewImg styleId={PRODUCT_ART.kepu} />
+            <span className="pf-land-product-icon">
+              <KepuIcon size={26} strokeWidth={1.6} />
+            </span>
           </span>
           <span className="pf-land-product-body">
             <strong className="pf-land-product-heading">

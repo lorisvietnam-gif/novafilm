@@ -310,7 +310,8 @@
 }
 
 .pf-ws-product-drama {
-  background: linear-gradient(135deg, var(--pf-accent-100) 0%, var(--pf-accent-100) 100%);
+  /* Same dark-mode wash as .pf-land-product.is-drama — see the note there. */
+  background: linear-gradient(135deg, var(--pf-accent-soft) 0%, var(--pf-accent-soft) 100%);
   border-color: rgb(var(--pf-accent-rgb) / 0.35);
 }
 
@@ -558,12 +559,43 @@
 }
 
 .pf-land-product.is-drama {
-  background: linear-gradient(145deg, var(--pf-accent-100) 0%, var(--pf-accent-100) 100%);
+  /* --pf-accent-100 is a light-mode literal, so in dark mode this left a
+     cream panel under near-white text. --pf-accent-soft resolves to the same
+     #fef6dc in light and to a tinted wash in dark. */
+  background: linear-gradient(145deg, var(--pf-accent-soft) 0%, var(--pf-accent-soft) 100%);
   border-color: rgb(var(--pf-accent-rgb) / 0.4);
 }
 
 .pf-land-product.is-kepu {
   background: var(--pf-surface-sunken);
+}
+
+.pf-land-product-art {
+  position: relative;
+  flex-shrink: 0;
+  width: 96px;
+  height: 96px;
+  border-radius: var(--pf-radius-md);
+  overflow: hidden;
+  background: var(--pf-surface-sunken);
+}
+
+.pf-land-product-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* 原本 48px 的图标缩成缩略图左下角的徽标 */
+.pf-land-product-art .pf-land-product-icon {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--pf-radius-sm);
+  font-size: 0.95rem;
 }
 
 .pf-land-product-icon {
@@ -1441,8 +1473,9 @@
 }
 
 .pf-tools-card-lg {
+  --pf-tools-card-pad: 1.35rem;
   min-height: 180px;
-  padding: 1.35rem;
+  padding: 0 var(--pf-tools-card-pad) var(--pf-tools-card-pad);
 }
 
 .pf-tools-card-top {
@@ -2183,8 +2216,44 @@
 }
 
 .pf-help-cats-lg .pf-help-cat {
+  /* 卡片自身留白，媒体条靠负外边距出血到卡片上沿；只在这一处改 padding，
+     帮助弹窗里的紧凑版 .pf-help-cat 保持原样。 */
+  --pf-help-cat-pad: 0.65rem;
+  padding: 0 var(--pf-help-cat-pad) var(--pf-help-cat-pad);
   text-decoration: none;
   color: inherit;
+}
+
+.pf-help-cat-media {
+  position: relative;
+  display: block;
+  flex-shrink: 0;
+  aspect-ratio: 16 / 7;
+  margin: 0 calc(-1 * var(--pf-help-cat-pad, 0.65rem));
+  border-radius: 13px 13px 0 0;
+  /* 没有配图的分类（个人中心 / 充值说明）落在这里，用中性面而不是留空 */
+  background: var(--pf-surface-sunken);
+  overflow: hidden;
+}
+
+.pf-help-cat-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* 底部渐隐到卡片底色，图片与标题之间不留硬边 */
+.pf-help-cat-media::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgb(var(--pf-scrim-rgb) / 0) 45%,
+    var(--pf-surface) 100%
+  );
+  pointer-events: none;
 }
 
 .pf-help-guide-block {
@@ -2509,10 +2578,12 @@
 }
 
 .pf-tools-card {
+  /* 卡片自身留白，媒体条靠负外边距出血到卡片上沿 */
+  --pf-tools-card-pad: var(--pf-space-5);
   background: var(--pf-surface);
   border: 1px solid var(--pf-line);
   border-radius: 18px;
-  padding: 1.25rem;
+  padding: 0 var(--pf-tools-card-pad) var(--pf-tools-card-pad);
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
@@ -2520,6 +2591,37 @@
   text-decoration: none;
   color: inherit;
   transition: border-color var(--pf-dur-base) var(--pf-ease-standard);
+}
+
+.pf-tools-card-media {
+  position: relative;
+  display: block;
+  aspect-ratio: 5 / 2;
+  max-height: 200px;
+  margin: 0 calc(-1 * var(--pf-tools-card-pad));
+  border-radius: 17px 17px 0 0;
+  background: var(--pf-surface-sunken);
+  overflow: hidden;
+}
+
+.pf-tools-card-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* 底部渐隐到卡片底色，图片与标题之间不留硬边 */
+.pf-tools-card-media::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgb(var(--pf-scrim-rgb) / 0) 40%,
+    var(--pf-surface) 100%
+  );
+  pointer-events: none;
 }
 
 .pf-tools-card:hover {
@@ -5610,7 +5712,10 @@ button.pf-shot-editable:disabled {
   font-size: 0.65rem;
   font-weight: 800;
   color: var(--pf-accent-ink);
-  background: color-mix(in srgb, var(--pf-lime) 55%, var(--pf-surface));
+  /* Was color-mix(accent 55%, surface): a mid-tone that reads 5.80:1 in light
+     and 3.17:1 in dark, because the surface it is mixed into flips but the
+     percentage does not. The tint ramp tracks the theme instead. */
+  background: var(--pf-accent-200);
   padding: 0.12rem 0.38rem;
   border-radius: 999px;
 }
@@ -5842,7 +5947,9 @@ button.pf-shot-editable:disabled {
 }
 
 .pf-pricing-info-visual.is-value {
-  background: linear-gradient(145deg, color-mix(in srgb, var(--pf-lime) 45%, var(--pf-surface)), var(--pf-accent-50));
+  /* First stop was color-mix(accent 45%, surface), which lands on a mid-tone
+     that accent-ink reads 6.09:1 on in light but only 4.10:1 on in dark. */
+  background: linear-gradient(145deg, var(--pf-accent-200), var(--pf-accent-50));
   color: var(--pf-accent-ink);
 }
 

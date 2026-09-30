@@ -2,8 +2,20 @@ import { Link } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import AppShell from '../components/layout/AppShell'
 import ComingSoon from '../components/ui/ComingSoon'
+import { DramaImageStylePreviewImg } from '../components/drama/DramaImageStylePreviewImg'
 import { useI18n } from '../i18n'
-import { PRODUCT_ICONS, localizeToolDefs } from '../lib/toolsCatalog'
+import type { ImageStyleId } from '../lib/dramaImageStyles'
+import { PRODUCT_ICONS, localizeToolDefs, type ToolId } from '../lib/toolsCatalog'
+
+/** 每个工具卡片配一张主题最接近的画风图（均为仓库内既有素材，懒加载）。 */
+const TOOL_ART: Record<ToolId, ImageStyleId> = {
+  t2i: 'ancient-romance-soft',
+  i2i: '90s-realistic-film',
+  i2p: 'japanese-daily-natural',
+  t2v: 'neon-cyberpunk-film',
+  v2v: 'retro-sci-fi-atompunk',
+  ecom: 'korean-urban-soft',
+}
 
 export default function ToolsPage() {
   const { t, m } = useI18n()
@@ -28,6 +40,9 @@ export default function ToolsPage() {
               to={`/tools/${tool.id}`}
               className={`pf-tools-card pf-tools-card-lg${tool.soon ? ' is-soon' : ''}`}
             >
+              <span className="pf-tools-card-media" aria-hidden>
+                <DramaImageStylePreviewImg styleId={TOOL_ART[tool.id]} />
+              </span>
               <div className="pf-tools-card-top">
                 <span className="pf-ws-tool-icon" aria-hidden>
                   <Icon size={22} strokeWidth={1.6} />
