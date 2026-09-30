@@ -1,5 +1,9 @@
 import { AdminChipFilter } from "@/components/admin/AdminChipFilter";
 import { AdminFilterBar } from "@/components/admin/AdminFilterBar";
+import { getActiveLocale } from "@/i18n/detect";
+import { messages } from "@/i18n/messages";
+import { useI18n } from "@/i18n";
+import { capabilityLabel, taskDomainLabel } from "@/lib/statusLabels";
 
 /** 仪表盘筛选维度 */
 export type DashboardDays = "1" | "7" | "14" | "30";
@@ -29,41 +33,29 @@ export const PROJECTS_DASHBOARD_FILTERS: DashboardFilterState = {
   metric: "charge",
 };
 
-const DAY_OPTIONS = [
-  { value: "1", label: "今日" },
-  { value: "7", label: "近 7 日" },
-  { value: "14", label: "近 14 日" },
-  { value: "30", label: "近 30 日" },
-];
+/**
+ * Mã của các ô lọc là **giá trị gửi lên API** nên để nguyên ở đây; nhãn hiển thị
+ * lấy từ cây pack để đổi theo ngôn ngữ.
+ */
+const DAY_VALUES: DashboardDays[] = ["1", "7", "14", "30"];
+const DOMAIN_VALUES: DashboardDomain[] = ["all", "drama", "kepu", "api", "tools", "studio"];
+const CAPABILITY_VALUES: DashboardCapability[] = ["all", "llm", "image", "video", "tts"];
+const METRIC_VALUES: DashboardMetric[] = ["charge", "cost", "calls"];
 
 /** 图表 / 区块标题用的时间范围文案 */
 export function dashboardRangeLabel(days: DashboardDays): string {
-  if (days === "1") return "今日";
-  return `近 ${days} 日`;
+  const m = messages[getActiveLocale()];
+  if (days === "1") return m.dashboard.rangeToday;
+  return m.dashboard.rangeDays.replace("{days}", days);
 }
 
-const DOMAIN_OPTIONS = [
-  { value: "all", label: "全部领域" },
-  { value: "drama", label: "漫剧" },
-  { value: "kepu", label: "AI短视频" },
-  { value: "api", label: "开放 API" },
-  { value: "tools", label: "工具" },
-  { value: "studio", label: "工作室" },
-];
-
-const CAPABILITY_OPTIONS = [
-  { value: "all", label: "全部能力" },
-  { value: "llm", label: "LLM" },
-  { value: "image", label: "生图" },
-  { value: "video", label: "视频" },
-  { value: "tts", label: "配音" },
-];
-
-const METRIC_OPTIONS = [
-  { value: "charge", label: "扣费" },
-  { value: "cost", label: "成本" },
-  { value: "calls", label: "调用" },
-];
+/** Nhãn của một chỉ số thống kê (charge / cost / calls) */
+function dashboardMetricLabel(metric: DashboardMetric): string {
+  const m = messages[getActiveLocale()];
+  if (metric === "cost") return m.dashboard.metricCost;
+  if (metric === "calls") return m.dashboard.metricCalls;
+  return m.dashboard.metricCharge;
+}
 
 type DashboardFiltersProps = {
   value: DashboardFilterState;
@@ -72,35 +64,50 @@ type DashboardFiltersProps = {
 
 /** 仪表盘用量筛选条（两行紧凑布局） */
 export function DashboardFilters({ value, onChange }: DashboardFiltersProps) {
+  const { m } = useI18n();
   const patch = (partial: Partial<DashboardFilterState>) => onChange({ ...value, ...partial });
+
+  const dayOptions = DAY_VALUES.map((v) => ({
+    value: v,
+    label: v === "1" ? m.dashboard.rangeToday : m.dashboard[`days${v}` as "days7"],
+  }));
+  const domainOptions = DOMAIN_VALUES.map((v) => ({
+    value: v,
+    label: v === "all" ? m.labels.filter.allDomain : taskDomainLabel(v),
+  }));
+  const capabilityOptions = CAPABILITY_VALUES.map((v) => ({
+    value: v,
+    label: v === "all" ? m.labels.filter.allCapability : capabilityLabel(v),
+  }));
+  const metricOptions = METRIC_VALUES.map((v) => ({ value: v, label: dashboardMetricLabel(v) }));
 
   return (
     <AdminFilterBar className="admin-dashboard-filters">
       <AdminChipFilter
-        label="时间维度"
+        label={m.dashboard.filterDays}
         value={value.days}
-        options={DAY_OPTIONS}
+        options={dayOptions}
         onChange={(days) => patch({ days: days as DashboardDays })}
         className="admin-chip-filter--segment"
       />
       <AdminChipFilter
-        label="业务领域"
+        label={m.dashboard.filterDomain}
         value={value.domain}
-        options={DOMAIN_OPTIONS}
+        options={domainOptions}
         onChange={(domain) => patch({ domain: domain as DashboardDomain })}
         className="admin-chip-filter--segment"
       />
       <AdminChipFilter
-        label="能力类型"
+        label={m.dashboard.filterCapability}
         value={value.capability}
-        options={CAPABILITY_OPTIONS}
+        options={capabilityOptions}
         onChange={(capability) => patch({ capability: capability as DashboardCapability })}
         className="admin-chip-filter--segment"
       />
       <AdminChipFilter
-        label="统计指标"
+        label={m.dashboard.filterMetric}
         value={value.metric}
-        options={METRIC_OPTIONS}
+        options={metricOptions}
         onChange={(metric) => patch({ metric: metric as DashboardMetric })}
         className="admin-chip-filter--segment"
       />

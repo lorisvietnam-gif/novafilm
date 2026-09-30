@@ -38,6 +38,8 @@ import {
 
 } from "lucide-react";
 
+import { LOCALES, useI18n, type Locale } from "@/i18n";
+
 import { clearAuth, getCachedUser } from "@/lib/auth";
 
 import { cn } from "@/lib/utils";
@@ -48,7 +50,8 @@ type NavItem = {
 
   to: string;
 
-  label: string;
+  /** Khoá trong `nav.item` của cây pack, tra lúc dựng danh sách */
+  labelKey: keyof ReturnType<typeof useI18n>["m"]["nav"]["item"];
 
   icon: typeof LayoutDashboard;
 
@@ -62,7 +65,7 @@ type NavItem = {
 
 type NavGroup = {
 
-  label: string;
+  labelKey: keyof ReturnType<typeof useI18n>["m"]["nav"]["group"];
 
   items: NavItem[];
 
@@ -74,26 +77,26 @@ const navGroups: NavGroup[] = [
 
   {
 
-    label: "概览",
+    labelKey: "overview",
 
-    items: [{ to: "/", label: "仪表盘", icon: LayoutDashboard, end: true }],
+    items: [{ to: "/", labelKey: "dashboard", icon: LayoutDashboard, end: true }],
 
   },
 
   {
 
-    label: "业务",
+    labelKey: "business",
 
     items: [
 
-      { to: "/users", label: "用户管理", icon: Users },
+      { to: "/users", labelKey: "users", icon: Users },
 
-      { to: "/orders", label: "订单流水", icon: Receipt },
-      { to: "/finance", label: "财务列表", icon: Wallet },
+      { to: "/orders", labelKey: "orders", icon: Receipt },
+      { to: "/finance", labelKey: "finance", icon: Wallet },
 
-      { to: "/projects", label: "科普项目", icon: Clapperboard },
+      { to: "/projects", labelKey: "projects", icon: Clapperboard },
 
-      { to: "/works", label: "作品审核", icon: FileVideo },
+      { to: "/works", labelKey: "works", icon: FileVideo },
 
     ],
 
@@ -101,17 +104,17 @@ const navGroups: NavGroup[] = [
 
   {
 
-    label: "漫剧",
+    labelKey: "drama",
 
     items: [
 
-      { to: "/drama-projects", label: "漫剧项目", icon: Film, matchPrefix: true },
+      { to: "/drama-projects", labelKey: "dramaProjects", icon: Film, matchPrefix: true },
 
-      { to: "/drama-assets", label: "资产库", icon: Image, matchPrefix: true },
+      { to: "/drama-assets", labelKey: "dramaAssets", icon: Image, matchPrefix: true },
 
-      { to: "/drama-episodes", label: "分集管理", icon: ListVideo, matchPrefix: true },
+      { to: "/drama-episodes", labelKey: "dramaEpisodes", icon: ListVideo, matchPrefix: true },
 
-      { to: "/drama-fragments", label: "分镜管理", icon: Layers, matchPrefix: true },
+      { to: "/drama-fragments", labelKey: "dramaFragments", icon: Layers, matchPrefix: true },
 
     ],
 
@@ -119,13 +122,13 @@ const navGroups: NavGroup[] = [
 
   {
 
-    label: "资源",
+    labelKey: "resources",
 
     items: [
 
-      { to: "/templates", label: "模板管理", icon: Shapes },
+      { to: "/templates", labelKey: "templates", icon: Shapes },
 
-      { to: "/queues", label: "任务中心", icon: Layers },
+      { to: "/queues", labelKey: "queues", icon: Layers },
 
     ],
 
@@ -133,9 +136,9 @@ const navGroups: NavGroup[] = [
 
   {
 
-    label: "系统",
+    labelKey: "system",
 
-    items: [{ to: "/settings", label: "系统设置", icon: Settings }],
+    items: [{ to: "/settings", labelKey: "settings", icon: Settings }],
 
   },
 
@@ -143,48 +146,61 @@ const navGroups: NavGroup[] = [
 
 
 
-const titles: Record<string, string> = {
+/** Đường dẫn → khoá `nav.item`; các trang chi tiết dùng khoá riêng trong `nav.detail` */
+const pathTitleKeys: Record<string, keyof ReturnType<typeof useI18n>["m"]["nav"]["item"]> = {
 
-  "/": "仪表盘",
+  "/": "dashboard",
 
-  "/users": "用户管理",
+  "/users": "users",
 
-  "/orders": "订单流水",
-  "/finance": "财务列表",
+  "/orders": "orders",
+  "/finance": "finance",
 
-  "/projects": "科普项目",
+  "/projects": "projects",
 
-  "/drama-projects": "漫剧项目",
+  "/drama-projects": "dramaProjects",
 
-  "/drama-assets": "资产库",
+  "/drama-assets": "dramaAssets",
 
-  "/drama-episodes": "分集管理",
+  "/drama-episodes": "dramaEpisodes",
 
-  "/drama-fragments": "分镜管理",
+  "/drama-fragments": "dramaFragments",
 
-  "/works": "作品审核",
+  "/works": "works",
 
-  "/templates": "模板管理",
+  "/templates": "templates",
 
-  "/settings": "系统设置",
+  "/settings": "settings",
 
-  "/queues": "任务中心",
+  "/queues": "queues",
 
 };
 
 
 
-function resolveTitle(pathname: string): string {
+const localeNames: Record<Locale, string> = {
 
-  if (pathname.startsWith("/drama-projects/")) return "漫剧项目详情";
+  zh: "中文",
+  en: "English",
+  vi: "Tiếng Việt",
 
-  if (pathname.startsWith("/drama-assets/")) return "资产详情";
+};
 
-  if (pathname.startsWith("/drama-episodes/")) return "分集详情";
 
-  if (pathname.startsWith("/drama-fragments/")) return "分镜详情";
 
-  return titles[pathname] ?? "管理后台";
+function resolveTitle(pathname: string, m: ReturnType<typeof useI18n>["m"]): string {
+
+  if (pathname.startsWith("/drama-projects/")) return m.nav.detail.dramaProject;
+
+  if (pathname.startsWith("/drama-assets/")) return m.nav.detail.asset;
+
+  if (pathname.startsWith("/drama-episodes/")) return m.nav.detail.episode;
+
+  if (pathname.startsWith("/drama-fragments/")) return m.nav.detail.fragment;
+
+  const key = pathTitleKeys[pathname];
+
+  return key ? m.nav.item[key] : m.nav.fallback;
 
 }
 
@@ -193,6 +209,8 @@ function resolveTitle(pathname: string): string {
 // Admin shell: dark sidebar + glass top bar
 
 export function AdminLayout() {
+
+  const { locale, setLocale, m } = useI18n();
 
   const navigate = useNavigate();
 
@@ -222,7 +240,7 @@ export function AdminLayout() {
 
 
 
-  const title = resolveTitle(location.pathname);
+  const title = resolveTitle(location.pathname, m);
 
   const initial = (user?.nickname || user?.email || "A").slice(0, 1).toUpperCase();
 
@@ -244,7 +262,7 @@ export function AdminLayout() {
 
               <div className="admin-brand-name">NOVAFILM</div>
 
-              <div className="admin-brand-sub">管理后台</div>
+              <div className="admin-brand-sub">{m.nav.brandSub}</div>
 
             </div>
 
@@ -256,9 +274,9 @@ export function AdminLayout() {
 
           {navGroups.map((group) => (
 
-            <div key={group.label} className="admin-nav-group">
+            <div key={group.labelKey} className="admin-nav-group">
 
-              {!collapsed ? <div className="admin-nav-group-label">{group.label}</div> : null}
+              {!collapsed ? <div className="admin-nav-group-label">{m.nav.group[group.labelKey]}</div> : null}
 
               {group.items.map((item) => (
 
@@ -284,13 +302,13 @@ export function AdminLayout() {
 
                   }
 
-                  title={item.label}
+                  title={m.nav.item[item.labelKey]}
 
                 >
 
                   <item.icon className="h-[18px] w-[18px] shrink-0" />
 
-                  {!collapsed && <span>{item.label}</span>}
+                  {!collapsed && <span>{m.nav.item[item.labelKey]}</span>}
 
                 </NavLink>
 
@@ -312,13 +330,18 @@ export function AdminLayout() {
 
               <div className="truncate text-[13px] font-medium text-[#e8f0eb]">{user?.email}</div>
 
-              <div className="text-xs text-[rgba(240,245,242,0.45)]">超级管理员</div>
+              <div className="text-xs text-[rgba(240,245,242,0.45)]">{m.nav.role}</div>
 
             </div>
 
           )}
 
-          <button type="button" className="admin-icon-btn !text-[rgba(240,245,242,0.55)] hover:!text-[#e8f0eb]" onClick={handleLogout} title="退出登录">
+          <button
+            type="button"
+            className="admin-icon-btn !text-[rgba(240,245,242,0.55)] hover:!text-[#e8f0eb]"
+            onClick={handleLogout}
+            title={m.common.action.logout}
+          >
 
             <LogOut className="h-4 w-4" />
 
@@ -344,7 +367,7 @@ export function AdminLayout() {
 
               onClick={() => setCollapsed((v) => !v)}
 
-              aria-label="折叠侧栏"
+              aria-label={m.common.a11y.collapseSidebar}
 
             >
 
@@ -356,7 +379,7 @@ export function AdminLayout() {
 
               <div className="admin-topbar-title">{title}</div>
 
-              <div className="admin-topbar-crumb">NOVAFILM · 运营管理</div>
+              <div className="admin-topbar-crumb">NOVAFILM · {m.nav.crumb}</div>
 
             </div>
 
@@ -364,7 +387,33 @@ export function AdminLayout() {
 
           <div className="flex items-center gap-1">
 
-            <button type="button" className="admin-icon-btn" title="通知">
+            <select
+
+              className="admin-select !h-8 !min-h-8 !py-0 text-xs"
+
+              value={locale}
+
+              aria-label={m.common.a11y.language}
+
+              title={m.common.language}
+
+              onChange={(e) => setLocale(e.target.value as Locale)}
+
+            >
+
+              {LOCALES.map((code) => (
+
+                <option key={code} value={code}>
+
+                  {localeNames[code]}
+
+                </option>
+
+              ))}
+
+            </select>
+
+            <button type="button" className="admin-icon-btn" title={m.common.a11y.notifications}>
 
               <Bell className="h-4 w-4" />
 
@@ -376,7 +425,7 @@ export function AdminLayout() {
 
               className="admin-icon-btn"
 
-              title="全屏"
+              title={m.common.a11y.fullscreen}
 
               onClick={() => {
 
@@ -409,5 +458,3 @@ export function AdminLayout() {
   );
 
 }
-
-

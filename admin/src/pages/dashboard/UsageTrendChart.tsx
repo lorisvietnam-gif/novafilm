@@ -9,18 +9,13 @@ import {
 } from "recharts";
 import type { AdminDailyUsage } from "@/api/client";
 import { fenToYuan } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 import type { DashboardMetric } from "./DashboardFilters";
 
 type UsageTrendChartProps = {
   data: AdminDailyUsage[];
   metric: DashboardMetric;
 };
-
-function metricLabel(metric: DashboardMetric): string {
-  if (metric === "cost") return "上游成本";
-  if (metric === "calls") return "调用次数";
-  return "扣费金额";
-}
 
 function readMetric(row: AdminDailyUsage, metric: DashboardMetric): number {
   if (metric === "cost") return row.cost_fen ?? 0;
@@ -40,6 +35,13 @@ function shortDate(iso: string): string {
 
 /** 用量趋势面积图 */
 export function UsageTrendChart({ data, metric }: UsageTrendChartProps) {
+  const { m } = useI18n();
+  const metricName =
+    metric === "cost"
+      ? m.dashboard.metricUpstreamCost
+      : metric === "calls"
+        ? m.dashboard.metricCallCount
+        : m.dashboard.metricChargeAmount;
   const chartData = data.map((row) => ({
     date: row.date,
     label: shortDate(row.date),
@@ -47,7 +49,7 @@ export function UsageTrendChart({ data, metric }: UsageTrendChartProps) {
   }));
 
   if (chartData.length === 0) {
-    return <div className="admin-chart-empty">暂无趋势数据</div>;
+    return <div className="admin-chart-empty">{m.dashboard.noTrend}</div>;
   }
 
   return (
@@ -86,7 +88,7 @@ export function UsageTrendChart({ data, metric }: UsageTrendChartProps) {
               const row = payload?.[0]?.payload as { date?: string } | undefined;
               return row?.date ?? "";
             }}
-            formatter={(value) => [formatMetric(Number(value ?? 0), metric), metricLabel(metric)]}
+            formatter={(value) => [formatMetric(Number(value ?? 0), metric), metricName]}
           />
           <Area
             type="monotone"

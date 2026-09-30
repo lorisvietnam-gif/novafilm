@@ -9,9 +9,11 @@ import {
 import { SecretField } from "@/components/settings/SecretField";
 import { Switch } from "@/components/ui/switch";
 import { useAdminModelSettings } from "@/hooks/useAdminModelSettings";
+import { useI18n } from "@/i18n";
 
 // 阿里云 OSS 存储配置
 export function OssSettingsPanel() {
+  const { m, t } = useI18n();
   const { form, loading, saving, patchField, save } = useAdminModelSettings();
   const [ossKeyIdInput, setOssKeyIdInput] = useState("");
   const [ossKeySecretInput, setOssKeySecretInput] = useState("");
@@ -44,7 +46,7 @@ export function OssSettingsPanel() {
         clear_oss_access_key_id: clearOssId,
         clear_oss_access_key_secret: clearOssSecret,
       },
-      "存储配置已保存",
+      t("settings.ossSaved"),
     );
     setOssKeyIdInput("");
     setOssKeySecretInput("");
@@ -59,26 +61,27 @@ export function OssSettingsPanel() {
   return (
     <SettingsTabShell onSave={() => void handleSave()} saving={saving}>
       <SettingsStatusBar
-        title="存储就绪状态"
+        title={m.settings.ossReadyTitle}
         items={[
           {
             id: "oss",
-            label: "阿里云 OSS",
+            label: m.settings.ossProvider,
             ready: ossReady,
-            readyText: "已就绪",
-            pendingText: form.oss_enabled ? "凭证不完整" : "未启用",
+            readyText: m.settings.ossReady,
+            pendingText: form.oss_enabled ? m.settings.ossCredsIncomplete : m.settings.ossDisabled,
           },
           {
             id: "async",
-            label: "异步上传",
+            label: m.settings.asyncUpload,
             ready: form.oss_upload_async,
-            readyText: "已开启",
-            pendingText: "已关闭",
+            readyText: m.settings.asyncOn,
+            pendingText: m.settings.asyncOff,
           },
         ]}
         extra={
           <span className="settings-status-extra">
-            配置来源：{form.source === "db" ? "管理端" : "环境变量"}
+            {m.settings.sourceLabel}
+            {form.source === "db" ? m.settings.sourceDb : m.settings.sourceEnv}
           </span>
         }
       />
@@ -86,13 +89,13 @@ export function OssSettingsPanel() {
       <div className="settings-routing-grid">
         <SettingsPanel
           className="settings-panel--compact"
-          title="1. 阿里云 OSS"
-          description="生成文件先落本地，再异步上传 OSS"
+          title={m.settings.ossPanelTitle}
+          description={m.settings.ossPanelDesc}
         >
           <div className="settings-toggle-row">
             <div>
-              <strong>启用 OSS</strong>
-              <span>关闭后仅使用本地静态目录</span>
+              <strong>{m.settings.ossEnableTitle}</strong>
+              <span>{m.settings.ossEnableDesc}</span>
             </div>
             <Switch checked={form.oss_enabled} onCheckedChange={(v) => patchField("oss_enabled", v)} />
           </div>
@@ -120,7 +123,7 @@ export function OssSettingsPanel() {
                 onChange={(e) => patchField("oss_bucket", e.target.value)}
               />
             </LabeledControl>
-            <LabeledControl label="目录前缀">
+            <LabeledControl label={m.settings.ossFolderPrefix}>
               <input
                 className="settings-input"
                 placeholder="kepu"
@@ -129,8 +132,8 @@ export function OssSettingsPanel() {
               />
             </LabeledControl>
             <LabeledControl
-              label="公网访问基址"
-              hint="留空则自动拼 https://{bucket}.{endpoint}"
+              label={m.settings.ossPublicBase}
+              hint={m.settings.ossPublicBaseHint}
               className="settings-field-span-full"
             >
               <input
@@ -140,7 +143,7 @@ export function OssSettingsPanel() {
                 onChange={(e) => patchField("oss_public_base", e.target.value)}
               />
             </LabeledControl>
-            <LabeledControl label="上传队列名">
+            <LabeledControl label={m.settings.ossQueue}>
               <input
                 className="settings-input"
                 value={form.oss_upload_queue}
@@ -170,8 +173,8 @@ export function OssSettingsPanel() {
           </div>
           <div className="settings-toggle-row mt-3">
             <div>
-              <strong>异步上传</strong>
-              <span>先返回本地 URL，后台队列上传 OSS</span>
+              <strong>{m.settings.ossAsyncTitle}</strong>
+              <span>{m.settings.ossAsyncDesc}</span>
             </div>
             <Switch checked={form.oss_upload_async} onCheckedChange={(v) => patchField("oss_upload_async", v)} />
           </div>

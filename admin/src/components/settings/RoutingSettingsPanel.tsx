@@ -10,15 +10,16 @@ import {
 } from "@/components/settings/SettingsPanel";
 import {
   allPresetChannelModels,
-  CAPABILITY_LABELS,
   CAPABILITY_ORDER,
   clampDefaultToPreset,
   defaultPresetDefaults,
   detectDefaultRemaps,
+  modelCapabilityLabel,
   PRESET_MODELS,
   type ModelCapability,
 } from "@/lib/tokenfreeRecommendedModels";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 
 const TOKENFREE_CHANNEL_ID = "tokenfree";
 const TOKENFREE_BASE_URL = "https://www.tokenfree.com/v1";
@@ -26,14 +27,17 @@ const TOKENFREE_CONSOLE_URL = "https://www.tokenfree.com/channels";
 
 const DEFAULT_KEYS = ["text_model", "image_model", "video_model", "audio_model"] as const;
 
-function buildReadiness(data: AdminRoutingSettings | null, hasKey: boolean) {
+type SettingsMessages = ReturnType<typeof useI18n>["m"]["settings"];
+
+/** "API Key" là thuật ngữ kỹ thuật, giữ nguyên ở mọi ngôn ngữ */
+function buildReadiness(data: AdminRoutingSettings | null, hasKey: boolean, s: SettingsMessages) {
   const defaults = data?.default_models;
   return [
     { id: "secret", label: "API Key", ready: hasKey },
-    { id: "text", label: "文本模型", ready: Boolean(defaults?.text_model) },
-    { id: "image", label: "图像模型", ready: Boolean(defaults?.image_model) },
-    { id: "video", label: "视频模型", ready: Boolean(defaults?.video_model) },
-    { id: "audio", label: "配音模型", ready: Boolean(defaults?.audio_model) },
+    { id: "text", label: s.capabilityText, ready: Boolean(defaults?.text_model) },
+    { id: "image", label: s.capabilityImage, ready: Boolean(defaults?.image_model) },
+    { id: "video", label: s.capabilityVideo, ready: Boolean(defaults?.video_model) },
+    { id: "audio", label: s.capabilityAudio, ready: Boolean(defaults?.audio_model) },
   ] as const;
 }
 
@@ -49,6 +53,7 @@ function normalizeDefaults(raw: AdminRoutingSettings["default_models"] | undefin
 
 // 开源版模型配置：固定 TokenFree + 四类预设下拉
 export function RoutingSettingsPanel() {
+  const { m, t } = useI18n();
   const [data, setData] = useState<AdminRoutingSettings | null>(null);
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [loading, setLoading] = useState(true);
@@ -77,17 +82,17 @@ export function RoutingSettingsPanel() {
       });
       setApiKeyInput("");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "加载模型配置失败");
+      toast.error(err instanceof Error ? err.message : t("settings.routingLoadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const readiness = buildReadiness(data, hasKey);
+  const readiness = buildReadiness(data, hasKey, m.settings);
 
   function setDefaultModel(key: (typeof DEFAULT_KEYS)[number], value: string) {
     const cap = key.replace("_model", "") as ModelCapability;
@@ -132,28 +137,30 @@ export function RoutingSettingsPanel() {
       });
       setDefaultRemaps([]);
       setApiKeyInput("");
-      toast.success("模型配置已保存");
+      setDefaultRemaps([]);
+      setApiKeyInput("");
+      toast.success(t("settings.routingSaved"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "保存失败");
+      toast.error(err instanceof Error ? err.message : t("common.toast.saveFailed"));
     } finally {
       setSaving(false);
     }
   }
 
   if (loading && !data) {
-    return <SettingsLoading label="加载模型配置…" />;
+    return <SettingsLoading label={t("settings.routingLoading")} />;
   }
 
   return (
-    <SettingsTabShell onSave={() => void handleSave()} saving={saving} saveLabel="保存">
+    <SettingsTabShell onSave={() => void handleSave()} saving={saving}>
       <SettingsSurface className="settings-readiness-bar">
-        <div className="settings-readiness-title">配置就绪</div>
+        <div className="settings-readiness-title">{m.settings.routingReadyTitle}</div>
         <div className="settings-readiness-row">
           {readiness.map((item) => (
             <div key={item.id} className={cn("settings-readiness-item", item.ready && "is-ready")}>
               <span className={cn("settings-readiness-dot", item.ready ? "is-on" : "is-off")} />
               <span>{item.label}</span>
-              <em>{item.ready ? "已配置" : "未就绪"}</em>
+              <em>{item.ready ? m.settings.ready : m.settings.notReady}</em>
             </div>
           ))}
         </div>
@@ -161,7 +168,7 @@ export function RoutingSettingsPanel() {
 
       {(data?.validation_errors.length ?? 0) > 0 ? (
         <SettingsSurface className="border-[#fde2e2] bg-[#fef0f0]">
-          <div className="text-xs font-medium text-[#f56c6c]">配置校验</div>
+          <div className="text-xs font-medium text-[#f56c6c]">{m.settings.validation}</div>
           <ul className="mt-1 space-y-0.5 text-xs text-[#f56c6c]">
             {data?.validation_errors.map((item) => (
               <li key={item}>· {item}</li>
@@ -172,29 +179,29 @@ export function RoutingSettingsPanel() {
 
       {defaultRemaps.length > 0 ? (
         <SettingsSurface className="border-[#faecd8] bg-[#fdf6ec]">
-          <div className="text-xs font-medium text-[#e6a23c]">默认模型已映射到预设</div>
+          <div className="text-xs font-medium text-[#e6a23c]">{m.settings.routingRemapTitle}</div>
           <ul className="mt-1 space-y-0.5 text-xs text-[#b88230]">
             {defaultRemaps.map((item) => (
               <li key={`${item.capability}-${item.from}`}>
-                · {CAPABILITY_LABELS[item.capability]}：
+                · {modelCapabilityLabel(item.capability)}：
                 <code className="mx-1">{item.from}</code>→
                 <code className="mx-1">{item.to}</code>
               </li>
             ))}
           </ul>
-          <p className="mt-1 text-xs text-[#909399]">保存后将写入上述预设 id；若需保留历史模型请先改下拉再保存。</p>
+          <p className="mt-1 text-xs text-[#909399]">{m.settings.routingRemapHint}</p>
         </SettingsSurface>
       ) : null}
 
       <SettingsPanel
         title="TokenFree New API"
-        description="上游已锁定。填写 API Key 后，从下方四个预设下拉选择站点默认模型并保存。"
+        description={m.settings.routingPanelDesc}
       >
         <div className="settings-field-grid">
-          <LabeledControl label="接口地址" className="settings-field-span-full">
+          <LabeledControl label={m.settings.routingEndpoint} className="settings-field-span-full">
             <input className="settings-input" value={TOKENFREE_BASE_URL} readOnly />
             <p className="mt-1 text-xs text-[#909399]">
-              控制台：
+              {m.settings.console}
               <a className="ml-1 text-[#409eff] hover:underline" href={TOKENFREE_CONSOLE_URL} target="_blank" rel="noreferrer">
                 {TOKENFREE_CONSOLE_URL}
               </a>
@@ -202,14 +209,18 @@ export function RoutingSettingsPanel() {
           </LabeledControl>
           <LabeledControl
             label="API Key"
-            hint={hasSavedKey ? "已保存，留空不修改" : "未配置"}
+            hint={hasSavedKey ? m.settings.routingKeySavedHint : m.settings.routingKeyMissingHint}
             className="settings-field-span-full"
           >
             <div className="settings-secret-row">
               <input
                 className="settings-input is-secret"
                 type="password"
-                placeholder={hasSavedKey ? "已保存，留空则不修改" : "粘贴 TokenFree API Key"}
+                placeholder={
+                  hasSavedKey
+                    ? m.settings.routingKeySavedPlaceholder
+                    : m.settings.routingKeyPastePlaceholder
+                }
                 value={apiKeyInput}
                 onChange={(e) => setApiKeyInput(e.target.value)}
               />
@@ -219,7 +230,7 @@ export function RoutingSettingsPanel() {
                   className="admin-btn admin-btn-secondary settings-mini-btn"
                   onClick={() => setApiKeyInput("")}
                 >
-                  清除
+                  {m.settings.clear}
                 </button>
               ) : null}
             </div>
@@ -228,15 +239,15 @@ export function RoutingSettingsPanel() {
       </SettingsPanel>
 
       <SettingsPanel
-        title="默认模型"
-        description="用户端可使用全部预设；此处仅设置站点默认。配音目前仅一项。"
+        title={m.settings.routingDefaultsTitle}
+        description={m.settings.routingDefaultsDesc}
       >
         <div className="settings-field-grid settings-field-grid--2">
           {CAPABILITY_ORDER.map((cap) => {
             const key = `${cap}_model` as (typeof DEFAULT_KEYS)[number];
             const options = PRESET_MODELS[cap];
             return (
-              <LabeledControl key={key} label={CAPABILITY_LABELS[cap]}>
+              <LabeledControl key={key} label={modelCapabilityLabel(cap)}>
                 <select
                   className="settings-select"
                   value={data?.default_models[key] ?? options[0]?.id ?? ""}

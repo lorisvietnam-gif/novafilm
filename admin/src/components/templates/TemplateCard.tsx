@@ -2,6 +2,7 @@ import { Crown, ImageOff, Pencil, Trash2 } from "lucide-react";
 import type { AdminTemplate } from "@/api/client";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 
 type TemplateCardProps = {
   template: AdminTemplate;
@@ -27,8 +28,9 @@ export function TemplateCard({
   onToggleActive,
   onTogglePremium,
 }: TemplateCardProps) {
+  const { m, t } = useI18n();
   const src = coverSrc(template.preview_cover);
-  const categories = template.category?.length ? template.category : ["未分类"];
+  const categories = template.category?.length ? template.category : [m.templates.cardUncategorized];
 
   return (
     <article
@@ -41,7 +43,7 @@ export function TemplateCard({
         type="button"
         className="template-card-cover"
         onClick={() => onEdit(template)}
-        aria-label={`编辑模板 ${template.name}`}
+        aria-label={t("templates.cardEditAria", { name: template.name })}
       >
         {src ? (
           <img src={src} alt={template.name} loading="lazy" className="template-card-cover-img" />
@@ -56,11 +58,13 @@ export function TemplateCard({
           {template.is_premium ? (
             <span className="template-card-badge template-card-badge--premium">
               <Crown className="h-3 w-3" />
-              Premium
+              {m.templates.statusPremium}
             </span>
           ) : null}
           {!template.is_active ? (
-            <span className="template-card-badge template-card-badge--off">已下架</span>
+            <span className="template-card-badge template-card-badge--off">
+              {m.templates.statusInactive}
+            </span>
           ) : null}
         </div>
       </button>
@@ -72,14 +76,19 @@ export function TemplateCard({
             <p className="template-card-id">{template.id}</p>
           </div>
           <div className="template-card-actions">
-            <button type="button" className="template-card-icon-btn" onClick={() => onEdit(template)} title="编辑">
+            <button
+              type="button"
+              className="template-card-icon-btn"
+              onClick={() => onEdit(template)}
+              title={m.users.actionEdit}
+            >
               <Pencil className="h-4 w-4" />
             </button>
             <button
               type="button"
               className="template-card-icon-btn template-card-icon-btn--danger"
               onClick={() => onDelete(template.id)}
-              title="删除"
+              title={m.templates.deleteAction}
             >
               <Trash2 className="h-4 w-4" />
             </button>
@@ -89,7 +98,7 @@ export function TemplateCard({
         {template.description ? (
           <p className="template-card-desc">{template.description}</p>
         ) : (
-          <p className="template-card-desc template-card-desc--empty">暂无描述</p>
+          <p className="template-card-desc template-card-desc--empty">{m.templates.cardNoDescription}</p>
         )}
 
         <div className="template-card-tags">
@@ -103,14 +112,14 @@ export function TemplateCard({
 
         <div className="template-card-foot">
           <label className="template-card-toggle">
-            <span>上架</span>
+            <span>{m.templates.cardActive}</span>
             <Switch
               checked={template.is_active}
               onCheckedChange={(v) => onToggleActive(template.id, v)}
             />
           </label>
           <label className="template-card-toggle">
-            <span>Premium</span>
+            <span>{m.templates.statusPremium}</span>
             <Switch
               checked={template.is_premium}
               onCheckedChange={(v) => onTogglePremium(template.id, v)}
