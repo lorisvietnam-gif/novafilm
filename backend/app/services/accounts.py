@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
-"""建号：给没有本地密码的第三方登录用户开一个和注册等价的新账号。
+"""Tạo tài khoản: mở một tài khoản miễn phí cho người đến từ đăng nhập bên thứ ba.
 
-和 app/api/auth.py 的 register 保持同一套初始状态（额度、注册赠送、plan、钱包流水），
-否则同一个人从邮箱注册和从 Google 登录进来会拿到不一样的账号。
+Giữ nguyên trạng thái khởi tạo của POST /auth/register (hạn mức, quà đăng ký, plan,
+dòng ví) — nếu không, cùng một người sẽ nhận hai tài khoản khác nhau chỉ tùy họ đăng ký
+bằng email hay đăng nhập bằng Google.
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ async def provision_new_user(
     email: str,
     nickname: str,
     hashed_password: str,
+    avatar_url: str = "",
 ) -> User:
     """Create a free user plus its signup grant, mirroring POST /auth/register."""
     settings = get_settings()
@@ -27,6 +29,7 @@ async def provision_new_user(
         email=email.lower(),
         nickname=nickname,
         hashed_password=hashed_password,
+        avatar_url=avatar_url,
         quota_left=settings.new_user_quota,
         balance_fen=grant,
         plan="free",

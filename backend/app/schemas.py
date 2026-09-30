@@ -25,14 +25,15 @@ class TokenResponse(BaseModel):
 
 
 class OAuthProviderOut(BaseModel):
-    """一个真正配置好凭据、可用的第三方登录入口。"""
+    """Một cách đăng nhập đã cấu hình xong và thực sự chạy được.
+
+    Chỉ `id` và `label`: client_secret không bao giờ ra khỏi backend, và URL callback
+    cũng không cần frontend biết. Nút đăng nhập trỏ thẳng vào
+    `${VITE_API_BASE}/api/auth/{id}/login`.
+    """
 
     id: str
     label: str
-    # 前端把它拼在 VITE_API_BASE 之后即可发起登录
-    login_url: str
-    # 必须原样登记到 Google / Azure 的回调地址，方便对照排查
-    redirect_uri: str
 
 
 class OAuthProvidersResponse(BaseModel):
@@ -41,6 +42,30 @@ class OAuthProvidersResponse(BaseModel):
 
 class OAuthExchangeRequest(BaseModel):
     code: str = Field(min_length=1, max_length=512)
+
+
+class OAuthExchangeResponse(BaseModel):
+    """Kết quả đổi mã một lần.
+
+    `access_token` rỗng **và** `setup_required` bật nghĩa là tài khoản chưa hoàn chỉnh
+    (đăng nhập bằng provider không có email, ví dụ TikTok): dùng `setup_token` để gọi
+    POST /api/auth/oauth/setup điền email + mật khẩu. Chưa hoàn chỉnh thì không được cấp
+    JWT, nên không vào được màn hình nào kể cả màn hình đòi quyền trả phí.
+    """
+
+    access_token: str = ""
+    token_type: str = "bearer"
+    setup_required: bool = False
+    setup_token: str = ""
+
+
+class OAuthSetupRequest(BaseModel):
+    """Bổ sung email + mật khẩu cho tài khoản mới tạo từ provider không có email."""
+
+    setup_token: str = Field(min_length=1, max_length=512)
+    email: EmailStr
+    password: str = Field(min_length=6, max_length=64)
+    nickname: str = Field(default="", max_length=64)
 
 
 class UserOut(BaseModel):
