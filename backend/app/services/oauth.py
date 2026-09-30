@@ -260,7 +260,7 @@ async def _client_scope(client: httpx.AsyncClient | None) -> AsyncIterator[httpx
         yield owned
 
 
-async def _raise_for_provider_error(response: httpx.Response, *, step: str) -> None:
+def _raise_for_provider_error(response: httpx.Response, *, step: str) -> None:
     """Turn an upstream error body into a logged OAuthProviderError.
 
     The upstream description is logged, never returned: it can echo the client secret
@@ -312,7 +312,7 @@ async def exchange_code_for_token(
             data=form,
             headers={"Accept": "application/json"},
         )
-        await _raise_for_provider_error(response, step="token exchange")
+        _raise_for_provider_error(response, step="token exchange")
         try:
             payload = response.json()
         except ValueError as exc:
@@ -344,7 +344,7 @@ async def fetch_userinfo(
                 "Accept": "application/json",
             },
         )
-        await _raise_for_provider_error(response, step="userinfo")
+        _raise_for_provider_error(response, step="userinfo")
         try:
             payload = response.json()
         except ValueError as exc:
