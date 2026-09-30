@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import type { AdminUsageBucket } from "@/api/client";
 import { fenToYuan } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 import type { DashboardMetric } from "./DashboardFilters";
 
 const CHART_COLORS = [
@@ -51,6 +52,7 @@ export function UsageDistributionChart({
   chartHeight = 220,
   yAxisWidth = 72,
 }: UsageDistributionChartProps) {
+  const { m } = useI18n();
   const chartData = data
     .map((row) => ({
       key: row.key,
@@ -60,7 +62,7 @@ export function UsageDistributionChart({
     .filter((row) => row.value > 0);
 
   if (chartData.length === 0) {
-    return <div className="admin-chart-empty">暂无分布数据</div>;
+    return <div className="admin-chart-empty">{m.dashboard.noDistribution}</div>;
   }
 
   if (variant === "donut") {
@@ -132,7 +134,7 @@ export function UsageDistributionChart({
               borderRadius: "10px",
               fontSize: "12px",
             }}
-            formatter={(value) => [formatMetric(Number(value ?? 0), metric), "数值"]}
+            formatter={(value) => [formatMetric(Number(value ?? 0), metric), m.dashboard.chartValueName]}
           />
           <Bar dataKey="value" radius={[0, 6, 6, 0]} maxBarSize={18}>
             {chartData.map((row, idx) => (
