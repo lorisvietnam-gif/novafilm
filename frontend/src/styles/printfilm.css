@@ -7935,6 +7935,18 @@ button.pf-shot-editable:disabled {
     grid-column: 1 / -1;
   }
 
+  /* The title block needs this rule as much as the thumb and the action row do,
+     and it is the one whose absence is invisible in the CSS and obvious on screen.
+     The row is `28px 1fr` and the thumb, ratio and actions all claim
+     `grid-column: 1 / -1`, so auto-placement walks past them and drops
+     `.pf-project-info` into the FIRST free cell — the 28px checkbox column. The
+     title then has 28px minus the row padding to work with, and "Kiem thu giao
+     dien" draws as four stacked one-word lines while the meta badges stack under
+     it. A project list whose names you cannot read is not a project list. */
+  .pf-project-info {
+    grid-column: 1 / -1;
+  }
+
   .pf-project-ratio,
   .pf-project-actions {
     grid-column: 1 / -1;
@@ -7951,7 +7963,7 @@ button.pf-shot-editable:disabled {
    thumbnail held at its square instead of becoming a banner.
 
    Scoped with a lower bound so it cannot fight the ≤700px rules, which place
-   the same five children by line number rather than by name. */
+   every child by name rather than by grid area. */
 @media (min-width: 701px) and (max-width: 1100px) {
   .pf-project-card {
     grid-template-columns: 40px 148px minmax(0, 1fr) auto;
