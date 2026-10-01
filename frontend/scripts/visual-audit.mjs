@@ -101,6 +101,12 @@ const API_ERROR_MARKERS = [
   'Connection failed',
   'Failed to fetch',
   'NetworkError',
+  // Lỗi phân tích JSON thô. Nó **không** đi qua `readJson()` của api.ts ở một số đường gọi khác,
+  // nên vẫn lọt lên màn hình — và vì nó **không có ký tự Trung nào**, bộ đếm từng coi trang đang
+  // vỡ là "sạch". Đã xảy ra thật: `/drama/.../episodes/1` hiện đúng dòng này nhưng vẫn được
+  // tính là sạch. Phải coi đây là trang hỏng, không phải trang sạch.
+  'is not valid JSON',
+  'Unexpected token',
 ]
 const RAW_KEY = /\b(common|home|nav|auth|tools|pricing|help|legal|shell|drama|studio)\.[a-zA-Z][a-zA-Z0-9]*/g
 
@@ -508,6 +514,25 @@ async function auditRoutes(ROUTES, token) {
         if (process.env.AUDIT_VERBOSE && cjk > 0) {
           for (const line of cjkLines) console.log(`        | ${line.slice(0, 160)}`)
         }
+      } catch (err) {
+        // Route hỏng KHÔNG được làm hỏng cả lượt chạy. Trước đây khối này chỉ có `finally`
+        // nên bất kỳ lỗi nào cũng ném ra ngoài và giết cả tiến trình node — câu thông báo "route
+        // này không được coi là đã kiểm tra" được in ra nhưng script vẫn chết, nên chẳng route
+        // nào phía sau được đo. Ghi lại route hỏng và đi tiếp.
+        const msg = err instanceof Error ? err.message : String(err)
+        results.push({
+          locale,
+          route,
+          cjk: 0,
+          rawKeys: [],
+          visible: 0,
+          apiDown: false,
+          errors: 1,
+          failed: true,
+          failure: msg,
+          cjkLines: [],
+        })
+        console.log(`${locale}  ${route.padEnd(34)} LOI_KIEMTRA — bo qua route nay`)
       } finally {
         await closeRoute(ws, tab)
       }
@@ -519,14 +544,19 @@ async function auditRoutes(ROUTES, token) {
   console.log('\n===== TONG HOP =====')
   for (const locale of ['vi', 'en']) {
     const rows = results.filter((r) => r.locale === locale)
+    const skipped = rows.filter((r) => r.failed)
     const broken = rows.filter((r) => r.apiDown)
-    const scored = rows.filter((r) => !r.apiDown)
+    const scored = rows.filter((r) => !r.apiDown && !r.failed)
     const bad = scored.filter((r) => r.cjk > 0 || r.rawKeys.length || r.errors || r.visible < 40)
     const total = scored.reduce((a, r) => a + r.cjk, 0)
     console.log(
       `${locale}: ${rows.length} route · ${total} ky tu Trung · ${bad.length} route van van` +
-        (broken.length ? ` · ${broken.length} route API CHET (khong duoc tinh vao tong)` : ''),
+        (broken.length ? ` · ${broken.length} route API CHET (khong duoc tinh vao tong)` : '') +
+        (skipped.length ? ` · ${skipped.length} route LOI_KIEMTRA (khong duoc tinh vao tong)` : ''),
     )
+    for (const r of skipped) {
+      console.log(`   ${r.route.padEnd(34)} BO_QUA — ${String(r.failure).slice(0, 90)}`)
+    }
     for (const r of broken) {
       console.log(`   ${r.route.padEnd(34)} API_CHET — trang hien loi, so 0 ky tu Trung la SAI`)
     }
