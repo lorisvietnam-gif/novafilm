@@ -1414,15 +1414,39 @@
   gap: 0.35rem;
 }
 
+/* An asset with no image yet. `is-voice` below already carries a plate; the
+   character and scene kinds did not, and `--pf-surface-sunken` in dark mode is
+   `n-950` — `#08080a` — so a library of portraits and sets rendered as a row of
+   black squares. That is the flattest surface left in the product, and next to
+   the tiles that do have art it reads as broken rather than empty.
+
+   The markup already carries `is-character` and `is-scene`, so the plate can
+   differ by kind without touching a component: a person gets the bokeh plate, a
+   set gets the city plate. Ink is `--pf-on-media-strong` because the label sits
+   on the `--pf-media-scrim-strong` rung, and the halo keeps it off the plate's
+   own highlights the way `.pf-drama-card-cover-fallback` does. */
 .pf-asset-thumb {
   aspect-ratio: 1;
   border-radius: 12px;
   overflow: hidden;
-  background: var(--pf-surface-sunken);
   display: grid;
   place-items: center;
-  color: var(--pf-muted);
+  background-color: var(--pf-scrim-rgb);
+  background-image:
+    linear-gradient(180deg, var(--pf-media-scrim-soft), var(--pf-media-scrim-strong)),
+    var(--pf-media-plate-bokeh);
+  background-size: cover, cover;
+  background-position: center, 38%;
+  color: var(--pf-on-media-strong);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
   font-size: 0.8rem;
+}
+
+.pf-asset-thumb.is-scene {
+  background-image:
+    linear-gradient(180deg, var(--pf-media-scrim-soft), var(--pf-media-scrim-strong)),
+    var(--pf-media-plate-city);
+  background-position: center, 55%;
 }
 
 .pf-asset-thumb img {
