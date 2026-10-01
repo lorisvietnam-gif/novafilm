@@ -445,6 +445,39 @@ function assertDiskSpace() {
   )
 }
 
+/**
+ * Giết mọi tiến trình Edge thuộc audit còn sống, kể cả tiến trình mồ côi của các lần chạy đã chết.
+ *
+ * Chỉ giết tiến trình có `--user-data-dir` trỏ vào thư mục profile của audit hoặc chạy ở chế độ
+ * headless — **không** đụng tới trình duyệt của người dùng.
+ */
+function sweepStaleEdge() {
+  if (process.platform !== 'win32') return
+  const marker = /--user-data-dir=.*(edge-profile|novafilm-audit|--headless)/i
+  let killed = 0
+  try {
+    const out = execFileSync(
+      'wmic',
+      ['process', 'where', "name='msedge.exe'", 'get', 'ProcessId,CommandLine', '/format:csv'],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 * 1024 * 1024 },
+    )
+    for (const line of out.split(/\r?\n/)) {
+      if (!marker.test(line)) continue
+      const pid = Number((line.split(',').pop() || '').trim())
+      if (Number.isInteger(pid) && pid > 0) {
+        try {
+          process.kill(pid, 'SIGKILL')
+          killed += 1
+        } catch {
+          /* đã tự thoát */
+        }
+      }
+    }
+  } catch {
+    // wmic không có sẵn trên Windows mới — bỏ qua, không được làm hỏng cả lượt audit.
+  }
+  if (killed) console.log(`  da don ${killed} tien trinh Edge cu con sot`)
+}
 async function main() {
   console.log(`anh chup o: ${OUT}`)
   assertDiskSpace()
@@ -480,6 +513,16 @@ async function main() {
   const BATCH = Math.max(1, Number(process.env.AUDIT_BATCH || 8))
   const results = []
   let batch = 0
+
+  // Dọn Edge sót lại từ những lần chạy trước, TRƯỚC khi mở Edge mới.
+  //
+  // Dọn sau mỗi lô là chưa đủ. Edge từ một lần chạy bị giết dở (hết thời gian, treo, đóng
+  // cửa sổ) không thuộc lô nào nên không bao giờ được dọn. Lượt này đo được **858 tiến trình
+  // msedge** còn sống và máy hết RAM (`Out of memory, malloc failed`) — dọn tay 264 tiến trình
+  // thì RAM hồi từ 11.8 GB lên 27.7 GB.
+  //
+  // Dọn thủ công mỗi lần thì món nợ quay lại. Dọn ở đây thì tự khỏi.
+  sweepStaleEdge()
 
   for (const locale of ['vi', 'en']) {
     for (let i = 0; i < ROUTES.length; i += BATCH) {
