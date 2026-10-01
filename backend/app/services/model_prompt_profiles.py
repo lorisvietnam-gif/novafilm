@@ -124,7 +124,6 @@ class ModelPromptProfile:
     label: str
     family: str
     readiness: Readiness
-    readiness_note: str
     # seedance | kling3 | veo | neutral — quyết định cấu trúc prompt phát ra
     compiler_mode: str
     dialect: tuple[ProfileFact, ...] = ()
@@ -151,7 +150,6 @@ class ModelPromptProfile:
             "label": self.label,
             "family": self.family,
             "readiness": self.readiness,
-            "readiness_note": self.readiness_note,
             "compiler_mode": self.compiler_mode,
             "evidence_counts": self.evidence_counts(),
             "dialect": [f.to_dict() for f in self.dialect],
@@ -666,10 +664,6 @@ SEEDANCE_PROFILES: tuple[ModelPromptProfile, ...] = (
         label="Seedance 2.0",
         family="seedance",
         readiness="evidence-based",
-        readiness_note=(
-            "Hồ sơ dựng từ lỗi thật của hệ thống này. Mỗi mục đều truy được về một dòng cụ thể "
-            "trong repo. Đây là mức tin cậy cao nhất mà chúng ta có."
-        ),
         compiler_mode="seedance",
         dialect=SEEDANCE_DIALECT,
         parameters=SEEDANCE_PARAMETER_FACTS["seedance-2-0"],
@@ -682,10 +676,6 @@ SEEDANCE_PROFILES: tuple[ModelPromptProfile, ...] = (
         label="Seedance 2.0 Mini",
         family="seedance",
         readiness="evidence-based",
-        readiness_note=(
-            "Cùng ngôn ngữ prompt với Seedance 2.0 — chỉ khác ở tốc độ, giá và giới hạn "
-            "độ phân giải. Bằng chứng lấy từ phần dựng chung trong repo."
-        ),
         compiler_mode="seedance",
         dialect=SEEDANCE_DIALECT,
         parameters=SEEDANCE_PARAMETER_FACTS["seedance-2-0-mini"],
@@ -698,9 +688,6 @@ SEEDANCE_PROFILES: tuple[ModelPromptProfile, ...] = (
         label="Seedance 2.5",
         family="seedance",
         readiness="evidence-based",
-        readiness_note=(
-            "Cùng ngôn ngữ prompt với Seedance 2.0. Bản 2.5 là bản duy nhất mở 1080p."
-        ),
         compiler_mode="seedance",
         dialect=SEEDANCE_DIALECT,
         parameters=SEEDANCE_PARAMETER_FACTS["seedance-2-5"],
@@ -1139,11 +1126,6 @@ MINIMAX_H3_PROFILE = ModelPromptProfile(
     label="MiniMax H3",
     family="minimax",
     readiness="skeleton",
-    readiness_note=(
-        "Repo không có tài liệu MiniMax và chúng ta cũng không tìm được tài liệu chính thức về "
-        "ngôn ngữ prompt. Chỉ có clamp phía kênh của chính hệ thống này. Bộ biên dịch phát "
-        "prompt trung tính, không tối ưu cho model này."
-    ),
     compiler_mode="neutral",
     dialect=(
         ProfileFact(key="language", level="unknown"),
@@ -1213,10 +1195,6 @@ MUSE_PROFILE = ModelPromptProfile(
     label="Muse Video",
     family="meta",
     readiness="skeleton",
-    readiness_note=(
-        "Meta mới chỉ công bố bản preview, nói rõ 'coming soon' và chưa có tài liệu API cho video. "
-        "Chúng ta không có khoá, không có tài liệu kỹ thuật. Mọi mục để trống."
-    ),
     compiler_mode="neutral",
     dialect=(
         ProfileFact(key="language", level="unknown"),
@@ -1260,10 +1238,6 @@ KLING_PROFILE = ModelPromptProfile(
     label="Kling VIDEO 3.0",
     family="kling",
     readiness="docs-based",
-    readiness_note=(
-        "Dựng từ tài liệu API và hướng dẫn người dùng chính thức của Kling. Hệ thống này chưa tự "
-        "chạy thử Kling, nên đây là bằng chứng tài liệu, không phải bằng chứng lỗi thật."
-    ),
     compiler_mode="kling3",
     dialect=KLING_DIALECT,
     parameters=KLING_PARAMETERS,
@@ -1282,10 +1256,6 @@ VEO_PROFILE = ModelPromptProfile(
     label="Veo 3.1",
     family="veo",
     readiness="docs-based",
-    readiness_note=(
-        "Dựng từ hướng dẫn prompt chính thức của Google Cloud và tài liệu Vertex AI. Hệ thống "
-        "này chưa tự chạy thử Veo."
-    ),
     compiler_mode="veo",
     dialect=VEO_DIALECT,
     parameters=VEO_PARAMETERS,
