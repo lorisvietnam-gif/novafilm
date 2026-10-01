@@ -90,6 +90,35 @@
   font-size: 0.8125rem;
 }
 
+/* Bảng nổi canvas rộng 400px: chỉ giữ dòng ngắn, không hiện nút đóng. */
+.pf-beta-notice.is-compact {
+  align-items: flex-start;
+  gap: 0.45rem;
+  margin: 0.55rem 0 0;
+  padding: 0.45rem 0.55rem;
+  border-radius: 10px;
+}
+
+.pf-beta-notice.is-compact .pf-beta-notice-icon {
+  margin-top: 0.1rem;
+}
+
+.pf-beta-notice.is-compact .pf-beta-notice-icon svg {
+  width: 13px;
+  height: 13px;
+}
+
+.pf-beta-notice.is-compact .pf-beta-notice-title {
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.pf-beta-notice.is-compact .pf-beta-notice-body {
+  margin-top: 0.2rem;
+  font-size: 0.6875rem;
+  line-height: 1.45;
+}
+
 .pf-beta-badge {
   display: inline-flex;
   align-items: center;

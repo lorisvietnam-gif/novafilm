@@ -40,13 +40,17 @@ function writeDismissed(placement: string, dismissed: boolean): void {
 type BetaNoticeProps = {
   /** Tên nơi đặt; cũng là khoá ghi nhớ trạng thái đã đóng. */
   placement: string
-  /** `banner` dùng ở trang chủ, `inline` dùng sát nút bấm. */
-  variant?: 'banner' | 'inline'
+  /** `banner` ở trang chủ, `inline` sát nút, `compact` cho bảng nổi hẹp. */
+  variant?: 'banner' | 'inline' | 'compact'
   className?: string
 }
 
 /**
  * Dòng cảnh báo trước khi bấm. Trả `null` khi người dùng đã đóng ở nơi này.
+ *
+ * `compact` không cho đóng: nó nằm trong bảng nổi 400px trên canvas, bảng này mở
+ * lại mỗi lần chọn node nên coi như chưa từng đóng được. Giữ nó lại là điều kiện
+ * để người dùng luôn đọc được trước lần bấm.
  */
 export function BetaNotice({ placement, variant = 'banner', className }: BetaNoticeProps) {
   const { t } = useI18n()
@@ -60,9 +64,11 @@ export function BetaNotice({ placement, variant = 'banner', className }: BetaNot
 
   if (dismissed) return null
 
+  const isCompact = variant === 'compact'
+
   return (
     <aside
-      className={`pf-beta-notice${variant === 'inline' ? ' is-inline' : ''}${className ? ` ${className}` : ''}`}
+      className={`pf-beta-notice${variant === 'inline' ? ' is-inline' : ''}${isCompact ? ' is-compact' : ''}${className ? ` ${className}` : ''}`}
       role="note"
     >
       <span className="pf-beta-notice-icon" aria-hidden>
@@ -70,18 +76,20 @@ export function BetaNotice({ placement, variant = 'banner', className }: BetaNot
       </span>
       <div className="pf-beta-notice-text">
         <strong className="pf-beta-notice-title">{t('betaNotice.title')}</strong>
-        <p className="pf-beta-notice-body">{t('betaNotice.body')}</p>
-        <p className="pf-beta-notice-model">{t('betaNotice.modelNote')}</p>
+        <p className="pf-beta-notice-body">{t(isCompact ? 'betaNotice.inlineBody' : 'betaNotice.body')}</p>
+        {!isCompact ? <p className="pf-beta-notice-model">{t('betaNotice.modelNote')}</p> : null}
       </div>
-      <button
-        type="button"
-        className="pf-beta-notice-dismiss"
-        onClick={dismiss}
-        title={t('betaNotice.dismiss')}
-      >
-        <X size={16} strokeWidth={2} aria-hidden />
-        <span className="pf-beta-notice-dismiss-text">{t('betaNotice.dismiss')}</span>
-      </button>
+      {isCompact ? null : (
+        <button
+          type="button"
+          className="pf-beta-notice-dismiss"
+          onClick={dismiss}
+          title={t('betaNotice.dismiss')}
+        >
+          <X size={16} strokeWidth={2} aria-hidden />
+          <span className="pf-beta-notice-dismiss-text">{t('betaNotice.dismiss')}</span>
+        </button>
+      )}
     </aside>
   )
 }
