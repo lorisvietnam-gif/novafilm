@@ -129,7 +129,34 @@ báo origin của frontend.
 5. **`PUBLIC_BASE_URL` của backend** — dùng cho link email và URL media.
 
 ### Chưa được quyết, để dành
-- ~~Media/Egress.~~ **ĐÃ QUYẾT 2026-10-01, xem mục 9.**
+- ~~Media/Egress.~~ **ĐÃ QUYẾT 2026-10-01 — xem mục 9.**
+
+## 10. NỢ KỸ THUẬT ĐANG MỞ (rà lại ở mỗi đợt)
+
+- **Audit chưa từng chạy sạch hai lần liên tiếp.** Tiêu chuẩn board là hai lần cho kết quả
+  giống hệt. Lượt gần nhất chỉ có **một** lần sạch. Trước khi tin một con số, **chạy hai lần**.
+- **`/__drama/projects/{id}/episodes` còn tiếng Trung** — đây là **nội dung kịch bản trong
+  database**, không phải giao diện. Sẽ dọn khi khởi tạo database thật, không tính là nợ UI.
+- **Cấu hình model có hai nguồn gây xung đột.** `.env` trỏ Gemini, nhưng cấu hình trong database
+  trỏ TokenFree và **ghi đè ngay cả sau khi PATCH thành công**. Chặn việc sinh kịch bản qua API.
+  Đang điều tra.
+- **`billing_llm_per_m = 5.0` là giả định chưa đo.** Khoá Gemini hiện **miễn phí**. Phải sửa
+  trước khi bắt đầu thu credit, nếu không con số tính tiền sẽ sai.
+- **Chưa build Docker image lần nào** — máy không cài Docker. Lên VPS phải dành thời gian.
+- **Chưa kiểm OAuth với provider thật** — cần `client_id`/`secret` thật và URL https công khai.
+  Cả bốn provider đều từ chối `localhost`.
+- **`passlib` + `bcrypt` xung đột phiên bản** — cảnh báo bị nuốt mỗi lần đăng nhập. Chưa giao ai.
+- **`api/drama.ts` từng có bản sao riêng của `API_BASE`** và làm hỏng 7 trang. Đã gộp về một
+  nguồn, nhưng đó là bài học: **hai bản sao của cùng một quyết định là nguồn sự cố.**
+
+## 11. BÁO CÁO CỦA LANE PHẢI NẰM TRÊN ĐĨA
+Tiến trình `kilo run` **không gửi được tin nhắn lên board** (bị từ chối với `Board messages
+cannot be sent to yourself`). Báo cáo chỉ tồn tại trong **tin nhắn cuối của tiến trình** — và
+tiến trình chết là mất sạch. Đã xảy ra: một lượt giao chẩn đoán kết thúc với **0 commit, 0
+file**, mất toàn bộ kết quả phân tích.
+
+Luật: **việc quan trọng phải ghi ra file và `git commit` TRƯỚC khi báo cáo xong.** Tin nhắn cuối
+chỉ nên chứa đường dẫn file và commit hash, không chứa nội dung.
 
 ## 9. KIẾN TRÚC LƯU TRỮ MEDIA — "chỉ lưu tri thức" (chủ sản phẩm chốt 2026-10-01)
 
