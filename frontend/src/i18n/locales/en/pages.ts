@@ -579,6 +579,8 @@ export const enPages = {
       empty_scene_fallback: 'The scene was empty, so a placeholder visual line was inserted.',
       subject_missing: 'No subject or action yet, so the result is only a skeleton.',
       ratio_omitted_for_first_frame: 'This shot uses pure first-frame mode, where ratio must not be sent, so it was left blank.',
+      seedance_body_not_chinese: 'The scene description contains Latin letters. Seedance is verified with Simplified Chinese, and nothing was translated here — please check it yourself.',
+      seedance_speech_not_chinese: 'The narration or dialogue contains Latin letters. Seedance is verified voicing Simplified Chinese, and nothing was translated here — please check it yourself.',
       reference_images_over_cap: 'More reference images than this channel’s cap of 9. Trim them yourself before sending.',
       kling_needs_image_endpoint: 'Kling text-to-video takes no reference images; use image-to-video or the Omni contents[] instead.',
       kling_first_frame_duration: 'With only a first frame, Kling can only produce 5 or 10 seconds.',

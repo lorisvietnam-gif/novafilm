@@ -582,6 +582,8 @@ export const viPages = {
       empty_scene_fallback: 'Cảnh đang trống, đã chèn một câu mô tả hình ảnh tạm để có nội dung dùng được.',
       subject_missing: 'Chưa có chủ thể hay hành động, kết quả mới chỉ là khung.',
       ratio_omitted_for_first_frame: 'Cảnh này dùng chế độ thuần first-frame, mà chế độ đó không được gửi ratio, nên đã để trống.',
+      seedance_body_not_chinese: 'Phần mô tả hình ảnh có chữ Latin. Seedance đã được kiểm chứng với tiếng Trung giản thảo, và ở đây không có gì được dịch — bạn kiểm tra lại nhé.',
+      seedance_speech_not_chinese: 'Lời dẫn hoặc đối thoại có chữ Latin. Seedance đã được kiểm chứng khi đọc tiếng Trung giản thảo, và ở đây không có gì được dịch — bạn kiểm tra lại nhé.',
       reference_images_over_cap: 'Số ảnh tham chiếu vượt trần 9 ảnh của kênh này. Hãy tự bớt xuống trước khi gửi.',
       kling_needs_image_endpoint: 'Kling text-to-video không nhận ảnh tham chiếu; hãy dùng image-to-video hoặc contents[] của Omni.',
       kling_first_frame_duration: 'Chỉ có khung hình đầu thì Kling chỉ ra được video 5 hoặc 10 giây.',

@@ -576,6 +576,8 @@ export const zhPages = {
       empty_scene_fallback: '场景是空的，先放了一句保底的画面描述。',
       subject_missing: '还没填主体或动作，编译结果只是骨架。',
       ratio_omitted_for_first_frame: '这一镜走的是纯首帧模式，按规则不能同时发 ratio，已留空。',
+      seedance_body_not_chinese: '画面描述里出现了拉丁字母。Seedance 已验证的用法是简体中文，这一段没有翻译，请自己核对。',
+      seedance_speech_not_chinese: '旁白或对白里出现了拉丁字母。Seedance 已验证的用法是简体中文配音，这一段没有翻译，请自己核对。',
       reference_images_over_cap: '参考图超过该渠道的 9 张上限，请自己删到上限内。',
       kling_needs_image_endpoint: 'Kling 的 text-to-video 不收参考图，要用 image-to-video 或 Omni 的 contents[]。',
       kling_first_frame_duration: '只给首帧时 Kling 只能出 5 秒或 10 秒。',
