@@ -62,30 +62,37 @@ def _public_ref_urls(raw_urls: list[str] | None, label: str) -> list[str]:
     return out
 
 
+def ensure_reference_image_mode(ratio: str | None, *, has_reference: bool) -> None:
+    """chốt chặn 2：``first_frame`` 与参考图二选一，绝不同发。
+
+    有参考图却没有目标画幅时，ark 会退回纯首帧模式，此时再带参考图就成了混发，
+    所以这里直接报可读错误。画幅只有流水线算得出来，故与请求校验分开。
+    """
+    if not has_reference:
+        return
+    if resolve_seedance_i2v_image_role(ratio)[0] == "first_frame":
+        raise ReferenceImageError(
+            "首帧模式（first_frame）不能与参考图同时发送："
+            "请先设定画面比例以启用多图参考，或去掉参考图。"
+        )
+
+
 def resolve_project_reference_images(
     subject_ref_urls: list[str] | None,
     style_ref_urls: list[str] | None,
-    *,
-    ratio: str | None = None,
 ) -> list[str]:
     """校验请求里的参考图，返回可直接作为 Seedance ``extra_image_urls`` 的列表。
 
-    没有参考图时返回空列表，行为与接入前完全一致。
+    没有参考图时返回空列表，行为与接入前完全一致。规则与画幅无关，
+    所以 API 层可以在建任务前先跑一遍，把错误直接回给用户。
 
     Raises:
-        ReferenceImageError: 模式互斥、超 9 张、或超出本镜可用名额。
+        ReferenceImageError: 地址不可公网访问、超 9 张、或超出本镜可用名额。
     """
     subjects = _public_ref_urls(subject_ref_urls, "主体")
     styles = _public_ref_urls(style_ref_urls, "画风")
     if not subjects and not styles:
         return []
-
-    image_role, _target_ratio = resolve_seedance_i2v_image_role(ratio)
-    if image_role == "first_frame":
-        raise ReferenceImageError(
-            "首帧模式（first_frame）不能与参考图同时发送："
-            "请先设定画面比例以启用多图参考，或去掉参考图。"
-        )
 
     # 同一张图重复提交会被上游按张数计，先按 URL 去重再算张数
     unique = cap_url_list([*subjects, *styles])
