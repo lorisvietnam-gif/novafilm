@@ -528,22 +528,37 @@ async function main() {
  */
 async function assertOurBrowser() {
   const tag = PROFILE.replace(/'/g, "''")
+  // Phải trả lời "có" trước khi ta bắt đầu đo. Đây là kiểm tra lúc khởi động, nên phải chịu
+  // được máy bận: `Get-CimInstance` quét toàn bộ tiến trình, và khi nhiều lane cùng đẻ Edge
+  // thì nó trên 8s là chuyện thường. Đo được: lần này hết giờ ở đúng `timeout: 8000` và cả
+  // lần chạy chết ở lô 3 với `Khong xac minh duoc Edge thuoc san audit (spawnSync powershell
+  // ETIMEDOUT)` — tức là máy chậm, không phải cổng bị chiếm.
+  //
+  // Nên: thử lại, và chỉ **kết luận sai** khi thấy thật. Đo được 0 tiến trình dùng profile là
+  // kết luận đúng; không đo được thì chưa phải.
+  const deadline = Date.now() + PAGE_READY_TIMEOUT_MS
   let owners = 0
-  try {
-    const out = execFileSync(
-      'powershell',
-      ['-NoProfile', '-Command',
-        `Get-CimInstance Win32_Process -Filter "Name='msedge.exe'" `
-        + `| Where-Object { $_.CommandLine -like '*${tag}*' } `
-        + `| Measure-Object | Select-Object -ExpandProperty Count`],
-      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 8000 },
-    )
-    owners = Number(out.trim()) || 0
-  } catch (e) {
-    throw new Error(
-      `Khong xac minh duoc Edge thuoc san audit (${e.message}). `
-        + `Thay vi do tren trinh duyet la, audit dung lai.`,
-    )
+  for (;;) {
+    try {
+      const out = execFileSync(
+        'powershell',
+        ['-NoProfile', '-Command',
+          `Get-CimInstance Win32_Process -Filter "Name='msedge.exe'" `
+          + `| Where-Object { $_.CommandLine -like '*${tag}*' } `
+          + `| Measure-Object | Select-Object -ExpandProperty Count`],
+        { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 30_000 },
+      )
+      owners = Number(out.trim()) || 0
+      break
+    } catch (e) {
+      if (Date.now() > deadline) {
+        throw new Error(
+          `Khong xac minh duoc Edge thuoc san audit sau ${PAGE_READY_TIMEOUT_MS / 1000}s `
+            + `(${e.message}). Thay vi do tren trinh duyet la, audit dung lai.`,
+        )
+      }
+      await sleep(500) // máy đang bận — thử lại
+    }
   }
   if (owners === 0) {
     throw new Error(
