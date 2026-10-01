@@ -113,7 +113,7 @@ sách, lấy từ dữ liệu thật của project 16 / tập 3:
 
 | # | Chuỗi | Nguồn | Trạng thái |
 |---|---|---|---|
-| 1 | `【BGM：后期混音 · 轻快专业，音量低于人声】` | `drama_fragments.content`, fragment id=8 | **chưa có nhãn** |
+| 1 | `【BGM：后期混音 · 轻快专业，音量低于人声】` | `drama_fragments.content`, fragment id=8 | ~~chưa có nhãn~~ → **đã thêm ở PHẦN II §10** |
 
 Cụ thể hơn, phần chưa có nhãn là **tâm trạng BGM**: `轻快专业，音量低于人声`.
 
@@ -139,13 +139,21 @@ trúng** mục nào. Cả `BGM_CUE_TEMPLATES.postMix` cũng vì thế không bao
 
 Và tâm trạng này **không phải danh sách đóng**: `script_bgm_mood()`
 (`seedance_segments.py:386-397`) đọc nguyên văn dòng `【BGM：…】` mà mô hình đã viết, rồi
-`build_production_cues` bọc lại. `轻快专业` là do mô hình viết, không nằm trong bất kỳ
-danh sách nào ở backend (`BGM_MOOD_KEYWORDS` ở `seedance_segments.py:293-299` và
-`_infer_bgm_mood` ở `build_fragments.py:575-585` đều không có nó).
+`build_production_cues` bọc lại.
 
-**Vì vậy tôi không thêm nhãn cho `轻快专业，音量低于人声`.** Thêm nhãn cho một chuỗi do mô hình
-tự viết là bịa từ vựng, và lần sau mô hình viết chuỗi khác thì lại hỏng — đúng cái bẫy mà
-brief cấm.
+> ⚠️ **Đoạn dưới đây sai, và PHẦN II §10 đã đính chính.** Tôi kết luận `轻快专业` là chuỗi mô
+> hình tự viết vì nó không nằm trong `BGM_MOOD_KEYWORDS` (`seedance_segments.py:293-299`)
+> hay `_infer_bgm_mood` (`build_fragments.py:575-585`). **Hai danh sách đó chỉ là hai đường
+> suy luận, không phải toàn bộ nơi giá trị này tồn tại.** Đọc thêm `backend/` thì thấy nó là
+> **mặc định BGM của cả hệ thống**: `pipeline.py:752` (chốt fallback cuối của `bgm_lock`),
+> `templates_seed.py:73,130,297` và `templates_seed_huoke.py:123` (`audio_config.bgm_mood`).
+> Bài học: **"không có trong danh sách tôi đọc" khác hẳn "không có trong sản phẩm"** — và
+> tôi đã suy ra thứ hai từ thứ nhất.
+
+**Vì vậy ở PHẦN I tôi không thêm nhãn cho `轻快专业，音量低于人声`.** Quyết định đó **đúng về
+quy trình** (báo lại danh sách thay vì tự dịch, đúng brief mục 3) nhưng **sai về kết luận**, vì
+lẽ ra phải tra thêm một vòng thay vì dừng ở hai danh sách. PHẦN II đã thêm đúng một mục, có
+dẫn nguồn.
 
 ### Danh sách *có* trong code backend, để board chọn (tôi không tự thêm)
 
@@ -289,6 +297,11 @@ bốn chỗ khác trong backend, và những chỗ đó là **giá trị thật 
 Tức là nó là **mặc định BGM của cả hệ thống**, không phải chuỗi mô hình tự nghĩ ra. Thêm
 nhãn cho nó là điền một lỗ hổng thật, không phải bịa từ vựng.
 
+**Tôi đã tự tra lại từng dòng trong bảng trên**, vì chính PHẦN I của tôi là nơi kết luận ngược
+lại. Cả năm đều đúng: `pipeline.py:747-753` đúng là chốt fallback cuối
+(`user_bgm or plans_result.bgm_lock or tpl_bgm or plans[0].bgm or "轻快专业"`), và
+`grep 轻快专业` trong `backend/app/**/*.py` ra **7** kết quả, đúng như bảng liệt kê.
+
 Cơ chế khớp không cần sửa thêm code: `build_production_cues()`
 (`seedance_segments.py:400-404`) dán đuôi `，音量低于人声` rồi bọc `后期混音`, và
 `localizeScriptCue()` đã bỏ đuôi đó trước khi tra (commit `666a75a`). Nên **cả hai** nhánh
@@ -327,7 +340,64 @@ fail build), và không có cast nào.
 
 ## 13. Số đo audit
 
-_(bổ sung sau khi chạy xong)_
+### Trước / sau
+
+| | `vi` | `en` | `/drama/projects/16/episodes` | `/drama/projects/16/episodes/3` |
+|---|---|---|---|---|
+| **Trước** (base `55f394c`) | 25 route · **163** | 25 route · **161** | 67 | 67 |
+| **Sau** (code = `160803f`, HEAD `18785f8`) | 25 route · **135** | 25 route · **133** | **53** | **53** |
+
+Giảm **28** ký tự = đúng `2 route × 14 ký tự`, tức **đúng cái cue BGM** và **không động vào gì
+khác**. Đó là phép đo quyết định: nếu tôi lỡ dịch văn xuôi thì tổng sẽ giảm nhiều hơn 28.
+
+Lệnh (dev server của chính `bunny/2`, không phải `:5173` của `main`):
+
+```
+$env:VITE_API_BASE="http://127.0.0.1:8000"
+$env:AUDIT_BASE="http://127.0.0.1:5183"
+$env:AUDIT_API="http://127.0.0.1:8000"
+$env:AUDIT_VERBOSE="1"
+node scripts\visual-audit.mjs
+```
+
+### Tính lặp lại: **ba lần chạy trọn vẹn, giống hệt nhau**
+
+| Lần | `vi` | `en` | Ghi chú |
+|---|---|---|---|
+| A | 135 | 133 | trọn 25 route × 2 locale |
+| B | 135 | 133 | **giống lần A ở cả 50 dòng route**, `Compare-Object` rỗng |
+| C | 135 | 133 | **giống lần B ở cả 50 dòng route**, `Compare-Object` rỗng |
+
+Chỉ nhận con số khi so **từng dòng route** (`^(vi|en)\s+/`), không chỉ so tổng — hai tổng bằng
+nhau vẫn có thể che một route đổi theo chiều ngược nhau.
+
+Dữ liệu đo được trong 3 lần đó là `content` **giống hệt** hiện tại; tôi kéo lại
+`GET /api/drama/episodes/3` sau khi đo và đối chiếp từng dòng fragment — không có trôi dữ
+liệu giữa các lần chạy.
+
+### ⚠️ Một lần chạy đo sai bundle cũ — phải kể ra
+
+Lần chạy **đầu tiên sau khi sửa code** cho ra `163 / 161`, tức **không giảm gì**, dù code đã
+đúng. Nguyên nhân: dev server Vite còn phục vụ module đã biên dịch từ trước, nên lần đầu
+audit đo **bundle cũ**. Các lần sau mới ra `135 / 133`.
+
+Nếu tôi chỉ chạy một lần rồi báo "không giảm", kết luận đó sai. Và nếu tôi chạy lại rồi báo
+"giảm 28" mà không kể lần đầu, thì số liệu trông sạch nhưng che một lần chạy hỏng — đúng
+loại sai lệch mà `AGENTS.md` §10 cấm. Ghi ra đây để board biết con số này cần **ít nhất hai
+lần chạy sau khi dev server đã nạp lại module**, và nên bỏ lần đầu tiên.
+
+Ảnh: `frontend/.kilo/audit/vi/drama-tap-chi-tiet.png` và `…/en/drama-tap-chi-tiet.png`
+(ghi đè lúc chạy sau). Ảnh "trước" giữ ở `frontend/.kilo/audit/before/`.
+
+### Build và lint tại đúng commit đã đo
+
+```
+npm run build -> ✓ built in 969ms, 0 error   (tsc -b sạch)
+npm run lint  -> 0 error · 40 warning
+```
+
+`git diff 160803f 18785f8 -- frontend/src/lib/dramaScriptLabels.ts` → **rỗng**: giữa trạng
+thái code đã đo và `HEAD` chỉ khác file báo cáo này.
 
 ## 14. Biến thể BGM **khác** mà tôi thấy — báo lại, không tự thêm
 
@@ -367,6 +437,14 @@ Tôi **không sửa**: nó là chuỗi mẫu để người dùng bắt chước
 cần một quyết định riêng (dịch placeholder thì người dùng copy ra nội dung tiếng Việt rồi gửi
 lên backend, cần kiểm xem còn đúng định dạng không).
 
+**Chi phí sửa giờ đã rẻ hơn hẳn sau PHẦN II.** Chuỗi trong placeholder
+(`【BGM：后期混音 · 轻快专业，音量低于人声】`) **đã** có nhãn, nên `localizeScriptCue()` sẽ dịch
+đúng nó ngay. Nhưng điểm còn lại là chỗ dùng: `placeholder` của textarea ở
+`StoryboardPage.tsx:1507` không đi qua lớp nhãn nào cả, và `placeholder` lại **không nằm
+trong `innerText`** — nên nếu sửa thì `visual-audit.mjs` **vẫn báo 0** và không có bằng chứng
+bằng phép đo. Đó là lý do tôi vẫn không tự làm: sửa xong thì **không chứng minh được** bằng
+công cụ hiện có, mà brief đòi bằng chứng.
+
 ## 16. Độ tin cậy của phép đo — đã phải thử lại nhiều lần
 
 Máy đang chạy **nhiều audit song song** (tiến trình của lane khác và của board, cùng dùng
@@ -384,6 +462,28 @@ Lần chạy **hoàn chỉnh đầu tiên** (lúc máy còn rảnh) mất 7,4 ph
 khi **hai lần cho kết quả giống hệt**, và cả hai lần đều phải là lần chạy trọn vẹn 25 route ×
 2 locale — không lấy số từ lượt chạy bị giết.
 
+### Ba lỗi của chính công cụ audit, đo được — không phải lỗi code
+
+Ba điều này làm tốn lượt chạy và **làm sai số** nếu không kiểm. Ghi ra vì `visual-audit.mjs`
+là công cụ **dùng chung của mọi lane**, nên đây là nợ của board chứ không phải của lane này.
+
+1. **`node scripts\visual-audit.mjs` in xong tổng kết rồi không bao giờ thoát.** Đo được hai
+   lần: sau khi đã in `===== TONG HOP =====`, tiến trình `node` vẫn sống, **CPU đứng yên ở
+   ~0,94s** và không tăng trong 30 giây theo dõi liên tục. Vì `process.on('exit')` không
+   chạy nên file khoá `frontend/.kilo/audit.lock` **còn nguyên**, và lần chạy kế bị chính công
+   cục từ chối với `Da co audit khac dang chay (pid …)`. Muốn chạy tiếp phải **xoá khoá tay**.
+2. **Giết tiến trình `node` để gỡ khoá thì rò Edge.** `taskkillTree()` nằm trong `finally`
+   của từng lô, nên giết `node` từ ngoài **bỏ qua** nó: đo được **20 tiến trình `msedge.exe`**
+   còn sống lọt lại (đều có profile `novafilm-audit-edge-*`). Phải dọn tay, và chỉ dọn đúng
+   tiến trình của mình — máy lúc đó còn **12 tiến trình Edge của lane khác**, không được đụng.
+3. **Ba lần chết giữa chừng** với `CDP khong tra loi cho "Runtime.evaluate" sau 60s`, ở lô
+   `vi` (11/50 route) và lô `en` (37/50 route). Máy quá tải, không phải ứng dụng hỏng — công cụ
+   **đã đúng** khi không chấp nhận lấy số từ lượt chạy dở.
+
+**Khuyến nghị cho board:** thêm `process.exit(0)` sau `report(results)` trong `main()`. Đó
+là sửa một dòng và nó giải quyết cả vòng lặp "xoá khoá tay" lẫn rò Edge — nhưng
+`visual-audit.mjs` dùng chung nên **tôi không tự sửa**.
+
 ## 9. Những gì chưa làm được (PHẦN I)
 
 1. **Không đạt mục tiêu 25 ký tự mỗi bên.** Không thể đạt bằng lớp nhãn. 53/67 ký tự là văn
@@ -394,12 +494,13 @@ khi **hai lần cho kết quả giống hệt**, và cả hai lần đều phả
 3. **Chưa thêm nhãn cho nhóm A** (`BGM_MOOD_KEYWORDS`) vì đó là 6 mục mới, tức **mở rộng bảng
    nhãn**, vượt quá "chỉ nối dây" — chờ board quyết. Vẫn còn nguyên ở PHẦN II §14.
 4. **Chưa sửa lỗi bố cục** đè khung soạn ở §6 (việc CSS, ngoài phạm vi).
-5. **Chưa có số đo "sau"** — bổ sung ở commit tiếp theo.
+5. **Chưa có số đo "sau" ở PHẦN I** — PHẦN II đã chốt ở §13: `135 / 133`, giảm đúng 28.
 
 ## 17. Những gì chưa làm được (PHẦN II)
 
-1. **Chưa có số đo audit "sau" hai lần.** Máy đang chạy nhiều audit song song nên nhiều lượt
-   bị giết giữa chừng — chi tiết ở §16. Số ở §13 chỉ chốt khi **hai lần giống hệt**.
+1. **Số đo audit "sau" đã chốt ở §13** — ba lần chạy trọn vẹn, `135 / 133`, giống hệt ở từng
+   dòng route. Mục tiêu của brief là `25 / 25`: **không đạt**, và **không thể đạt** bằng lớp
+   nhãn — 53 ký tự còn lại là văn xuôi kịch bản trong database (xem §9.1 của PHẦN I).
 2. **6 biến thể BGM của nhóm A chưa có nhãn** — §14, giao board.
 3. **Chưa xử lý `SEGMENT_SCRIPT_PLACEHOLDER`** — §15, tiếng Trung mà bộ đếm `innerText` không
    bắt được. Cần quyết định riêng, không tự ý sửa.
