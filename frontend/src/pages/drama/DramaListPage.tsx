@@ -8,6 +8,7 @@ import {
   PenLine,
   Search,
   Sparkles,
+  Terminal,
   Trash2,
 } from 'lucide-react'
 import BillingErrorNotice from '../../components/billing/BillingErrorNotice'
@@ -31,6 +32,7 @@ import { useI18n } from '../../i18n'
 import { DramaEpisodeCountPopover } from './DramaEpisodeCountPopover'
 import { DramaImageStyleModal } from './DramaImageStyleModal'
 import { DramaProjectCardMenu } from './DramaProjectCardMenu'
+import { PromptCompilerDialog } from './PromptCompilerDialog'
 import './drama.css'
 
 const CREATIVE_MIN_LENGTH = 20
@@ -113,6 +115,7 @@ function DramaListInner() {
   const [filter, setFilter] = useState<ProjectFilter>('all')
   const [query, setQuery] = useState('')
   const [showCreate, setShowCreate] = useState(false)
+  const [showCompiler, setShowCompiler] = useState(false)
 
   // Tải danh sách dự án
   async function loadProjects() {
@@ -314,6 +317,10 @@ function DramaListInner() {
           <div className="pf-drama-list-title-row">
             <h1>{t('dramaList.title')}</h1>
             <div className="pf-drama-list-actions">
+              <Button variant="ghost" size="sm" onClick={() => setShowCompiler(true)}>
+                <Terminal size={15} strokeWidth={1.75} aria-hidden />
+                {t('promptCompiler.open')}
+              </Button>
               <Button variant="ghost" size="sm" to="/drama/assets">
                 <Library size={15} strokeWidth={1.75} aria-hidden />
                 {t('dramaList.assets')}
@@ -573,6 +580,7 @@ function DramaListInner() {
           </div>
         ) : null}
       </div>
+      <PromptCompilerDialog open={showCompiler} onClose={() => setShowCompiler(false)} />
     </AppShell>
   )
 }

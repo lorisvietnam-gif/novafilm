@@ -611,6 +611,52 @@
   transition: background-color var(--studio-dur) var(--studio-ease);
 }
 
+/* ==========================================================================
+   Bàn dựng: cột trái và cột tiến độ
+   Lỗi thị giác: hai cột bị kẹp còn 220px, nên nhãn ngắt dòng ("Tên dự / án",
+   "Phong / cách") và các nút bị tràn ra ngoài thẻ. Nới ra 256px — cùng ngôn ngữ
+   bố cục với cột phải 260px của trang phong cách — và cho nhãn quyền giữ nguyên
+   một dòng, để **giá trị** xuống dòng thay vì nhãn.
+   ========================================================================== */
+
+/* Chỉ nới cột ở bề rộng máy tính. Ở dưới 1100px, `styles/printfilm.css` đã gộp
+   `.pf-board` về một cột; không đặt ngoài media query thì `.pf-board.studio-scoped`
+   (độ ưu tiên cao hơn) sẽ thắng và ép ba cột 256px lên điện thoại. */
+@media (min-width: 1101px) {
+  .pf-board.studio-scoped {
+    grid-template-columns: minmax(0, 256px) minmax(0, 1fr) minmax(0, 256px);
+  }
+}
+
+/* Nhãn không bao giờ bị cắt giữa chữ; giá trị thì xuống dòng và canh phải. */
+.pf-board.studio-scoped .pf-meta-list li {
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.pf-board.studio-scoped .pf-meta-list span:first-child {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.pf-board.studio-scoped .pf-meta-list span:last-child {
+  min-width: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+/* `.pf-side-actions` là lưới hai cột; ở cột hẹp thì nhãn nút dài hơn ô và bị tràn ra
+   ngoài thẻ. Xếp dọc một cột: không còn tràn, và cả ba nút đều dễ bấm trên điện thoại. */
+.pf-board.studio-scoped > .pf-create-col .pf-side-actions {
+  grid-template-columns: 1fr;
+}
+
+/* Khối prompt: cho ba dòng thay vì hai, và bỏ chặt cứng ở mép dưới nên phần bị cắt
+   trông như lỗi hiển thị. Giá trị đầy đủ vẫn mở được trong hộp sửa. */
+.pf-board.studio-scoped .pf-prompt-chip span {
+  -webkit-line-clamp: 3;
+}
+
 /* ---------- Reduced motion --------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {

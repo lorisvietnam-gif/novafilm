@@ -323,10 +323,13 @@ export function kepuPhaseHint(project: {
   }
   const phase = kepuBillingPhase(project)
   if (phase === 'script') {
+    // Câu này hiện ngay dưới thanh điều hướng, là câu đầu tiên người dùng đọc ở
+    // bước này — nên nó phải nói **làm gì trước**, không phải giải thích luồng.
+    // Bản cũ dùng từ chuyên ngành ("tạm trừ phí") và câu bị dài, đọc như văn bản dịch máy.
     return localized({
-      zh: '先在风格页点「生成故事板」，本步只拆分镜脚本（预扣文字模型）。',
-      en: 'Generate the storyboard on the style page first; this step only splits the script (text model pre-charged).',
-      vi: 'Trước hết bấm «Tạo storyboard» ở trang phong cách; bước này chỉ tách kịch bản thành cảnh (tạm trừ phí mô hình văn bản).',
+      zh: '先到风格页点「生成故事板」把剧本拆成镜头。这一步只产生文字模型的费用，还不会出图或出视频。',
+      en: 'Open the style page and press "Generate storyboard" to split the script into shots. This step only costs the text model — no images or clips yet.',
+      vi: 'Sang trang phong cách và bấm «Tạo storyboard» để tách kịch bản thành cảnh. Bước này mới tính phí mô hình văn bản, chưa tạo ảnh hay video.',
     })
   }
   if (phase === 'assets') {

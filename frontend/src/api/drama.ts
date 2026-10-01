@@ -68,6 +68,78 @@ function authHeaders(): HeadersInit {
     : { 'Content-Type': 'application/json' }
 }
 
+/** Mức bằng chứng của một mục trong hồ sơ model. Không có mức thứ tư. */
+export type PromptEvidenceLevel = 'verified' | 'assumed' | 'unknown'
+
+export type PromptProfileFact = {
+  key: string
+  level: PromptEvidenceLevel
+  value: string
+  sources: string[]
+  note: string
+}
+
+export type PromptProfileFailure = {
+  key: string
+  level: PromptEvidenceLevel
+  summary: string
+  source: string
+}
+
+export type PromptModelProfile = {
+  id: string
+  label: string
+  family: string
+  readiness: 'evidence-based' | 'docs-based' | 'skeleton'
+  compiler_mode: string
+  evidence_counts: Record<PromptEvidenceLevel, number>
+  dialect: PromptProfileFact[]
+  parameters: PromptProfileFact[]
+  references: PromptProfileFact[]
+  failures: PromptProfileFailure[]
+  hints: {
+    aspect_ratios: string[]
+    resolutions: string[]
+    duration_values: number[]
+    duration_min: number
+    duration_max: number
+  }
+}
+
+export type PromptCompileBody = {
+  model: string
+  scene: {
+    subject?: string
+    action?: string
+    setting?: string
+    shot_size?: string
+    camera?: string
+    light?: string
+    style?: string
+    narration?: string
+    dialogue?: { speaker: string; text: string }[]
+    references?: { label: string; url: string; kind: string }[]
+    continuity_frame_url?: string
+    burn_subtitles?: boolean
+    avoid?: string[]
+  }
+  aspect_ratio?: string
+  duration_sec?: number
+  resolution?: string
+}
+
+export type PromptCompileResult = {
+  model: string
+  label: string
+  readiness: PromptModelProfile['readiness']
+  compiler_mode: string
+  prompt: string
+  parameters: Record<string, unknown>
+  warnings: { code: string; detail: string }[]
+  evidence_counts: Record<PromptEvidenceLevel, number>
+  used_facts: PromptProfileFact[]
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -568,4 +640,12 @@ export const dramaApi = {
     ),
   saveCanvas: (body: { project_id: number; nodes: unknown[]; edges: unknown[] }) =>
     request<{ ok: boolean }>('/api/drama/canvas', { method: 'POST', body: JSON.stringify(body) }),
+
+  listPromptProfiles: () =>
+    request<{ models: PromptModelProfile[] }>('/api/drama/prompt-compiler/profiles'),
+  compilePrompt: (body: PromptCompileBody) =>
+    request<PromptCompileResult>('/api/drama/prompt-compiler/compile', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 }

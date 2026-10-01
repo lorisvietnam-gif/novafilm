@@ -6,7 +6,7 @@ import AppShell from '../../components/layout/AppShell'
 import Stepper from '../../components/ui/Stepper'
 import ComingSoon from '../../components/ui/ComingSoon'
 import { IconChevronLeft, IconPlay } from '../../components/ui/Icons'
-import BillingErrorNotice from '../../components/billing/BillingErrorNotice'
+import ErrorNotice from '../../components/errors/ErrorNotice'
 import { useI18n } from '../../i18n'
 import { handleBillingError } from '../../lib/billingError'
 import { homeCategoryLabel } from '../../lib/categories'
@@ -238,7 +238,7 @@ export default function StyleConfigPage() {
       <AppShell active="studio">
         <div className="studio-scoped">
           {error ? (
-            <BillingErrorNotice message={error} />
+            <ErrorNotice error={error} onDismiss={() => setError('')} />
           ) : (
             <p className="pf-muted">{t('studio.shared.loading')}</p>
           )}
@@ -598,7 +598,7 @@ export default function StyleConfigPage() {
                 : t('studio.style.previewNamed', { name: voiceLabel(selectedVoice) })}
             </button>
           ) : null}
-          {error ? <BillingErrorNotice message={error} style={{ marginTop: '0.75rem' }} /> : null}
+          {error ? <ErrorNotice error={error} onDismiss={() => setError('')} style={{ marginTop: '0.75rem' }} /> : null}
           <button
             type="button"
             className="pf-btn pf-btn-lime pf-btn-block pf-btn-lg pf-btn-icon"

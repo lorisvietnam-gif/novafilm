@@ -233,3 +233,23 @@ export function IconSparkles(p: IconProps) {
     </Svg>
   )
 }
+
+/** Khung cảnh báo lỗi: tam giác + dấu chấm than, đi cùng `pf-error-notice`. */
+export function IconAlert(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M12 4.5 21 19.5H3L12 4.5z" />
+      <path d="M12 10v4" />
+      <circle cx="12" cy="16.8" r="0.9" fill="currentColor" stroke="none" />
+    </Svg>
+  )
+}
+
+/** Nút đóng của khung cảnh báo lỗi. */
+export function IconClose(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />
+    </Svg>
+  )
+}
