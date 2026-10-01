@@ -1,0 +1,194 @@
+/*
+ * Thông báo beta — CSS riêng của component, không đụng vào src/styles.
+ *
+ * Màu lấy từ nhóm token `--pf-warning-*` vốn khai ở cả ba khối theme (sáng / tối),
+ * nên thông báo đọc được ở cả hai chế độ mà không cần khai báo thêm ở đây.
+ *
+ * Tương phản (đo bằng script, xem ghi chú ở commit):
+ *   sáng  #8a5300 trên #fdf3e0 → 5.75:1   (AA cần 4.5:1 cho chữ thường)
+ *   tối   #ffb340 trên #2a2314 → 8.73:1
+ *
+ * Thông báo nằm trong dòng chảy, không `position: fixed`, nên không thể che mất
+ * nội dung nào ở màn hình hẹp.
+ */
+
+.pf-beta-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  margin: 0 0 var(--pf-space-4, 1rem);
+  padding: 0.85rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--pf-warning-stroke) 42%, var(--pf-warning-soft));
+  border-radius: var(--pf-radius-sm, 10px);
+  background: var(--pf-warning-soft);
+  color: var(--pf-warning-ink);
+}
+
+.pf-beta-notice-icon {
+  display: inline-flex;
+  flex: none;
+  margin-top: 0.15rem;
+}
+
+.pf-beta-notice-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.pf-beta-notice-title {
+  display: block;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  font-weight: 650;
+}
+
+.pf-beta-notice-body {
+  margin: 0.35rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.pf-beta-notice-model {
+  margin: 0.35rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  opacity: 0.92;
+}
+
+.pf-beta-notice-dismiss {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid color-mix(in srgb, var(--pf-warning-stroke) 42%, var(--pf-warning-soft));
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.pf-beta-notice-dismiss:hover {
+  background: color-mix(in srgb, var(--pf-warning-stroke) 14%, var(--pf-warning-soft));
+}
+
+/* Sát nút bấm: viền và nền nhẹ hơn để không tranh với hành động chính. */
+.pf-beta-notice.is-inline {
+  margin: 0 0 0.6rem;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.pf-beta-notice.is-inline .pf-beta-notice-title {
+  font-size: 0.875rem;
+}
+
+.pf-beta-notice.is-inline .pf-beta-notice-body,
+.pf-beta-notice.is-inline .pf-beta-notice-model {
+  font-size: 0.8125rem;
+}
+
+.pf-beta-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid color-mix(in srgb, var(--pf-warning-stroke) 42%, var(--pf-warning-soft));
+  border-radius: 999px;
+  background: var(--pf-warning-soft);
+  color: var(--pf-warning-ink);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Kết quả sau khi bấm: nói rõ đây là prompt, kèm nút sao chép. */
+.pf-beta-result {
+  display: block;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--pf-success) 40%, var(--pf-surface));
+  border-radius: var(--pf-radius-sm, 10px);
+  background: color-mix(in srgb, var(--pf-success) 8%, var(--pf-surface));
+}
+
+.pf-beta-result-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.pf-beta-result-head strong {
+  font-size: 0.9rem;
+}
+
+.pf-beta-result-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--pf-success) 46%, var(--pf-surface));
+  border-radius: 8px;
+  background: var(--pf-success);
+  color: var(--pf-surface);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pf-beta-result-copy:hover {
+  filter: brightness(1.06);
+}
+
+.pf-beta-result-note {
+  margin: 0.4rem 0 0;
+  color: var(--pf-ink-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.pf-beta-result-failed {
+  margin: 0.35rem 0 0;
+  color: var(--pf-danger);
+  font-size: 0.8125rem;
+}
+
+.pf-beta-result-prompt {
+  margin: 0.5rem 0 0;
+  padding: 0.6rem 0.7rem;
+  max-height: 13rem;
+  overflow: auto;
+  border-radius: 8px;
+  background: var(--pf-surface-sunken);
+  color: var(--pf-ink);
+  font-family: var(--pf-font-mono, ui-monospace, monospace);
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Điện thoại: xếp dọc, nút đóng chiếm trọn hàng để không bị bóp chữ. */
+@media (max-width: 560px) {
+  .pf-beta-notice {
+    flex-wrap: wrap;
+  }
+
+  .pf-beta-notice-text {
+    flex: 1 1 100%;
+    order: 2;
+  }
+
+  .pf-beta-notice-icon {
+    order: 1;
+  }
+
+  .pf-beta-notice-dismiss {
+    order: 3;
+    margin-left: auto;
+  }
+}
