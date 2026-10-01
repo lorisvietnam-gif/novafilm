@@ -27,7 +27,7 @@ const _viteApiBase = import.meta.env.VITE_API_BASE
  *
  * Sửa ở đây thay vì nhắc mọi người "đừng quên đặt biến": biến rỗng giờ hành xử đúng.
  */
-const API_BASE = String(_viteApiBase ?? '').trim() || defaultApiBase()
+export const API_BASE = String(_viteApiBase ?? '').trim() || defaultApiBase()
 
 function authHeaders(): HeadersInit {
   const token = localStorage.getItem('token')
