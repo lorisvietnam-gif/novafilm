@@ -219,6 +219,14 @@ class ProjectUpdate(BaseModel):
     cover_url: str | None = Field(default=None, max_length=1024)
 
 
+class ProjectGenerateIn(BaseModel):
+    """生成请求体。body 整体可选：老客户端只发 ``?restart=true`` 且不带 body 仍要能跑。"""
+
+    restart: bool = False
+    subject_ref_urls: list[str] = Field(default_factory=list, max_length=20)
+    style_ref_urls: list[str] = Field(default_factory=list, max_length=20)
+
+
 class ProjectOut(BaseModel):
     id: int
     template_id: str
