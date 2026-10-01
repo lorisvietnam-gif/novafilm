@@ -141,8 +141,10 @@ const CUE_LABELS: Record<string, LocalizedText> = {
 }
 
 /**
- * Mô tả tâm trạng nhạc nền mà `_infer_bgm_mood()` ở backend chọn từ một danh sách đóng.
- * Danh sách đó nằm trong code backend nên ở đây phải liệt kê trùng; thiếu mục thì cue BGM
+ * Tâm trạng nhạc nền. Sáu mục đầu là danh sách đóng mà `_infer_bgm_mood()` ở backend chọn;
+ * danh sách đó nằm trong code backend nên ở đây phải liệt kê trùng.
+ *
+ * Mục cuối (`轻快专业`) đến từ nguồn khác — xem ghi chú ngay dưới nó. Thiếu mục thì cue BGM
  * hiện nguyên tiếng Trung và được ghi trong báo cáo.
  */
 const BGM_MOOD_LABELS: Record<string, LocalizedText> = {
@@ -175,6 +177,23 @@ const BGM_MOOD_LABELS: Record<string, LocalizedText> = {
     zh: '贴合剧情氛围的轻量配乐，情绪随画面起伏',
     en: 'light score that follows the mood of the story, rising and falling with the picture',
     vi: 'nhạc nhẹ hợp không khí câu chuyện, lên xuống theo hình ảnh',
+  },
+
+  /**
+   * `轻快专业` **không** thuộc 6 mục trên — nó đến từ đường khác: giá trị `bgm_mood` mặc
+   * định của hệ thống, xuất hiện ở `pipeline.py:752` (chốt fallback cuối của `bgm_lock`),
+   * `templates_seed.py` / `templates_seed_huoke.py` (`audio_config.bgm_mood`) và fixture của
+   * `test_seedance_segments.py`. Tức là một mục từ vựng **thật của sản phẩm**, không phải
+   * chuỗi mô hình tự bịa — nên có nhãn.
+   *
+   * Khoá là **bản trần**: `build_production_cues()` dán thêm `，音量低于人声` và
+   * bọc `后期混音` ở ngoài, và `localizeScriptCue()` bỏ đuôi đó trước khi tra (xem
+   * `BGM_MOOD_TAIL`), nên hai nhánh `postMix` và `volume` đều khớp mục này.
+   */
+  '轻快专业': {
+    zh: '轻快专业',
+    en: 'brisk and professional',
+    vi: 'nhanh gọn và chuyên nghiệp',
   },
 }
 
