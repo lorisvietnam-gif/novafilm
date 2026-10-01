@@ -27,6 +27,10 @@ import { enqueueDramaVideoGen, resumeDramaVideoGensFromAssets } from '../../../l
 import type { ImageGenerationOptions } from '../../../lib/dramaGenerationOptions'
 import type { VideoGenerationOptions } from '../../../lib/dramaVideoGenerationOptions'
 import { readEditableVisualPrompt } from '../../../lib/dramaVisualPrompt'
+import {
+  collectCanvasReferenceImages,
+  requireWithinReferenceImageLimit,
+} from '../../../lib/referenceImages'
 import { getImageStyleId } from '../dramaWorkspaceUtils'
 import { isCanvasWorkflow } from '../../../lib/dramaWorkflow'
 import {
@@ -694,6 +698,12 @@ export function CanvasStoreProvider({ projectId, children }: CanvasStoreProvider
     async (nodeId: string, prompt: string, options?: Partial<VideoGenerationOptions>) => {
       const trimmed = prompt.trim()
       if (!trimmed) throw new Error('Vui lòng nhập prompt.')
+      /*
+       * Chặn trước khi gọi API: Canvas đang có quá 9 ảnh tham chiếu (nhân vật + bối cảnh).
+       * Cắt bớt âm thầm thì dễ cắt nhầm ảnh nhân vật, nên ném lỗi để người dùng tự xoá.
+       * Chặn ở đây, trước pushSnapshot, nên lần bấm bị chặn không đẩy thêm một bước vào lịch sử.
+       */
+      requireWithinReferenceImageLimit(collectCanvasReferenceImages(nodesRef.current))
       pushSnapshot()
       const node = nodesRef.current.find((n) => n.id === nodeId)
       if (!node) throw new Error('Nút không tồn tại.')
