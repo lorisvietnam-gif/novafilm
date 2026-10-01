@@ -48,11 +48,14 @@ import {
   readEpisodeResolution,
 } from '../../lib/dramaProjectOutputSettings'
 import { DramaFragmentClipSpec } from '../../components/drama/DramaFragmentClipSpec'
+import { DramaPromptBundleModal } from '../../components/drama/DramaPromptBundleModal'
 import { FragmentPlanSkillModal } from '../../components/drama/FragmentPlanSkillModal'
 import { DramaGenTaskDetail } from '../../components/drama/DramaGenTaskDetail'
-import { CircleAlert } from 'lucide-react'
+import { CircleAlert, ScrollText } from 'lucide-react'
+import { useI18n } from '../../i18n'
 import { useDramaImageGenQueue } from '../../hooks/useDramaImageGenQueue'
-import { useMediaModelsCatalog } from '../../hooks/useMediaModelsCatalog'
+import { catalogVideoModels, useMediaModelsCatalog } from '../../hooks/useMediaModelsCatalog'
+import { useAiRenderReadiness } from '../../lib/dramaAiReadiness'
 import { enqueueDramaImageGen } from '../../lib/dramaImageGenQueue'
 import { defaultOptionsForAssetKind } from '../../lib/dramaGenerationOptions'
 import { dramaAssetImageGenButtonLabel } from '../../lib/dramaAssetImage'
@@ -132,6 +135,7 @@ function EpisodeEditInner() {
   const pid = Number(projectId)
   const eid = Number(episodeId)
   const navigate = useNavigate()
+  const { t } = useI18n()
   /*
    * episode tập phim
    * fragments cảnh quay
@@ -166,6 +170,9 @@ function EpisodeEditInner() {
   const [episodeParams, setEpisodeParams] = useState<Record<string, unknown>>({})
   // planModalOpen hộp xác nhận lập lại storyboard bằng AI (kèm chọn Skill)
   const [planModalOpen, setPlanModalOpen] = useState(false)
+  // promptBundleOpen hộp xem và sao chép toàn bộ prompt phân cảnh (tính năng thật,
+  // không phải lối dự phòng: mở được bất cứ lúc nào, kể cả khi backend đã cấu hình xong)
+  const [promptBundleOpen, setPromptBundleOpen] = useState(false)
   const [previewVersionId, setPreviewVersionId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState('')
@@ -201,6 +208,14 @@ function EpisodeEditInner() {
     if (!ids.length) return
     setModelId((prev) => (ids.includes(prev) ? prev : mediaCatalog.defaults.video_model || ids[0]))
   }, [mediaCatalog])
+
+  /*
+   * Máy chủ có nhà cung cấp AI thật không? Chỉ đọc endpoint công khai `/api/health`;
+   * không đọc được thì trả `unknown` và mọi thứ giữ nguyên như cũ — không khoá tạo
+   * video theo một phép đo thất bại.
+   */
+  const aiReadiness = useAiRenderReadiness(mediaCatalog)
+  const videoModels = useMemo(() => catalogVideoModels(mediaCatalog), [mediaCatalog])
 
   const selected = fragments[selectedIndex] || null
   const selectedDuration = selected?.duration_sec ?? 8
@@ -895,7 +910,11 @@ function EpisodeEditInner() {
   }
 
   // Chỉ sinh cảnh đang chọn (lưu theo id, lúc sinh vẫn dùng id backend trả về sau khi lưu)
-  async function generateSelected() {
+  //
+  // `skipReadinessGate` chỉ dùng bởi nút «Vẫn thử tạo video» trong hộp thoại prompt:
+  // người dùng đã đọc cảnh báo và chủ động bấm, thì không chặn nữa — nhờ vậy đường tạo
+  // video không bao giờ bị khoá cứng bởi tính năng dàn prompt.
+  async function generateSelected(skipReadinessGate = false) {
     if (!selected) {
       setError('Hãy chọn một cảnh quay trước')
       return
@@ -912,6 +931,14 @@ function EpisodeEditInner() {
       } else {
         setError('Vui lòng đợi thao tác hiện tại hoàn tất rồi thử lại')
       }
+      return
+    }
+
+    // Máy chủ chưa có nhà cung cấp AI: bấm «Sinh» chỉ tạo ra một hàng đợi chết, nên ta
+    // mở hộp thoại prompt kèm một dòng nói thẳng chuyện gì đang chặn. Hộp thoại có nút
+    // «Vẫn thử tạo video» nên người dùng vẫn tới được đường tạo thật.
+    if (!skipReadinessGate && aiReadiness.state === 'unconfigured') {
+      setPromptBundleOpen(true)
       return
     }
 
@@ -1612,6 +1639,24 @@ function EpisodeEditInner() {
             </p>
           ) : null}
 
+          {/*
+           * Nút mở hộp thoại prompt nằm trên hàng nút Sửa/Sinh chứ không chen vào đó:
+           * hàng đó không xuống dòng, nên thêm nút thứ ba vào sẽ làm nhãn dài bị cắt
+           * trên màn hình hẹp. Hàng riêng cũng giữ class ở CSS của hộp thoại, không
+           * phải sửa `drama.css` (thuộc lane khác).
+           */}
+          <div className="drama-prompt-bundle-trigger">
+            <button
+              type="button"
+              className="drama-prompt-bundle-trigger__btn"
+              title={t('dramaPromptBundle.openAria')}
+              onClick={() => setPromptBundleOpen(true)}
+            >
+              <ScrollText size={15} strokeWidth={2} aria-hidden />
+              {t('dramaPromptBundle.open')}
+            </button>
+          </div>
+
           <div className="drama-ep-editor-actions">
             {editing ? (
               <>
@@ -1872,6 +1917,20 @@ function EpisodeEditInner() {
         message="Sẽ gọi mô hình lớn lập lại storyboard theo kịch bản của tập này (ghi đè và xoá các cảnh quay hiện có cùng video đã sinh), thường mất vài chục giây. Bạn có thể chọn Skill dùng cho lần này. Cách làm phụ đề sẽ theo cài đặt đang có ở thanh trên cùng."
         onCancel={() => setPlanModalOpen(false)}
         onConfirm={(skillIds) => void startPlanFragments(skillIds)}
+      />
+
+      <DramaPromptBundleModal
+        open={promptBundleOpen}
+        onClose={() => setPromptBundleOpen(false)}
+        fragments={fragments}
+        assets={assets}
+        episodeParams={episodeParams}
+        projectParams={projectParams}
+        episodeName={episode?.name || ''}
+        renderModelId={modelId}
+        videoModels={videoModels}
+        readiness={aiReadiness}
+        onStillRender={() => void generateSelected(true)}
       />
 
       {detailAsset && (detailAsset.type || '').toLowerCase() !== 'voice' ? (
