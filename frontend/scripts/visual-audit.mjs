@@ -262,6 +262,23 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const CDP_TIMEOUT_MS = Number(process.env.AUDIT_CDP_TIMEOUT_MS || 60_000)
 
 /**
+ * Bao lâu thì chấp nhận là trang **không** render xong, và các tham số của vòng chờ ổn định.
+ *
+ * Ba con số này cùng quyết định tính lặp lại của cả lần chạy:
+ * - `PAGE_READY_TIMEOUT_MS`: trang nào không ổn định trong thời gian này thì **báo lỗi**, không
+ *   đo. Một route không đo được phải nói ra; đo nó thành "0 ký tự Trung" là báo sạch giả.
+ * - `POLL_MS`: nhịp thăm dò `innerText`.
+ * - `QUIET_POLLS`: bao nhiêu nhịp liên tiếp nội dung phải đứng yên. Một nhịp là chưa đủ — lúc
+ *   SPA còn boot, trang đứng yên với khung rỗng nên hai lần đọc giống nhau dù dữ liệu chưa tới.
+ *
+ * Cửa sổ `QUIET_POLLS * POLL_MS` phải rộng hơn khoảng cách giữa lần render dữ liệu. Hẹp quá
+ * thì chính nó là nguyên nhân hai lần chạy cho hai con số khác nhau.
+ */
+const PAGE_READY_TIMEOUT_MS = Number(process.env.AUDIT_PAGE_TIMEOUT_MS || 45_000)
+const POLL_MS = Number(process.env.AUDIT_POLL_MS || 700)
+const QUIET_POLLS = 3
+
+/**
  * Đóng socket rồi đóng tab, **chỉ dùng ở cuối cùng** một lần chạy.
  *
  * Không được gọi ở giữa chừng. Đo được: đóng tab bằng `/json/close` khiến Edge **tự tắt** —
@@ -517,22 +534,37 @@ async function main() {
  */
 async function assertOurBrowser() {
   const tag = PROFILE.replace(/'/g, "''")
+  // Phải trả lời "có" trước khi ta bắt đầu đo. Đây là kiểm tra lúc khởi động, nên phải chịu
+  // được máy bận: `Get-CimInstance` quét toàn bộ tiến trình, và khi nhiều lane cùng đẻ Edge
+  // thì nó trên 8s là chuyện thường. Đo được: lần này hết giờ ở đúng `timeout: 8000` và cả
+  // lần chạy chết ở lô 3 với `Khong xac minh duoc Edge thuoc san audit (spawnSync powershell
+  // ETIMEDOUT)` — tức là máy chậm, không phải cổng bị chiếm.
+  //
+  // Nên: thử lại, và chỉ **kết luận sai** khi thấy thật. Đo được 0 tiến trình dùng profile là
+  // kết luận đúng; không đo được thì chưa phải.
+  const deadline = Date.now() + PAGE_READY_TIMEOUT_MS
   let owners = 0
-  try {
-    const out = execFileSync(
-      'powershell',
-      ['-NoProfile', '-Command',
-        `Get-CimInstance Win32_Process -Filter "Name='msedge.exe'" `
-        + `| Where-Object { $_.CommandLine -like '*${tag}*' } `
-        + `| Measure-Object | Select-Object -ExpandProperty Count`],
-      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 8000 },
-    )
-    owners = Number(out.trim()) || 0
-  } catch (e) {
-    throw new Error(
-      `Khong xac minh duoc Edge thuoc san audit (${e.message}). `
-        + `Thay vi do tren trinh duyet la, audit dung lai.`,
-    )
+  for (;;) {
+    try {
+      const out = execFileSync(
+        'powershell',
+        ['-NoProfile', '-Command',
+          `Get-CimInstance Win32_Process -Filter "Name='msedge.exe'" `
+          + `| Where-Object { $_.CommandLine -like '*${tag}*' } `
+          + `| Measure-Object | Select-Object -ExpandProperty Count`],
+        { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 30_000 },
+      )
+      owners = Number(out.trim()) || 0
+      break
+    } catch (e) {
+      if (Date.now() > deadline) {
+        throw new Error(
+          `Khong xac minh duoc Edge thuoc san audit sau ${PAGE_READY_TIMEOUT_MS / 1000}s `
+            + `(${e.message}). Thay vi do tren trinh duyet la, audit dung lai.`,
+        )
+      }
+      await sleep(500) // máy đang bận — thử lại
+    }
   }
   if (owners === 0) {
     throw new Error(
@@ -552,7 +584,9 @@ async function auditRoutes(ROUTES, token, locale) {
   for (let i = 0; i < 40; i++) {
     await sleep(500)
     try {
-      version = await (await fetch(`http://127.0.0.1:${PORT}/json/version`)).json()
+      version = await (await fetch(`http://127.0.0.1:${PORT}/json/version`, {
+        signal: AbortSignal.timeout(5000),
+      })).json()
       break
     } catch { /* chua len */ }
   }
@@ -569,9 +603,11 @@ async function auditRoutes(ROUTES, token, locale) {
   //
   // Tái sử dụng một tab là cách đúng: không có tab nào để đóng, không có tiến trình nào để
   // rò. Đo được số tiến trình giữ phẳng 13 → 9.
+  // `fetch` không có timeout mặc định, nên Edge treo ở `/json/new` sẽ giữ lượt chạy vô thời hạn.
   const tab = await (
     await fetch(`http://127.0.0.1:${PORT}/json/new?${encodeURIComponent(BASE + '/')}`, {
       method: 'PUT',
+      signal: AbortSignal.timeout(CDP_TIMEOUT_MS),
     })
   ).json()
 
@@ -582,9 +618,20 @@ async function auditRoutes(ROUTES, token, locale) {
   // route, nếu không lỗi của route trước sẽ bị tính cho route sau.
   let consoleErrors = []
 
+  // Bắt tay socket cũng phải có thời hạn. Đo được: Edge chết **giữa** lúc ta mở tab, nên
+  // `/json/new` vẫn trả về `webSocketDebuggerUrl` cho một trình duyệt đã biến mất, và
+  // `new WebSocket(...)` không bao giờ `open` cũng không bao giờ `error`. Lượt chạy đứng yên
+  // 22 phút, CPU = 0, không in dòng nào — cùng cái chết âm thầm mà `send()` đã có timeout
+  // để tránh, chỉ là chỗ này chưa có.
   await new Promise((res, rej) => {
-    ws.onopen = res
-    ws.onerror = rej
+    const timer = setTimeout(() => {
+      rej(new Error(
+        `Ket noi CDP khong bat tay xong sau ${CDP_TIMEOUT_MS / 1000}s. `
+          + `Edge da chet giua chung. Route nay KHONG duoc coi la da kiem tra.`,
+      ))
+    }, CDP_TIMEOUT_MS)
+    ws.onopen = () => { clearTimeout(timer); res() }
+    ws.onerror = (e) => { clearTimeout(timer); rej(new Error(`Ket noi CDP that bai: ${e?.message || e}`)) }
   })
 
   ws.onmessage = (ev) => {
@@ -652,6 +699,49 @@ async function auditRoutes(ROUTES, token, locale) {
     pending.clear()
   }
 
+  /**
+   * Chờ trang **ổn định** trước khi đo. Đây là điều kiện nghiệm thu, không phải tiện ích.
+   *
+   * `sleep(2600)` là đoán, và đo đúng là ra hai lần chạy khác nhau — tức là công cụ tự
+   * dựng ra số bịa. Đo được trên chính máy này: `/terms` và `/drama` ở locale `en` cho
+   * `cjk=1`/`cjk=47` ở lần chạy thứ nhất, rồi `cjk=0` + cờ `TRANG RONG` ở lần chạy kế —
+   * hai lần chạy liền nhau, cùng server, cùng code. Ảnh chụp của route đó cũng thiếu hẳn.
+   *
+   * `readyState === 'complete'` không đủ: đây là SPA, khung trang hiện ngay còn dữ liệu API
+   * tới sau, nên lúc đó `innerText` vẫn có thể rỗng. Nên chờ **nội dung đứng yên** trong
+   * `QUIET_POLLS` nhịp liên tiếp rồi mới đo; hết giờ thì **báo lỗi** chứ không đo trang
+   * dang dở — vì một route không đo được phải nói ra, không được trở thành "0 ký tự".
+   */
+  const waitForSettled = async (what) => {
+    const deadline = Date.now() + PAGE_READY_TIMEOUT_MS
+    let prev = null
+    let quiet = 0
+    for (;;) {
+      const r = await send('Runtime.evaluate', {
+        expression:
+          '({ ready: document.readyState, text: document.body ? document.body.innerText : "" })',
+        returnByValue: true,
+      })
+      const v = r?.result?.value
+      const text = typeof v?.text === 'string' ? v.text : ''
+      const ready = v?.ready === 'complete'
+      if (ready && text.trim().length > 0 && text === prev) {
+        if (++quiet >= QUIET_POLLS) return text
+      } else {
+        quiet = 0
+      }
+      if (Date.now() > deadline) {
+        throw new Error(
+          `Trang ${what} khong on dinh sau ${PAGE_READY_TIMEOUT_MS / 1000}s `
+            + `(readyState=${v?.ready}, chu=${text.trim().length}). `
+            + `KHONG duoc tinh la da kiem tra.`,
+        )
+      }
+      prev = text
+      await sleep(POLL_MS)
+    }
+  }
+
   const dir = join(OUT, locale)
   mkdirSync(dir, { recursive: true })
 
@@ -670,9 +760,9 @@ async function auditRoutes(ROUTES, token, locale) {
                        localStorage.setItem('token', ${JSON.stringify(token)});`,
         })
         await send('Page.navigate', { url: BASE + route })
-        await sleep(2600)
+        await waitForSettled(`${route} (lan chay dau)`)
         await send('Page.reload', { ignoreCache: false })
-        await sleep(2600)
+        await waitForSettled(`${route} (sau reload)`)
 
         const textRes = await send('Runtime.evaluate', {
           expression: 'document.body ? document.body.innerText : ""',
