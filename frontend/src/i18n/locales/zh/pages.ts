@@ -492,7 +492,7 @@ export const zhPages = {
     adjustResolution: 'Độ phân giải {from} → {to} (giới hạn của mô hình đích)',
     noticeTitle: 'Máy chủ này chưa tạo được video thật',
     noticeBody:
-      'Chúng tôi vừa hỏi máy chủ và thấy chưa có nhà cung cấp AI: {reasons}. Bấm "Tạo video" lúc này chỉ tạo ra một hàng đợi chết, nên ta mở hộp này cho bạn. Phần dàn prompt bên dưới dùng được ngay — sao chép rồi dán vào công cụ tạo video của bạn.',
+      'Máy chủ chưa có nhà cung cấp AI ({reasons}), nên bấm「Tạo video」lúc này chỉ tạo ra một hàng đợi chết. Phần dàn prompt bên dưới vẫn dùng được ngay.',
     noticeStillRender: 'Vẫn thử tạo video',
     reasonMock: 'máy chủ đang chạy chế độ giả lập, không gọi nhà cung cấp nào',
     reasonNoTextModel: 'chưa có mô hình văn bản nào dùng được',

@@ -495,7 +495,7 @@ export const enPages = {
     adjustResolution: 'Resolution {from} → {to} (target model limit)',
     noticeTitle: 'This server cannot render real video yet',
     noticeBody:
-      'We just asked the server and no AI provider is configured: {reasons}. Pressing “Create video” right now only queues a job that cannot succeed, so we opened this dialog instead. The prompt work below works right now — copy it and paste it into your own video tool.',
+      'The server has no AI provider configured ({reasons}), so “Create video” would only queue a job that cannot succeed. The prompt work below still works right now.',
     noticeStillRender: 'Try creating video anyway',
     reasonMock: 'the server is running in mock mode and calls no provider',
     reasonNoTextModel: 'no usable text model is configured',
