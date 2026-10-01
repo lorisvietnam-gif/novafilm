@@ -53,7 +53,7 @@ export const enPages = {
     title: 'Beta: this version writes the prompt, it does not render video',
     body: 'No video model is connected in this beta, so pressing Generate will not produce a clip. What you get is a professional prompt — the staging, camera language, lighting, and continuity between shots are your decisions, not the tool’s. Copy it and paste it into Veo, Muse, Kling, Seedance, or whatever tool you already have.',
     modelNote: 'The prompt is written for Seedance; test a short sample before switching models.',
-    inlineBody: 'No video is rendered in-system. What you get is the prompt — copy it into Veo, Muse, Kling, Seedance, or another tool.',
+    inlineBody: 'Beta: this button writes a prompt and does not render video in-system — copy it into Veo, Muse, Kling, Seedance, or another tool.',
     dismiss: 'Got it',
     generatedTitle: 'Prompt ready',
     generatedBody: 'Copy this prompt and paste it into your video tool to render. Nothing is rendered inside NOVAFILM.',

@@ -53,7 +53,7 @@ export const zhPages = {
     title: 'Beta：这一版产出提示词，暂不在系统内渲染视频',
     body: '当前 beta 未接入视频模型，点「生成」不会出片。你得到的是一份专业提示词——分镜、镜头语言、光线与镜头间连续性都由你决定。可以直接复制到 Veo、Muse、Kling、Seedance 或你手上的其他工具里用。',
     modelNote: '提示词按 Seedance 写成；换用其他模型时建议先小样验证。',
-    inlineBody: '系统内暂不渲染视频。你得到的是提示词，复制后可粘贴到 Veo、Muse、Kling、Seedance 或其他工具。',
+    inlineBody: '测试版：此按钮生成提示词，不在系统内渲染视频——复制后粘贴到 Veo、Muse、Kling、Seedance 或其他工具。',
     dismiss: '知道了',
     generatedTitle: '提示词已生成',
     generatedBody: '复制这段提示词，粘贴到你的视频工具里渲染。系统内暂不出片。',

@@ -53,7 +53,7 @@ export const viPages = {
     title: 'Bản beta: bản này tạo prompt, chưa render video trong hệ thống',
     body: 'Beta này chưa nối model video, bấm «Tạo» sẽ không có phim. Bạn nhận được một prompt chuyên nghiệp — phân cảnh, ngôn ngữ máy quay, ánh sáng và tính liên tục giữa các cảnh đều do bạn quyết định, không phải do công cụ. Hãy sao chép rồi dán vào Veo, Muse, Kling, Seedance, hoặc công cụ bạn đang có.',
     modelNote: 'Prompt viết theo Seedance; đổi sang model khác nên thử một mẫu ngắn trước.',
-    inlineBody: 'Chưa render video trong hệ thống. Bạn nhận prompt để sao chép, mang sang Veo, Muse, Kling, Seedance hoặc công cụ khác.',
+    inlineBody: 'Bản beta: nút này tạo prompt, không render video trong hệ thống — sao chép rồi dán vào Veo, Muse, Kling, Seedance hoặc công cụ khác.',
     dismiss: 'Đã hiểu',
     generatedTitle: 'Đã tạo prompt',
     generatedBody: 'Sao chép prompt này rồi dán vào công cụ video của bạn để render. Hệ thống NOVAFILM không render video.',

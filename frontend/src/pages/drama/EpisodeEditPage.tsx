@@ -1541,6 +1541,14 @@ function EpisodeEditInner() {
 
           <EpisodeEditReferenceStrip items={selectedRefItems} onSelect={focusLinkedAsset} />
 
+          {/*
+            Đặt NGOÀI `.drama-ep-editor-box`: ô prompt bên trong là `flex: 1` nên
+            thông báo đặt trong đó sẽ ăn mất chiều cao và người dùng chỉ thấy được
+            khoảng một nửa kịch bản của mình. Đặt ở đây vẫn nằm ngay trên khung có
+            nút bấm, nên đọc được trước khi bấm mà không bóp khung.
+          */}
+          <BetaNotice placement="drama-episode-generate" variant="inline" />
+
           <div className={`drama-ep-editor-box ${editing ? 'editing' : ''}`}>
             <EpisodeEditPromptEditor
               content={selected?.content || ''}
@@ -1603,9 +1611,6 @@ function EpisodeEditInner() {
               Hiện chưa bật nối tiếp khung hình cuối: các cảnh sẽ sinh song song độc lập, phù hợp khi cần ra video hàng loạt nhanh.
             </p>
           ) : null}
-
-          {/* Dòng này phải nằm TRƯỚC nút: người dùng đọc được trước khi bấm, không phải sau khi thất bại. */}
-          <BetaNotice placement="drama-episode-generate" variant="inline" />
 
           <div className="drama-ep-editor-actions">
             {editing ? (

@@ -65,6 +65,7 @@ export function BetaNotice({ placement, variant = 'banner', className }: BetaNot
   if (dismissed) return null
 
   const isCompact = variant === 'compact'
+  const isBanner = variant === 'banner'
 
   return (
     <aside
@@ -74,10 +75,21 @@ export function BetaNotice({ placement, variant = 'banner', className }: BetaNot
       <span className="pf-beta-notice-icon" aria-hidden>
         <Info size={16} strokeWidth={2} />
       </span>
+      {/*
+        Chỉ banner trang chủ kể cả ba đoạn. Hai chỗ bấm (tập và canvas) dùng một câu
+        ngắn gộp đủ bốn ý — beta, cho ra prompt, không render, mang đi dùng được —
+        vì ở đó mọi dòng thừa đều đẩy nút bấm ra khỏi tầm nhìn.
+      */}
       <div className="pf-beta-notice-text">
-        <strong className="pf-beta-notice-title">{t('betaNotice.title')}</strong>
-        <p className="pf-beta-notice-body">{t(isCompact ? 'betaNotice.inlineBody' : 'betaNotice.body')}</p>
-        {!isCompact ? <p className="pf-beta-notice-model">{t('betaNotice.modelNote')}</p> : null}
+        {isBanner ? (
+          <>
+            <strong className="pf-beta-notice-title">{t('betaNotice.title')}</strong>
+            <p className="pf-beta-notice-body">{t('betaNotice.body')}</p>
+            <p className="pf-beta-notice-model">{t('betaNotice.modelNote')}</p>
+          </>
+        ) : (
+          <p className="pf-beta-notice-body">{t('betaNotice.inlineBody')}</p>
+        )}
       </div>
       {isCompact ? null : (
         <button
