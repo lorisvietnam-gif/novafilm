@@ -1,3 +1,9 @@
+/* Chỗ dành cho chunk route đang tải (xem RouteFallback trong App.tsx).
+   Không có rule nào ở styles/printfilm.css để dùng: đó là lane khác. */
+.pf-route-fallback {
+  min-height: 60vh;
+}
+
 /* Residual styles for Auth and shared form utilities.
    Marketing / studio shells live in styles/printfilm.css */
 

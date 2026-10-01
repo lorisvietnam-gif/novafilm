@@ -41,7 +41,14 @@ export default function ToolsPage() {
               className={`pf-tools-card pf-tools-card-lg${tool.soon ? ' is-soon' : ''}`}
             >
               <span className="pf-tools-card-media" aria-hidden>
-                <DramaImageStylePreviewImg styleId={TOOL_ART[tool.id]} />
+                {/* Ô đo được 398px ở 1440px (`pf-tools-grid-lg` là lưới 3 cột). Không
+                    khai `sizes` thì trình duyệt coi ô là `100vw` và lấy bản 1024 —
+                    vẫn hơn nhiều so với bản gốc 2560 trước đây, nhưng 512px thì đúng
+                    với ô này. */}
+                <DramaImageStylePreviewImg
+                  styleId={TOOL_ART[tool.id]}
+                  sizes="(max-width: 900px) 92vw, 400px"
+                />
               </span>
               <div className="pf-tools-card-top">
                 <span className="pf-ws-tool-icon" aria-hidden>

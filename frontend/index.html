@@ -19,11 +19,19 @@
     <!--
       ONE preload, and it is the hero.
 
-      The landing hero is the only above-the-fold image in the product, so it is
-      the only one worth a render-blocking request. Two candidates, because a
-      1x desktop band and a 2x phone band want different files. `sizes` tells
-      the browser the rendered width so it can choose before layout runs, which
-      is what makes this a win rather than a guess.
+      The candidates MUST be the same files, in the same order, at the same
+      densities as `--pf-media-hero` in media.css. A preload is a promise about
+      one specific request; if it names a file the stylesheet never asks for,
+      the browser fetches the promised file AND the file the page actually
+      paints. Measured with scripts/perf-audit.mjs before this was aligned:
+
+        every route   158 KB  /img/retro-narrative-film-1280.jpg  preloaded
+                      47 KB  /img/retro-narrative-film-640.jpg   the one painted
+
+      The 158 KB was pure waste on all five routes, and on the four routes that
+      have no hero band at all it was the *only* thing downloaded. Now the
+      preload names 640 and 1280, which is exactly what the image-set requests,
+      so it warms the real request instead of a parallel one.
 
       What is deliberately NOT preloaded, and why:
 
@@ -35,15 +43,14 @@
         the app bundle without making LCP worse, and display=swap already covers
         the gap. Measure a font preload on a real connection before adding one.
 
-      - The component <img> previews. DramaImageStylePreviewImg already sets
-        loading="lazy", but it loads 2560px originals into ~200px boxes. That is
-        a real defect and the fix is a srcset in that component, which is
-        outside this lane's files. Recorded in docs/IMAGE_MANIFEST.md.
+      - The component <img> previews. They now carry a srcset over the
+        derivatives in public/img/, so a preload would have to name every
+        candidate and every density to stay honest. Leave them to be lazy.
     -->
     <link
       rel="preload"
       as="image"
-      imagesrcset="/img/retro-narrative-film-1280.jpg 1x, /img/retro-narrative-film-1920.jpg 2x"
+      imagesrcset="/img/retro-narrative-film-640.jpg 1x, /img/retro-narrative-film-1280.jpg 2x"
       imagesizes="100vw"
       fetchpriority="high"
     />
