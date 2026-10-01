@@ -8,3 +8,5 @@ ai_movie.db
 .pytest_cache/
 /data/
 static/mock/image_*.svg
+# Media generated at runtime by scripts/dummy_gateway.py (placeholder clips/images)
+/static/dummy-gateway/
