@@ -32,6 +32,18 @@ const PORT = 9400 + (process.pid % 400)
  */
 const BASE = process.env.AUDIT_BASE || 'http://127.0.0.1:5173'
 const API = process.env.AUDIT_API || 'http://127.0.0.1:8000'
+/**
+ * `AUDIT_WIDTH` / `AUDIT_HEIGHT` — bề rộng khung nhìn.
+ *
+ * Không có hai biến này thì Edge headless dùng mặc định 800x600, tức là **mọi** ảnh
+ * audit trước đây chụp ở một bề rộng duy nhất và không nói ra điều đó. Ở 800px thì
+ * lưới thẻ drama rộng 2 cột, chữ bị bóp vừa đủ để trông ổn; ở 390px nó vỡ khác,
+ * ở 1440px lại khác nữa. Không ép bề rộng thì "đã nhìn ảnh audit" là nhìn thiếu.
+ *
+ * Mặc định giữ nguyên hành vi cũ (không đặt metrics → Edge tự lo).
+ */
+const WIDTH = process.env.AUDIT_WIDTH ? Number(process.env.AUDIT_WIDTH) : 0
+const HEIGHT = process.env.AUDIT_HEIGHT ? Number(process.env.AUDIT_HEIGHT) : 0
 
 /**
  * Ảnh phải nằm TRONG workspace thì các lane mới đọc được.
@@ -197,6 +209,7 @@ async function ensureData(token) {
 
 async function main() {
   console.log(`anh chup o: ${OUT}`)
+  console.log(WIDTH ? `khung nhin: ${WIDTH}x${HEIGHT || 900}` : 'khung nhin: mac dinh cua Edge (800x600)')
   const token = await getToken()
   console.log('da lay token')
 
@@ -301,6 +314,17 @@ async function main() {
                      localStorage.setItem('token', ${JSON.stringify(token)});`,
       })
       await send('Page.enable')
+      // Phải đặt KHỎI mỗi tab. `Emulation.setDeviceMetricsOverride` không dính vào tab
+      // mới, nên chỉ đặt một lần ở tab đầu thì những tab sau lại quay về 800x600 —
+      // và file ảnh cho ta một loạt ảnh lẫn lộn hai bề rộng, đọc ra một con số bịa.
+      if (WIDTH) {
+        await send('Emulation.setDeviceMetricsOverride', {
+          width: WIDTH,
+          height: HEIGHT || 900,
+          deviceScaleFactor: 1,
+          mobile: WIDTH < 700,
+        })
+      }
       await send('Page.navigate', { url: BASE + route })
       await sleep(2600)
       await send('Page.reload', { ignoreCache: false })
