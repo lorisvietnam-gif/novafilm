@@ -14,8 +14,10 @@ import BillingErrorNotice from '../../components/billing/BillingErrorNotice'
 import AppShell from '../../components/layout/AppShell'
 import Button from '../../components/ui/Button'
 import PillFilter, { type PillOption } from '../../components/ui/PillFilter'
+import { DramaImageStylePreviewImg } from '../../components/drama/DramaImageStylePreviewImg'
 import { dramaApi, resolveDramaMediaUrl, type DramaProjectListItem } from '../../api/drama'
 import { dialog } from '../../lib/dialog'
+import { dramaProjectCoverArtStyleId } from '../../lib/coverArt'
 import { type ImageStyleId } from '../../lib/dramaImageStyles'
 import { formatDramaUsageBrief } from '../../lib/dramaUsage'
 import { dramaProjectTitle } from '../../lib/projectTitleLabels'
@@ -470,6 +472,11 @@ function DramaListInner() {
               const isSelected = selected.has(item.id)
               const coverSrc = item.cover_url ? resolveDramaMediaUrl(item.cover_url) : ''
               const canvas = isCanvasWorkflow(item)
+              // Chưa có bìa thì lấy ảnh phong cách có sẵn trong repo, đừng để thẻ là một
+              // ô trắng có mỗi tên dự án viết dọc — xem `lib/coverArt.ts`.
+              const coverArt: ImageStyleId | null = coverSrc
+                ? null
+                : dramaProjectCoverArtStyleId(item.id)
               return (
                 <article
                   key={item.id}
@@ -488,6 +495,12 @@ function DramaListInner() {
                         className="pf-drama-card-cover-img"
                         loading="lazy"
                         decoding="async"
+                      />
+                    ) : coverArt ? (
+                      <DramaImageStylePreviewImg
+                        styleId={coverArt}
+                        alt=""
+                        className="pf-drama-card-cover-img"
                       />
                     ) : (
                       <span className="pf-drama-card-cover-fallback">

@@ -53,6 +53,70 @@
   letter-spacing: -0.02em;
 }
 
+/* ---------- Lỗi 1: nút toàn chiều rộng nuốt mất nhãn tiếng Việt ---------
+   `.pf-btn` đặt `white-space: nowrap`, rồi `.pf-btn-block` ghim `width: 100%`.
+   Ở cột tóm tắt 300px, hộp nút còn 264px nhưng nhãn
+   «Bước tiếp theo: Cấu hình phong cách» dài 287px — chữ vẽ tràn ra ngoài cả hai mép.
+   Đo bằng width-audit ở 1440px: scrollWidth 287 > clientWidth 264.
+
+   Sửa bằng cách cho nút xuống dòng. KHÔNG dùng `overflow: hidden`: chữ bị cắt thì
+   người dùng đọc không trọn, đó chính là lỗi đang được báo.
+   `overflow-wrap: anywhere` thay cho `break-word` là cố ý: nó cũng co min-content của
+   phần tử lại, nên chính nút này không còn ép lưới `.pf-create` rộng ra nữa — trước đó
+   nó là phần tử rộng nhất (348px) và làm trang tràn ngang 70px ở màn 360px. */
+
+.studio-scoped .pf-btn-block {
+  white-space: normal;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Lỗi 2: thanh 6 bước không được lấn tiêu đề và không được tràn -----
+   Đo trước khi sửa (width-audit, locale `vi`): số dòng thực tế của thanh là
+   1 ở 1440px, 2 ở 1024px và 768px, 5 ở 390px và 360px. Ở 1024px và 768px dải bước tràn
+   xuống dưới hẹp giữa tiêu đề «Tạo dự án»; ở 360px thanh cao 168px. Đó là chỗ bị lấn.
+
+   Sửa theo ba điều kiện, đồng thời:
+   1. `min-width: 0` trên các con của hàng đầu trang — đây là mấu chốt. Không có nó,
+      flex item giữ `min-width: auto`, tức là bề rộng max-content của sáu bước đẩy cả
+      hàng `pf-page-head-row` rộng ra và làm trang tràn ngang.
+   2. Thanh tự xuống hàng riêng khi không còn chỗ bên cạnh tiêu đề, và cách đệm dọc
+      đủ để nó không ăn vào dải tiêu đề.
+   3. Rút gọn đường nối ở bề rộng hẹp để 1024px vừa đủ một dòng, và ở màn điện thoại
+      dải vẫn gấp thành nhiều dòng **đầy đủ sáu bước** — cuộn ngang sẽ giấu mất bước 4-6,
+      mà người dùng cần đọc đủ sáu nhãn. */
+
+.studio-scoped .pf-page-head-row {
+  row-gap: 0.55rem;
+}
+
+.studio-scoped .pf-page-head-row > * {
+  min-width: 0;
+}
+
+.studio-scoped .pf-page-head-row > .pf-stepper {
+  /* `0 1 auto` giữ nguyên bố cục cũ ở màn rộng: thanh co về kích thước nội dung và
+     nằm sát mép phải. `1 1 auto` sẽ kéo thanh giãn hết hàng và làm bước 1 dạt vào
+     giữa trang. */
+  flex: 0 1 auto;
+}
+
+.studio-scoped .pf-page-head-row > .pf-stepper > .pf-stepper {
+  flex: 0 0 auto;
+}
+
+.studio-scoped .pf-page-head-row > .pf-stepper .pf-step {
+  white-space: nowrap;
+}
+
+/* Bề rộng hẹp: đường nối 28px x 5 là 140px lãng phí trong khi nhãn bước mới là thứ
+   người dùng đọc. Rút xuống 16px đủ để dãy vẫn ra dải bước. */
+@media (max-width: 1100px) {
+  .studio-scoped .pf-page-head-row > .pf-stepper .pf-step-line {
+    width: 16px;
+  }
+}
+
 /* ---------- Media frames ------------------------------------------------ */
 
 .studio-still {
