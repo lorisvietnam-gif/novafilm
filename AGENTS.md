@@ -137,9 +137,20 @@ báo origin của frontend.
   giống hệt. Lượt gần nhất chỉ có **một** lần sạch. Trước khi tin một con số, **chạy hai lần**.
 - **`/__drama/projects/{id}/episodes` còn tiếng Trung** — đây là **nội dung kịch bản trong
   database**, không phải giao diện. Sẽ dọn khi khởi tạo database thật, không tính là nợ UI.
-- **Cấu hình model có hai nguồn gây xung đột.** `.env` trỏ Gemini, nhưng cấu hình trong database
-  trỏ TokenFree và **ghi đè ngay cả sau khi PATCH thành công**. Chặn việc sinh kịch bản qua API.
-  Đang điều tra.
+- ~~**Cấu hình model có hai nguồn gây xung đột**~~ **ĐÃ SỬA 2026-10-01.** Kẻ ghi đè là
+  `apply_tokenfree_flat_overlay` (`tokenfree_gateway.py`) đè `openai_base_url` / `openai_api_key`
+  vô điều kiện, cộng thêm `_ensure_tokenfree_channel` (`model_settings.py`) ghim base URL mỗi
+  lần nạp. Nay mỗi nhà cung cấp có **channel riêng**: `tokenfree` (ảnh/video/TTS), `text-openai`
+  (Kira), `image-kira` (Kira). Đã kiểm chứng: PATCH giữ được giá trị, không còn bị về TokenFree.
+- **Lưu ý khi đổi nhà cung cấp:** hàng cấu hình trong **database** có quyền ưu tiên cao hơn
+  `.env`. Đổi `.env` một mình **không có tác dụng** — phải sửa qua `PATCH
+  /api/admin/settings/models` (hoặc trang quản trị).
+- **`billing_llm_per_m = 5.0` là giả định chưa đo.** Phải sửa trước khi bắt đầu thu credit.
+- **Chưa bật `hy-image-v3.5-free` làm model ảnh** — nó chưa có bảng giá nên
+  `estimate_task_fon` trả về con số khác và `test_tool_image_1k_uses_six_credits` vỡ. Phải
+  **định giá trước**, không bật trước rồi tính sau.
+- **Sinh kịch bản chế độ `script` chậm** — `vi/script` mất ~55 giây, và một lần trả rỗng ở 60 giây.
+  Cần kiểm lại trước khi cho người dùng thật dùng.
 - **`billing_llm_per_m = 5.0` là giả định chưa đo.** Khoá Gemini hiện **miễn phí**. Phải sửa
   trước khi bắt đầu thu credit, nếu không con số tính tiền sẽ sai.
 - **Chưa build Docker image lần nào** — máy không cài Docker. Lên VPS phải dành thời gian.
