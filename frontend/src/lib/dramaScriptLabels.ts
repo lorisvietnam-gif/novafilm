@@ -183,6 +183,18 @@ const BGM_VOLUME_SUFFIX = '；音量低于人声】'
 const BGM_POST_MIX_PREFIX = '【BGM：后期混音 · '
 const BGM_CUE_PREFIX = '【BGM：'
 
+/**
+ * Đuôi mà `seedance_segments.build_production_cues()` **luôn** dán vào tâm trạng trước khi
+ * bọc cue `【BGM：后期混音 · {mood}】`. Hậu tố này **không** thuộc từ vựng tâm trạng, nên phải
+ * bỏ ra trước khi tra `BGM_MOOD_LABELS` — bảng lấy từ `build_fragments._infer_bgm_mood()`, một
+ * danh sách khác, và không mục nào chứa `音量低于人声`.
+ *
+ * Không bỏ nó thì nhánh `postMix` **không bao giờ** trúng bảng: nó là code chết. Đã đo được
+ * trên database thật — `【BGM：后期混音 · 轻快专业，音量低于人声】` lọt nguyên tiếng Trung lên
+ * `/drama/projects/16/episodes/3` dù `CUE_LABELS` phủ hết cue phụ đề ngay cạnh nó.
+ */
+const BGM_MOOD_TAIL = '，音量低于人声'
+
 /** Vỏ cue BGM sau khi đã tra tâm trạng; `{mood}` là chỗ chèn nhãn tâm trạng. */
 const BGM_CUE_TEMPLATES: Record<string, LocalizedText> = {
   volume: {
@@ -191,10 +203,23 @@ const BGM_CUE_TEMPLATES: Record<string, LocalizedText> = {
     vi: '[Nhạc nền: {mood} · âm lượng thấp hơn giọng nói]',
   },
   postMix: {
-    zh: '【BGM：后期混音 · {mood}】',
-    en: '[BGM: mixed in post · {mood}]',
-    vi: '[Nhạc nền: trộn ở hậu kỳ · {mood}]',
+    zh: '【BGM：后期混音 · {mood}{tail}】',
+    en: '[BGM: mixed in post · {mood}{tail}]',
+    vi: '[Nhạc nền: trộn ở hậu kỳ · {mood}{tail}]',
   },
+}
+
+/**
+ * Cách nói cùng một ý với `BGM_MOOD_TAIL` cho locale khác.
+ *
+ * **Không phải từ vựng mới**: đó là đúng chữ đã viết sẵn trong khuôn `volume` ở trên, chỉ tách
+ * ra để dán lại khi tra được tâm trạng ở dạng `后期混音`. Bỏ đuôi đi lúc hiển thị là **mất
+ * thông tin trong kịch bản** — người dùng `zh` phải thấy đúng những gì đã lưu.
+ */
+const BGM_MOOD_TAIL_LABELS: LocalizedText = {
+  zh: BGM_MOOD_TAIL,
+  en: '; level below the voice',
+  vi: ' · âm lượng thấp hơn giọng nói',
 }
 
 /** `【空镜：<mô tả>】` — phần mô tả do mô hình viết nên không liệt kê, chỉ dịch tiền tố. */
@@ -256,8 +281,11 @@ function lookupLabel(
   return entry ? localized(entry) : null
 }
 
-function fillBgmTemplate(key: 'volume' | 'postMix', mood: string): string {
-  return localized(BGM_CUE_TEMPLATES[key]).replace('{mood}', mood)
+function fillBgmTemplate(key: 'volume' | 'postMix', mood: string, tail = ''): string {
+  return localized(BGM_CUE_TEMPLATES[key])
+    .replace('{mood}', mood)
+    // `{tail}` chỉ nằm trong khuôn `postMix`, nên `replace` ở `volume` là no-op.
+    .replace('{tail}', tail ? localized(BGM_MOOD_TAIL_LABELS) : '')
 }
 
 /**
@@ -279,8 +307,14 @@ export function localizeScriptCue(cue: string): string {
 
   if (cue.startsWith(BGM_POST_MIX_PREFIX) && cue.endsWith('】')) {
     const mood = cue.slice(BGM_POST_MIX_PREFIX.length, cue.length - 1).trim()
-    const moodLabel = lookupLabel(BGM_MOOD_LABELS, mood)
-    if (moodLabel) return fillBgmTemplate('postMix', moodLabel)
+    // Bỏ đuôi `，音量低于人声` trước khi tra: nó là đuôi do backend dán, không phải từ vựng.
+    // Tâm trạng gốc vẫn giữ nguyên phần còn lại, và đuôi được dán lại khi dán bản dịch.
+    const hasTail = mood.endsWith(BGM_MOOD_TAIL)
+    const moodLabel = lookupLabel(
+      BGM_MOOD_LABELS,
+      hasTail ? mood.slice(0, mood.length - BGM_MOOD_TAIL.length).trim() : mood,
+    )
+    if (moodLabel) return fillBgmTemplate('postMix', moodLabel, hasTail ? BGM_MOOD_TAIL : '')
   }
 
   if (cue.startsWith(EMPTY_SHOT_PREFIX) && cue.endsWith('】')) {
