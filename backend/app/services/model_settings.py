@@ -139,7 +139,38 @@ def _bootstrap_channels_from_env(settings: Settings | None = None) -> list[Syste
             src.model_audio,
         ]
     )
-    return [locked_tokenfree_channel(api_key=key, models=models, enabled=True)]
+    channels: list[SystemModelChannel] = [
+        locked_tokenfree_channel(api_key=key, models=models, enabled=True)
+    ]
+
+    # Provider thứ hai cho phần văn bản.
+    #
+    # Bản gốc viết khi TokenFree là nguồn duy nhất, nên `openai_base_url` có thể trỏ bất kỳ đâu
+    # mà danh sách channel vẫn chỉ có TokenFree — cấu hình đó bị bỏ qua hoàn toàn. Nay ta dùng
+    # một nhà cung cấp khác cho model văn bản (Gemini), nên nó phải có **channel của riêng nó**,
+    # chứ không nhét vào đường TokenFree. Đường ảnh và video của TokenFree giữ nguyên.
+    from app.services.tokenfree_gateway import TOKENFREE_BASE_URL
+
+    text_base = (src.openai_base_url or "").strip().rstrip("/")
+    tokenfree_base = TOKENFREE_BASE_URL.strip().rstrip("/")
+    if text_base and text_base != tokenfree_base and (src.model_llm or "").strip():
+        text_models = canonicalize_channel_models([src.model_llm])
+        channels.append(
+            SystemModelChannel(
+                id="text-openai",
+                name="Van ban (OpenAI-compatible)",
+                base_url=text_base,
+                api_key=key,
+                has_api_key=bool(key),
+                api_format="openai",
+                protocol="auto",
+                models=text_models,
+                enabled=True,
+                # Đứng trước TokenFree: khi phân giải năng lực `text`, thử channel này trước.
+                sort_order=-1,
+            )
+        )
+    return channels
 
 
 def _seedance_logical_meta(upstream: str) -> tuple[str, str]:
@@ -340,6 +371,7 @@ async def _ensure_bootstrapped_channels(db: AsyncSession) -> list[SystemModelCha
     existing = list((await db.execute(select(SystemModelChannelRow))).scalars().all())
     if existing:
         await _ensure_tokenfree_channel(db, existing)
+        await _ensure_env_channels(db, existing)
         return list((await db.execute(select(SystemModelChannelRow))).scalars().all())
     channels = _bootstrap_channels_from_env()
     rows: list[SystemModelChannelRow] = []
@@ -369,8 +401,38 @@ async def _ensure_bootstrapped_channels(db: AsyncSession) -> list[SystemModelCha
     return rows
 
 
+async def _ensure_env_channels(db: AsyncSession, existing: list[SystemModelChannelRow]) -> None:
+    """Bảo đảm có channel cho mỗi nhà cung cấp khai trong `.env`, nếu chưa có thì thêm.
+
+    Idempotent: chỉ tạo dòng khi thiếu. Cột đã có thì **không** bị ghi đè — đó là nguyên nhân
+    khiến `PATCH /api/admin/settings/models` trả 200 rồi đọc lại thì về giá trị cũ.
+    """
+    rows = {row.id: row for row in existing}
+    from app.services.tokenfree_gateway import TOKENFREE_CHANNEL_ID
+
+    for channel in _bootstrap_channels_from_env():
+        if channel.id == TOKENFREE_CHANNEL_ID or channel.id in rows:
+            continue
+        row = SystemModelChannelRow(
+            id=channel.id,
+            name=channel.name,
+            base_url=channel.base_url,
+            api_key_ciphertext=_encrypt_secret(channel.api_key) if channel.api_key else None,
+            api_format=channel.api_format,
+            protocol=channel.protocol,
+            models=channel.models,
+            enabled=channel.enabled,
+            sort_order=channel.sort_order,
+            advanced_config=(
+                channel.advanced_config.model_dump() if channel.advanced_config else None
+            ),
+        )
+        db.add(row)
+        rows[channel.id] = row
+
+
 async def _ensure_tokenfree_channel(db: AsyncSession, existing: list[SystemModelChannelRow]) -> None:
-    """锁定唯一 TokenFree 渠道：固定 Base URL，其它渠道停用。"""
+    """Khoá channel TokenFree: chỉ ghim Base URL **khi tạo mới**."""
     from app.services.tokenfree_gateway import (
         TOKENFREE_BASE_URL,
         TOKENFREE_CHANNEL_ID,
@@ -382,17 +444,23 @@ async def _ensure_tokenfree_channel(db: AsyncSession, existing: list[SystemModel
     runtime = [_channel_row_to_runtime(row) for row in existing]
     migrated_key = pick_migratable_api_key(runtime)
     token_row = next((row for row in existing if row.id == TOKENFREE_CHANNEL_ID), None)
-    if token_row is None:
+    created = token_row is None
+    if created:
         token_row = SystemModelChannelRow(id=TOKENFREE_CHANNEL_ID)
         db.add(token_row)
     current_key = _decrypt_secret(token_row.api_key_ciphertext or "")
-    token_row.name = TOKENFREE_CHANNEL_NAME
-    token_row.base_url = TOKENFREE_BASE_URL
-    token_row.api_format = "openai"
-    token_row.protocol = "auto"
-    token_row.enabled = True
-    token_row.sort_order = 0
-    token_row.advanced_config = None
+    if created:
+        # Chỉ ghim khi **tạo mới**. Trước đây các dòng này chạy mỗi lần nạp cấu hình, nên
+        # `base_url` và `advanced_config` của người dùng bị xoá sạch không hỏi — đó là lý do
+        # `PATCH /api/admin/settings/models` trả 200 rồi đọc lại thì về TokenFree.
+        # Cột của người dùng phải được tôn trọng.
+        token_row.name = TOKENFREE_CHANNEL_NAME
+        token_row.base_url = TOKENFREE_BASE_URL
+        token_row.api_format = "openai"
+        token_row.protocol = "auto"
+        token_row.enabled = True
+        token_row.sort_order = 0
+        token_row.advanced_config = None
     if not current_key and migrated_key:
         token_row.api_key_ciphertext = _encrypt_secret(migrated_key)
         current_key = migrated_key
