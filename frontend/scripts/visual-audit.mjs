@@ -710,6 +710,13 @@ async function auditRoutes(ROUTES, token, locale) {
     new Promise((res, rej) => {
       const n = ++id
       const timer = setTimeout(() => {
+        // Chỉ báo lỗu **nếu request này còn đang chờ**.
+        //
+        // Nếu route đã đi tiếp mà timer mới nổ, `rej()` gọi vào một promise không còn ai chờ →
+        // unhandled rejection → **node chết ngay, không in dòng nào thêm**. Đúng triệu chứng
+        // "in 29 dòng rồi thoài im lặng"; đo được lỗi nổ tại `visual-audit.mjs:714`, tức là
+        // trong callback của `setTimeout`, **ngoài mọi `try/catch`**.
+        if (!pending.has(n)) return
         pending.delete(n)
         rej(new Error(
           `CDP khong tra loi cho "${method}" sau ${CDP_TIMEOUT_MS / 1000}s. `
