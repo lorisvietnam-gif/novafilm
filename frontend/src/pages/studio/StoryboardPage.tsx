@@ -18,7 +18,7 @@ import {
 import { scenePromptForDisplay } from '../../promptDisplay'
 import { dialog } from '../../lib/dialog'
 import { handleBillingError } from '../../lib/billingError'
-import BillingErrorNotice from '../../components/billing/BillingErrorNotice'
+import ErrorNotice from '../../components/errors/ErrorNotice'
 import { useI18n, type TFunction } from '../../i18n'
 import {
   effectiveStatus,
@@ -696,7 +696,7 @@ export default function StoryboardPage() {
   if (!project) {
     return (
       <AppShell active="studio">
-        <BillingErrorNotice message={error} />
+        <ErrorNotice error={error} />
       </AppShell>
     )
   }
@@ -819,8 +819,10 @@ export default function StoryboardPage() {
         </p>
       </header>
 
-      {error ? <BillingErrorNotice message={error} /> : null}
-      {project.error_msg ? <p className="pf-error">{project.error_msg}</p> : null}
+      {error ? <ErrorNotice error={error} onDismiss={() => setError('')} /> : null}
+      {/* Lỗi đã lưu trong database của dự án: `error_msg` là chuỗi thô từ pipeline, nên
+          nó đi qua đúng khung và đúng bộ phân loại như lỗi HTTP. */}
+      {project.error_msg ? <ErrorNotice error={project.error_msg} /> : null}
 
       <div className="pf-board studio-scoped">
         <aside className="pf-create-col">
@@ -890,15 +892,9 @@ export default function StoryboardPage() {
             </li>
             <li>
               <span>{t('studio.storyboard.summaryDuration')}</span>
-              <span>
-                {Math.floor(totalDuration / 60)
-                  .toString()
-                  .padStart(2, '0')}
-                :
-                {Math.floor(totalDuration % 60)
-                  .toString()
-                  .padStart(2, '0')}
-              </span>
+              {/* Chưa có cảnh thì thời lượng **chưa biết**, chứ không phải 0 giây: hiện
+                  `00:00` cạnh `Tiến độ 5%` là hai con số trái nhau trên cùng một bảng. */}
+              <span>{shots.length ? formatMmSs(totalDuration) : t('studio.shared.dash')}</span>
             </li>
             <li>
               <span>{t('studio.storyboard.summaryRatio')}</span>
@@ -944,6 +940,9 @@ export default function StoryboardPage() {
                 type="button"
                 className="pf-prompt-chip"
                 disabled={busy || running}
+                /* Khối này hiển thị nhiều dòng nên bị cắt gọn; `title` đưa nguyên văn
+                   lên tooltip để không mất thông tin gì cả. */
+                title={(value || '').trim() || t('studio.storyboard.promptChipEmpty')}
                 onClick={() =>
                   setPromptEdit({
                     style_prompt: displayPrompts.style_prompt,
