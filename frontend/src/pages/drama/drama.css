@@ -7193,3 +7193,467 @@
   position: relative;
   z-index: 1;
 }
+
+/* ==================================================================
+   Bộ biên dịch prompt theo model
+   Prompt là thứ người dùng đọc rồi dán, nên nó phải xuống dòng đầy đủ,
+   dùng font monospace và đủ tương phản. Mọi màu ở đây đều lấy từ token
+   của hệ thống nên tự đổi theo sáng/tối — không hard-code hex trong rule.
+   ================================================================== */
+
+.prompt-compiler-modal .pf-modal-body {
+  padding: 0;
+}
+
+.pc-root {
+  display: grid;
+  grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
+  gap: var(--pf-space-4);
+  padding: var(--pf-space-4);
+  align-items: start;
+}
+
+.pc-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pf-space-2);
+  max-height: min(72vh, 46rem);
+  overflow-y: auto;
+  padding-right: var(--pf-space-1);
+}
+
+.pc-out {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--pf-space-3);
+}
+
+.pc-section-title {
+  margin: var(--pf-space-3) 0 var(--pf-space-1);
+  font-size: var(--pf-text-xs);
+  font-weight: var(--pf-weight-semibold);
+  letter-spacing: var(--pf-tracking-caps);
+  text-transform: uppercase;
+  color: var(--pf-text-secondary);
+}
+
+.pc-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pf-space-1);
+  min-width: 0;
+}
+
+.pc-field-label {
+  font-size: var(--pf-text-xs);
+  font-weight: var(--pf-weight-medium);
+  color: var(--pf-text-secondary);
+}
+
+.pc-field input,
+.pc-field select,
+.pc-field textarea,
+.pc-ref input,
+.pc-ref select {
+  width: 100%;
+  min-width: 0;
+  padding: var(--pf-space-2) var(--pf-space-3);
+  font: inherit;
+  font-size: var(--pf-text-sm);
+  color: var(--pf-ink);
+  background: var(--pf-surface);
+  border: 1px solid var(--pf-line);
+  border-radius: var(--pf-radius-sm);
+}
+
+.pc-field textarea {
+  resize: vertical;
+  line-height: var(--pf-leading-normal);
+}
+
+.pc-ref {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 6rem) auto;
+  gap: var(--pf-space-1-5);
+  align-items: center;
+}
+
+.pc-ref-remove {
+  font: inherit;
+  font-size: var(--pf-text-xs);
+  color: var(--pf-danger-ink);
+  background: var(--pf-danger-soft);
+  border: 1px solid var(--pf-danger-stroke);
+  border-radius: var(--pf-radius-xs);
+  padding: var(--pf-space-1-5) var(--pf-space-2);
+  cursor: pointer;
+}
+
+.pc-btn-ghost {
+  align-self: flex-start;
+  font: inherit;
+  font-size: var(--pf-text-xs);
+  color: var(--pf-text-secondary);
+  background: transparent;
+  border: 1px dashed var(--pf-line-strong);
+  border-radius: var(--pf-radius-sm);
+  padding: var(--pf-space-1-5) var(--pf-space-3);
+  cursor: pointer;
+}
+
+.pc-btn-ghost:hover {
+  color: var(--pf-ink);
+  border-color: var(--pf-line-control);
+}
+
+.pc-params {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--pf-space-2);
+}
+
+.pc-check {
+  display: flex;
+  align-items: center;
+  gap: var(--pf-space-2);
+  font-size: var(--pf-text-sm);
+  color: var(--pf-text-secondary);
+}
+
+.pc-readiness {
+  margin: 0;
+  padding: var(--pf-space-2-5) var(--pf-space-3);
+  font-size: var(--pf-text-xs);
+  line-height: var(--pf-leading-snug);
+  border-radius: var(--pf-radius-sm);
+  border: 1px solid var(--pf-line);
+  background: var(--pf-surface-sunken);
+  color: var(--pf-text-secondary);
+}
+
+.pc-readiness.is-verified {
+  background: var(--pf-success-soft);
+  border-color: var(--pf-success-stroke);
+  color: var(--pf-success-ink);
+}
+
+.pc-readiness.is-assumed {
+  background: var(--pf-warning-soft);
+  border-color: var(--pf-warning-stroke);
+  color: var(--pf-warning-ink);
+}
+
+.pc-compile {
+  margin-top: var(--pf-space-2);
+  align-self: flex-start;
+}
+
+.pc-empty {
+  margin: 0;
+  font-size: var(--pf-text-sm);
+  color: var(--pf-text-secondary);
+}
+
+.pc-error {
+  margin: var(--pf-space-2) 0 0;
+  font-size: var(--pf-text-sm);
+  color: var(--pf-danger-ink);
+  background: var(--pf-danger-soft);
+  border-radius: var(--pf-radius-xs);
+  padding: var(--pf-space-2) var(--pf-space-3);
+}
+
+.pc-tabs {
+  display: flex;
+  gap: var(--pf-space-1);
+  border-bottom: 1px solid var(--pf-line);
+}
+
+.pc-tabs button {
+  font: inherit;
+  font-size: var(--pf-text-sm);
+  color: var(--pf-text-secondary);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: var(--pf-space-2) var(--pf-space-3);
+  cursor: pointer;
+}
+
+.pc-tabs button.active {
+  color: var(--pf-ink);
+  border-bottom-color: var(--pf-accent-stroke);
+  font-weight: var(--pf-weight-semibold);
+}
+
+.pc-result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pf-space-3);
+  min-width: 0;
+}
+
+.pc-result-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--pf-space-3);
+  flex-wrap: wrap;
+}
+
+.pc-result-head h4 {
+  margin: 0 0 var(--pf-space-1);
+  font-size: var(--pf-text-lg);
+}
+
+/* Dòng này là bắt buộc: người dùng phải biết mình đang dán prompt cho model nào. */
+.pc-target {
+  margin: 0;
+  max-width: 42rem;
+  font-size: var(--pf-text-sm);
+  line-height: var(--pf-leading-snug);
+  color: var(--pf-warning-ink);
+  background: var(--pf-warning-soft);
+  border-left: 3px solid var(--pf-warning-stroke);
+  border-radius: var(--pf-radius-xs);
+  padding: var(--pf-space-2) var(--pf-space-3);
+}
+
+.pc-meta {
+  margin: var(--pf-space-1) 0 0;
+  font-size: var(--pf-text-xs);
+  color: var(--pf-text-tertiary);
+}
+
+/* Prompt: monospace, xuống dòng tự do, không cắt. Đây là thứ người dùng dán. */
+.pc-prompt {
+  margin: 0;
+  padding: var(--pf-space-4);
+  font-family: var(--pf-font-mono);
+  font-size: var(--pf-text-sm);
+  line-height: var(--pf-leading-relaxed);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  tab-size: 2;
+  color: var(--pf-ink);
+  background: var(--pf-surface-sunken);
+  border: 1px solid var(--pf-line);
+  border-radius: var(--pf-radius-md);
+  max-height: min(52vh, 34rem);
+  overflow-y: auto;
+}
+
+.pc-manual {
+  margin: 0;
+  font-size: var(--pf-text-sm);
+  line-height: var(--pf-leading-snug);
+  color: var(--pf-danger-ink);
+  background: var(--pf-danger-soft);
+  border-radius: var(--pf-radius-xs);
+  padding: var(--pf-space-2-5) var(--pf-space-3);
+}
+
+.pc-warnings {
+  border: 1px solid var(--pf-warning-stroke);
+  background: var(--pf-warning-soft);
+  border-radius: var(--pf-radius-sm);
+  padding: var(--pf-space-3);
+}
+
+.pc-warnings h5 {
+  margin: 0 0 var(--pf-space-2);
+  font-size: var(--pf-text-xs);
+  font-weight: var(--pf-weight-semibold);
+  letter-spacing: var(--pf-tracking-caps);
+  text-transform: uppercase;
+  color: var(--pf-warning-ink);
+}
+
+.pc-warnings ul {
+  margin: 0;
+  padding-left: var(--pf-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--pf-space-1-5);
+}
+
+.pc-warnings li {
+  font-size: var(--pf-text-sm);
+  line-height: var(--pf-leading-snug);
+  color: var(--pf-warning-ink);
+}
+
+.pc-warnings code {
+  font-family: var(--pf-font-mono);
+  font-size: var(--pf-text-xs);
+}
+
+.pc-warnings em {
+  font-style: normal;
+  opacity: 0.85;
+}
+
+/* ---- Hồ sơ model ---- */
+
+.pc-profile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pf-space-4);
+  min-width: 0;
+}
+
+.pc-profile-head {
+  display: flex;
+  align-items: center;
+  gap: var(--pf-space-2);
+  flex-wrap: wrap;
+}
+
+.pc-profile-head h4 {
+  margin: 0;
+  font-size: var(--pf-text-lg);
+}
+
+.pc-profile-note {
+  margin: 0;
+  font-size: var(--pf-text-sm);
+  line-height: var(--pf-leading-snug);
+  color: var(--pf-text-secondary);
+}
+
+.pc-profile-counts,
+.pc-profile-legend {
+  margin: 0;
+  font-size: var(--pf-text-xs);
+  color: var(--pf-text-tertiary);
+}
+
+.pc-profile-group h4 {
+  margin: 0 0 var(--pf-space-2);
+  font-size: var(--pf-text-sm);
+  font-weight: var(--pf-weight-semibold);
+}
+
+.pc-fact-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--pf-space-2);
+}
+
+.pc-fact {
+  border: 1px solid var(--pf-line);
+  border-radius: var(--pf-radius-sm);
+  background: var(--pf-surface);
+  padding: var(--pf-space-3);
+}
+
+.pc-fact-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pf-space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--pf-space-1-5);
+}
+
+.pc-fact-name {
+  font-size: var(--pf-text-sm);
+  font-weight: var(--pf-weight-semibold);
+  color: var(--pf-ink);
+}
+
+.pc-fact-value {
+  margin: 0;
+  font-size: var(--pf-text-sm);
+  line-height: var(--pf-leading-snug);
+  color: var(--pf-text-secondary);
+}
+
+.pc-fact-unknown {
+  margin: 0;
+  font-size: var(--pf-text-sm);
+  font-style: italic;
+  color: var(--pf-text-tertiary);
+}
+
+.pc-fact-note {
+  margin: var(--pf-space-1-5) 0 0;
+  font-size: var(--pf-text-xs);
+  line-height: var(--pf-leading-snug);
+  color: var(--pf-warning-ink);
+}
+
+.pc-fact-sources {
+  list-style: none;
+  margin: var(--pf-space-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--pf-space-1);
+}
+
+.pc-fact-sources code {
+  font-family: var(--pf-font-mono);
+  font-size: var(--pf-text-xs);
+  line-height: var(--pf-leading-snug);
+  color: var(--pf-text-tertiary);
+  overflow-wrap: anywhere;
+}
+
+.pc-badge {
+  flex: none;
+  font-size: var(--pf-text-2xs);
+  font-weight: var(--pf-weight-semibold);
+  letter-spacing: var(--pf-tracking-wide);
+  text-transform: uppercase;
+  border-radius: var(--pf-radius-pill);
+  padding: var(--pf-space-0-5) var(--pf-space-2);
+  border: 1px solid transparent;
+}
+
+.pc-badge.is-verified {
+  color: var(--pf-success-ink);
+  background: var(--pf-success-soft);
+  border-color: var(--pf-success-stroke);
+}
+
+.pc-badge.is-assumed {
+  color: var(--pf-warning-ink);
+  background: var(--pf-warning-soft);
+  border-color: var(--pf-warning-stroke);
+}
+
+.pc-badge.is-unknown {
+  color: var(--pf-text-secondary);
+  background: var(--pf-surface-sunken);
+  border-color: var(--pf-line-strong);
+}
+
+@media (max-width: 900px) {
+  .pc-root {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pc-form {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .pc-ref {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pc-params {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pc-prompt {
+    max-height: none;
+    font-size: var(--pf-text-xs);
+  }
+}
