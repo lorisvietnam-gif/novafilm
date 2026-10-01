@@ -365,7 +365,7 @@ def _compile_seedance(
     continuity = (scene.continuity_frame_url or "").strip()
     ref_sections, plan, image_field, ref_warnings = _seedance_reference_sections(scene)
     warnings.extend(ref_warnings)
-    has_reference_media = bool(plan)
+    has_reference_media = image_field == "reference_image_urls"
     if continuity:
         if has_reference_media:
             sections.append(
