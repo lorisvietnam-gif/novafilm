@@ -1,4 +1,4 @@
-import { throwApiError } from './lib/apiError'
+import { ApiError, throwApiError } from './lib/apiError'
 import {
   templateCharacterPrompt,
   templateExtraPrompt,
@@ -28,20 +28,28 @@ function authHeaders(): HeadersInit {
 
 /** Máy chủ trả HTML thay vì JSON: SPA fallback của Firebase, trang lỗi của proxy, 502 của nginx...
  *  Nếu không can thiệp, trình duyệt ném lỗi phân tích JSON thô ("Unexpected token '<'") thẳng vào
- *  giao diện — người dùng thấy thông báo kỹ thuật không liên quan tới họ. */
+ *  giao diện — người dùng thấy thông báo kỹ thuật không liên quan tới họ.
+ *
+ *  Hai thông báo dưới đây là **câu chữ cho người dùng**, không phải lỗi thô, nên đi qua
+ *  `ApiError` với `kind` chỉ định: như vậy `ErrorNotice` hiện đúng câu này ở locale `vi`,
+ *  đồng thời mọi lỗi từ backend vẫn chỉ có một kiểu và một bộ phân loại. */
 async function readJson<T>(res: Response, path: string): Promise<T> {
   const contentType = res.headers.get('content-type') || ''
   if (!contentType.includes('application/json')) {
     console.error(
       `[api] ${path} tra ve "${contentType || 'khong ro'}" thay vi JSON. API_BASE = "${API_BASE}"`,
     )
-    throw new Error('Không kết nối được máy chủ. Vui lòng thử lại sau ít phút.')
+    throw new ApiError(res.status, 'Không kết nối được máy chủ. Vui lòng thử lại sau ít phút.', 'network')
   }
   try {
     return (await res.json()) as T
   } catch {
     console.error(`[api] ${path} tra ve JSON khong doc duoc`)
-    throw new Error('Máy chủ trả về dữ liệu không hợp lệ. Vui lòng thử lại sau.')
+    throw new ApiError(
+      res.status,
+      'Máy chủ trả về dữ liệu không hợp lệ. Vui lòng thử lại sau.',
+      'invalid',
+    )
   }
 }
 
