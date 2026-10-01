@@ -112,6 +112,8 @@ export function DramaPromptBundleModal({
   const [raw, setRaw] = useState(false)
   const [toast, setToast] = useState<Toast | null>(null)
   const toastTimer = useRef<number | null>(null)
+  /** Vùng chứa các khối prompt — dùng để chọn sẵn khi sao chép thất bại. */
+  const scrollRef = useRef<HTMLDivElement | null>(null)
 
   // Mô hình đích mặc định là mô hình đang sinh; chỉ nắm lại khi mở lại hộp thoại.
   useEffect(() => {
@@ -139,7 +141,6 @@ export function DramaPromptBundleModal({
   const withPrompt = useMemo(() => countPromptScenes(scenes), [scenes])
   const targetLabel = target?.label || t('dramaPromptBundle.targetModel')
   const formLabel = t(raw ? 'dramaPromptBundle.formRaw' : 'dramaPromptBundle.formExternal')
-  const scrollRef = useRef<HTMLDivElement | null>(null)
 
   const announce = useCallback(
     (outcome: CopyOutcome, text: string) => {
