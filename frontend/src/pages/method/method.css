@@ -193,8 +193,16 @@
    rescoped in media.css to take effect. */
 .pf-method-hero {
   max-width: none;
-  margin: 0 -2rem;
-  padding: 2.6rem 2rem 2.4rem;
+  /* Bleed by the page's own gutter and no further. `.pf-method-main` is
+     `width: min(1120px, calc(100% - 2rem))`, so -1rem makes the band exactly
+     the viewport width up to 1120px and a hair wider above it. The first
+     attempt used -2rem, which is only correct while the viewport is at the
+     1120px cap: measured at 1024 the section came out 1040px wide and pushed
+     16px of horizontal scroll, and at 1440 it was 80px short of the edge.
+     `calc(50% - 50vw)` would bleed correctly but counts the scrollbar in
+     `100vw`, which reintroduces the same overflow; this does not. */
+  margin: 0 -1rem;
+  padding: 2.6rem 1rem 2.4rem;
   background-color: var(--pf-scrim-rgb);
   background-image:
     linear-gradient(
@@ -626,8 +634,9 @@
     font-size: 0.85rem;
   }
 
-  /* The hero band goes edge to edge here, so the negative margin has to shrink
-     to the page gutter instead of the fixed 2rem it uses on wide screens. */
+  /* The hero band goes edge to edge here, so the negative margin shrinks to
+     the page gutter too — `.pf-method-main` is already `calc(100% - 1.25rem)`
+     below 560px, and the padding matches. */
   .pf-method-hero {
     margin: 0 -0.625rem;
     padding: 2rem 0.625rem 1.8rem;

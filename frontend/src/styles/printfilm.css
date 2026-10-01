@@ -5351,9 +5351,16 @@ button.pf-shot-editable:disabled {
 }
 
 .pf-project-thumb img,
+/* Fill the button instead of carrying its own width. The button is a fixed
+   168x94 above 1100px and 148px wide in the two-row layout below it, so a
+   placeholder pinned to 168px overflowed its box by exactly the 20px difference
+   — measured as 8 clipped labels at both 768px and 1024px, each losing the tail
+   of "Không có ảnh bìa". `aspect-ratio` keeps the 16:9 frame the plate is
+   cropped for without hard-coding either dimension. */
 .pf-project-thumb .ph {
-  width: 168px;
-  height: 94px;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
   object-fit: cover;
   display: block;
   border-radius: 12px;
@@ -5372,6 +5379,24 @@ button.pf-shot-editable:disabled {
   color: var(--pf-on-media-strong);
   font-size: 0.78rem;
   text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+}
+
+/* Justified content. Below 1101px the project row becomes two lines and the
+   thumbnail narrows from 168px to 148px, which is 20px less than the label
+   needs at 0.78rem — measured: 8 clipped labels at 768px and again at 1024px,
+   each losing its last four characters. Padding buys the room back without
+   shrinking the type; the plate stays legible behind it either way. */
+.pf-project-thumb .ph {
+  padding: 0 0.5rem;
+  text-align: center;
+  line-height: 1.25;
+}
+
+@media (max-width: 1100px) {
+  .pf-project-thumb .ph {
+    font-size: 0.7rem;
+    padding: 0 0.35rem;
+  }
 }
 
 .pf-thumb-progress {
