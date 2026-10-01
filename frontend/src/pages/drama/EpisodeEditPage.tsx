@@ -40,6 +40,7 @@ import {
 } from '../../lib/dramaEpisodeScriptValidate'
 import { DRAMA_VOICE_BINDING_ENABLED } from '../../lib/dramaVoiceBinding'
 import BillingErrorNotice from '../../components/billing/BillingErrorNotice'
+import { BetaNotice, BetaPromptResult } from '../../components/ui/BetaNotice'
 import { dialog } from '../../lib/dialog'
 import {
   formatProjectOutputLabel,
@@ -169,6 +170,8 @@ function EpisodeEditInner() {
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
+  // promptReady là prompt vừa tạo xong, để hiện kèm nút sao chép. Rỗng nghĩa là chưa bấm «Tạo prompt».
+  const [promptReady, setPromptReady] = useState('')
   const [characterVoiceBusyIds, setCharacterVoiceBusyIds] = useState<Set<number>>(() => new Set())
   /*
    * detailAsset chi tiết tư liệu ở cột trái (sửa / sinh lại / tải lên)
@@ -738,6 +741,11 @@ function EpisodeEditInner() {
     setPreviewVersionId(null)
   }, [selectedIndex, selected?.id])
 
+  // Chuyển cảnh thì bỏ prompt đã tạo của cảnh trước, tránh hiện nhầm sang cảnh mới
+  useEffect(() => {
+    setPromptReady('')
+  }, [selectedIndex])
+
   useEffect(() => {
     if (!eid || !pid) return
     setBusy(false)
@@ -777,6 +785,8 @@ function EpisodeEditInner() {
 
   // Cập nhật cảnh đang chọn
   function updateSelected(patch: Partial<DramaFragment>) {
+    // Sửa nội dung cảnh là prompt cũ không còn đúng, nên bỏ kết quả đang hiện
+    setPromptReady('')
     setFragments((prev) =>
       prev.map((f, i) => (i === selectedIndex ? { ...f, ...patch } : f)),
     )
@@ -916,26 +926,20 @@ function EpisodeEditInner() {
     }
 
     const fragLabel = formatFragLabel(selectedIndex, selectedDuration)
-    const isRegen = Boolean(selected.video)
+    setPromptReady('')
     const ok = await dialog.confirm({
-      title: isRegen ? 'Sinh lại video cảnh quay' : 'Sinh video cảnh quay',
+      title: `Tạo prompt cho «${fragLabel}»`,
       message: formatDramaGateMessage(
         [],
         warnings,
-        isRegen
-          ? `Sẽ lưu và sinh lại «${fragLabel}». Thành phẩm hiện tại sẽ bị xoá và chuyển thành phiên bản cũ; sau khi xếp hàng, bạn có thể xem tiến độ ở hàng đợi góc dưới bên phải.`
-          : linkLastFrame
-            ? continuityQueueHint
-              ? `Sẽ lưu «${fragLabel}» và xếp hàng. ${continuityQueueHint}.`
-              : `Sẽ lưu và sinh «${fragLabel}» theo thứ tự cảnh. Sau khi xếp hàng bạn vẫn sửa tiếp được; cảnh này sẽ dùng khung hình cuối của cảnh trước làm tham chiếu nối tiếp.`
-            : `Sẽ lưu và sinh «${fragLabel}». Sau khi xếp hàng bạn vẫn sửa tiếp được; hiện chưa bật nối tiếp khung hình cuối nên cảnh này được sinh độc lập.`,
+        `Bản beta này tạo prompt, chưa render video trong hệ thống. Prompt của «${fragLabel}» sẽ được lưu và bạn có nút sao chép để mang sang Veo, Muse, Kling, Seedance hoặc công cụ khác.`,
       ),
-      confirmText: warnings.length > 0 ? 'Vẫn sinh' : isRegen ? 'Sinh lại' : 'Bắt đầu sinh',
+      confirmText: warnings.length > 0 ? 'Vẫn tạo prompt' : 'Tạo prompt',
     })
     if (!ok) return
     setBusy(true)
     setError('')
-    setStatus(isRegen ? 'Đang lưu và xếp lại hàng đợi để sinh lại…' : 'Đang lưu và xếp hàng để sinh cảnh đang chọn…')
+    setStatus('Đang lưu và tạo prompt cho cảnh đang chọn…')
     try {
       const ep = await save()
       setBusy(true)
@@ -952,7 +956,7 @@ function EpisodeEditInner() {
                 ...f,
                 params: {
                   ...(f.params || {}),
-                  generation: { status: 'queued', message: 'Đã xếp hàng' },
+                  generation: { status: 'queued', message: 'Đã tạo prompt; bản beta chưa render video' },
                 },
               }
             : f,
@@ -969,11 +973,13 @@ function EpisodeEditInner() {
         fragmentIds: [frag.id],
       })
       setBusy(false)
-      setStatus(isRegen ? `«${fragLabel}» đã xếp hàng lại, xem hàng đợi ở góc dưới bên phải` : `«${fragLabel}» đã xếp hàng, xem hàng đợi ở góc dưới bên phải`)
+      // Nói đúng thứ vừa xảy ra: đã có prompt kèm nút sao chép, chưa có video.
+      setPromptReady((frag.content || '').trim())
+      setStatus('')
       ensureEpisodeVideoStatusPoll()
     } catch (err) {
       setBusy(false)
-      setError(err instanceof Error ? err.message : 'Sinh thất bại')
+      setError(err instanceof Error ? err.message : 'Tạo prompt thất bại')
     }
   }
 
@@ -1535,6 +1541,14 @@ function EpisodeEditInner() {
 
           <EpisodeEditReferenceStrip items={selectedRefItems} onSelect={focusLinkedAsset} />
 
+          {/*
+            Đặt NGOÀI `.drama-ep-editor-box`: ô prompt bên trong là `flex: 1` nên
+            thông báo đặt trong đó sẽ ăn mất chiều cao và người dùng chỉ thấy được
+            khoảng một nửa kịch bản của mình. Đặt ở đây vẫn nằm ngay trên khung có
+            nút bấm, nên đọc được trước khi bấm mà không bóp khung.
+          */}
+          <BetaNotice placement="drama-episode-generate" variant="inline" />
+
           <div className={`drama-ep-editor-box ${editing ? 'editing' : ''}`}>
             <EpisodeEditPromptEditor
               content={selected?.content || ''}
@@ -1643,20 +1657,22 @@ function EpisodeEditInner() {
                   onClick={() => void generateSelected()}
                 >
                   {selectedIsGenerating
-                    ? 'Đang sinh…'
+                    ? 'Đang tạo…'
                     : busy
                       ? 'Đang xử lý…'
                       : continuityQueueHint
-                        ? 'Xếp hàng sinh'
+                        ? 'Xếp hàng tạo prompt'
                         : continuityBlockedReason
                           ? 'Chờ cảnh trước'
                           : selectedHasVideo
-                          ? 'Sinh lại'
-                          : 'Sinh'}
+                          ? 'Tạo lại prompt'
+                          : 'Tạo prompt'}
                 </button>
               </>
             )}
           </div>
+
+          {promptReady ? <BetaPromptResult prompt={promptReady} className="drama-ep-beta-result" /> : null}
           </div>
 
           {selectedVersions.length > 0 && selected?.id ? (
