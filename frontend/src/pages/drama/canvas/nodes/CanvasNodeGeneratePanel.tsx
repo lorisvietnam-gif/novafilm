@@ -19,6 +19,7 @@ import { DramaImageGenOptionsBar } from './DramaImageGenOptionsBar'
 import { DramaSkillOptionsBar } from './DramaSkillOptionsBar'
 import { DramaVideoGenOptionsBar } from './DramaVideoGenOptionsBar'
 import { CanvasPromptEditor } from './CanvasPromptEditor'
+import { BetaNotice, BetaPromptResult } from '../../../../components/ui/BetaNotice'
 
 type CanvasNodeGeneratePanelProps = {
   nodeId: string
@@ -102,6 +103,8 @@ export function CanvasNodeGeneratePanel({
   const [busy, setBusy] = useState(false)
   const [rulesOpen, setRulesOpen] = useState(false)
   const [optimizing, setOptimizing] = useState(false)
+  // promptReady là prompt vừa tạo của node video, để hiện kèm nút sao chép
+  const [promptReady, setPromptReady] = useState('')
   const { skills, selectedIds, toggleSkill, selectAll, selectNone, uploadSkill, uploading, uploadError } =
     useAgentSkillSelection()
   // imageOptions phong cách / model / tỉ lệ khung hình khi sinh ảnh
@@ -137,6 +140,7 @@ export function CanvasNodeGeneratePanel({
     const next = sanitizePrompt(defaultPrompt, kind, label)
     if (switched) {
       setPrompt(next)
+      setPromptReady('')
       return
     }
     setPrompt((prev) => next || prev)
@@ -182,11 +186,14 @@ export function CanvasNodeGeneratePanel({
       }
       if (isVideo) {
         await generateNodeVideo(nodeId, prompt, videoOpts)
+        // Bản beta này cho ra prompt chứ không có video, nên nói đúng và đưa nút sao chép
+        setPromptReady(prompt.trim())
       } else {
+        setPromptReady('')
         await generateNodeImage(nodeId, prompt, imageOptions)
       }
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Sinh thất bại')
+      setErrorMessage(err instanceof Error ? err.message : 'Tạo thất bại')
     } finally {
       setBusy(false)
     }
@@ -257,6 +264,8 @@ export function CanvasNodeGeneratePanel({
         mentionItems={mentionItems}
         onChange={(next) => {
           setPrompt(next)
+          // Sửa prompt là kết quả cũ không còn đúng
+          setPromptReady('')
         }}
         onSubmit={() => void submit()}
       />
@@ -283,6 +292,11 @@ export function CanvasNodeGeneratePanel({
         uploading={uploading}
         uploadError={uploadError}
       />
+      {isVideo ? (
+        // Dòng này đứng ngay trên nút tạo: người dùng đọc trước khi bấm.
+        <BetaNotice placement="drama-canvas-video" variant="compact" />
+      ) : null}
+      {isVideo && promptReady ? <BetaPromptResult prompt={promptReady} /> : null}
       <div className="fc-generate-actions">
         <span className="fc-generate-hint">{copy.hint}</span>
         <div className="fc-generate-action-btns">
