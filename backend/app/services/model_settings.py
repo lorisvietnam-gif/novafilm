@@ -12,6 +12,10 @@ from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+# Danh sách model tạo ảnh của Kira. Model id lấy từ trang model chính thức của Kira; thêm model mới
+# chỉ cần bổ sung vào đây, không phải sửa chỗ khác.
+KIRA_IMAGE_MODELS = ["hy-image-v3.5-free"]
+
 from app.config import Settings, get_settings, reload_settings
 from app.models_settings import AppSettings, SystemModelChannelRow
 from app.schemas_routing import (
@@ -168,6 +172,28 @@ def _bootstrap_channels_from_env(settings: Settings | None = None) -> list[Syste
                 enabled=True,
                 # Đứng trước TokenFree: khi phân giải năng lực `text`, thử channel này trước.
                 sort_order=-1,
+            )
+        )
+
+    # Nhà cung cấp riêng cho model tạo ảnh (Kira AI — chuẩn OpenAI, đồng bộ).
+    #
+    # TokenFree giữ nguyên cho ảnh/video Seedream và Seedance. Đường của ai nấy đi: Kira có
+    # base URL, khoá riêng và đường gọi riêng, nên không nhét vào channel TokenFree.
+    kira_base = (src.kira_base_url or "").strip().rstrip("/")
+    if kira_base and (src.kira_api_key or "").strip():
+        channels.append(
+            SystemModelChannel(
+                id="image-kira",
+                name="Anh (Kira AI / OpenAI)",
+                base_url=kira_base,
+                api_key=src.kira_api_key.strip(),
+                has_api_key=True,
+                api_format="openai",
+                protocol="auto",
+                models=KIRA_IMAGE_MODELS,
+                enabled=True,
+                # Đứng trước TokenFree: khi phân giải năng lực `image`, thử channel này trước.
+                sort_order=-2,
             )
         )
     return channels
