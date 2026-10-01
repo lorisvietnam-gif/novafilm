@@ -600,10 +600,39 @@ export const api = {
   getProject(id: number) {
     return request<Project>(`/api/projects/${id}`)
   },
-  generate(id: number, opts?: { restart?: boolean }) {
-    const q = opts?.restart ? '?restart=true' : ''
-    return request<Project>(`/api/projects/${id}/generate${q}`, { method: 'POST' })
-  },
+/**
+     * Bắt đầu / tiếp tục pipeline.
+     *
+     * `subject_ref_urls` / `style_ref_urls` là hợp đồng đọc từ
+     * `backend/app/schemas.py::ProjectGenerateIn` (dòng 222) — cùng tên, cùng kiểu
+     * `list[str]`. Backend chặn trước mọi thứ: URL không công khai, trùng URL, và tổng
+     * vượt trần 9 đều ra lỗi đọc được chứ không cắt bớt.
+     *
+     * **Không có ảnh thì hành vi y hệt trước**: gửi `?restart=true` và **không** gửi
+     * body. Backend khai báo `body: ProjectGenerateIn | None = None` và có test
+     * `test_generate_without_body_still_accepts_query_restart` giữ tương thích ngược,
+     * nên client cũ vẫn chạy được. Gửi body rỗng cũng chạy, nhưng thêm một request body
+     * rỗng chỉ để nói "không có gì" là rác — nên ở đây **không** gửi.
+     */
+    generate(
+      id: number,
+      opts?: {
+        restart?: boolean
+        /** Ảnh nhân vật → `subject_ref_urls`. */
+        subject_ref_urls?: string[]
+        /** Ảnh bối cảnh → `style_ref_urls`. */
+        style_ref_urls?: string[]
+      },
+    ) {
+      const q = opts?.restart ? '?restart=true' : ''
+      const subject = opts?.subject_ref_urls ?? []
+      const style = opts?.style_ref_urls ?? []
+      const hasRefs = subject.length > 0 || style.length > 0
+      return request<Project>(`/api/projects/${id}/generate${q}`, {
+        method: 'POST',
+        body: hasRefs ? JSON.stringify({ restart: Boolean(opts?.restart), subject_ref_urls: subject, style_ref_urls: style }) : undefined,
+      })
+    },
   cancelProject(id: number) {
     return request<Project>(`/api/projects/${id}/cancel`, { method: 'POST' })
   },
