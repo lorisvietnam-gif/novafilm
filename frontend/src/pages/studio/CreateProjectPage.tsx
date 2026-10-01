@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api, defaultsFromTemplate } from '../../api'
 import type { Template } from '../../api'
-import BillingErrorNotice from '../../components/billing/BillingErrorNotice'
+import ErrorNotice from '../../components/errors/ErrorNotice'
 import AppShell from '../../components/layout/AppShell'
 import Stepper from '../../components/ui/Stepper'
 import PillTabs from '../../components/ui/PillTabs'
@@ -373,7 +373,7 @@ export default function CreateProjectPage() {
           <div className="pf-hint" style={{ marginTop: '1rem' }}>
             {t('studio.create.hint')}
           </div>
-          {error ? <BillingErrorNotice message={error} /> : null}
+          {error ? <ErrorNotice error={error} onDismiss={() => setError('')} /> : null}
         </section>
 
         <aside className="pf-create-col">
