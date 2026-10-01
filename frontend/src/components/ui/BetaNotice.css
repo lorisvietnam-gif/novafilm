@@ -119,20 +119,6 @@
   line-height: 1.45;
 }
 
-.pf-beta-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.25rem 0.55rem;
-  border: 1px solid color-mix(in srgb, var(--pf-warning-stroke) 42%, var(--pf-warning-soft));
-  border-radius: 999px;
-  background: var(--pf-warning-soft);
-  color: var(--pf-warning-ink);
-  font-size: 0.75rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
 /* Trong hero trang chủ: cột chữ hero rộng hơn nhiều, nên giới hạn bề ngang để đoạn
    văn vẫn dễ đọc thay vì trải hết cột. */
 .pf-land-beta {

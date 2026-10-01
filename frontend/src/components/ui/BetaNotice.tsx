@@ -94,17 +94,6 @@ export function BetaNotice({ placement, variant = 'banner', className }: BetaNot
   )
 }
 
-/** Nhãn nhỏ cho trang chủ, dùng khi không cần cả đoạn văn dài. */
-export function BetaBadge({ className }: { className?: string }) {
-  const { t } = useI18n()
-  return (
-    <span className={`pf-beta-badge${className ? ` ${className}` : ''}`}>
-      <Info size={13} strokeWidth={2} aria-hidden />
-      {t('betaNotice.homeBadge')}
-    </span>
-  )
-}
-
 /**
  * Sao chép văn bản, có đường lùi khi Clipboard API bị chặn.
  *
