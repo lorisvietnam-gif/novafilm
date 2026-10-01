@@ -260,6 +260,50 @@
   outline-color: var(--pf-focus-ring-on-fill);
 }
 
+/* ---- Nút mở hộp thoại (đặt ở trang chỉnh sửa tập) -------------------- */
+
+.drama-prompt-bundle-trigger {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--pf-space-2);
+}
+
+.drama-prompt-bundle-trigger__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--pf-space-1-5);
+  min-height: 34px;
+  max-width: 100%;
+  padding: 0 var(--pf-space-4);
+  border: 1px solid var(--pf-accent-stroke);
+  border-radius: var(--pf-radius-pill);
+  background: var(--pf-accent-soft);
+  color: var(--pf-accent-ink);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--pf-dur-fast) var(--pf-ease-standard);
+}
+
+.drama-prompt-bundle-trigger__btn:hover {
+  background: var(--pf-accent-soft-strong);
+}
+
+.drama-prompt-bundle-trigger__btn:focus-visible {
+  outline: var(--pf-focus-ring-width) solid var(--pf-focus-ring);
+  outline-offset: var(--pf-focus-ring-offset);
+}
+
+@media (max-width: 560px) {
+  .drama-prompt-bundle-trigger__btn {
+    /* Chạm tay: 44px theo khuyến nghị WCAG 2.2. */
+    min-height: 44px;
+    width: 100%;
+  }
+}
+
 /* ---- Danh sách cảnh -------------------------------------------------- */
 
 .drama-prompt-bundle__scroll {
