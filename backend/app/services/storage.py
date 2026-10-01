@@ -319,6 +319,8 @@ _IMAGE_SUFFIXES = frozenset(_IMAGE_SUFFIX_CONTENT_TYPES)
 # 服务器生成的文件名片段；asset id / uuid，不含用户输入。
 _SAFE_STEM_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
+_CONTROL_CHARS_RE = re.compile(r"[\x00-\x1f\x7f]")
+
 _MAGIC_PNG = b"\x89PNG\r\n\x1a\n"
 
 
@@ -336,17 +338,24 @@ def resolve_image_upload_type(
 ) -> tuple[str, str]:
     """确定上传图片的 (ext, content_type)。
 
-    只看 content_type 不够（客户端可随意伪造），所以先按 content_type 定扩展名，
-    content_type 缺失时退回文件名后缀 —— 但后缀同样必须在白名单内，
-    且 ``../``、``..\\``、绝对路径、控制字符都不会进入返回值：
-    返回的 ext 一定出自 _IMAGE_SUFFIXES，用户文件名不会成为路径的一部分。
+    content_type 在白名单就用它；为空或 application/octet-stream（浏览器习惯）才退回
+    文件名后缀，后缀同样必须命中白名单。``../``、``..\\``、绝对路径、NUL 都不会进入
+    返回值：ext 一定出自 _IMAGE_SUFFIXES，用户文件名不会成为路径的一部分。
+    内容真伪另有 magic bytes 把关（见 _sniff_image_ext）。
     """
     declared = (content_type or "").split(";")[0].strip().lower()
     ext = _IMAGE_CONTENT_TYPES.get(declared)
     if ext is None:
+        # 空类型和 application/octet-stream 是浏览器的常见习惯：退回文件名后缀。
+        # 其余类型是客户端明确声明的，不在白名单就直接拒，不给"换个后缀蒙混"的机会。
+        if declared and declared != "application/octet-stream":
+            raise UploadRejected("仅支持 JPG / PNG / WebP / GIF 图片")
         # PurePosixPath 在 Windows 上也只把 "/" 当分隔符；后缀之前若含分隔符会被
         # 归到 name 里，因此这里取到的 suffix 是干净的最后一个片段。
-        suffix = PurePosixPath((filename or "").replace("\\", "/")).suffix.lower()
+        raw_name = (filename or "").replace("\\", "/")
+        if _CONTROL_CHARS_RE.search(raw_name):
+            raise UploadRejected("文件名包含非法字符")
+        suffix = PurePosixPath(raw_name).suffix.lower()
         if suffix not in _IMAGE_SUFFIXES:
             raise UploadRejected("仅支持 JPG / PNG / WebP / GIF 图片")
         ext = ".jpg" if suffix == ".jpeg" else suffix
