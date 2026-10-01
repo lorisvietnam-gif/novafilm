@@ -105,6 +105,26 @@ const COPY: Record<string, LocalizedText> = {
     en: ': inferred from the script’s narration, dialogue and visual cues.',
     vi: ': suy ra từ lời dẫn, đối thoại và các cue hình ảnh trong kịch bản.',
   },
+  /*
+   * `【强制约束：…】` là marker thật sự nằm trong prompt, nên nó giữ nguyên tiếng Trung ở
+   * cả ba ngôn ngữ — giống `assemblyStyle` / `assemblyAudio` ngay phía trên. Chỉ phần
+   * văn xuôi sau dấu `—` mới là chữ hiển thị và phải dịch.
+   */
+  assemblyCharacter: {
+    zh: '— 角色名 → 参考图序号',
+    en: ' — character name → reference image number',
+    vi: ' — tên nhân vật → số thứ tự ảnh tham chiếu',
+  },
+  assemblyScene: {
+    zh: '— 场景名 → 参考图序号',
+    en: ' — scene name → reference image number',
+    vi: ' — tên bối cảnh → số thứ tự ảnh tham chiếu',
+  },
+  assemblyProp: {
+    zh: '— 道具名 → 参考图序号',
+    en: ' — prop name → reference image number',
+    vi: ' — tên đạo cụ → số thứ tự ảnh tham chiếu',
+  },
 
   hDurationTag: { zh: '时长标签', en: 'Duration tags', vi: 'Nhãn thời lượng' },
   durationTagItem: {
@@ -385,9 +405,9 @@ export function SeedanceRulesModal({ open, onClose }: Props) {
               <li>【强制约束：角色音色】— 角色名 → 参考音频序号</li>
               <li>【强制约束：旁白音色】— 旁白 → 参考音频序号</li>
               */}
-              <li>【强制约束：角色形象】— 角色名 → 参考图序号</li>
-              <li>【强制约束：场景】— 场景名 → 参考图序号</li>
-              <li>【强制约束：道具】— 道具名 → 参考图序号</li>
+              <li>【强制约束：角色形象】{lt(COPY.assemblyCharacter)}</li>
+              <li>【强制约束：场景】{lt(COPY.assemblyScene)}</li>
+              <li>【强制约束：道具】{lt(COPY.assemblyProp)}</li>
               <li>
                 <strong>{lt(COPY.assemblyBodyLabel)}</strong>
                 {lt(COPY.assemblyBody)}

@@ -14,10 +14,13 @@ import BillingErrorNotice from '../../components/billing/BillingErrorNotice'
 import AppShell from '../../components/layout/AppShell'
 import Button from '../../components/ui/Button'
 import PillFilter, { type PillOption } from '../../components/ui/PillFilter'
+import { DramaImageStylePreviewImg } from '../../components/drama/DramaImageStylePreviewImg'
 import { dramaApi, resolveDramaMediaUrl, type DramaProjectListItem } from '../../api/drama'
 import { dialog } from '../../lib/dialog'
+import { dramaProjectCoverArtStyleId } from '../../lib/coverArt'
 import { type ImageStyleId } from '../../lib/dramaImageStyles'
 import { formatDramaUsageBrief } from '../../lib/dramaUsage'
+import { dramaProjectTitle } from '../../lib/projectTitleLabels'
 import {
   dramaProjectEntryPath,
   formatDramaCardMeta,
@@ -207,8 +210,16 @@ function DramaListInner() {
       if (canvas) return false
       if (!(item.has_script && (item.episode_count || 0) >= 8)) return false
     }
+    // Tìm trên cả tên gốc lẫn tên đang hiển thị: tên gốc tiếng Trung do backend tự
+    // đặt thì không ai gõ, nhưng dự án cũ vẫn còn tên gốc nên không bỏ hẳn đi cũng không.
     const q = query.trim().toLowerCase()
-    if (q && !(item.title || '').toLowerCase().includes(q)) return false
+    if (
+      q &&
+      !(item.title || '').toLowerCase().includes(q) &&
+      !dramaProjectTitle(item.title).toLowerCase().includes(q)
+    ) {
+      return false
+    }
     return true
   })
 
@@ -233,13 +244,16 @@ function DramaListInner() {
 
   // Đổi tên
   async function handleRename(item: DramaProjectListItem) {
+    // Ô nhập mở ra bằng tên đang hiển thị, nên phải so với tên đó chứ không so với
+    // `item.title` gốc — nếu không thì bấm "Lưu" mà không gõ gì cũng ghi đè.
+    const current = dramaProjectTitle(item.title)
     const name = await dialog.prompt({
       title: t('dramaList.renameTitle'),
       message: t('dramaList.renameMessage'),
-      defaultValue: item.title,
+      defaultValue: current,
       confirmText: t('common.save'),
     })
-    if (!name?.trim() || name.trim() === item.title) return
+    if (!name?.trim() || name.trim() === current) return
     try {
       await dramaApi.updateProject(item.id, { title: name.trim() })
       await loadProjects()
@@ -252,7 +266,7 @@ function DramaListInner() {
   async function handleDeleteOne(item: DramaProjectListItem) {
     const ok = await dialog.confirm({
       title: t('dramaList.deleteTitle'),
-      message: t('dramaList.deleteOne', { title: item.title }),
+      message: t('dramaList.deleteOne', { title: dramaProjectTitle(item.title) }),
       confirmText: t('common.delete'),
       tone: 'danger',
     })
@@ -463,6 +477,11 @@ function DramaListInner() {
               const isSelected = selected.has(item.id)
               const coverSrc = item.cover_url ? resolveDramaMediaUrl(item.cover_url) : ''
               const canvas = isCanvasWorkflow(item)
+              // Chưa có bìa thì lấy ảnh phong cách có sẵn trong repo, đừng để thẻ là một
+              // ô trắng có mỗi tên dự án viết dọc — xem `lib/coverArt.ts`.
+              const coverArt: ImageStyleId | null = coverSrc
+                ? null
+                : dramaProjectCoverArtStyleId(item.id)
               return (
                 <article
                   key={item.id}
@@ -472,7 +491,7 @@ function DramaListInner() {
                     type="button"
                     className="pf-drama-card-cover"
                     onClick={() => openProject(item)}
-                    aria-label={`Mở ${item.title}`}
+                    aria-label={`Mở ${dramaProjectTitle(item.title)}`}
                   >
                     {coverSrc ? (
                       <img
@@ -482,8 +501,16 @@ function DramaListInner() {
                         loading="lazy"
                         decoding="async"
                       />
+                    ) : coverArt ? (
+                      <DramaImageStylePreviewImg
+                        styleId={coverArt}
+                        alt=""
+                        className="pf-drama-card-cover-img"
+                      />
                     ) : (
-                      <span className="pf-drama-card-cover-fallback">{coverTitleLabel(item.title)}</span>
+                      <span className="pf-drama-card-cover-fallback">
+                        {coverTitleLabel(dramaProjectTitle(item.title))}
+                      </span>
                     )}
                     {canvas ? <span className="pf-drama-card-cover-badge is-canvas">Toan vẽ tự do</span> : null}
                     {!canvas && item.cover_pending ? (
@@ -502,7 +529,7 @@ function DramaListInner() {
                   <div className="pf-drama-card-body">
                     <div className="pf-drama-card-top">
                       <button type="button" className="pf-drama-card-title" onClick={() => openProject(item)}>
-                        {item.title}
+                        {dramaProjectTitle(item.title)}
                       </button>
                       <DramaProjectCardMenu
                         onRename={() => void handleRename(item)}

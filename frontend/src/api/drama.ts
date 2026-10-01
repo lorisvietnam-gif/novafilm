@@ -1,16 +1,32 @@
 import { throwApiError } from '../lib/apiError'
+import { localized, type LocalizedText } from '../lib/localeStrings'
+import { API_BASE as apiBase } from '../api'
 
-function defaultApiBase() {
-  if (typeof window !== 'undefined' && window.location?.hostname) {
-    const { protocol, hostname } = window.location
-    return `${protocol}//${hostname}:8000`
-  }
-  return 'http://127.0.0.1:8000'
+/**
+ * Văn bản dự phòng khi backend không trả `detail` dạng chuỗi.
+ *
+ * Trước đây hai chỗ này viết thẳng tiếng Trung, nên một `vi` / `en` user chỉ cần gặp
+ * lỗi có `detail` rỗng là thấy tiếng Trung. `localized()` đọc locale lúc ném lỗi
+ * nên không cần truyền ngôn ngữ từ component xuống.
+ */
+const COPY: Record<string, LocalizedText> = {
+  requestFailed: { zh: '请求失败', en: 'Request failed', vi: 'Yêu cầu thất bại' },
+  uploadFailed: { zh: '上传失败', en: 'Upload failed', vi: 'Tải lên thất bại' },
 }
 
-const _viteApiBase = import.meta.env.VITE_API_BASE
-const API_BASE =
-  _viteApiBase === undefined || _viteApiBase === null ? defaultApiBase() : String(_viteApiBase)
+/**
+ * Dùng CHUNG `API_BASE` với `api.ts`.
+ *
+ * Trước đây file này **tự định nghĩa lại** `API_BASE` bằng đúng cách kiểm tra sai:
+ * `_viteApiBase === undefined || null ? defaultApiBase() : String(_viteApiBase)`. Biến rỗng thì
+ * rơi vào `String('')` = `''` → gọi **cùng origin** → không có `/api` → 7 trang drama và tài
+ * nguyên báo lỗi kết nối trong khi mọi trang khác vẫn tốt. Board đã sửa `api.ts` nhưng bỏ sót
+ * bản sao ở đây, nên phải tìm ra bằng cách so sánh **danh sách route báo lỗi**: cứ 7 trang
+ * drama/tài nguyên là lỗi.
+ *
+ * Một định nghĩa duy nhất — để lỗi này không thể tái diễn.
+ */
+const API_BASE = apiBase
 
 /** 导出 API 根地址，供静态资源 URL 拼接 */
 export function getDramaApiBase() {
@@ -59,7 +75,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }))
-    throwApiError(res.status, err.detail, '请求失败')
+    throwApiError(res.status, err.detail, localized(COPY.requestFailed))
   }
   return res.json()
 }
@@ -353,7 +369,7 @@ export const dramaApi = {
           : Array.isArray(detail)
             ? detail.map((d: { msg?: string }) => d.msg || JSON.stringify(d)).join('; ')
             : res.statusText
-      throw new Error(message || '上传失败')
+      throw new Error(message || localized(COPY.uploadFailed))
     }
     return res.json() as Promise<DramaAsset>
   },

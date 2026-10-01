@@ -173,8 +173,7 @@
   }
 
   body .pf-ws-hero,
-  body .pf-home-hero,
-  body .pf-land-close {
+  body .pf-home-hero {
     background-image: linear-gradient(
         180deg,
         var(--pf-media-scrim-full) 0%,
@@ -184,6 +183,22 @@
       ),
       var(--pf-media-band-wuxia);
     background-position: center, 55% 40%;
+  }
+
+  /* `.pf-land-close` carries its photograph as a lazy `<img>` now, so the stack
+     that used to be two `background-image` layers is split between the element
+     and its `::before`. Only the two knobs move here; the ladder itself stays in
+     printfilm.css as `--pf-land-close-scrim`, which is what keeps the measured
+     result identical to the desktop band instead of a second copy to re-audit. */
+  body .pf-land-close {
+    --pf-land-close-scrim: linear-gradient(
+      180deg,
+      var(--pf-media-scrim-full) 0%,
+      var(--pf-media-scrim-strong) 44%,
+      var(--pf-media-scrim) 74%,
+      var(--pf-media-scrim-soft) 100%
+    );
+    --pf-land-close-frame-position: 55% 40%;
   }
 
   body .pf-land-hero h1,

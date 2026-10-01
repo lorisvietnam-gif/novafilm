@@ -105,6 +105,27 @@ export const enShell = {
     forgotSent: 'If that email is registered, a reset link will be sent',
     resetSuccess: 'Password updated. Sign in with your new password',
     resetTokenMissing: 'Invalid reset link. Please request a new one',
+    oauthDivider: 'Or continue with another account',
+    oauthPending: 'Social sign-in is being prepared',
+    oauthConnecting: 'Connecting to {provider}…',
+    oauthFinishing: 'Finishing sign-in…',
+    oauthSetupTitle: 'Complete your account',
+    oauthSetupLede:
+      'Your {provider} account did not provide an email. Set an email and a password so we can create your account.',
+    oauthSetupLedeUnknown:
+      'Your social account did not provide an email. Set an email and a password so we can create your account.',
+    oauthSetupFailed: 'Could not complete your account, please try again',
+    oauthErrorAccessDenied: 'You cancelled social sign-in.',
+    oauthErrorStateInvalid: 'The sign-in session is invalid or expired. Please try again.',
+    oauthErrorMissingCode: 'No sign-in code was returned by the provider. Please try again.',
+    oauthErrorRedirectInvalid: 'The return address is not valid. Please try again.',
+    oauthErrorProviderUnavailable: 'This sign-in method is not configured yet.',
+    oauthErrorProviderFailed: 'The provider rejected the request. Please try again.',
+    oauthErrorServiceUnavailable: 'Sign-in is temporarily unavailable. Please try again shortly.',
+    oauthErrorEmailTaken:
+      'That email already has an account. Sign in with your password first, then link your social account.',
+    oauthErrorIdentityConflict: 'The linked account is no longer valid. Please contact support.',
+    oauthErrorGeneric: 'Sign-in did not complete. Please try again.',
   },
   create: {
     title: 'Start creating',

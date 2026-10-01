@@ -6,7 +6,9 @@ import BillingErrorNotice from '../components/billing/BillingErrorNotice'
 import AppShell from '../components/layout/AppShell'
 import PillTabs from '../components/ui/PillTabs'
 import EmptyState from '../components/ui/EmptyState'
+import { DramaImageStylePreviewImg } from '../components/drama/DramaImageStylePreviewImg'
 import { ALL_CATEGORY_KEY, CATEGORY_ORDER, homeCategoryLabel } from '../lib/categories'
+import { templateCoverArtStyleId } from '../lib/coverArt'
 import { templateDescription, templateName } from '../lib/templateLabels'
 import { useLocalizedText } from '../lib/useLocalizedText'
 import type { LocalizedText } from '../lib/localeStrings'
@@ -105,20 +107,27 @@ export default function TemplatesPage() {
       />
       {error ? <BillingErrorNotice message={error} /> : null}
       <div className="pf-template-grid" style={{ marginTop: '1rem' }}>
-        {filtered.map((t) => (
-          <button key={t.id} type="button" className="pf-template-card" onClick={() => openTemplate(t)}>
-            <img src={api.assetUrl(t.preview_cover)} alt="" />
-            <div className="body">
-              <h3>{templateName(t.id, t.name)}</h3>
-              <p>{templateDescription(t.id, t.description)}</p>
-              <div className="pf-tags">
-                {t.category.map((c) => (
-                  <span key={c}>{homeCategoryLabel(c)}</span>
-                ))}
+        {filtered.map((t) => {
+          const coverArt = templateCoverArtStyleId(t.id)
+          return (
+            <button key={t.id} type="button" className="pf-template-card" onClick={() => openTemplate(t)}>
+              {coverArt ? (
+                <DramaImageStylePreviewImg styleId={coverArt} alt="" />
+              ) : (
+                <img src={api.assetUrl(t.preview_cover)} alt="" />
+              )}
+              <div className="body">
+                <h3>{templateName(t.id, t.name)}</h3>
+                <p>{templateDescription(t.id, t.description)}</p>
+                <div className="pf-tags">
+                  {t.category.map((c) => (
+                    <span key={c}>{homeCategoryLabel(c)}</span>
+                  ))}
+                </div>
               </div>
-            </div>
-          </button>
-        ))}
+            </button>
+          )
+        })}
       </div>
       {filtered.length === 0 ? (
         <EmptyState imageStyle="shanghai-animation" className="pf-templates-empty">
