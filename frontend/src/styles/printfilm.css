@@ -1509,9 +1509,16 @@
   color: var(--pf-ink-tertiary);
 }
 
+/* Opaque, not a 0.92 blue. This chip sits on `.pf-drama-card-cover`, which is a
+   PALE plate in light mode (a white wash over the myth plate) and a deep one in
+   dark. A translucent chip therefore composites to two different colours, and the
+   light case is the one that fails: measured 4.11:1 over the pale plate, under the
+   4.5:1 that 11.5px text needs — `contrast-on-media.mjs` measured 3.93:1 on the
+   real pixels. Opaque `#2563eb` is 5.17:1 against white ink in both themes, because
+   it no longer depends on what is under it. Same hue, same weight, no veil. */
 .pf-drama-card-cover-badge.is-canvas {
-  background: rgba(37, 99, 235, 0.92);
-  color: var(--pf-on-media);
+  background: #2563eb;
+  color: var(--pf-on-media-strong);
 }
 
 .pf-drama-card-body {
