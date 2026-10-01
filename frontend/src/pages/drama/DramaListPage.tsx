@@ -46,11 +46,16 @@ function formatUpdatedAt(raw?: string) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-// Tiêu đề dọc trên bìa (khi chưa có ảnh xem trước)
-function verticalTitleLabel(name: string, max = 12): string {
-  const clean = (name || '').replace(/\s+/g, '')
-  if (clean.length <= max) return clean
-  return `${clean.slice(0, max - 1)}…`
+// Chữ trên ảnh bìa khi chưa có ảnh xem trước.
+//
+// Hàm này từng bỏ HẾT khoảng trắng rồi cắt còn 12 ký tự, vì nó cấp cho
+// `writing-mode: vertical-rl`: dọc thì dấu cách chỉ là một khoảng trống vô nghĩa.
+// Bìa thì nay đặt chữ ngang ở chân ảnh, nên bỏ khoảng trắng là phá huỷ đúng thứ
+// cần đọc — "Kiểm thu Drama" ra "KiemthuDrama", một từ không tồn tại. Cắt chuỗi
+// cũng bỏ: dải chữ tự giới hạn 2 dòng bằng `-webkit-line-clamp`, và tên đầy đủ
+// vẫn còn trong `aria-label` của nút bìa lẫn `.pf-drama-card-title` ngay dưới.
+function coverTitleLabel(name: string): string {
+  return (name || '').replace(/\s+/g, ' ').trim()
 }
 
 type ProjectFilter = 'all' | 'running' | 'done' | 'draft'
@@ -478,7 +483,7 @@ function DramaListInner() {
                         decoding="async"
                       />
                     ) : (
-                      <span className="pf-drama-card-cover-fallback">{verticalTitleLabel(item.title)}</span>
+                      <span className="pf-drama-card-cover-fallback">{coverTitleLabel(item.title)}</span>
                     )}
                     {canvas ? <span className="pf-drama-card-cover-badge is-canvas">Toan vẽ tự do</span> : null}
                     {!canvas && item.cover_pending ? (
