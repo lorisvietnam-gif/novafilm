@@ -104,6 +104,12 @@
   white-space: nowrap;
 }
 
+/* Trong hero trang chủ: cột chữ hero rộng hơn nhiều, nên giới hạn bề ngang để đoạn
+   văn vẫn dễ đọc thay vì trải hết cột. */
+.pf-land-beta {
+  max-width: 46rem;
+}
+
 /* Kết quả sau khi bấm: nói rõ đây là prompt, kèm nút sao chép. */
 .pf-beta-result {
   display: block;

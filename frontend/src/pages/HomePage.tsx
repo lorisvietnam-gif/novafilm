@@ -6,6 +6,7 @@ import AppShell from '../components/layout/AppShell'
 import Button from '../components/ui/Button'
 import ComingSoon from '../components/ui/ComingSoon'
 import CreateChoiceModal from '../components/ui/CreateChoiceModal'
+import { BetaNotice } from '../components/ui/BetaNotice'
 import { useI18n } from '../i18n'
 import { DramaImageStylePreviewImg } from '../components/drama/DramaImageStylePreviewImg'
 import { getDramaImageStylePreviewUrl } from '../lib/dramaImageStylePreviews'
@@ -52,6 +53,7 @@ export default function HomePage() {
             <em>{t('home.headlineEm')}</em>
           </h1>
           <p className="pf-land-lede">{t('home.lede')}</p>
+          <BetaNotice placement="home-hero" className="pf-land-beta" />
           <div className="pf-land-cta">
             <Button variant="lime" size="lg" icon onClick={goCreate}>
               {t('home.startCreate')}
