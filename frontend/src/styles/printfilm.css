@@ -7670,6 +7670,39 @@ button.pf-shot-editable:disabled {
     grid-column: 1 / -1;
   }
 
+  /*
+   * Ảnh bìa chiếm `1 / -1` nên mọi ô còn lại tự động xếp vào cột đầu tiên -
+   * cột 28px của ô checkbox. Ô tiêu đề vì thế chỉ còn 28px, và tiếng Việt /
+   * tiếng Trung xuống dòng từng ký tự một. Đo được ở 360px: .pf-project-info
+   * rộng 28px cho "未命名作品". Cho nó trải hết chiều ngang như ảnh bìa.
+   */
+  .pf-project-info {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  /*
+   * Hàng bộ lọc: ô tìm kiếm có `min-width: 220px` và hàng là `nowrap`, nên
+   * select 130px + gap 8px + ô tìm 220px = 358px > 312px còn lại trong khung.
+   * Đo ở 360px: .pf-history-filter-right rộng 358px, tràn 22px ra ngoài
+   * khung nhìn, kéo cả trang thành scrollWidth 382px. Cho phép xuống dòng và
+   * để ô tìm co lại được - không cắt `min-width` 220px vì nó giữ bề rộng đọc
+   * được trên desktop.
+   */
+  .pf-history-filter-right {
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  .pf-search-field {
+    flex: 1 1 180px;
+    min-width: 0;
+  }
+
+  .pf-type-select {
+    flex: 0 0 auto;
+  }
+
   .pf-project-ratio,
   .pf-project-actions {
     grid-column: 1 / -1;
