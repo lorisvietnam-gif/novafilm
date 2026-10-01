@@ -64,6 +64,8 @@ const TARGETS = [
   ['/contact', '.pf-legal-hero p', 'phu de lien he'],
   ['/terms', '.pf-legal-hero p', 'phu de dieu khoan'],
   ['/auth', '.auth-panel h1', 'tieu de dang nhap'],
+  ['/drama', '.pf-drama-card-cover-fallback', 'ten duan tren anh'],
+  ['/drama', '.pf-drama-card-cover-badge', 'chip tren anh du an'],
 ]
 
 let EDGE_PID = null
