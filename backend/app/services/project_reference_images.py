@@ -94,8 +94,10 @@ def resolve_project_reference_images(
     if not subjects and not styles:
         return []
 
-    # 同一张图重复提交会被上游按张数计，先按 URL 去重再算张数
-    unique = cap_url_list([*subjects, *styles])
+    # 同一张图重复提交会被上游按张数计，先按 URL 去重再算张数。
+    # 用 seedream_ref_urls 而不是 cap_url_list：后者会顺手截到 9 张，那样就看不出超限了。
+    candidates = [*subjects, *styles]
+    unique = seedream_ref_urls(*candidates, limit=len(candidates))
     if len(unique) > MAX_REFERENCE_IMAGES:
         raise ReferenceImageError(
             f"参考图共 {len(unique)} 张，超过单次上限 {MAX_REFERENCE_IMAGES} 张，请删减后重试。"

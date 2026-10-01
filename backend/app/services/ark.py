@@ -1163,22 +1163,24 @@ class ArkGateway:
         # 纯 first_frame 禁止传 ratio，且实测即使静帧竖屏也可能吐横屏。
         image_role, target_ratio = resolve_seedance_i2v_image_role(ratio)
         extra_refs: list[str] = []
-        # 同一张图重复提交会被上游按张数计；静帧本身也占一张，先去重再算张数
-        seen_refs: set[str] = {image_ref}
+        # 同一张图重复提交会被上游按张数计；静帧本身也占一张。
+        # 输入与解析后的地址分开去重：解析常把不同地址收敛到同一张 CDN 图。
+        seen_input: set[str] = set()
+        resolved_refs: set[str] = {image_ref}
         for raw in extra_image_urls or []:
             text_url = str(raw or "").strip()
-            if not text_url or text_url in seen_refs:
+            if not text_url or text_url in seen_input:
                 continue
-            seen_refs.add(text_url)
+            seen_input.add(text_url)
             try:
                 safe_extra = await ensure_seedance_compatible_image_url(text_url)
                 resolved_extra = await self._resolve_image_ref(safe_extra, prefer_https=True)
             except Exception:  # noqa: BLE001
                 logger.warning("Seedance extra ref resolve failed url=%s", text_url[:120])
                 continue
-            if resolved_extra in seen_refs:
+            if resolved_extra in resolved_refs:
                 continue
-            seen_refs.add(resolved_extra)
+            resolved_refs.add(resolved_extra)
             extra_refs.append(resolved_extra)
         # 静帧 + 参考图合计超上限就报错；悄悄截断会让角色画错
         if len(extra_refs) + 1 > MAX_REFERENCE_IMAGES:
