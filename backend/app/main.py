@@ -1,6 +1,20 @@
 from pathlib import Path
 import logging
+import sys
 import time
+
+# Bắt buộc: mọi ký tự tiếng Việt phải in được.
+#
+# Console Windows mặc định dùng codec `cp1252`, in ra chữ `ợ` (U+1EE3) là ném
+# UnicodeEncodeError. Điều đó làm **mọi request trả về tiếng Việt đều hỏng với 502** — vì
+# nội dung sinh ra từ model phải đi qua log hoặc stdout trước khi tới trình duyệt.
+# Sản phẩm này sinh nội dung tiếng Việt, nên đây không phải chuyện "cho đẹp log": nó là
+# điều kiện để sản phẩm chạy được trên máy Windows.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
