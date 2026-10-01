@@ -520,6 +520,7 @@ export const enPages = {
     bundleRefs: 'References: {list}',
     bundleDisclaimer:
       'Prompt written for {model}. Pasting it into a different video tool can give a different result.',
+  },
   promptCompiler: {
     open: 'Prompt compiler',
     title: 'Compile a prompt for one model',

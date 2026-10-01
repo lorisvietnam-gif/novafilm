@@ -525,6 +525,7 @@ export const viPages = {
     bundleRefs: 'Tài nguyên: {list}',
     bundleDisclaimer:
       'Prompt viết cho {model}. Dán sang công cụ tạo video khác thì kết quả có thể khác đi.',
+  },
   promptCompiler: {
     open: 'Bộ biên dịch prompt',
     title: 'Biên dịch prompt cho từng model',

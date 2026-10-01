@@ -517,6 +517,7 @@ export const zhPages = {
     bundleRefs: 'Tài nguyên: {list}',
     bundleDisclaimer:
       'Prompt viết cho {model}. Dán sang công cụ tạo video khác có thể cho kết quả khác.',
+  },
   promptCompiler: {
     open: '提示词编译器',
     title: '按模型编译提示词',
