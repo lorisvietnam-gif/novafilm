@@ -11,7 +11,7 @@ import { useI18n, type Messages } from '../../i18n'
 import { CATEGORY_ORDER, homeCategoryLabel } from '../../lib/categories'
 import { kepuStepIndex, kepuSteps } from '../../lib/status'
 import { templateDescription, templateName } from '../../lib/templateLabels'
-import { getDramaImageStylePreviewUrl } from '../../lib/dramaImageStylePreviews'
+import { DramaImageStylePreviewImg } from '../../components/drama/DramaImageStylePreviewImg'
 import './studio.css'
 
 type Inspiration = Messages['studio']['create']['inspiration'][number]
@@ -389,7 +389,13 @@ export default function CreateProjectPage() {
           ) : (
             <div className="studio-pick-hint">
               <span className="studio-pick-art" aria-hidden>
-                <img src={getDramaImageStylePreviewUrl('shanghai-animation')} alt="" />
+                {/* Số đo (perf-audit.mjs): bản gốc 2560x1440 nặng 569KB cho một ô
+                    266px. Bản thu nhỏ 512 là 37KB — cùng khung hình, 15 lần nhẹ hơn. */}
+                <DramaImageStylePreviewImg
+                  styleId="shanghai-animation"
+                  alt=""
+                  sizes="(max-width: 900px) 92vw, 400px"
+                />
               </span>
               <p className="pf-muted">{t('studio.create.noTemplate')}</p>
             </div>
