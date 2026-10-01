@@ -14,6 +14,7 @@ import { mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { tmpdir } from 'node:os'
 
 const EDGE = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
 
@@ -101,7 +102,37 @@ const API = process.env.AUDIT_API || 'http://127.0.0.1:8000'
  */
 const HERE = resolve(fileURLToPath(new URL('.', import.meta.url)))
 const OUT = process.env.AUDIT_OUT || resolve(HERE, '..', '.kilo', 'audit')
-const PROFILE = join(OUT, '..', `edge-profile-${process.pid}`)
+
+/**
+ * Thư mục cha cho **profile Edge** — cố ý đặt NGOÀI workspace.
+ *
+ * Đây là nguyên nhân thật khiến audit chết. Dev server Vite **theo dõi toàn bộ
+ * `frontend/`**, nên nó cũng theo dõi `frontend/.kilo/`. Profile Edge nằm ở đó và Edge giữ
+ * file trong lúc chạy, nên Vite `watch()` dính `EBUSY` và **tự chết**:
+ *
+ *   Error: EBUSY: resource busy or locked, watch
+ *   '...\.kilo\edge-profile-93884-1\Local State<uuid>.tmp'
+ *     at createFsWatchInstance (.../vite/dist/node/chunks/node.js:9404:16)
+ *
+ * Đo được: audit dừng ở route 5/50, in `da don 0 tien trinh Edge`, rồi socket CDP đứt. Nghe
+ * thì như Edge chết — nhưng Edge còn sống; **dev server** đã chết, nên mọi trang sau đó trả
+ * `ERR_CONNECTION_REFUSED` và `cjk=0`. Đó là lý do trang báo `cjk=0` chứ không phải tiếng
+ * Trung: nó đo trang lỗi của Edge, không phải trang của ứng dụng.
+ *
+ * Profile là dữ liệu tạm, không phải thứ cần đọc lại, nên đặt nó ở `%TEMP%` là đúng. Ảnh chụp
+ * vẫn nằm trong workspace (`OUT`) vì cần mở ra xem.
+ */
+const PROFILE_ROOT = join(tmpdir(), `novafilm-audit-edge-${process.pid}`)
+
+/**
+ * Profile của lô hiện tại. **Đổi theo từng lô**, không dùng một profile cho cả lần chạy.
+ *
+ * Lý do: audit chia 25 route × 2 locale thành nhiều lô, mỗi lô một Edge sạch — xem
+ * `main()`. Profile phải theo lô vì nó vừa là chỗ chứa dữ liệu Edge, vừa là **thứ để nhận
+ * diện Edge nào là của ta** (xem `assertOurBrowser`). Dùng chung một profile cho mọi lô thì
+ * khi Edge lô trước còn sót, `assertOurBrowser()` sẽ khẳng định nhầm là của lô sau.
+ */
+let PROFILE = join(PROFILE_ROOT, 'lot-0')
 
 /**
  * Chốt: **chỉ một audit chạy một lúc.**
@@ -141,6 +172,10 @@ process.on('exit', () => {
   try {
     if (Number(readFileSync(LOCK, 'utf8').trim()) === process.pid) rmSync(LOCK, { force: true })
   } catch { /* da duoc xoa */ }
+  // Profile nằm trong `%TEMP%` và mỗi lô vài chục MB, nên phải dọn cả khi audit chết giữa
+  // chừng — nếu không thì lần sau lại đầy `%TEMP%`. `main()` đã dọn từng lô; đây là lưới an
+  // toàn cho các lô chưa tới.
+  try { rmSync(PROFILE_ROOT, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }) } catch { /* da duoc xoa */ }
 })
 
 const CJK = /[\u4e00-\u9fff]/
@@ -362,26 +397,34 @@ async function ensureData(token) {
  * chạy để lại ~490MB trong `edge-profile-<pid>`, và 23 lần chạy là đầy ổ.
  *
  * Báo lỗi ngay ở đầu thay vì để chết lúc ghi ảnh — và nói rõ cần dọn cái gì.
+ *
+ * **Đo không được thì đừng chặn.** Đây là điều kiện tiên quyết, không phải phép đo: nó chỉ
+ * có tác dụng khi biết chắc là đầy. Suy ra `đầy` từ một lần đo hỏng thì chỉ là bịa thêm một
+ * lý do để audit chết — đúng thứ mà cả công cụ này sinh ra để chặn.
  */
 function assertDiskSpace() {
   const needBytes = 400 * 1024 * 1024
   // Lấy ký tự ổ từ đường dẫn ảnh: `D:\...` -> `D`.
   const drive = /([A-Za-z]):/.exec(resolve(OUT))?.[1]
   if (!drive) return
-  let free = Infinity
+  let free = null
   try {
     const probe = execFileSync('powershell', ['-NoProfile', '-Command',
       `(Get-PSDrive -Name '${drive.toUpperCase()}').Free`],
       { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 8000 })
-    free = Number(probe.trim())
+    const raw = probe.trim()
+    // PowerShell chỉ trả về một con số khi lệnh chạy được. Rỗng hoặc lẫn chữ (cảnh báo, lỗi
+    // script) nghĩa là **không đo được** — và `Number('')` là `0`, `Number('x')` là `NaN`,
+    // nên ép thẳng sẽ biến lần đo hỏng thành lý do "hết đĩa" giả.
+    if (/^\d+$/.test(raw)) free = Number(raw)
   } catch {
     return // không đo được thì đừng chặn audit
   }
-  if (!Number.isFinite(free) || free >= needBytes) return
+  if (free === null) return
+  if (free >= needBytes) return
   throw new Error(
     `O dia chi con ${(free / 1024 / 1024).toFixed(1)}MB — khong du de luu 50 anh chup. `
-      + `Do la hau qua cua viec ro profile cua cac lan chay truoc. `
-      + `Don cac thu muc \`frontend/.kilo/edge-profile-*\` roi chay lai.`,
+      + `Don cac thu muc \`%TEMP%\\novafilm-audit-edge-*\` roi chay lai.`,
   )
 }
 
@@ -407,35 +450,57 @@ async function main() {
 
   const { spawn } = await import('node:child_process')
 
-  // Chọn cổng **thật sự trống**, thay vì đoán từ pid. Xem `pickPort`.
-  PORT = await pickPort()
+  // Chia thành nhiều lô, **mỗi lô một Edge sạch**.
+  //
+  // Đây là điều kiện để chạy đủ 50 route. Một Edge dùng suốt 50 lần điều hướng thì renderer
+  // của nó kiệt dần và chết: các lần chạy cùng một máy rảnh đều dừng ở một route khác nhau
+  // (5, 11, 12, 14, 42) và luôn kèm `da don 0 tien trinh Edge` — tức là Edge **đã chết** chứ
+  // không phải chậm. Rà lại từng trang riêng thì cả 15 route đầu đều chạy 5.0s và
+  // `Runtime.evaluate` trả trong 1–2ms, nên ứng dụng không có vấn đề gì.
+  //
+  // Nên: giới hạn công việc mỗi Edge, rồi dọn sạch. Cách này giữ được cả hai điều đã đo:
+  // không rò tiến trình (mỗi lô bị giết ngay) và không có renderer nào phải sống quá lâu.
+  const BATCH = Math.max(1, Number(process.env.AUDIT_BATCH || 8))
+  const results = []
+  let batch = 0
 
-  const edge = spawn(EDGE, [
-    '--headless=new',
-    `--remote-debugging-port=${PORT}`,
-    `--user-data-dir=${PROFILE}`,
-    '--no-sandbox',
-    '--disable-gpu',
-    '--hide-scrollbars',
-    '--no-first-run',
-    'about:blank',
-  ], { stdio: 'ignore' })
+  for (const locale of ['vi', 'en']) {
+    for (let i = 0; i < ROUTES.length; i += BATCH) {
+      const chunk = ROUTES.slice(i, i + BATCH)
+      batch++
+      PROFILE = join(PROFILE_ROOT, `lot-${batch}`)
+      PORT = await pickPort()
 
-  // Dù lỗi, dù thành công, phải dọn. Trước đây `taskkillTree` chỉ chạy ở cuối happy path:
-  // một route hỏng là **cả cây Edge bị bỏ lại** (đã đo: 14 tiến trình sống dai sau khi
-  // `throw`), Edge giữ cổng debug và profile, và các lần chạy sau cộng dồn tới hàng trăm
-  // tiến trình — đó là nguồn làm số liệu sai, không phải lỗi ngẫu nhiên.
-  try {
-    await auditRoutes(ROUTES, token)
-  } finally {
-    // `edge` giữ tham chiếu tiến trình con để không bị GC, nhưng **không** dùng `edge.pid`
-    // để giết — xem `taskkillTree` để hiểu vì sao pid đó vô dụng.
-    edge.removeAllListeners()
-    const killed = taskkillTree()
-    // Xoá profile sau khi đã giết: Edge còn giữ file trong đó nên xoá trước sẽ `EPERM`.
-    try { rmSync(PROFILE, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }) } catch { /* da duoc xoa */ }
-    console.log(`da don ${killed} tien trinh Edge`)
+      const edge = spawn(EDGE, [
+        '--headless=new',
+        `--remote-debugging-port=${PORT}`,
+        `--user-data-dir=${PROFILE}`,
+        '--no-sandbox',
+        '--disable-gpu',
+        '--hide-scrollbars',
+        '--no-first-run',
+        'about:blank',
+      ], { stdio: 'ignore' })
+
+      // Dù lỗi, dù thành công, phải dọn. Trước đây `taskkillTree` chỉ chạy ở cuối happy path:
+      // một route hỏng là **cả cây Edge bị bỏ lại** (đã đo: 14 tiến trình sống dai sau khi
+      // `throw`), Edge giữ cổng debug và profile, và các lần chạy sau cộng dồn tới hàng trăm
+      // tiến trình — đó là nguồn làm số liệu sai, không phải lỗi ngẫu nhiên.
+      try {
+        results.push(...await auditRoutes(chunk, token, locale))
+      } finally {
+        // `edge` giữ tham chiếu tiến trình con, nhưng **không** dùng `edge.pid` để giết —
+        // xem `taskkillTree` để hiểu vì sao pid đó vô dụng.
+        edge.removeAllListeners()
+        const killed = taskkillTree()
+        // Xoá profile sau khi đã giết: Edge còn giữ file trong đó nên xoá trước sẽ `EPERM`.
+        try { rmSync(PROFILE, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }) } catch { /* da duoc xoa */ }
+        console.log(`  [lot ${batch}] ${locale} ${chunk.length} route · da don ${killed} tien trinh Edge`)
+      }
+    }
   }
+
+  report(results)
 }
 
 /**
@@ -479,9 +544,10 @@ async function assertOurBrowser() {
 }
 
 /**
- * Chạy vòng lặp route. Tách riêng để `finally` bảo đảm dọn dẹp chạy dù hàm này ném lỗi.
+ * Chạy **một lô** route trên Edge vừa spawn. Tách riêng để `finally` của `main()` bảo đảm
+ * dọn dẹp chạy dù hàm này ném lỗi.
  */
-async function auditRoutes(ROUTES, token) {
+async function auditRoutes(ROUTES, token, locale) {
   let version = null
   for (let i = 0; i < 40; i++) {
     await sleep(500)
@@ -492,9 +558,8 @@ async function auditRoutes(ROUTES, token) {
   }
   if (!version) throw new Error('Edge headless khong len duoc')
   await assertOurBrowser()
-  console.log(`Edge da len (cong ${PORT})`)
 
-  // MỞ **MỘT** tab cho cả lần chạy rồi chỉ điều hướng nó qua từng route.
+  // MỞ **MỘT** tab cho cả lô rồi chỉ điều hướng nó qua từng route.
   //
   // Trước đây mỗi route mở một tab mới, và cả hai cách sửa đều sai:
   //   - Không đóng tab: Edge mọc thêm một tiến trình renderer mỗi route, đo được 15 → 34
@@ -503,7 +568,7 @@ async function auditRoutes(ROUTES, token) {
   //     tụt 15 → 10 → 0 và audit chết ở route thứ 4, không có crash nào trong Event Log.
   //
   // Tái sử dụng một tab là cách đúng: không có tab nào để đóng, không có tiến trình nào để
-  // rò. Đo được 50/50 lần điều hướng với số tiến trình giữ phẳng 13 → 9.
+  // rò. Đo được số tiến trình giữ phẳng 13 → 9.
   const tab = await (
     await fetch(`http://127.0.0.1:${PORT}/json/new?${encodeURIComponent(BASE + '/')}`, {
       method: 'PUT',
@@ -587,15 +652,15 @@ async function auditRoutes(ROUTES, token) {
     pending.clear()
   }
 
+  const dir = join(OUT, locale)
+  mkdirSync(dir, { recursive: true })
+
   const results = []
   try {
-    // `Page.enable` chỉ cần một lần cho cả phiên.
+    // `Page.enable` chỉ cần một lần cho cả lô.
     await send('Page.enable')
 
-    for (const locale of ['vi', 'en']) {
-      const dir = join(OUT, locale)
-      mkdirSync(dir, { recursive: true })
-
+    {
       for (const [route, name] of ROUTES) {
         consoleErrors = []
 
@@ -661,6 +726,11 @@ async function auditRoutes(ROUTES, token) {
     await closeTab(ws, tab)
   }
 
+  return results
+}
+
+/** In tổng kết cho toàn bộ lần chạy. Tách khỏi `auditRoutes` vì chạy theo lô. */
+function report(results) {
   writeFileSync(join(OUT, 'report.json'), JSON.stringify(results, null, 2))
 
   console.log('\n===== TONG HOP =====')
