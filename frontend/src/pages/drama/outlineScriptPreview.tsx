@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import { Pencil } from 'lucide-react'
 import Modal from '../../components/ui/Modal'
+import { localizeScriptLine } from '../../lib/dramaScriptLabels'
 
 export type OutlineSceneBlock = {
   /** Nguyên đoạn gốc (kèm dòng tiêu đề cảnh), khi ghi lại thì nối nguyên vẹn */
@@ -187,7 +188,7 @@ export function summarizeOutlineScene(body: string): OutlineSceneStats {
         /^(?:日|夜|晨|黄昏|傍晚|凌晨|清晨|午|晚)?\s*(?:内|外|内外)\s+(.+)$/,
       )
       if (locMatch && !location) location = locMatch[1].split(/[／/]/)[0].trim()
-      else if (/^[日夜早晚]/.test(line.text) && !location) location = line.text
+      else if (/^[日夜早晚]/.test(line.text) && !location) location = localizeScriptLine(line.text)
     }
   }
 
@@ -225,14 +226,14 @@ function ScriptLines({ text }: { text: string }) {
         if (line.kind === 'meta') {
           return (
             <p key={i} className="drama-outline-script-meta">
-              {line.text}
+              {localizeScriptLine(line.text)}
             </p>
           )
         }
         if (line.kind === 'action') {
           return (
             <p key={i} className="drama-outline-script-action">
-              {line.text}
+              {localizeScriptLine(line.text)}
             </p>
           )
         }
@@ -250,7 +251,7 @@ function ScriptLines({ text }: { text: string }) {
         }
         return (
           <p key={i} className="drama-outline-script-other">
-            {line.text}
+            {localizeScriptLine(line.text)}
           </p>
         )
       })}

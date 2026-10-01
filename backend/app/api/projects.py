@@ -24,6 +24,7 @@ from app.schemas import (
     PageMeta,
     ProjectCreate,
     ProjectDownloadRequest,
+    ProjectGenerateIn,
     ProjectListItem,
     ProjectListOut,
     ProjectListStats,
@@ -51,6 +52,10 @@ from app.services.tasks.service import (
 )
 from app.services.voices import ensure_voice_preview, list_voices
 from app.services.kepu_stages import resolve_kepu_billing_phase
+from app.services.project_reference_images import (
+    ReferenceImageError,
+    resolve_project_reference_images,
+)
 
 router = APIRouter(tags=["projects"])
 
@@ -118,7 +123,7 @@ async def expand_content(
 
     async def _do_expand() -> dict[str, str]:
         try:
-            result = await get_ark().expand_content(topic, body.mode)
+            result = await get_ark().expand_content(topic, body.mode, body.locale)
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(status_code=502, detail=f"AI 生成失败：{exc}") from exc
         await record_llm_chat_line(
@@ -697,6 +702,7 @@ async def upload_project_cover(
 @router.post("/projects/{project_id}/generate", response_model=ProjectOut)
 async def generate_project(
     project_id: int,
+    body: ProjectGenerateIn | None = None,
     restart: bool = False,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
@@ -706,8 +712,24 @@ async def generate_project(
     - First run / restart: script stage only, then pauses at SCRIPT_READY for review.
     - Continue: one billing stage per click — assets → videos → compose（各自预扣）。
     - restart=true: wipe shots/media and regenerate storyboard from scratch.
+    - body 可选：老客户端只发 ``?restart=true`` 不带 body 仍然能跑。带 body 时可另附
+      主体/画风参考图（``subject_ref_urls`` / ``style_ref_urls``），校验通过后随任务 payload
+      下发，视频阶段按 ``reference_image`` 发给 Seedance。
     """
     from app.services.kepu_stages import resolve_kepu_billing_phase
+
+    # 老调用方不带 body 时仍走 query 的 restart；body.restart 只是多一个来源
+    restart = bool(restart) or bool(body.restart if body else False)
+
+    # 先校验参考图：让用户在点生成时就拿到可读报错，而不是等后台任务失败。
+    # 真正下发前流水线还会用同一份规则再校验一次（那时才知道画幅）。
+    try:
+        resolve_project_reference_images(
+            list(body.subject_ref_urls) if body else [],
+            list(body.style_ref_urls) if body else [],
+        )
+    except ReferenceImageError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     project = await _get_owned_project(db, project_id, user)
     if project.status in {
@@ -758,6 +780,8 @@ async def generate_project(
                     "restart": bool(restart),
                     "phase": phase,
                     "pipeline_mode": project.pipeline_mode or "full",
+                    "subject_ref_urls": list(body.subject_ref_urls) if body else [],
+                    "style_ref_urls": list(body.style_ref_urls) if body else [],
                 },
                 project_id=project_id,
                 targets=[

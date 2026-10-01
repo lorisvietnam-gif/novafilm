@@ -195,6 +195,12 @@ const API_ERROR_MARKERS = [
   'Connection failed',
   'Failed to fetch',
   'NetworkError',
+  // Lỗi phân tích JSON thô. Nó **không** đi qua `readJson()` của api.ts ở một số đường gọi khác,
+  // nên vẫn lọt lên màn hình — và vì nó **không có ký tự Trung nào**, bộ đếm từng coi trang đang
+  // vỡ là "sạch". Đã xảy ra thật: `/drama/.../episodes/1` hiện đúng dòng này nhưng vẫn được
+  // tính là sạch. Phải coi đây là trang hỏng, không phải trang sạch.
+  'is not valid JSON',
+  'Unexpected token',
 ]
 const RAW_KEY = /\b(common|home|nav|auth|tools|pricing|help|legal|shell|drama|studio)\.[a-zA-Z][a-zA-Z0-9]*/g
 

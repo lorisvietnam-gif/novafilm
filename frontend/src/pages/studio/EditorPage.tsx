@@ -10,6 +10,7 @@ import { STATUS_CN, shotsByNo } from '../../lib/status'
 import { downloadSingleVideo } from '../../lib/clientDownload'
 import { getDramaImageStylePreviewUrl } from '../../lib/dramaImageStylePreviews'
 import type { ImageStyleId } from '../../lib/dramaImageStyles'
+import { studioProjectTitle } from '../../lib/projectTitleLabels'
 import './studio.css'
 
 /** Tab của bảng điều khiển dùng khoá ổn định, nhãn hiển thị lấy từ gói i18n */
@@ -170,7 +171,7 @@ export default function EditorPage() {
     try {
       await downloadSingleVideo({
         projectId: project.id,
-        title: project.title,
+        title: studioProjectTitle(project.title),
         url: api.assetUrl(project.final_video_url, project.updated_at),
       })
     } catch (err) {
@@ -226,7 +227,7 @@ export default function EditorPage() {
             <button type="button" className="pf-link" onClick={() => nav(`/studio/${project.id}`)}>
               {t('studio.editor.back')}
             </button>
-            <strong>{project.title}</strong>
+            <strong>{studioProjectTitle(project.title)}</strong>
             <span className="studio-status-chip">{STATUS_CN[project.status] || project.status}</span>
           </div>
           <div className="studio-editor-bar-ops">

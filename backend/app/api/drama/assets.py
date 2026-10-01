@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -35,6 +36,7 @@ from app.services.drama.seed import (
 )
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.get("/assets", response_model=list[DramaAssetOut])
@@ -185,12 +187,15 @@ async def upload_asset_media(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> DramaAssetOut:
-    """Upload image/media for a drama asset directly to OSS (no local persist)."""
+    """Upload an image for a drama asset.
+
+    OSS bật: đẩy thẳng lên OSS như trước.
+    OSS tắt: ghi xuống backend/static/generated/p{project}/ và trả URL /static/...,
+    đúng đường đọc ảnh đang chạy (không chặn nữa, cũng không cần OSS).
+    """
     from app.models_drama import DramaProject
     from app.services import oss as oss_svc
-
-    if not oss_svc.oss_enabled():
-        raise HTTPException(status_code=503, detail="OSS 未启用，无法上传资产媒体")
+    from app.services import storage as storage_svc
 
     result = await db.execute(
         select(DramaAsset)
@@ -206,27 +211,14 @@ async def upload_asset_media(
     if status in {"queued", "running", "generating"}:
         raise HTTPException(status_code=409, detail="形象生成中，请稍后再更换图片")
 
-    content_type = (file.content_type or "").lower()
-    allowed = {
-        "image/jpeg": ".jpg",
-        "image/jpg": ".jpg",
-        "image/png": ".png",
-        "image/webp": ".webp",
-        "image/gif": ".gif",
-    }
-    ext = allowed.get(content_type)
-    if not ext:
-        suffix = Path(file.filename or "").suffix.lower()
-        if suffix in {".jpg", ".jpeg", ".png", ".webp", ".gif"}:
-            ext = ".jpg" if suffix == ".jpeg" else suffix
-            content_type = {
-                ".jpg": "image/jpeg",
-                ".png": "image/png",
-                ".webp": "image/webp",
-                ".gif": "image/gif",
-            }.get(ext, "application/octet-stream")
-        else:
-            raise HTTPException(status_code=400, detail="仅支持 JPG / PNG / WebP / GIF")
+    # Thứ tự kiểm tra: content type trước, tên tệp chỉ dùng để đoán phần mở rộng.
+    # Cả hai đều phải rơi vào whitelist ảnh; tên tệp không bao giờ thành đường dẫn.
+    try:
+        ext, content_type = storage_svc.resolve_image_upload_type(
+            file.content_type, file.filename
+        )
+    except storage_svc.UploadRejected as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
 
     # 直接检查上传临时文件大小，避免先把整文件读入内存。
     upload_fp = file.file
@@ -238,23 +230,40 @@ async def upload_asset_media(
         raise HTTPException(status_code=400, detail=f"无法读取上传文件：{exc}") from exc
     if size <= 0:
         raise HTTPException(status_code=400, detail="空文件")
-    if size > 20 * 1024 * 1024:
+    if size > storage_svc.UPLOAD_MAX_BYTES:
         raise HTTPException(status_code=400, detail="文件不能超过 20MB")
 
-    object_key = (
-        f"{oss_svc.folder_prefix()}/generated/p{asset.project_id}/"
-        f"asset_{asset.id}_{uuid.uuid4().hex[:10]}{ext}"
-    )
-    try:
-        # OSS SDK 为同步阻塞 IO，放到线程池里避免阻塞事件循环。
-        url = await run_in_threadpool(
-            oss_svc.upload_fileobj,
-            upload_fp,
-            object_key,
-            content_type=content_type or "application/octet-stream",
+    stem = f"asset_{asset.id}"
+    if oss_svc.oss_enabled():
+        object_key = (
+            f"{oss_svc.folder_prefix()}/generated/p{asset.project_id}/"
+            f"{stem}_{uuid.uuid4().hex[:10]}{ext}"
         )
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=502, detail=f"OSS 上传失败：{exc}") from exc
+        try:
+            # OSS SDK 为同步阻塞 IO，放到线程池里避免阻塞事件循环。
+            url = await run_in_threadpool(
+                oss_svc.upload_fileobj,
+                upload_fp,
+                object_key,
+                content_type=content_type or "application/octet-stream",
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(status_code=502, detail=f"OSS 上传失败：{exc}") from exc
+    else:
+        local_path: Path | None = None
+        try:
+            # 同目录 project_dir = static/generated/p{id}，URL 由服务端生成。
+            local_path, url = await run_in_threadpool(
+                storage_svc.save_local_upload,
+                upload_fp,
+                project_id=int(asset.project_id),
+                stem=stem,
+                ext=ext,
+            )
+        except storage_svc.UploadRejected as exc:
+            raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+        except OSError as exc:
+            raise HTTPException(status_code=500, detail=f"保存图片失败：{exc}") from exc
 
     from app.services.drama.generation import archive_asset_image_version
 
@@ -270,7 +279,17 @@ async def upload_asset_media(
     else:
         params["generation"] = {"status": "done", "source": "upload"}
     asset.params = params
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        # 库里没落成，就不留孤儿文件在磁盘上。
+        if local_path is not None:
+            try:
+                local_path.unlink(missing_ok=True)
+            except OSError:
+                logger.warning("failed to remove orphaned upload %s", local_path)
+        raise
     await db.refresh(asset)
     return DramaAssetOut.model_validate(asset)
 

@@ -1,3 +1,9 @@
+/* Chỗ dành cho chunk route đang tải (xem RouteFallback trong App.tsx).
+   Không có rule nào ở styles/printfilm.css để dùng: đó là lane khác. */
+.pf-route-fallback {
+  min-height: 60vh;
+}
+
 /* Residual styles for Auth and shared form utilities.
    Marketing / studio shells live in styles/printfilm.css */
 
@@ -101,6 +107,35 @@
   color: var(--pf-success);
   margin: 0;
   font-size: 0.95rem;
+}
+
+.auth-oauth {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pf-space-2);
+}
+
+.auth-oauth-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--pf-space-3);
+  color: var(--pf-muted);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.auth-oauth-divider::before,
+.auth-oauth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--pf-line);
+}
+
+.auth-oauth-note {
+  color: var(--pf-muted);
+  margin: 0;
+  font-size: 0.9rem;
 }
 
 @media (max-width: 900px) {

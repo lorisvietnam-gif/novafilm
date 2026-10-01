@@ -105,6 +105,27 @@ export const viShell = {
     forgotSent: 'Nếu email này đã đăng ký, bạn sẽ nhận được email khôi phục',
     resetSuccess: 'Mật khẩu đã cập nhật, vui lòng đăng nhập bằng mật khẩu mới',
     resetTokenMissing: 'Liên kết khôi phục không hợp lệ, vui lòng yêu cầu lại',
+    oauthDivider: 'Hoặc đăng nhập bằng tài khoản khác',
+    oauthPending: 'Đăng nhập bằng tài khoản xã hội đang được chuẩn bị',
+    oauthConnecting: 'Đang kết nối tới {provider}…',
+    oauthFinishing: 'Đang hoàn tất đăng nhập…',
+    oauthSetupTitle: 'Hoàn thiện tài khoản',
+    oauthSetupLede:
+      'Tài khoản {provider} chưa cung cấp email. Hãy đặt email và mật khẩu để chúng tôi tạo tài khoản cho bạn.',
+    oauthSetupLedeUnknown:
+      'Tài khoản xã hội của bạn chưa cung cấp email. Hãy đặt email và mật khẩu để chúng tôi tạo tài khoản cho bạn.',
+    oauthSetupFailed: 'Không thể hoàn thiện tài khoản, vui lòng thử lại',
+    oauthErrorAccessDenied: 'Bạn đã hủy đăng nhập bằng tài khoản xã hội.',
+    oauthErrorStateInvalid: 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn, vui lòng thử lại.',
+    oauthErrorMissingCode: 'Không nhận được mã đăng nhập từ nhà cung cấp, vui lòng thử lại.',
+    oauthErrorRedirectInvalid: 'Địa chỉ quay lại không hợp lệ, vui lòng thử lại.',
+    oauthErrorProviderUnavailable: 'Cách đăng nhập này hiện chưa được cấu hình.',
+    oauthErrorProviderFailed: 'Nhà cung cấp từ chối yêu cầu, vui lòng thử lại.',
+    oauthErrorServiceUnavailable: 'Dịch vụ đăng nhập tạm thời không sẵn sàng, vui lòng thử lại sau ít phút.',
+    oauthErrorEmailTaken:
+      'Email này đã có tài khoản. Hãy đăng nhập bằng mật khẩu trước, rồi liên kết tài khoản xã hội.',
+    oauthErrorIdentityConflict: 'Tài khoản liên kết đã không còn hợp lệ, vui lòng liên hệ hỗ trợ.',
+    oauthErrorGeneric: 'Đăng nhập không thành công, vui lòng thử lại.',
   },
   create: {
     title: 'Bắt đầu sáng tạo',

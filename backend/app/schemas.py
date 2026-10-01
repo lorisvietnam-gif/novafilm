@@ -219,6 +219,14 @@ class ProjectUpdate(BaseModel):
     cover_url: str | None = Field(default=None, max_length=1024)
 
 
+class ProjectGenerateIn(BaseModel):
+    """生成请求体。body 整体可选：老客户端只发 ``?restart=true`` 且不带 body 仍要能跑。"""
+
+    restart: bool = False
+    subject_ref_urls: list[str] = Field(default_factory=list, max_length=20)
+    style_ref_urls: list[str] = Field(default_factory=list, max_length=20)
+
+
 class ProjectOut(BaseModel):
     id: int
     template_id: str
@@ -277,6 +285,8 @@ class ProjectDownloadRequest(BaseModel):
 class ContentExpandRequest(BaseModel):
     topic: str = Field(default="", max_length=2000)
     mode: str = Field(default="theme", pattern="^(theme|script)$")
+    # Ngôn ngữ người dùng đang chọn. Để rỗng = giữ hành vi cũ (tiếng Trung).
+    locale: str = Field(default="zh", max_length=8)
 
 
 class ContentExpandOut(BaseModel):

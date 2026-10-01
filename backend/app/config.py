@@ -135,6 +135,13 @@ class Settings(BaseSettings):
     # Text model: the open-source build is fixed to TokenFree New API; pick the model in the admin UI
     openai_api_key: str = ""
     openai_base_url: str = "https://www.tokenfree.com/v1"
+    # Nhà cung cấp riêng cho model tạo ảnh. Kira AI dùng chuẩn OpenAI, đồng bộ, endpoint
+    # `POST /v1/images/generations` trên base `https://kiraai.vn/api/v1`.
+    # Base này **đã bao gồm `/v1`** — không cộng thêm `/v1` khi ghép URL.
+    # Model: `hy-image-v3.5-free`. Kira nhận **tỉ lệ khung hình qua `extra_body.aspect_ratio`**,
+    # không phải tham số `size` chuẩn.
+    kira_base_url: str = "https://kiraai.vn/api/v1"
+    kira_api_key: str = ""
     # kimi is just the default example; the real value comes from the admin channel models list, and can be deepseek-chat etc.
     model_llm: str = "kimi-k2.6"
     model_image: str = "doubao-seedream-5-0-260128"
@@ -212,6 +219,10 @@ class Settings(BaseSettings):
     # Yuan per million tokens (provider cost)
     billing_seedance_video0: float = 46.0
     billing_seedance_video1: float = 28.0
+    # ASSUMPTION, NOT A MEASURED PRICE: this rate assumes a metered paid text provider.
+    # The free-tier Gemini key in use does not bill per token, so llm_chat costs computed
+    # from it are wrong (overstated). Harmless while billing_enabled is false; set this to
+    # the real rate before turning credit charging on, or bills will drift from provider cost.
     billing_llm_per_m: float = 5.0
     billing_seedream_per_m: float = 8.0
     billing_tts_per_m: float = 2.0

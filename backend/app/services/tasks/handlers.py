@@ -157,6 +157,8 @@ async def _run_kepu_project_pipeline(task: TaskRun) -> dict[str, Any] | None:
         run_pipeline(
             _require_int(task.project_id, "project_id"),
             phase=str(phase) if phase is not None else None,
+            subject_ref_urls=_str_list(payload.get("subject_ref_urls")),
+            style_ref_urls=_str_list(payload.get("style_ref_urls")),
         ),
         phase=phase,
     )
@@ -258,6 +260,13 @@ def _require_int(value: int | None, field_name: str) -> int:
     if isinstance(value, int) and value > 0:
         return value
     raise ValueError(f"任务缺少 {field_name}")
+
+
+# payload 里的参考图列表：只收字符串，其余（None / 数字 / 嵌套）一律忽略。
+def _str_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, str)]
 
 
 TASK_HANDLERS: dict[tuple[str, str], TaskHandler] = {

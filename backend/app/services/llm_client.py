@@ -45,6 +45,16 @@ def _llm_extra_body(model: str) -> dict[str, Any]:
     mid = (model or "").strip().lower()
     if mid.startswith("kimi") or mid.startswith("deepseek"):
         return {"thinking": {"type": "disabled"}}
+    if mid.startswith("gemini"):
+        # Google maps the OpenAI `reasoning_effort` field onto Gemini's thinking budget
+        # (thinking_budget for 2.5, thinking_level for 3). Left unset, thinking is dynamic
+        # and can consume the whole max_tokens, leaving content empty -- the same failure as kimi.
+        # "none" disables thinking, but only 2.5 accepts it; 2.5 Pro and Gemini 3 cannot turn
+        # thinking off at all, so cap them at "low" instead to leave room for the answer.
+        # reasoning_effort and thinking_config/thinking_level overlap and cannot be combined.
+        if "-pro" in mid or mid.startswith("gemini-3"):
+            return {"reasoning_effort": "low"}
+        return {"reasoning_effort": "none"}
     return {}
 
 

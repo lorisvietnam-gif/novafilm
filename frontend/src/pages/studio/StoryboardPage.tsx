@@ -50,6 +50,7 @@ import {
 } from '../../lib/segmentDuration'
 import { getDramaImageStylePreviewUrl } from '../../lib/dramaImageStylePreviews'
 import type { ImageStyleId } from '../../lib/dramaImageStyles'
+import { studioProjectTitle } from '../../lib/projectTitleLabels'
 import { templateName } from '../../lib/templateLabels'
 import './studio.css'
 
@@ -96,7 +97,7 @@ function downloadStoryboardCsv(project: Project, header: readonly string[]) {
   })
   const a = document.createElement('a')
   a.href = URL.createObjectURL(blob)
-  a.download = `${project.title || `project_${project.id}`}_storyboard.csv`
+  a.download = `${studioProjectTitle(project.title) || `project_${project.id}`}_storyboard.csv`
   a.click()
   URL.revokeObjectURL(a.href)
 }
@@ -330,7 +331,7 @@ export default function StoryboardPage() {
     setPreview({
       kind: 'final',
       url: api.assetUrl(project.final_video_url, project.updated_at),
-      title: project.title,
+      title: studioProjectTitle(project.title),
       bust: project.updated_at,
     })
   }
@@ -718,7 +719,7 @@ export default function StoryboardPage() {
               <IconChevronLeft size={18} />
               {t('studio.storyboard.back')}
             </button>
-            <h1 className="pf-page-title">{project.title}</h1>
+            <h1 className="pf-page-title">{studioProjectTitle(project.title)}</h1>
           </div>
           <div className="pf-toolbar">
             {primaryAction === 'preview' ? (
@@ -880,7 +881,7 @@ export default function StoryboardPage() {
           <ul className="pf-meta-list" style={{ marginTop: '0.85rem' }}>
             <li>
               <span>{t('studio.storyboard.summaryName')}</span>
-              <span>{project.title}</span>
+              <span>{studioProjectTitle(project.title)}</span>
             </li>
             <li>
               <span>{t('studio.storyboard.summaryStatus')}</span>
