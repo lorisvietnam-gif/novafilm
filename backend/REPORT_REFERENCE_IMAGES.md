@@ -227,6 +227,36 @@ images** — cả bốn đều là billing-estimate và demote trạng thái.
 
 ## 7. Việc còn lại (đề nghị board giao, tôi không tự mở rộng)
 
+### 7.1 Cần một lane khác (ngoài `backend/**`, brief cấm tôi tự sửa)
+
+- **`frontend/src/api.ts:563` vẫn chỉ gửi `?restart=true`.** `generate(id, { restart, subject_ref_urls,
+  style_ref_urls })` chưa tồn tại, nên **chưa có đường nào trong sản phẩm đưa ảnh vào được**.
+  Backend đã sẵn sàng; thiếu mỗi phần gọi. Đây là hạng mục đáng làm tiếp ngay.
+- **Reference URL phải là公网 http(s).** Frontend phải đợi upload xong rồi mới gửi URL công khai;
+  gửi `/static/...` sẽ bị 400 ngay (đã có test chứng minh).
+
+### 7.2 Nợ còn lại **trong** `backend/**` (chưa làm, không tự mở rộng)
+
+- **`regen_shot_video` (`pipeline.py:1665-1677`) không nhận参考图.** 单镜重绘视频 là入口 riêng,
+  không có payload để đọc, nên **重绘某一镜会丢掉参考图**. Muốn sửa thì phải cho cả task
+  `shot_regen_video` mang payload.
+- **参考图 không được lưu vào DB.** Nó chỉ sống trong `TaskRun.payload`: bấm "生成" một lần thì có,
+  bấm lại hoặc 单镜重绘 thì không. Muốn giữ lâu dài phải thêm cột vào `Project` + migration —
+  tôi không tự đụng schema.
+- **Seedream 出图阶段 chưa ăn参考图.** `_parallel_image_and_audio` vẫn chỉ dùng
+  `project.ref_image_url` (một ảnh) qua `_project_base_refs` (`pipeline.py:837`). Brief chỉ yêu
+  cầu nối tới Seedance nên tôi không mở rộng; nếu muốn静帧 cũng bám参考图 thì đó là task sau.
+- **`tokenfree_video.wrap_seedance_payload_for_newapi` vẫn cắt cụt ở 9 张** (`tokenfree_video.py:120`).
+  Tôi **không** sửa vì nó bảo vệ đường drama. Đường mới bị `ark.py` chặn trước nên không bao giờ
+  tới đó — nhưng nếu sau này ai đó gọi drama path với >9 张, chỗ đó **vẫn cắt âm thầm**.
+- **Chưa cap/rate-limit riêng cho hai list** ngoài `max_length=20` của schema. Thực tế luôn bị
+  chốt chặn 1 chặn trước (20 > 9), nên chưa cần, nhưng con số 20 là bùng bừa.
+
+### 7.3 Cần đo thật
+
 - Chạy thật một lớ có ≥ 2 ảnh tham chiếu trên Seedance để xác nhận con số 9 và hành vi `role`.
-- Đo xem `9 ảnh` có phải trần thật của Seedance 2.5 hay chỉ là quy ước nội bộ.
+- Đo xem `9 ảnh` có phải trần thật của Seedance 2.5 (docs ghi 2.0 约 9, 2.5 最多 30) hay chỉ là
+  quy ước nội bộ.
+- **Đo độ trễ**: `ensure_seedance_compatible_image_url` tải +垫边 từng ảnh tham chiếu; 9 ảnh là
+  9 lần tải và có thể 9 lần upload OSS. Chưa đo.
 - Xác minh lại nhánh sau khi board merge: `git diff --stat main..bunny/4` phải vẫn là 7 file.
