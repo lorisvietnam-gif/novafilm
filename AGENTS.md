@@ -129,10 +129,39 @@ báo origin của frontend.
 5. **`PUBLIC_BASE_URL` của backend** — dùng cho link email và URL media.
 
 ### Chưa được quyết, để dành
-- **Media/Egress.** Với `OSS_ENABLED=false`, FastAPI phục vụ `/static` từ đĩa VPS. Sản phẩm
-  xử lý video mà băng thông video chạy trên một VPS là khoản chi phí cần tính trước.
-  Cơ chế OSS có sẵn là Aliyun (Trung Quốc) — độ trễ tới Việt Nam và người dùng quốc tế sẽ tệ.
-  Cần chọn nhà cung cấp lưu trữ trước khi ra mắt.
+- ~~Media/Egress.~~ **ĐÃ QUYẾT 2026-10-01, xem mục 9.**
+
+## 9. KIẾN TRÚC LƯU TRỮ MEDIA — "chỉ lưu tri thức" (chủ sản phẩm chốt 2026-10-01)
+
+### Nguyên tắc
+1. **Postgres chỉ giữ tri thức tạo tác**: prompt gốc, negative prompt, seed, model id, tỉ lệ khung
+   hình, cấu trúc storyboard. **Không lưu file nhị phân trong DB.**
+2. **Không lưu media nặng trên đĩa VPS.** Đĩa VPS đắt khi scale và băng thông ra bị tính tiền.
+3. **Object storage: Cloudflare R2** (tương thích S3), **không dùng Aliyun OSS**. R2 **miễn phí
+   băng thông ra** — đó là lý do chọn R2 thay vì OSS.
+4. **VPS chỉ gánh điều phối** (FastAPI). Dữ liệu nặng sang R2.
+5. **OAuth ẩn sau feature flag** cho tới khi có `client_id`/`secret` thật và domain https công khai.
+6. **Docker:** chỉ cần `Dockerfile` + `docker-compose.yml` sẵn sàng. **Không bắt buộc build image
+   trên máy cá nhân.**
+
+### Điểm board đã nêu và cần chủ sản phẩm xác nhận
+Kế hoạch ban đầu nói *"xem lại video cũ thì load URL gốc từ CDN nhà cung cấp"*. **URL đó có thời
+hạn** — thường chỉ sống vài giờ đến vài ngày, nên sẽ không phát được sau đó. Phương án thay thế là
+render lại từ prompt đã lưu, tức **mỗi lần xem lại là một lần tạo video mới**.
+
+**Khuyến nghị của board:** R2 giữ **tác phẩm đã render**. Đó chính là lý do R2 miễn phí egress.
+Cái nằm trong DB là **tri thức**; cái nẩm trong R2 là **tác phẩm**. Như vậy vẫn không lưu gì trên
+đĩa VPS và vẫn không tốn tiền băng thông, mà video cũ vẫn xem lại được.
+
+Còn mở: bunny/4 được giao **tìm bằng chứng** về thời hạn URL nhà cung cấp trong code, và nếu tìm
+được bằng chứng trái với dự đoán của board thì phải nói thẳng.
+
+### Hệ quả phải xử lý
+`backend/app/api/drama/assets.py` hiện **ghi ảnh tải lên xuống `static/generated/p{project_id}/`**
+khi OSS tắt — thay đổi này **vừa merge hôm nay** và **trái ngược** quyết định mới. Nó giải quyết
+lỗi "không tải ảnh được", nhưng giờ phải giới hạn: **đĩa chỉ dùng cho phát triển và kiểm thử**;
+chạy thật mà chưa có object storage thì **phải báo lỗi rõ ràng**, không âm thầm ghi xuống đĩa rồi
+mất khi dựng lại container.
 
 ## 7. MÔ HÌNH GIAI ĐOẠN — LOCALHOST TRƯỚC, VPS SAU (chủ sản phẩm chốt 2026-09-30)
 
