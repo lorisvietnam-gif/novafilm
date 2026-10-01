@@ -344,7 +344,7 @@ function collect() {
         const o = new PerformanceObserver((list) => res(list.getEntries()))
         o.observe({ type, buffered: true })
         setTimeout(() => res(null), 1200)
-      } catch (e) {
+      } catch {
         res(null)
       }
     })
