@@ -43,6 +43,11 @@ from app.services.kepu_continuity import (
     previous_usable_shot,
     video_extra_refs_for_shot,
 )
+from app.services.project_reference_images import (
+    ensure_reference_image_mode,
+    merge_video_extra_refs,
+    resolve_project_reference_images,
+)
 from app.services.voices import resolve_speaker
 from app.services import seedance_segments as segplan
 from app.services.bgm import clip_shot_bgm, resolve_bgm_path
@@ -389,8 +394,18 @@ async def _resume_plan(project_id: int) -> tuple[bool, bool, bool, bool]:
 
 
 @storage.without_intermediate_oss
-async def run_pipeline(project_id: int, *, phase: str | None = None) -> None:
-    """跑科普流水线；phase 指定时只执行该计费阶段，避免冻 A 跑 B。"""
+async def run_pipeline(
+    project_id: int,
+    *,
+    phase: str | None = None,
+    subject_ref_urls: list[str] | None = None,
+    style_ref_urls: list[str] | None = None,
+) -> None:
+    """跑科普流水线；phase 指定时只执行该计费阶段，避免冻 A 跑 B。
+
+    subject_ref_urls / style_ref_urls 是本轮生成带的参考图，只在视频阶段
+    随 extra_image_urls 发给 Seedance；为空时行为与接入前完全一致。
+    """
     from app.services.kepu_stages import normalize_kepu_pipeline_phase
 
     try:
@@ -491,7 +506,11 @@ async def run_pipeline(project_id: int, *, phase: str | None = None) -> None:
                     },
                 )
                 return
-            await _parallel_videos(project_id)
+            await _parallel_videos(
+                project_id,
+                subject_ref_urls=subject_ref_urls,
+                style_ref_urls=style_ref_urls,
+            )
             await _ensure_not_cancelled(project_id)
             await publish_progress(
                 project_id,
@@ -543,7 +562,11 @@ async def run_pipeline(project_id: int, *, phase: str | None = None) -> None:
             return
 
         if not image_text and not skip_videos:
-            await _parallel_videos(project_id)
+            await _parallel_videos(
+                project_id,
+                subject_ref_urls=subject_ref_urls,
+                style_ref_urls=style_ref_urls,
+            )
             await _ensure_not_cancelled(project_id)
             await publish_progress(
                 project_id,
@@ -1096,8 +1119,13 @@ async def _parallel_image_and_audio(project_id: int) -> None:
     )
 
 
-async def _parallel_videos(project_id: int) -> None:
-    """按镜序逐个出视频；后镜参考上一镜尾帧。"""
+async def _parallel_videos(
+    project_id: int,
+    *,
+    subject_ref_urls: list[str] | None = None,
+    style_ref_urls: list[str] | None = None,
+) -> None:
+    """按镜序逐个出视频；后镜参考上一镜尾帧，本轮用户参考图也随 extra_image_urls 发给 Seedance。"""
     from app.services.kepu_stages import VIDEO_SKIP_REASON_PRIVACY
 
     await _set_status(project_id, ProjectStatus.VIDEOING, 55, "VIDEOING")
@@ -1124,6 +1152,9 @@ async def _parallel_videos(project_id: int) -> None:
         if project.resolution_mode == "hd" and resolution == "480p":
             resolution = "720p"
         ratio = _project_output_ratio(project) or cfg.ark_video_ratio
+        # 用户参考图：这里才知道最终画幅，所以 chốt chặn 2 在这一层判定
+        reference_urls = resolve_project_reference_images(subject_ref_urls, style_ref_urls)
+        ensure_reference_image_mode(ratio, has_reference=bool(reference_urls))
         shot_meta = [
             {
                 "id": s.id,
@@ -1330,7 +1361,8 @@ async def _parallel_videos(project_id: int) -> None:
 
     prev_proxy: SimpleNamespace | None = None
     for meta in shot_meta:
-        extra = video_extra_refs_for_shot(prev_proxy)
+        # 衔接尾帧优先，用户参考图随后；超上限在这里报错而不是悄悄少发
+        extra = merge_video_extra_refs(video_extra_refs_for_shot(prev_proxy), reference_urls)
         prev_proxy = await one_video(meta, extra)
 
     async with _db_write_lock():
