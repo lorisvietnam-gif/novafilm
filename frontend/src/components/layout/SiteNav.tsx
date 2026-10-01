@@ -151,6 +151,12 @@ export default function SiteNav({ active }: Props) {
           <nav className="pf-nav-drawer-links">
             {centerLinks}
           </nav>
+          {/* Below 700px the bar drops this button to keep the header one row
+              (see the ≤700px block in styles/printfilm.css). It moves here so
+              the action is still one tap away instead of being lost. */}
+          <Button variant="lime" block className="pf-nav-drawer-cta" icon onClick={goCreate}>
+            {t('nav.startCreate')}
+          </Button>
         </div>
       ) : null}
       <CreateChoiceModal open={createOpen} onClose={() => setCreateOpen(false)} />

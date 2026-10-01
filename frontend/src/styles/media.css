@@ -144,9 +144,22 @@
 
    Works with the .pf-land-hero / .pf-ws-hero / .pf-home-hero /
    .pf-land-close blocks in printfilm.css.
+
+   WHY EVERY SELECTOR HERE IS SCOPED WITH `body`
+   --------------------------------------------------------------------------
+   printfilm.css pulls this file in with `@import` on its line 3, so every rule
+   here is emitted BEFORE every rule in printfilm.css. The desktop bands in
+   printfilm.css name the same classes at the same specificity, so they win on
+   order and the overrides below were dead: measured at a 390px viewport, the
+   landing hero still resolved to the horizontal `100deg` ladder
+   (rgba(17,19,24,.86) 0% … transparent 86%) instead of this file's vertical one,
+   which is the exact case the paragraph above exists to prevent. Scoping with
+   `body` — an ancestor on every one of these bands — adds one class of
+   specificity and the override takes effect without `!important` and without
+   moving the import, which would have reordered the whole layer.
    -------------------------------------------------------------------------- */
 @media (max-width: 767px) {
-  .pf-land-hero {
+  body .pf-land-hero {
     grid-template-columns: minmax(0, 1fr);
     background-image: linear-gradient(
         180deg,
@@ -159,9 +172,9 @@
     background-position: center, 55% 45%;
   }
 
-  .pf-ws-hero,
-  .pf-home-hero,
-  .pf-land-close {
+  body .pf-ws-hero,
+  body .pf-home-hero,
+  body .pf-land-close {
     background-image: linear-gradient(
         180deg,
         var(--pf-media-scrim-full) 0%,
@@ -173,26 +186,28 @@
     background-position: center, 55% 40%;
   }
 
-  .pf-land-hero h1,
-  .pf-home-hero h1 {
+  body .pf-land-hero h1,
+  body .pf-home-hero h1 {
     font-size: clamp(2.125rem, 1.2rem + 4.4vw, 3rem);
   }
 
   /* The two style frames stop being a staggered pair and become a plain pair,
      because the stagger only reads when there is height to spare. */
-  .pf-land-frames {
+  body .pf-land-frames {
     min-height: 0;
   }
 
-  .pf-land-frame.is-kepu {
+  body .pf-land-frame.is-kepu {
     margin-bottom: 0;
   }
 }
 
 /* Below 1024 the pricing band copy column narrows enough that the copy would
-   run into the bright right half of the frame, so the scrim widens. */
+   run into the bright right half of the frame, so the scrim widens. Same
+   `body` scoping for the same reason: measured at 390px this band was still
+   the desktop 100deg ladder. */
 @media (max-width: 1023px) {
-  .pf-pricing-hero-band {
+  body .pf-pricing-hero-band {
     background-image: linear-gradient(
         180deg,
         var(--pf-media-scrim-full) 0%,
@@ -231,10 +246,14 @@
 }
 
 /* The sign-in headline joins the serif voice used by every other large
-   heading in the product. App.css sets Space Grotesk on `.auth-panel h1`; this
-   rule is one level more specific, so it wins without an !important and
-   without editing a file outside the styles layer. */
-.auth-panel h1 {
+   heading in the product. App.css sets Space Grotesk on `.auth-panel h1` and
+   App.css is imported after this file, so an equally specific rule here loses
+   on order — the earlier version of this file said it was "one level more
+   specific" and that was wrong; both selectors are (0,1,1). Measured: the
+   login headline resolved to Space Grotesk at 32px while the landing, pricing,
+   method, help, contact and terms headlines all resolved to Noto Serif. One
+   extra class restores the intent without an !important. */
+.auth-shell .auth-panel h1 {
   font-family: var(--pf-font-serif);
   font-weight: var(--pf-weight-bold);
   letter-spacing: var(--pf-tracking-tightest);
