@@ -956,7 +956,7 @@ function EpisodeEditInner() {
                 ...f,
                 params: {
                   ...(f.params || {}),
-                  generation: { status: 'queued', message: 'Đã xếp hàng' },
+                  generation: { status: 'queued', message: 'Đã tạo prompt; bản beta chưa render video' },
                 },
               }
             : f,
