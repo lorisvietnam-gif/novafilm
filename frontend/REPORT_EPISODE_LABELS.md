@@ -344,11 +344,23 @@ fail build), và không có cast nào.
 
 | | `vi` | `en` | `/drama/projects/16/episodes` | `/drama/projects/16/episodes/3` |
 |---|---|---|---|---|
-| **Trước** (base `55f394c`) | 25 route · **163** | 25 route · **161** | 67 | 67 |
-| **Sau** (code = `160803f`, HEAD `18785f8`) | 25 route · **135** | 25 route · **133** | **53** | **53** |
+| **Trước** (HEAD `666a75a`, chưa sửa dòng nào) | 25 route · **163** | 25 route · **161** | 67 | 67 |
+| **Sau** (code = `160803f`) | 25 route · **135** | 25 route · **133** | **53** | **53** |
 
 Giảm **28** ký tự = đúng `2 route × 14 ký tự`, tức **đúng cái cue BGM** và **không động vào gì
 khác**. Đó là phép đo quyết định: nếu tôi lỡ dịch văn xuôi thì tổng sẽ giảm nhiều hơn 28.
+
+### ⚠️ Con số brief kỳ vọng (−14) là số học sai — số đo là −28
+
+Brief kỳ vọng `163→149` và `161→147`. Nhưng chính brief cũng nói hai route là **cùng một
+trang** (`/episodes` chuyển hướng sang `/episodes/3`). Trang đó đo 67 ký tự và **đếm hai lần**,
+nên bỏ 14 ký tự trên một trang = bớt **28** ở tổng. Không thể giảm 14 nếu cả hai route đều
+cùng một trang.
+
+Lượt **trước** đo được lúc 03:50–03:58, trên `666a75a`, chưa sửa gì — khớp đúng hai con số
+brief ghi, nên hai phép đo cùng cơ sở.
+
+### Tính lặp lại: **hai lần chạy trọn vẹn, giống nhau từng dòng route**
 
 Lệnh (dev server của chính `bunny/2`, không phải `:5173` của `main`):
 
@@ -360,44 +372,81 @@ $env:AUDIT_VERBOSE="1"
 node scripts\visual-audit.mjs
 ```
 
-### Tính lặp lại: **ba lần chạy trọn vẹn, giống hệt nhau**
+| Lần | Thời gian | `vi` | `en` | Ghi chú |
+|---|---|---|---|---|
+| A | 04:37–04:42 | 135 | 133 | trọn 25 route × 2 locale |
+| B | 05:06–05:13 | 135 | 133 | **giống A ở cả 50 dòng route** |
 
-| Lần | `vi` | `en` | Ghi chú |
-|---|---|---|---|
-| A | 135 | 133 | trọn 25 route × 2 locale |
-| B | 135 | 133 | **giống lần A ở cả 50 dòng route**, `Compare-Object` rỗng |
-| C | 135 | 133 | **giống lần B ở cả 50 dòng route**, `Compare-Object` rỗng |
+Kiểm bằng lệnh, không bằng mắt:
+
+```
+Compare-Object (route-lines của A) (route-lines của B)   ->   rong
+```
 
 Chỉ nhận con số khi so **từng dòng route** (`^(vi|en)\s+/`), không chỉ so tổng — hai tổng bằng
-nhau vẫn có thể che một route đổi theo chiều ngược nhau.
+nhau vẫn có thể che một route đổi theo chiều ngược nhau. Ngoài ra phải loại lọt chạy **đứng
+yên**: xem hai lượt hỏng ở §16.
 
-Dữ liệu đo được trong 3 lần đó là `content` **giống hệt** hiện tại; tôi kéo lại
-`GET /api/drama/episodes/3` sau khi đo và đối chiếp từng dòng fragment — không có trôi dữ
-liệu giữa các lần chạy.
+### Hai lượt chạy hỏng — không phải lượt chạy "cho có", ghi ra để không bị đếm nhầm
 
-### ⚠️ Một lần chạy đo sai bundle cũ — phải kể ra
+| Lượt | Thời gian | Triệu chứng | Kết luận |
+|---|---|---|---|
+| 04:46–04:51 | nửa `en` | từ `/help` trở đi **mọi** route có `visible=185` — trang đứng yên ở một vỏ 185 ký tự | `en` **hỏng**; nửa `vi` vẫn ra 135 |
+| 04:54–04:58 | toàn bộ | `vi` và `en` đều 0, mọi route `visible=185` | dev server `:5183` đã **tắt** |
 
-Lần chạy **đầu tiên sau khi sửa code** cho ra `163 / 161`, tức **không giảm gì**, dù code đã
-đúng. Nguyên nhân: dev server Vite còn phục vụ module đã biên dịch từ trước, nên lần đầu
-audit đo **bundle cũ**. Các lần sau mới ra `135 / 133`.
+Cả hai đều **không** phải lỗi ứng dụng, và cả hai đều không được dùng làm số liệu. Chi tiết
+nguyên nhân ở §16. Đặc biệt lượt 04:46 cho thấy một lỗ hổng của chính công cụ: `visual-audit.mjs`
+chỉ cảnh báo `visible < 40` là trang rỗng, nên một trang **đứng yên ở 185 ký tự** lọt qua mà
+không ai bị cảnh báo — và bộ đếm CJK của nó là 0, tức "sạch".
 
-Nếu tôi chỉ chạy một lần rồi báo "không giảm", kết luận đó sai. Và nếu tôi chạy lại rồi báo
-"giảm 28" mà không kể lần đầu, thì số liệu trông sạch nhưng che một lần chạy hỏng — đúng
-loại sai lệch mà `AGENTS.md` §10 cấm. Ghi ra đây để board biết con số này cần **ít nhất hai
-lần chạy sau khi dev server đã nạp lại module**, và nên bỏ lần đầu tiên.
+### Chứng cứ đọc từ ứng dụng đang chạy
 
-Ảnh: `frontend/.kilo/audit/vi/drama-tap-chi-tiet.png` và `…/en/drama-tap-chi-tiet.png`
-(ghi đè lúc chạy sau). Ảnh "trước" giữ ở `frontend/.kilo/audit/before/`.
+Vì ảnh chụp của trang này **không làm được bằng chứng** (§13.1), tôi đọc thẳng `innerText` của
+chính khung soạn (`.drama-ep-prompt-editor`) trong app đang chạy ở `localhost:5183`, bằng script
+`.kilo/shot-episode.mjs`:
+
+```
+vi  > [Phụ đề: dựng thêm ở hậu kỳ, chữ Trung giản thể, khớp từng câu với lời dẫn]
+vi  > [Nhạc nền: trộn ở hậu kỳ · nhanh gọn và chuyên nghiệp · âm lượng thấp hơn giọng nói]
+vi  > 远景：清晨的老街，薄雾未散，                 <- văn xuôi, giữ nguyên
+
+en  > [Subtitles: added in post, Simplified Chinese, synced line by line to the voice-over]
+en  > [BGM: mixed in post · brisk and professional; level below the voice]
+en  > 远景：清晨的老街，薄雾未散，                 <- văn xuôi, giữ nguyên
+```
+
+`zh` không đổi: khoá `zh` là nguyên văn `轻快专业` và khuôn `postMix` bắt đầu bằng `【BGM：`,
+nên người dùng `zh` vẫn thấy đúng `【BGM：后期混音 · 轻快专业，音量低于人声】`.
+
+### §13.1 Ảnh chụp của trang này **không dùng được làm bằng chứng** — đã đo, không phải suy đoán
+
+`AGENTS.md` §8 bắt buộc bằng chứng bằng ảnh. Ở trang này **ảnh không phân biệt được `vi` và
+`en`**, và đây là số đo:
+
+| Phép đo | Kết quả |
+|---|---|
+| `audit/vi/drama-tap-chi-tiet.png` và `audit/en/drama-tap-chi-tiet.png` | **cùng MD5** `703C4609…`, 35465 byte |
+| Cặp đó ở lúc chụp "trước" (03:28 và 03:32) | **cùng MD5** `703C4609…` |
+| `innerText` hai bên | **khác nhau**: `vi` 1420 ký tự, `en` 1430 ký tự |
+| `Page.getLayoutMetrics().cssContentSize.height` | **488 px** |
+| Chụp `captureBeyondViewport` + clip cao bằng `contentSize` | ra **đúng bức cũ** |
+
+Nguyên nhân là lỗi bố cục đã báo ở §6: **thanh storyboard dưới cùng đè lên khung soạn**, nên
+chữ vừa dịch nằm trong DOM nhưng không được vẽ ra. `innerText` đọc được, máy vẽ không ra.
+Nói thẳng: **ở trang này bằng chứng là số đo `innerText` và DOM, không phải ảnh.**
+
+Còn lại 32 ảnh thì bình thường: **29/32 ảnh khác nhau** giữa `vi` và `en`. Hai route tập là
+ngoại lệ, cùng với `drama-canvas.png` (trang canvas không có chữ theo locale).
 
 ### Build và lint tại đúng commit đã đo
 
 ```
-npm run build -> ✓ built in 969ms, 0 error   (tsc -b sạch)
-npm run lint  -> 0 error · 40 warning
+npm run build -> exit 0 · built in 1.07s · 0 error
+npm run lint  -> 0 error · 40 warning   (đúng baseline)
 ```
 
-`git diff 160803f 18785f8 -- frontend/src/lib/dramaScriptLabels.ts` → **rỗng**: giữa trạng
-thái code đã đo và `HEAD` chỉ khác file báo cáo này.
+Giữa `160803f` (code đã đo) và `HEAD` chỉ khác file báo cáo này:
+`git diff 160803f HEAD -- frontend/src/lib/dramaScriptLabels.ts` → **rỗng**.
 
 ## 14. Biến thể BGM **khác** mà tôi thấy — báo lại, không tự thêm
 
@@ -451,38 +500,43 @@ Máy đang chạy **nhiều audit song song** (tiến trình của lane khác v�
 worktree `bunny/2`). Hệ quả đo được, không phải lỗi code:
 
 - `visual-audit.mjs` chốt "chỉ một audit chạy một lúc" qua file khoá `frontend/.kilo/audit.lock`.
-  Ba lần của tôi bị **từ chối ngay** với `Da co audit khac dang chay (pid …)`.
-- Lần chạy được khoá nhưng vẫn chết: một lần `Assertion failed: ncrypto::CSPRNG(nullptr, 0)`
+  **Hai** lần của tôi bị **từ chối ngay** với `Da co audit khac dang chay (pid …)`.
+- Lượt chạy được khoá nhưng vẫn chết: một lần `Assertion failed: ncrypto::CSPRNG(nullptr, 0)`
   (node chết ngay lúc khởi động, `EXIT=134`), một lần `Ket noi CDP bi ngat giua chung`
   kèm `da don 0 tien trinh Edge` — tức Edge của lô đó **không nổi lên** vì máy quá tải
   (đã đếm tới **860** tiến trình `msedge.exe` lúc ba audit cùng chạy).
-- Một lần bị giết âm thầm (`EXIT=-1`) giữa lô 2, không có dòng lỗi nào.
+- **Dev server `:5183` tắt giữa chừng**, làm hỏng một nửa lượt 04:46 và toàn bộ lượt 04:54.
+  Đây là nguyên nhân chính của hai lượt hỏng, và nó **không** do code của tôi: sau đó tôi bật
+  lại dev server và xác nhận nó phục vụ đúng module đã sửa (`has brisk and professional: true`).
 
 Lần chạy **hoàn chỉnh đầu tiên** (lúc máy còn rảnh) mất 7,4 phút. Số liệu chỉ được chấp nhận
 khi **hai lần cho kết quả giống hệt**, và cả hai lần đều phải là lần chạy trọn vẹn 25 route ×
 2 locale — không lấy số từ lượt chạy bị giết.
 
-### Ba lỗi của chính công cụ audit, đo được — không phải lỗi code
+### Lỗi của chính công cụ audit — chỉ ghi những gì tôi tự đo được
 
-Ba điều này làm tốn lượt chạy và **làm sai số** nếu không kiểm. Ghi ra vì `visual-audit.mjs`
-là công cụ **dùng chung của mọi lane**, nên đây là nợ của board chứ không phải của lane này.
+`visual-audit.mjs` là công cụ **dùng chung của mọi lane**, nên đây là nợ của board chứ không
+phải của lane này. Tôi không tự sửa.
 
-1. **`node scripts\visual-audit.mjs` in xong tổng kết rồi không bao giờ thoát.** Đo được hai
-   lần: sau khi đã in `===== TONG HOP =====`, tiến trình `node` vẫn sống, **CPU đứng yên ở
-   ~0,94s** và không tăng trong 30 giây theo dõi liên tục. Vì `process.on('exit')` không
-   chạy nên file khoá `frontend/.kilo/audit.lock` **còn nguyên**, và lần chạy kế bị chính công
-   cục từ chối với `Da co audit khac dang chay (pid …)`. Muốn chạy tiếp phải **xoá khoá tay**.
-2. **Giết tiến trình `node` để gỡ khoá thì rò Edge.** `taskkillTree()` nằm trong `finally`
-   của từng lô, nên giết `node` từ ngoài **bỏ qua** nó: đo được **20 tiến trình `msedge.exe`**
-   còn sống lọt lại (đều có profile `novafilm-audit-edge-*`). Phải dọn tay, và chỉ dọn đúng
-   tiến trình của mình — máy lúc đó còn **12 tiến trình Edge của lane khác**, không được đụng.
-3. **Ba lần chết giữa chừng** với `CDP khong tra loi cho "Runtime.evaluate" sau 60s`, ở lô
-   `vi` (11/50 route) và lô `en` (37/50 route). Máy quá tải, không phải ứng dụng hỏng — công cụ
-   **đã đúng** khi không chấp nhận lấy số từ lượt chạy dở.
+1. **Một trang "đứng yên" vẫn bị tính là sạch.** Lượt 04:46 cho `visible = 185` **giống hệt
+   nhau** ở 19 route liên tiếp của locale `en`, và cjk = 0 — tức bộ đếm báo "không có tiếng
+   Trung". Công cụ chỉ cảnh báo `visible < 40` (dòng 806), nên 185 lọt qua im lặng. Đây là lỗi
+   nguy hiểm nhất trong ba lỗi: nó tạo ra một con số **tốt giả**.
+2. **Edge không nổi lên thì lô đó báo "đo xong".** Lượt 04:46 in `da don 0 tien trinh Edge`
+   rồi chết với `Ket noi CDP bi ngat giua chung` — nghĩa là Edge chưa từng chạy được.
+3. **`node` chết ngay lúc khởi động** với `Assertion failed: ncrypto::CSPRNG(nullptr, 0)`
+   (`EXIT=134`) — không phải lỗi code của ta, nhưng nó giết cả lượt chạy.
+4. **Bị giết âm thẳm** giữa lô 2 (`EXIT=-1`), không in dòng lỗi nào, không ai biết vì sao.
 
-**Khuyến nghị cho board:** thêm `process.exit(0)` sau `report(results)` trong `main()`. Đó
-là sửa một dòng và nó giải quyết cả vòng lặp "xoá khoá tay" lẫn rò Edge — nhưng
-`visual-audit.mjs` dùng chung nên **tôi không tự sửa**.
+Ngoài ra, bản nháp trước của mục này trong chính file này ghi ba triệu chứng khác — *"in xong
+tổng kết rồi không bao giờ thoát"*, *"rò 20 tiến trình Edge"*, *"ba lần chết với `CDP khong
+tra loi ... sau 60s`"*. **Tôi không tái hiện được** bất kỳ triệu chứng nào trong ba lượt của
+mình, nên coi là **chưa kiểm chứng** và không dùng làm căn cứ.
+
+**Khuyến nghị cho board:** thêm `process.exit(0)` sau `report(results)` trong `main()` (đơn
+giản, giảm rủi ro treo khoá), và nâng ngưỡng "trang rỗng" lên kiểu *"cùng một giá trị `visible`
+lặp lại trên nhiều route liên tiếp"* thay vì hằng số 40. Nhưng `visual-audit.mjs` dùng chung
+nên **tôi không tự sửa**.
 
 ## 9. Những gì chưa làm được (PHẦN I)
 
@@ -498,11 +552,15 @@ là sửa một dòng và nó giải quyết cả vòng lặp "xoá khoá tay" l
 
 ## 17. Những gì chưa làm được (PHẦN II)
 
-1. **Số đo audit "sau" đã chốt ở §13** — ba lần chạy trọn vẹn, `135 / 133`, giống hệt ở từng
-   dòng route. Mục tiêu của brief là `25 / 25`: **không đạt**, và **không thể đạt** bằng lớp
-   nhãn — 53 ký tự còn lại là văn xuôi kịch bản trong database (xem §9.1 của PHẦN I).
-2. **6 biến thể BGM của nhóm A chưa có nhãn** — §14, giao board.
-3. **Chưa xử lý `SEGMENT_SCRIPT_PLACEHOLDER`** — §15, tiếng Trung mà bộ đếm `innerText` không
+1. **Số đo audit "sau" đã chốt ở §13** — **hai** lần chạy trọn vẹn, `135 / 133`, giống hệt ở
+   từng dòng route (`Compare-Object` rỗng); ngoài ra còn một lượt nữa cho `vi = 135` nhưng
+   nửa `en` hỏng nên không tính. Mục tiêu của brief là `25 / 25`: **không đạt**, và **không thể
+   đạt** bằng lớp nhãn — 53 ký tự còn lại là văn xuôi kịch bản trong database (xem §9.1 của
+   PHẦN I).
+2. **Không có bằng chứng bằng ảnh cho trang xem tập** — §13.1. Bằng chứng là số đo `innerText`
+   và đọc DOM trong app đang chạy. Đây là hạn chế của công cụ, không phải của thay đổi này.
+3. **6 biến thể BGM của nhóm A chưa có nhãn** — §14, giao board.
+4. **Chưa xử lý `SEGMENT_SCRIPT_PLACEHOLDER`** — §15, tiếng Trung mà bộ đếm `innerText` không
    bắt được. Cần quyết định riêng, không tự ý sửa.
-4. **Chưa sửa lỗi bố cục** đè khung soạn kịch bản (§6 của phần I) — việc CSS, ngoài phạm vi.
-5. **53 ký tự văn xuôi kịch bản vẫn còn nguyên** — đúng yêu cầu, không tính là lỗi giao diện.
+5. **Chưa sửa lỗi bố cục** đè khung soạn kịch bản (§6 của phần I) — việc CSS, ngoài phạm vi.
+6. **53 ký tự văn xuôi kịch bản vẫn còn nguyên** — đúng yêu cầu, không tính là lỗi giao diện.
