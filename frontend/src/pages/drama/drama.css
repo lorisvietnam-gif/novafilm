@@ -1418,17 +1418,41 @@
   background: var(--pf-line);
 }
 
+/* An asset with no image yet was a flat black square with a dim grey word in
+   it — the flattest surface left in the product, and inconsistent with the
+   project thumbnail, which already fills its empty state with a system plate
+   behind a scrim. A library of portraits and sets that is all black rectangles
+   cannot be scanned, so the placeholder borrows the same treatment: a plate
+   from styles/media.css, a scrim ladder over it, and ink from the on-media
+   tokens. One plate for all kinds, because the label underneath already says
+   which kind it is and a grid of four different photographs would compete with
+   the real thumbnails once they arrive. */
 .drama-asset-placeholder {
   display: grid;
   place-items: center;
-  color: var(--drama-muted);
+  background-color: var(--pf-scrim-rgb);
+  background-image:
+    linear-gradient(180deg, var(--pf-media-scrim-soft), var(--pf-media-scrim-strong)),
+    var(--pf-media-plate-bokeh);
+  background-size: cover, cover;
+  background-position: center, 50%;
+  background-repeat: no-repeat, no-repeat;
+  color: var(--pf-on-media-strong);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.55);
   font-size: 12px;
   text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
+/* Two lines' worth, always. Titles here are user data, so one of them will be
+   longer than the others; without a floor the meta line and the action button
+   of that card start lower than their neighbours in the same row and the grid
+   reads as misaligned rather than ragged. `min-height` on the heading does it
+   without clipping a third line, which the cards have room for. */
 .drama-asset-card h3 {
   margin: 0;
   font-size: 14px;
+  min-height: 2.8em;
 }
 
 .drama-asset-card p {

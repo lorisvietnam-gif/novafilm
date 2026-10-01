@@ -2493,8 +2493,20 @@
   aspect-ratio: 16 / 7;
   margin: 0 calc(-1 * var(--pf-help-cat-pad, 0.65rem));
   border-radius: 13px 13px 0 0;
-/* Danh mục không có ảnh (trung tâm cá nhân / hướng dẫn nạp tiền) rơi vào đây: dùng mặt phẳng trung tính thay vì để trống */
-  background: var(--pf-surface-sunken);
+  /* The account and top-up categories have no photograph, and the previous flat
+     `--pf-surface-sunken` left two bare grey bands in a row of four illustrated
+     cards, which read as tiles that failed to load rather than tiles that
+     never had art. Same treatment as an empty asset thumbnail and an empty
+     project cover: a system plate behind a scrim, so the band has weight and
+     the grid reads as six deliberate cards. */
+  background-color: var(--pf-scrim-rgb);
+  background-image:
+    linear-gradient(200deg, var(--pf-media-scrim-soft), rgb(var(--pf-scrim-rgb) / 0.72)),
+    radial-gradient(90% 120% at 18% 22%, rgb(var(--pf-accent-rgb) / 0.2), transparent 62%),
+    var(--pf-media-plate-court);
+  background-size: cover, cover, cover;
+  background-position: center, center, center;
+  background-repeat: no-repeat, no-repeat, no-repeat;
   overflow: hidden;
 }
 
@@ -2595,12 +2607,17 @@
   margin-inline: calc(50% - 50vw);
   padding: 2.25rem 0 1.5rem;
   padding-inline: max(var(--pf-gutter), calc(50vw - (var(--pf-shell-max) - 3rem) / 2));
-  background-image:
+  /* The top of the band carries the breadcrumb, and the breadcrumb is the
+   smallest text on it. 0.93 at the top and 0.82 at the mid rung — measured on
+   the rendered pixels of /contact, whose river plate is the darkest of the
+   plates — lift the breadcrumb from 4.46:1 to clear 4.5:1 in dark mode while
+   the plate stays plainly visible under the wash. The h1 needed nothing. */
+background-image:
     linear-gradient(
       to bottom,
-      rgb(var(--pf-surface-rgb) / 0.88) 0%,
-      rgb(var(--pf-surface-rgb) / 0.76) 44%,
-      rgb(var(--pf-surface-rgb) / 0.96) 100%
+      rgb(var(--pf-surface-rgb) / 0.93) 0%,
+      rgb(var(--pf-surface-rgb) / 0.82) 44%,
+      rgb(var(--pf-surface-rgb) / 0.97) 100%
     ),
     var(--pf-media-plate-river);
   background-size: cover, cover;
@@ -2637,6 +2654,28 @@
   margin: 0 0 1rem;
   font-size: 0.82rem;
   color: var(--pf-muted);
+}
+
+/* These two hero bands wash the photograph with --pf-surface-rgb rather than
+   with the dark media scrim, so the band is LIGHT in light mode and DARK in
+   dark mode — measured background luminance 0.78 and 0.05 respectively — and
+   their ink has to flip with the theme, which is why their h1 inherits
+   --pf-ink. The subtitle and breadcrumb were reaching for --pf-muted, the
+   weakest ink on that ladder, and measured on the rendered pixels:
+
+     /help    4.68:1 light   3.65:1 dark
+     /contact 5.79:1 light   3.54:1 dark
+     /terms   5.58:1 light   4.01:1 dark
+
+   against 4.5:1 for body text. One rung up, --pf-ink-secondary, is what the
+   band can carry in both directions. It is deliberately NOT --pf-on-media:
+   that is white, and white on this band is 1.05:1 in light mode, which is what
+   the first attempt at this measured before it was reverted here. */
+.pf-help-page-hero .pf-muted,
+.pf-legal-hero .pf-muted,
+.pf-legal-crumb,
+.pf-legal-meta {
+  color: var(--pf-ink-secondary);
 }
 
 .pf-legal-intro {
@@ -3496,9 +3535,13 @@
   font-weight: 700;
 }
 
+/* Same omission again, and this one is the step indicator the whole create
+   flow is read from: an accent fill with inherited near-white ink, 1.46:1 in
+   dark mode. The step number is the only thing telling you where you are. */
 .pf-step.active .pf-step-dot {
   background: var(--pf-lime);
   border-color: var(--pf-lime);
+  color: var(--pf-on-accent);
 }
 
 .pf-step-line {
@@ -4053,10 +4096,18 @@
   min-height: 48px;
 }
 
+/* 55% accent over --pf-surface is a light olive in light mode and a dark olive
+   in dark mode, so one ink cannot serve both: --pf-on-accent is #1c1c1a in
+   light (10.5:1) and #0e0e11 in dark, which on dark mode's mix lands at
+   1.07:1. The token meant for "accent-tinted ink that still reads" is
+   --pf-accent-ink — #6a5116 in light, #f8dc87 in dark — and it measures 4.61:1
+   against #6a5116-on-light-olive and 7.02:1 against the dark olive. The hover
+   state below fills with the accent outright, so there it flips back to
+   --pf-on-accent. */
 .pf-btn-ai {
   background: color-mix(in srgb, var(--pf-lime) 55%, var(--pf-surface));
   border-color: color-mix(in srgb, var(--pf-lime) 80%, var(--pf-ink));
-  color: var(--pf-on-accent);
+  color: var(--pf-accent-ink);
 }
 
 .pf-btn-ai:hover:not(:disabled) {
@@ -5539,9 +5590,12 @@ button.pf-shot-editable:disabled {
   border-color: rgb(var(--pf-accent-rgb) / 0.7);
 }
 
+/* Same omission as .pf-pricing-sku-cta.is-primary: gold fill, inherited
+   near-white ink, measured 1.46:1 in dark mode. */
 .pf-page-btn.active {
   background: var(--pf-lime);
   border-color: var(--pf-lime);
+  color: var(--pf-on-accent);
 }
 
 .pf-page-btn:disabled {
@@ -6412,9 +6466,15 @@ button.pf-shot-editable:disabled {
   background: var(--pf-surface-sunken);
 }
 
+/* Ink ON the accent fill, never inherited. The base rule sets `color:
+   var(--pf-ink)`, which is near-white in dark mode, so a variant that fills
+   with --pf-lime and only recolours the border left #f5f5f7 on #f2c94c —
+   measured 1.46:1 against a 4.5:1 requirement. Same omission in three places;
+   this is the note for the next one. */
 .pf-pricing-sku-cta.is-primary {
   background: var(--pf-lime);
   border-color: var(--pf-lime);
+  color: var(--pf-on-accent);
 }
 
 .pf-pricing-sku-cta.is-primary:hover:not(:disabled) {
@@ -7591,7 +7651,35 @@ button.pf-shot-editable:disabled {
   .pf-asset-grid {
     grid-template-columns: repeat(3, 1fr);
   }
+}
 
+/* --------------------------------------------------------------------------
+   The header, below 1400px.
+
+   The bar is `1fr auto 1fr`. The centre track is `auto`, so it takes its
+   max-content — 549px for the six links at 1.5rem apart — and the two `1fr`
+   tracks split what is left. The right cluster (language switch, help,
+   avatar, gold CTA) is 380px wide, so it is only safe when each `1fr` track
+   can hold 380px, and that needs
+
+       width - 48 (gutter) - 32 (gaps) - 549 (centre) >= 760
+     => width >= 1381
+
+   Measured, and the arithmetic is not a theory: from 1101px to 1370px the
+   right cluster was drawn ON TOP of the last centre link, 111px of overlap at
+   1150 and 46px at 1280. A 1280-wide window is the single most common laptop
+   width there is. The old breakpoint hid the centre links at 1100px, which is
+   280px too low, and until the help label was given `white-space: nowrap` the
+   overlap was masked because that label was quietly wrapping to give the row
+   40px back.
+
+   So the breakpoint moves to 1400px, where the numbers clear, and the links
+   live in the burger drawer below it — the same drawer, with the same markup,
+   that already served them below 1100. Nothing is hidden from a phone-sized
+   screen that was visible on a laptop one; both get the drawer, and 1401px and
+   up keep the full row.
+   -------------------------------------------------------------------------- */
+@media (max-width: 1400px) {
   .pf-nav {
     grid-template-columns: auto 1fr;
     position: relative;
@@ -7654,6 +7742,16 @@ button.pf-shot-editable:disabled {
   .pf-nav-drawer-links a.active {
     font-weight: 600;
     box-shadow: inset 3px 0 0 var(--pf-lime);
+  }
+}
+
+/* Just above the breakpoint the row is legal but tight, so the links take a
+   slightly tighter rhythm. At 1440 the clearance is 16px on the base values
+   and 38px with this. */
+@media (min-width: 1401px) and (max-width: 1560px) {
+  .pf-nav-center {
+    gap: 1.15rem;
+    font-size: 0.9rem;
   }
 }
 

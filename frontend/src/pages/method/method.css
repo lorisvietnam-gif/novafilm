@@ -39,6 +39,12 @@
   color: var(--m-lime-deep);
 }
 
+/* `.pf-method a` above sets `color: var(--m-lime-deep)`, and both selectors are
+   (0,1,1) while `.pf-method-skip` on its own is (0,1,0) — so the skip link, the
+   one control that must be reachable from the keyboard before anything else,
+   rendered #f8dc87 on the #f2c94c fill in dark mode. Measured 1.18:1. On the
+   accent FILL the ink is --pf-on-accent, which is what the light mode has been
+   getting by accident and what the dark mode needs. */
 .pf-method-skip {
   position: absolute;
   left: -999px;
@@ -48,6 +54,10 @@
   background: var(--m-lime);
   color: var(--m-lime-ink);
   font-weight: 700;
+}
+
+.pf-method a.pf-method-skip {
+  color: var(--m-lime-ink);
 }
 
 .pf-method-skip:focus {
@@ -190,9 +200,9 @@
     linear-gradient(
       100deg,
       var(--pf-media-scrim-full) 0%,
-      var(--pf-media-scrim-strong) 26%,
-      var(--pf-media-scrim) 50%,
-      var(--pf-media-scrim-soft) 100%
+      var(--pf-media-scrim-strong) 34%,
+      var(--pf-media-scrim) 62%,
+      var(--pf-media-scrim-strong) 100%
     ),
     var(--pf-media-plate-city);
   background-size: cover, cover;
