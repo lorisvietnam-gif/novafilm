@@ -122,21 +122,24 @@ mức cắt nào, rồi so sánh thẳng với 9. Không có đường cắt nà
 ```
 cd frontend
 npm run build    → ✓ built in 952ms, 0 error
+npm run lint     → 0 error, 40 warning, exit 0
 ```
 
 `tsc -b` sạch. Không `as any`, không `as unknown as Messages` — kiểm tra kiểu thật.
 
-Chưa chạy `npm run lint` cùng đợt; xem §6.
+Lint đo được `0` dòng có severity `error` và `40` dòng `warning`, **khớp đúng** baseline
+`AGENTS.md` §4 ghi (0 error / 40 warning). Không warning nào nằm trong ba file tôi sửa
+(`api.ts`, `referenceImages.ts`, `CanvasStore.tsx`) — cả 40 đều là warning có sẵn ở file khác.
 
 ---
 
 ## 6. GIỚI HẠN — nói thẳng
 
-1. **Tôi CHƯA chạy `npm run lint`.** `npm run build` xanh nhưng build xanh **không** thay
-   lint. Theo `AGENTS.md` §7 ("Build xanh không có nghĩa là trang chạy được") tôi cũng **chưa
-   mở app ở localhost** để nhìn tận mắt. Sửa của tôi ở `api.ts` thuần tuý về giao diện dữ
-   liệu của `request()`, không đổi render, nên rủi ro trắng trang rất thấp — nhưng **tôi chưa
-   kiểm chứng bằng mắt và không tính là đã kiểm chứng**.
+1. **Tôi CHƯA mở app ở localhost để nhìn tận mắt.** `npm run build` và `npm run lint` đều xanh
+   (§5), nhưng theo `AGENTS.md` §7 ("Build xanh không có nghĩa là trang chạy được") thì đó chưa
+   phải bằng chứng. Sửa của tôi ở `api.ts` thuần tuý về giao diện dữ liệu của `request()`, không
+   đổi render, nên rủi ro trắng trang rất thấp — nhưng **tôi chưa kiểm chứng bằng mắt và không
+   tính là đã kiểm chứng**.
 
 2. **Tôi không có ảnh chụp màn hình chặn khi vượt 9 ảnh.** Brief yêu cầu mục này ở 1440 và
    390, và tôi **không làm được**: tôi cần 10 node `character`/`scene` **có ảnh** trên Canvas
