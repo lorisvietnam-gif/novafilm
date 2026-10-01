@@ -115,24 +115,41 @@
 
 /* ---- Ghi chú trung thực về mô hình ---------------------------------- */
 
+/* Gập mặc định: gộp tiêu đề vào một dòng, mở ra mới đọc phần giải thích dài. */
 .drama-prompt-bundle__model-note {
-  display: flex;
-  flex-direction: column;
-  gap: var(--pf-space-1);
-  margin: 0;
-  padding: var(--pf-space-2-5) var(--pf-space-3);
+  padding: var(--pf-space-2) var(--pf-space-2-5);
   border: 1px solid var(--pf-line);
   border-left: 3px solid var(--pf-accent-stroke);
   border-radius: var(--pf-radius-sm);
   background: var(--pf-accent-soft);
   color: var(--pf-ink-secondary);
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   line-height: 1.6;
+}
+
+.drama-prompt-bundle__model-note > summary {
+  color: var(--pf-ink-secondary);
+  cursor: pointer;
+  list-style-position: outside;
+}
+
+.drama-prompt-bundle__model-note > summary:hover {
+  color: var(--pf-ink);
+}
+
+.drama-prompt-bundle__model-note > summary:focus-visible {
+  outline: var(--pf-focus-ring-width) solid var(--pf-focus-ring);
+  outline-offset: var(--pf-focus-ring-offset);
+  border-radius: var(--pf-radius-xs);
 }
 
 .drama-prompt-bundle__model-note strong {
   color: var(--pf-accent-ink);
   font-weight: 600;
+}
+
+.drama-prompt-bundle__model-note p {
+  margin: var(--pf-space-1-5) 0 0;
 }
 
 /* ---- Thanh công cụ ---------------------------------------------------- */

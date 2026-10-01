@@ -18,7 +18,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CircleAlert, Copy, Info, TriangleAlert } from 'lucide-react'
 import Modal from '../ui/Modal'
-import { useI18n, type TFunction } from '../../i18n'
+import { useI18n } from '../../i18n'
 import type { MediaModelOption } from '../../api'
 import type { DramaAsset, DramaFragment } from '../../api/drama'
 import { copyText, type CopyOutcome } from '../../lib/clipboardCopy'
@@ -77,6 +77,23 @@ const ADJUST_KEY: Record<PromptAdjustment['kind'], string> = {
   resolution: 'dramaPromptBundle.adjustResolution',
 }
 
+/**
+ * Chọn sẵn toàn bộ vùng prompt khi sao chép thất bại, để lời nhắc «bấm Ctrl+C»
+ * nói đúng với điều sẽ xảy ra: bấm là xong, không phải tự đi tìm và bôi đen.
+ */
+function selectPromptRegion(root: HTMLElement | null) {
+  if (!root) return
+  const blocks = [...root.querySelectorAll<HTMLElement>('.drama-prompt-bundle__prompt')]
+  const range = document.createRange()
+  if (blocks.length === 0) return
+  range.setStartBefore(blocks[0])
+  range.setEndAfter(blocks[blocks.length - 1])
+  const selection = window.getSelection()
+  if (!selection) return
+  selection.removeAllRanges()
+  selection.addRange(range)
+}
+
 export function DramaPromptBundleModal({
   open,
   onClose,
@@ -122,6 +139,7 @@ export function DramaPromptBundleModal({
   const withPrompt = useMemo(() => countPromptScenes(scenes), [scenes])
   const targetLabel = target?.label || t('dramaPromptBundle.targetModel')
   const formLabel = t(raw ? 'dramaPromptBundle.formRaw' : 'dramaPromptBundle.formExternal')
+  const scrollRef = useRef<HTMLDivElement | null>(null)
 
   const announce = useCallback(
     (outcome: CopyOutcome, text: string) => {
@@ -135,9 +153,17 @@ export function DramaPromptBundleModal({
   const handleCopy = useCallback(
     async (text: string, successText: string) => {
       const outcome = await copyText(text)
-      if (outcome === 'copied') announce(outcome, successText)
-      else if (outcome === 'copiedFallback') announce(outcome, t('dramaPromptBundle.copiedFallback'))
-      else announce(outcome, t('dramaPromptBundle.copyFailed'))
+      if (outcome === 'copied') {
+        announce(outcome, successText)
+        return
+      }
+      if (outcome === 'copiedFallback') {
+        announce(outcome, t('dramaPromptBundle.copiedFallback'))
+        return
+      }
+      // Cả hai đường đều bị chặn: chọn sẵn vùng prompt để Ctrl+C là có kết quả.
+      selectPromptRegion(scrollRef.current)
+      announce(outcome, t('dramaPromptBundle.copyFailed'))
     },
     [announce, t],
   )
@@ -239,7 +265,7 @@ export function DramaPromptBundleModal({
     )
   }
 
-  const renderReason = (reason: AiReadinessReason, lt: TFunction) => lt(REASON_KEY[reason])
+  const renderReason = (reason: AiReadinessReason) => t(REASON_KEY[reason])
 
   return (
     <Modal
@@ -277,7 +303,7 @@ export function DramaPromptBundleModal({
               </h4>
               <p className="drama-prompt-bundle__notice-body">
                 {t('dramaPromptBundle.noticeBody', {
-                  reasons: readiness.reasons.map((reason) => renderReason(reason, t)).join('; '),
+                  reasons: readiness.reasons.map(renderReason).join('; '),
                 })}
               </p>
               {onStillRender ? (
@@ -297,10 +323,20 @@ export function DramaPromptBundleModal({
             </div>
           ) : null}
 
-          <p className="drama-prompt-bundle__model-note">
-            <strong>{`${t('dramaPromptBundle.modelTitle')}. `}</strong>
-            {`${t('dramaPromptBundle.modelBody', { model: targetLabel })} ${t('dramaPromptBundle.modelSymbols')}`}
-          </p>
+          {/*
+           * Đoạn này dài năm dòng. Ghim sẵn thì trên 390px người dùng mở hộp thoại ra
+           * chỉ thấy cảnh báo, không thấy prompt nào — nên gập lại, chỉ hiện tiêu đề.
+           */}
+          <details className="drama-prompt-bundle__model-note">
+            <summary>
+              <strong>{t('dramaPromptBundle.modelTitle')}</strong>
+              {` — ${targetLabel}`}
+            </summary>
+            <p>
+              {t('dramaPromptBundle.modelBody', { model: targetLabel })}{' '}
+              {t('dramaPromptBundle.modelSymbols')}
+            </p>
+          </details>
 
           <div className="drama-prompt-bundle__toolbar">
             <div className="drama-prompt-bundle__field">
@@ -380,7 +416,7 @@ export function DramaPromptBundleModal({
           </div>
         </div>
 
-        <div className="drama-prompt-bundle__scroll">
+        <div className="drama-prompt-bundle__scroll" ref={scrollRef}>
           {scenes.length === 0 ? (
             <p className="drama-prompt-bundle__none">{t('dramaPromptBundle.allEmpty')}</p>
           ) : (
