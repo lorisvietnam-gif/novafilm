@@ -133,32 +133,44 @@ def _bootstrap_channels_from_env(settings: Settings | None = None) -> list[Syste
 
     src = settings or get_settings()
     key = (src.openai_api_key or src.ark_api_key or "").strip()
-    models = canonicalize_channel_models(
-        [
-            src.model_llm,
-            src.model_image,
-            src.model_image_45,
-            src.model_video,
-            src.model_video_2,
-            src.model_audio,
-        ]
-    )
+
+    from app.services.tokenfree_gateway import TOKENFREE_BASE_URL
+
+    text_base = (src.openai_base_url or "").strip().rstrip("/")
+    tokenfree_base = TOKENFREE_BASE_URL.strip().rstrip("/")
+    # Khi `openai_base_url` trỏ về chính TokenFree thì model văn bản thuộc về channel TokenFree.
+    # Ngược lại (nhiều nhà cung cấp) thì channel văn bản riêng sở hữu model đó — nếu để
+    # TokenFree cũng khai, nó sẽ tranh model và phân giải có thể chọn nhầm, rồi gọi sai nhà
+    # cung cấp và báo lỗi 401 của hãng khác.
+    text_model = (src.model_llm or "").strip()
+    text_owned_by_tokenfree = (not text_base) or text_base == tokenfree_base
+
+    tokenfree_models = [
+        src.model_image,
+        src.model_image_45,
+        src.model_video,
+        src.model_video_2,
+        src.model_audio,
+    ]
+    if text_owned_by_tokenfree:
+        tokenfree_models.append(src.model_llm)
+
     channels: list[SystemModelChannel] = [
-        locked_tokenfree_channel(api_key=key, models=models, enabled=True)
+        locked_tokenfree_channel(
+            api_key=key,
+            models=canonicalize_channel_models(tokenfree_models),
+            enabled=True,
+        )
     ]
 
     # Provider thứ hai cho phần văn bản.
     #
     # Bản gốc viết khi TokenFree là nguồn duy nhất, nên `openai_base_url` có thể trỏ bất kỳ đâu
     # mà danh sách channel vẫn chỉ có TokenFree — cấu hình đó bị bỏ qua hoàn toàn. Nay ta dùng
-    # một nhà cung cấp khác cho model văn bản (Gemini), nên nó phải có **channel của riêng nó**,
+    # một nhà cung cấp khác cho model văn bản, nên nó phải có **channel của riêng nó**,
     # chứ không nhét vào đường TokenFree. Đường ảnh và video của TokenFree giữ nguyên.
-    from app.services.tokenfree_gateway import TOKENFREE_BASE_URL
-
-    text_base = (src.openai_base_url or "").strip().rstrip("/")
-    tokenfree_base = TOKENFREE_BASE_URL.strip().rstrip("/")
-    if text_base and text_base != tokenfree_base and (src.model_llm or "").strip():
-        text_models = canonicalize_channel_models([src.model_llm])
+    if text_base and text_base != tokenfree_base and text_model:
+        text_models = canonicalize_channel_models([text_model])
         channels.append(
             SystemModelChannel(
                 id="text-openai",
