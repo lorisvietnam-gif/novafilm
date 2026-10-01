@@ -212,6 +212,10 @@ class Settings(BaseSettings):
     # Yuan per million tokens (provider cost)
     billing_seedance_video0: float = 46.0
     billing_seedance_video1: float = 28.0
+    # ASSUMPTION, NOT A MEASURED PRICE: this rate assumes a metered paid text provider.
+    # The free-tier Gemini key in use does not bill per token, so llm_chat costs computed
+    # from it are wrong (overstated). Harmless while billing_enabled is false; set this to
+    # the real rate before turning credit charging on, or bills will drift from provider cost.
     billing_llm_per_m: float = 5.0
     billing_seedream_per_m: float = 8.0
     billing_tts_per_m: float = 2.0
