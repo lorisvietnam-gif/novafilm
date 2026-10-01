@@ -10,7 +10,7 @@
  * Ảnh nằm trong workspace và trong `.gitignore` — lane đọc được, commit không bị bẩn.
  */
 
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -43,6 +43,46 @@ const API = process.env.AUDIT_API || 'http://127.0.0.1:8000'
 const HERE = resolve(fileURLToPath(new URL('.', import.meta.url)))
 const OUT = process.env.AUDIT_OUT || resolve(HERE, '..', '.kilo', 'audit')
 const PROFILE = join(OUT, '..', `edge-profile-${process.pid}`)
+
+/**
+ * Chốt: **chỉ một audit chạy một lúc.**
+ *
+ * Đã xảy ra: board chạy audit trong khi bunny/5 chạy audit của nó. Hai Edge cùng lúc đẻ ra
+ * **366 tiến trình**, chạy tranh tài nguyên, và cả hai đều hỏng — một cái chết sau 4 dòng, cái
+ * kia bị cắt giữa chừng. Tệ hơn: khi chạy song song thì **không con số nào đáng tin**, mà
+ * board đã nhiều lần dính phải đính chính vì đo nhầm.
+ *
+ * Vì vậy: giữ một file khoá trong thư mục `.kilo` (đã gitignore). Thấy khoá còn sống thì **thoát
+ * ngay kèm lý do** — đừng chạy song song.
+ */
+const LOCK = join(OUT, '..', 'audit.lock')
+mkdirSync(resolve(OUT, '..'), { recursive: true })
+
+function lockHeldByOther() {
+  try {
+    const pid = Number(readFileSync(LOCK, 'utf8').trim())
+    if (!pid || pid === process.pid) return null
+    process.kill(pid, 0) // chỉ kiểm tra, không giết
+    return pid
+  } catch {
+    return null
+  }
+}
+
+const holder = lockHeldByOther()
+if (holder) {
+  throw new Error(
+    `Da co audit khac dang chay (pid ${holder}). `
+      + `Hai audit cung luc se hong ca hai va khong con so nao dung duoc. `
+      + `Cho no chay xong roi chay lai.`,
+  )
+}
+writeFileSync(LOCK, String(process.pid))
+process.on('exit', () => {
+  try {
+    if (Number(readFileSync(LOCK, 'utf8').trim()) === process.pid) rmSync(LOCK, { force: true })
+  } catch { /* da duoc xoa */ }
+})
 
 const CJK = /[\u4e00-\u9fff]/
 
@@ -101,6 +141,55 @@ const DYNAMIC_ROUTES = [
 ]
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+/**
+ * Mỗi lệnh CDP chờ tối đa bao lâu trước khi bị coi là hỏng.
+ *
+ * Không có giới hạn này thì một lệnh mà Edge không trả lời sẽ treo vĩnh viễn — và node
+ * thoát **mã 0, không in gì**, vì event loop rỗng.
+ *
+ * Con số này phải **chịu được máy đang bận**, không chỉ máy rảnh. Máy này chạy nhiều lane
+ * song song và mỗi lane đều đẻ Edge: đo được 132 tiến trình Edge của lane khác lúc audit
+ * chạy. Renderer khi đó phản hồi `Page.reload`/`Runtime.evaluate` chậm hơn nhiều lần, và
+ * mốc 15s giữa được gây hỏng **48/50 route rồi dừng** — tức là báo nhầm "Edge chết" khi Edge
+ * chỉ chậm. Nên: 60s mặc định, chỉnh được bằng `AUDIT_CDP_TIMEOUT_MS`.
+ *
+ * Mốc này cố tình lớn. Nó không phải để phát hiện chậm — `Page.reload` cần thời gian tuỳ
+ * máy — mà để bắt đúng trường hợp renderer **đã chết**: lúc đó không có phản hồi nào cả,
+ * và chờ càng lâu cũng vô ích. Chờ lâu hơn có giá rất nhỏ; báo nhầm thì mất trắng toàn bộ
+ * lần audit.
+ */
+const CDP_TIMEOUT_MS = Number(process.env.AUDIT_CDP_TIMEOUT_MS || 60_000)
+
+/**
+ * Đóng một route: đóng socket **trước**, chờ xong rồi mới đóng tab.
+ *
+ * Vì sao phải đóng tab: trước đây chỉ `ws.close()` — đóng kết nối debug, **không** đóng
+ * tab. Mỗi route vì thế để lại một tab thật trong Edge, mỗi tab một tiến trình renderer, và
+ * số tiến trình Edge **tăng đều**: đo được 20 → 46 tiến trình và 2.5GB → 5.7GB trong một
+ * lần chạy, 60 tiến trình còn sống sau khi script kết thúc. Rồi máy không còn đủ bộ nhớ,
+ * renderer mới bị giết giữa lúc đang chụp, phản hồi CDP không bao giờ tới, và audit chết
+ * im. Đó là mắt xích nối giữa "rò tiến trình" và "chết không có thông báo".
+ *
+ * Thứ tự cũng quan trọng: `/json/close` gọi **ngay** sau `ws.close()` khi bắt tay đóng chưa
+ * xong là điều kiện của lỗi libuv mà comment cũ mô tả. Chờ `onclose` trước rồi hẵng đóng tab
+ * thì không còn va chạm đó, mà vẫn giải quyết được vấn đề thật.
+ */
+async function closeRoute(ws, tab) {
+  try {
+    if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+      await new Promise((res) => {
+        ws.onclose = res
+        ws.onerror = res
+        ws.close()
+        setTimeout(res, 2000) // không để chờ bắt tay đóng treo nếu Edge đã đi
+      })
+    }
+  } catch { /* socket da hong */ }
+  try {
+    await fetch(`http://127.0.0.1:${PORT}/json/close/${tab.id}`)
+  } catch { /* Edge da chet, tab di theo no */ }
+}
 
 async function api(path, init) {
   const res = await fetch(`${API}${path}`, init)
@@ -243,6 +332,27 @@ async function main() {
     'about:blank',
   ], { stdio: 'ignore' })
 
+  // Dù lỗi, dù thành công, phải dọn. Trước đây `taskkillTree` chỉ chạy ở cuối happy path:
+  // một route hỏng là **cả cây Edge bị bỏ lại** (đã đo: 14 tiến trình sống dai sau khi
+  // `throw`), Edge giữ cổng debug và profile, và các lần chạy sau cộng dồn tới hàng trăm
+  // tiến trình — đó là nguồn làm số liệu sai, không phải lỗi ngẫu nhiên.
+  try {
+    await auditRoutes(ROUTES, token)
+  } finally {
+    // `edge` giữ tham chiếu tiến trình con để không bị GC, nhưng **không** dùng `edge.pid`
+    // để giết — xem `taskkillTree` để hiểu vì sao pid đó vô dụng.
+    edge.removeAllListeners()
+    const killed = taskkillTree()
+    // Xoá profile sau khi đã giết: Edge còn giữ file trong đó nên xoá trước sẽ `EPERM`.
+    try { rmSync(PROFILE, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }) } catch { /* da duoc xoa */ }
+    console.log(`da don ${killed} tien trinh Edge`)
+  }
+}
+
+/**
+ * Chạy vòng lặp route. Tách riêng để `finally` bảo đảm dọn dẹp chạy dù hàm này ném lỗi.
+ */
+async function auditRoutes(ROUTES, token) {
   let version = null
   for (let i = 0; i < 40; i++) {
     await sleep(500)
@@ -276,10 +386,14 @@ async function main() {
         ws.onerror = rej
       })
 
+      // Dọn tab **bất kể route này có hỏng hay không**. Xem giải thích ở `finally` bên dưới.
+      try {
+
       ws.onmessage = (ev) => {
         const msg = JSON.parse(ev.data)
         if (msg.id && pending.has(msg.id)) {
-          pending.get(msg.id)(msg.result)
+          clearTimeout(pending.get(msg.id).timer)
+          pending.get(msg.id).res(msg.result)
           pending.delete(msg.id)
         }
         if (msg.method === 'Runtime.exceptionThrown') {
@@ -288,75 +402,115 @@ async function main() {
         }
       }
 
+      /**
+       * Mỗi lệnh CDP **phải** có thời hạn.
+       *
+       * Đây là nguyên nhân thật khiến audit chết âm thầm. Trước đây `send()` trả về một
+       * promise chỉ được resolve bởi `onmessage`. Khi trình duyệt chết giữa chừng — renderer
+       * văng, Edge bị giết, socket đứt — Edge **không** gửi phản hồi, nên promise đó treo
+       * vĩnh viễn, `main()` không bao giờ trả về, `catch()` không bao giờ chạy.
+       *
+       * Và node không báo lỗi: khi mọi handle đã đóng và chỉ còn một promise treo, event
+       * loop **rỗng và node thoát với mã 0, in không một dòng nào**. Đã đo trực tiếp:
+       * `main().catch()` + `await new Promise(() => {})` cho ra `EXIT=0` với output rỗng.
+       * Đó chính xác là triệu chứng "in 5 dòng rồi thoài, không có thông báo lỗi".
+       *
+       * Nên: hết giờ thì **ném lỗi có tên**. Lỗi thì in được, treo thì chết không dấu vết.
+       */
       const send = (method, params = {}) =>
-        new Promise((res) => {
+        new Promise((res, rej) => {
           const n = ++id
-          pending.set(n, res)
-          ws.send(JSON.stringify({ id: n, method, params }))
+          const timer = setTimeout(() => {
+            pending.delete(n)
+            rej(new Error(
+              `CDP khong tra loi cho "${method}" sau ${CDP_TIMEOUT_MS / 1000}s. `
+                + `Renderer/Edge co the da chet. Route nay KHONG duoc coi la da kiem tra.`,
+            ))
+          }, CDP_TIMEOUT_MS)
+          pending.set(n, { res, rej, timer })
+          try {
+            ws.send(JSON.stringify({ id: n, method, params }))
+          } catch (e) {
+            clearTimeout(timer)
+            pending.delete(n)
+            rej(new Error(`CDP "${method}" gui khong duoc: ${e.message}`))
+          }
         })
 
-      // Chặt locale + token rồi tải lại trang để ứng dụng đọc đúng giá trị.
-      await send('Runtime.evaluate', {
-        expression: `localStorage.setItem('novafilm.locale', ${JSON.stringify(locale)});
-                     localStorage.setItem('token', ${JSON.stringify(token)});`,
-      })
-      await send('Page.enable')
-      await send('Page.navigate', { url: BASE + route })
-      await sleep(2600)
-      await send('Page.reload', { ignoreCache: false })
-      await sleep(2600)
-
-      const textRes = await send('Runtime.evaluate', {
-        expression: 'document.body ? document.body.innerText : ""',
-        returnByValue: true,
-      })
-      const text = textRes?.result?.value || ''
-
-      const apiDown = API_ERROR_MARKERS.some((m) => text.includes(m))
-      const cjk = apiDown ? -1 : (text.match(/[\u4e00-\u9fff]/g) || []).length
-      const rawKeys = [...new Set(text.match(RAW_KEY) || [])]
-      const visible = text.trim().length
-
-      const metrics = await send('Page.getLayoutMetrics')
-      const shot = await send('Page.captureScreenshot', {
-        format: 'png',
-        captureBeyondViewport: true,
-        clip: {
-          x: 0,
-          y: 0,
-          width: Math.ceil(metrics?.cssContentSize?.width || 1280),
-          height: Math.min(Math.ceil(metrics?.cssContentSize?.height || 900), 4000),
-          scale: 1,
-        },
-      })
-      if (shot?.data) {
-        writeFileSync(join(dir, `${name}.png`), Buffer.from(shot.data, 'base64'))
+      // Socket đứt thì mọi lệnh đang chờ đều vô lời vĩnh viễn — phải **từ chối** chứ không
+      // chờ để chúng treo, vì treo chính là thứ giết tiến trình im lặng. Tuyệt đối không
+      // resolve với `undefined`: `undefined` sẽ trôi qua mọi `?.` và ra `text = ''`, tức là
+      // route bị đọc thành "0 ký tự Trung" — tức là **báo sạch trong khi thật ra là trắng
+      // trang**. Đó đúng là cái bẫy mà audit này sinh ra để tránh.
+      ws.onclose = () => {
+        for (const [, p] of pending) {
+          clearTimeout(p.timer)
+          p.rej(new Error(
+            `Ket noi CDP bi ngat giua chung. Renderer/Edge co the da chet. `
+              + `Route nay KHONG duoc coi la da kiem tra.`,
+          ))
+        }
+        pending.clear()
       }
 
-      const cjkLines = text
-        .split('\n')
-        .map((l) => l.trim())
-        .filter((l) => CJK.test(l))
-        .slice(0, 40)
+        // Chặt locale + token rồi tải lại trang để ứng dụng đọc đúng giá trị.
+        await send('Runtime.evaluate', {
+          expression: `localStorage.setItem('novafilm.locale', ${JSON.stringify(locale)});
+                       localStorage.setItem('token', ${JSON.stringify(token)});`,
+        })
+        await send('Page.enable')
+        await send('Page.navigate', { url: BASE + route })
+        await sleep(2600)
+        await send('Page.reload', { ignoreCache: false })
+        await sleep(2600)
 
-      results.push({ locale, route, cjk, rawKeys, visible, apiDown, errors: consoleErrors.length, cjkLines })
+        const textRes = await send('Runtime.evaluate', {
+          expression: 'document.body ? document.body.innerText : ""',
+          returnByValue: true,
+        })
+        const text = textRes?.result?.value || ''
 
-      console.log(
-        `${locale}  ${route.padEnd(34)} cjk=${String(cjk).padStart(4)}` +
-          (rawKeys.length ? `  KEY_LEAK=${rawKeys.join(',')}` : '') +
-          (consoleErrors.length ? `  JS_ERROR=${consoleErrors.length}` : '') +
-          (visible < 40 ? '  <-- TRANG RONG' : ''),
-      )
-      if (process.env.AUDIT_VERBOSE && cjk > 0) {
-        for (const line of cjkLines) console.log(`        | ${line.slice(0, 160)}`)
+        const apiDown = API_ERROR_MARKERS.some((m) => text.includes(m))
+        const cjk = apiDown ? -1 : (text.match(/[\u4e00-\u9fff]/g) || []).length
+        const rawKeys = [...new Set(text.match(RAW_KEY) || [])]
+        const visible = text.trim().length
+
+        const metrics = await send('Page.getLayoutMetrics')
+        const shot = await send('Page.captureScreenshot', {
+          format: 'png',
+          captureBeyondViewport: true,
+          clip: {
+            x: 0,
+            y: 0,
+            width: Math.ceil(metrics?.cssContentSize?.width || 1280),
+            height: Math.min(Math.ceil(metrics?.cssContentSize?.height || 900), 4000),
+            scale: 1,
+          },
+        })
+        if (shot?.data) {
+          writeFileSync(join(dir, `${name}.png`), Buffer.from(shot.data, 'base64'))
+        }
+
+        const cjkLines = text
+          .split('\n')
+          .map((l) => l.trim())
+          .filter((l) => CJK.test(l))
+          .slice(0, 40)
+
+        results.push({ locale, route, cjk, rawKeys, visible, apiDown, errors: consoleErrors.length, cjkLines })
+
+        console.log(
+          `${locale}  ${route.padEnd(34)} cjk=${String(cjk).padStart(4)}` +
+            (rawKeys.length ? `  KEY_LEAK=${rawKeys.join(',')}` : '') +
+            (consoleErrors.length ? `  JS_ERROR=${consoleErrors.length}` : '') +
+            (visible < 40 ? '  <-- TRANG RONG' : ''),
+        )
+        if (process.env.AUDIT_VERBOSE && cjk > 0) {
+          for (const line of cjkLines) console.log(`        | ${line.slice(0, 160)}`)
+        }
+      } finally {
+        await closeRoute(ws, tab)
       }
-
-      // KHÔNG gọi `/json/close` ngay sau `ws.close()`. Đóng socket và đóng tab cùng lúc làm
-      // libuv trên Windows văng `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)` và giết
-      // cả tiến trình node — audit chết giữa chừng, và các route chưa tới bị đọc là "0 ký tự
-      // Trung", tức là **báo sạch trong khi thật ra là trắng trang**. Đã xảy ra vài lần.
-      ws.close()
-      await sleep(200)
     }
   }
 
@@ -385,28 +539,60 @@ async function main() {
       )
     }
   }
-
-  // Phải giết CẢ CÂY tiến trình. `edge.kill()` chỉ giết tiến trình cha; Edge còn hàng chục
-  // tiến trình con và tự giữ cổng debug. Lần đầu chỉ `kill()` cha nên script rò Edge mỗi lần
-  // chạy — tới lúc có 580 tiến trình mồ côi, cổng debug bị phiên Edge cũ chiếm, và audit
-  // nối nhầm vào phiên cũ: trang trắng hàng loạt mà KHÔNG có lỗi JS nào để bắt.
-  taskkillTree(edge.pid)
 }
 
-function taskkillTree(pid) {
-  if (!pid) return
+/**
+ * Giết Edge của **chính lần chạy này**, tìm theo profile chứ không theo pid.
+ *
+ * Vì sao không theo pid: tiến trình mà `spawn` trả về (`edge.pid`) **thoát ngay lập tức** —
+ * Edge trên Windows tự khởi chạy tiến trình trình duyệt thật rồi để tiến trình launcher đó
+ * chết. Đo được: `edge.pid` có `exitCode === 0` trong vòng 3 giây, và
+ * `taskkill /PID <edge.pid> /T /F` ném lỗi "Command failed" rồi **không giết được gì** —
+ * 21 tiến trình Edge vẫn sống sau đó. Nghĩa là `taskkillTree(edge.pid)` chưa bao giờ có tác
+ * dụng gì trên máy này, và mọi lần chạy đều rò ra cả cây tiến trình.
+ *
+ * Profile thì luôn duy nhất theo pid của node, nên lọc theo nó vừa **chính xác** (không đụng
+ * Edge của lane khác hay của người dùng) vừa **chắc chắn** bắt được tiến trình thật.
+ */
+function taskkillTree() {
+  const tag = PROFILE.replace(/'/g, "''")
+  let pids = []
   try {
-    execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' })
+    const out = execFileSync(
+      'powershell',
+      ['-NoProfile', '-Command',
+        `Get-CimInstance Win32_Process -Filter "Name='msedge.exe'" `
+        + `| Where-Object { $_.CommandLine -like '*${tag}*' } `
+        + `| Select-Object -ExpandProperty ProcessId`],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+    )
+    pids = out.split(/\s+/).map(Number).filter(Boolean)
   } catch {
+    // Không tìm được thì không chặn dọn dẹp phần còn lại.
+  }
+
+  for (const pid of pids) {
     try {
-      process.kill(pid)
+      execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' })
     } catch {
-      /* da chet */
+      try { process.kill(pid) } catch { /* da chet */ }
     }
   }
+  return pids.length
 }
 
+// Đừng để bất cứ thứ gì thoát ra ngoài mà không in. Một lỗi nuốt im ở đây tạo ra đúng
+// triệu chứng khó chịu nhất: script "chạy xong" nhưng không kiểm tra được gì cả.
+process.on('uncaughtException', (e) => {
+  console.error('LOI KHONG BAT DUOC:', e?.stack || e?.message || e)
+  process.exit(1)
+})
+process.on('unhandledRejection', (e) => {
+  console.error('PROMISE BI TU CHOI:', e?.stack || e?.message || e)
+  process.exit(1)
+})
+
 main().catch((e) => {
-  console.error('LOI:', e.message)
+  console.error('LOI:', e?.stack || e?.message || e)
   process.exit(1)
 })
