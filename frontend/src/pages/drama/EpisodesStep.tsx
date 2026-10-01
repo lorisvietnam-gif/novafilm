@@ -85,9 +85,13 @@ function summarizeEpisode(ep: DramaEpisode): EpisodeSummary {
   }
 }
 
-// Tiêu đề tập hiển thị dọc (cắt bớt nếu quá dài)
+// Tiêu đề tập hiển thị dọc trên ô ảnh dọc 88x112.
+//
+// Bỏ khoảng trắng thì SAI: "Tập 1" ra "Tập1". Dọc chỉ đổi trục của chữ, không
+// xoá được ranh giới từ. Giữ nguyên khoảng trắng, rồi cắt theo ký tự — trục dọc
+// không có chỗ cho `-webkit-line-clamp` nên `…` phải do đây sinh ra.
 function verticalTitleLabel(name: string, max = 14): string {
-  const clean = (name || '').replace(/\s+/g, '')
+  const clean = (name || '').replace(/\s+/g, ' ').trim()
   if (clean.length <= max) return clean
   return `${clean.slice(0, max - 1)}…`
 }

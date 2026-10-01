@@ -3679,13 +3679,29 @@
   background: linear-gradient(165deg, var(--pf-surface-sunken) 0%, var(--pf-surface-sunken) 55%, var(--pf-line) 100%);
 }
 
+/* The episode name on an 88x112 portrait poster, kept vertical on purpose: the tile
+   is taller than it is wide, so there is no horizontal line long enough to hold a
+   name, and rotating a 13px label 90deg in a 72px-wide tile is worse than this.
+
+   Two things were wrong with keeping it.
+
+   1. Contrast. The plate runs `--pf-surface-sunken` to `--pf-line`, and
+      `--pf-ink-tertiary` measured 4.36:1 (dark) and 4.35:1 (light) against the
+      `--pf-line` end — under AA 4.5:1 for 13px text, so the name was unreadable
+      at exactly the moment the eye travels to it. `--pf-ink` measures 11.65:1 and
+      12.58:1 against the same two stops, and it is the token that means "this is
+      the label", not "this is metadata".
+
+   2. Spacing. `verticalTitleLabel` stripped every space, so "Tập 1" drew as
+      "Tập1". Vertical does not excuse deleting the word breaks — it just changes
+      which axis they run along. */
 .drama-ep-card-poster-vertical {
   writing-mode: vertical-rl;
   text-orientation: mixed;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.12em;
-  color: var(--pf-ink-tertiary);
+  color: var(--pf-ink);
   max-height: 88px;
   overflow: hidden;
   text-overflow: ellipsis;

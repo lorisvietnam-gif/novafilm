@@ -13,15 +13,23 @@
  */
 
 import { mkdirSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const EDGE = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
 const PORT = 9336
 const BASE = process.env.AUDIT_BASE || 'http://127.0.0.1:5173'
 const API = 'http://127.0.0.1:8000'
-const OUT = 'C:\\Users\\NOVAST~1\\AppData\\Local\\Temp\\kilo\\audit'
-const PROFILE = 'C:\\Users\\NOVAST~1\\AppData\\Local\\Temp\\kilo\\edge-layout-profile'
+const OUT = process.env.AUDIT_OUT || join(resolve(fileURLToPath(new URL('.', import.meta.url))), '..', '.kilo', 'audit-layout')
+const PROFILE = join(OUT, '..', `edge-layout-profile-${process.pid}`)
 const TOLERANCE = 2
+/**
+ * `AUDIT_WIDTH` / `AUDIT_HEIGHT` — xem `visual-audit.mjs`. Không có nó thì mọi phép đo
+ * tràn khung chạy ở 800x600, tức là ở một trong ba bề rộng mà không nói ra. 390px mới là
+ * chỗ vỡ nhiều nhất, nên đo thiếu nó thì báo "không tràn khung" là báo thiếu.
+ */
+const WIDTH = process.env.AUDIT_WIDTH ? Number(process.env.AUDIT_WIDTH) : 0
+const HEIGHT = process.env.AUDIT_HEIGHT ? Number(process.env.AUDIT_HEIGHT) : 0
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
@@ -190,6 +198,14 @@ async function main() {
                      localStorage.setItem('token', ${JSON.stringify(token)});`,
       })
       await send('Page.enable')
+      if (WIDTH) {
+        await send('Emulation.setDeviceMetricsOverride', {
+          width: WIDTH,
+          height: HEIGHT || 900,
+          deviceScaleFactor: 1,
+          mobile: WIDTH < 700,
+        })
+      }
       await send('Page.navigate', { url: BASE + route })
       await sleep(2600)
       await send('Page.reload', { ignoreCache: false })

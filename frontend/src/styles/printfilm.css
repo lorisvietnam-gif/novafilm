@@ -1409,12 +1409,9 @@
   font-weight: 600;
 }
 
-/* A drama with no cover art yet. The wash and its ink move toward the theme's
-   own surface colour, so the plate is pale with dark ink in light mode and deep
-   with light ink in dark. The fallback writes the title vertically, which is
-   the constraint that forces the treatment in the first place: the text has to
-   be dark ink on a pale field, and it has to stay dark ink there in a dark UI
-   too, or the card becomes a glaring white rectangle in a black list. */
+/* A drama with no cover art yet. The wash and its ink move toward the theme's own
+   surface colour, so the plate is pale with dark ink in light mode and deep with
+   light ink in dark. */
 .pf-drama-card-cover {
   position: relative;
   display: block;
@@ -1432,6 +1429,48 @@
   background-position: center, 45%;
 }
 
+/* The title of a project whose cover art has not been generated yet.
+
+   It used to be set VERTICALLY, centred on the plate. That is a Chinese convention
+   and it reads correctly in `zh` — but in `vi` and `en` it produced three cards in a
+   row reading "Dự án bảng vẽ t…", "Kiểm thu Drama" and "Dự án drama ch…": rotated
+   90°, clipped by `overflow: hidden`, and with the word spaces stripped upstream by
+   `verticalTitleLabel`. A project name you cannot read is not a project name.
+
+   So the ORIENTATION moves, not the treatment: the plate and its wash stay exactly
+   as they were, and the title becomes a horizontal band along the BOTTOM edge under
+   a gradient that runs the depth of that band — the arrangement the brief asks for
+   (gradient down one edge, text horizontal in a corner). The band takes
+   `--pf-media-scrim-full`, the 0.86 rung, which measures 10.85:1 for white ink over a
+   pure white pixel — the brightest thing a JPEG can hold. That is why this holds AA
+   over the plate now AND over whatever real cover art later replaces it.
+
+   Two lines and an ellipsis, so a long name truncates instead of overflowing the
+   card. The full name is never lost: the cover button carries
+   `aria-label="Mở <title>"`, and the card body repeats the title horizontally in
+   `.pf-drama-card-title` immediately below this band. */
+.pf-drama-card-cover-fallback {
+  position: absolute;
+  inset: auto 0 0 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  padding: 1.9rem 0.8rem 0.65rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1.28;
+  color: var(--pf-on-media-strong);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+  overflow-wrap: anywhere;
+  background: linear-gradient(
+    to top,
+    var(--pf-media-scrim-full) 0%,
+    var(--pf-media-scrim-full) 58%,
+    var(--pf-media-scrim-none) 100%
+  );
+}
+
 .pf-drama-card-cover-img {
   width: 100%;
   height: 100%;
@@ -1441,11 +1480,16 @@
 
 /* A chip on a cover image carries 11.5px text, so it needs the strong rung of
    the media ladder (0.78 -> 8.19:1 over a pure white pixel) rather than the old
-   0.72 veil, which measured 3.42:1 and failed AA over any bright region. */
+   0.72 veil, which measured 3.42:1 and failed AA over any bright region.
+
+   Top-right, not bottom-left: the bottom edge of this cover now belongs to the
+   title band, and a chip sitting on top of the title hides the first words of it.
+   Top-left is the selection checkbox (`.drama-project-row-check`), so top-right is
+   the one corner of the plate that nothing else claims. */
 .pf-drama-card-cover-badge {
   position: absolute;
-  left: 10px;
-  bottom: 10px;
+  top: 10px;
+  right: 10px;
   padding: 0.2rem 0.55rem;
   border-radius: 999px;
   background: var(--pf-media-scrim-strong);
@@ -1468,20 +1512,6 @@
 .pf-drama-card-cover-badge.is-canvas {
   background: rgba(37, 99, 235, 0.92);
   color: var(--pf-on-media);
-}
-
-.pf-drama-card-cover-fallback {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 1rem;
-  font-weight: 700;
-  font-size: 1.05rem;
-  color: var(--pf-media-ink);
-  text-shadow: 0 1px 0 var(--pf-media-ink-halo);
-  writing-mode: vertical-rl;
-  letter-spacing: 0.12em;
 }
 
 .pf-drama-card-body {
@@ -8094,6 +8124,18 @@ button.pf-shot-editable:disabled {
     grid-column: 1 / -1;
   }
 
+  /* The title block needs this rule as much as the thumb and the action row do,
+     and it is the one whose absence is invisible in the CSS and obvious on screen.
+     The row is `28px 1fr` and the thumb, ratio and actions all claim
+     `grid-column: 1 / -1`, so auto-placement walks past them and drops
+     `.pf-project-info` into the FIRST free cell — the 28px checkbox column. The
+     title then has 28px minus the row padding to work with, and "Kiem thu giao
+     dien" draws as four stacked one-word lines while the meta badges stack under
+     it. A project list whose names you cannot read is not a project list. */
+  .pf-project-info {
+    grid-column: 1 / -1;
+  }
+
   .pf-project-ratio,
   .pf-project-actions {
     grid-column: 1 / -1;
@@ -8110,7 +8152,7 @@ button.pf-shot-editable:disabled {
    thumbnail held at its square instead of becoming a banner.
 
    Scoped with a lower bound so it cannot fight the ≤700px rules, which place
-   the same five children by line number rather than by name. */
+   every child by name rather than by grid area. */
 @media (min-width: 701px) and (max-width: 1100px) {
   .pf-project-card {
     grid-template-columns: 40px 148px minmax(0, 1fr) auto;
