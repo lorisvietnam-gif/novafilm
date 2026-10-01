@@ -162,7 +162,7 @@ function ProfileTab({ profile }: { profile: PromptModelProfile | null }) {
           {profile.readiness}
         </span>
       </header>
-      <p className="pc-profile-note">{profile.readiness_note}</p>
+      <p className="pc-profile-note">{t(`promptCompiler.readiness.${profile.id}`)}</p>
       <p className="pc-profile-counts">
         {t('promptCompiler.evidenceCounts', {
           verified: counts.verified,
@@ -380,7 +380,7 @@ export function PromptCompilerDialog({ open, onClose }: Props) {
           </label>
           {profile ? (
             <p className={`pc-readiness ${readinessTone(profile.readiness)}`}>
-              {profile.readiness_note}
+              {t(`promptCompiler.readiness.${profile.id}`)}
             </p>
           ) : null}
 

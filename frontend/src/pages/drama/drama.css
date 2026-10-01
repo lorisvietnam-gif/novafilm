@@ -7213,12 +7213,14 @@
   align-items: start;
 }
 
+/* Một vùng cuộn duy nhất cho cả hộp thoại là `.pf-modal-body` (sẵn có `overflow: auto`).
+   Form bên trái KHÔNG tự cuộn riêng — hai thanh cuộn lồng nhau khiến người dùng không biết
+   đang ở đâu, và ở 1440x900 phần cảnh báo dưới prompt bị đẩy ra ngoài khung mà không có
+   cách nào tới nó ngoài việc cuộn cả hộp thoại. */
 .pc-form {
   display: flex;
   flex-direction: column;
   gap: var(--pf-space-2);
-  max-height: min(72vh, 46rem);
-  overflow-y: auto;
   padding-right: var(--pf-space-1);
 }
 
@@ -7441,7 +7443,9 @@
   background: var(--pf-surface-sunken);
   border: 1px solid var(--pf-line);
   border-radius: var(--pf-radius-md);
-  max-height: min(52vh, 34rem);
+  /* Hạ chiều cao để khối cảnh báo nằm ngay dưới khung prompt, thay vì bị đẩy khỏi màn
+     hình. Prompt dài vẫn cuộn riêng trong khối này. */
+  max-height: min(38vh, 26rem);
   overflow-y: auto;
 }
 
@@ -7639,11 +7643,6 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .pc-form {
-    max-height: none;
-    overflow: visible;
-  }
-
   .pc-ref {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -7652,6 +7651,7 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  /* Ở màn hình hẹp, hộp thoại là một cột nên không cần chặn chiều cao nữa. */
   .pc-prompt {
     max-height: none;
     font-size: var(--pf-text-xs);

@@ -75,7 +75,6 @@ export type PromptModelProfile = {
   label: string
   family: string
   readiness: 'evidence-based' | 'docs-based' | 'skeleton'
-  readiness_note: string
   compiler_mode: string
   evidence_counts: Record<PromptEvidenceLevel, number>
   dialect: PromptProfileFact[]
