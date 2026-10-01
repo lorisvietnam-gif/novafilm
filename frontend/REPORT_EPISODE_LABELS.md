@@ -3,9 +3,10 @@
 **Lane:** `bunny/2` · **Path:** `D:\novafilm-lanes\bunny-2` · **Ngày:** 2026-10-02
 **Brief:** `.kilo/briefs/wire-episode-labels.md` · **Base:** `55f394c` (đã đồng bộ `main`)
 
-> **Trạng thái báo cáo:** bản nháp đầu tiên, commit **trước** khi sửa code — theo yêu cầu
+> **Trạng thái báo cáo:** PHẦN I là bản nháp đầu tiên, commit **trước** khi sửa code — theo yêu cầu
 > "write and COMMIT the report file first" và `AGENTS.md` §11 (tiến trình chết là mất sạch).
-> Số đo "sau" sẽ bổ sung ở commit tiếp theo.
+> PHẦN II là việc của brief `.kilo/briefs/add-missing-bgm-label.md`: thêm **một** biến thể
+> nhãn BGM. Số đo "sau" của cả hai phần được bổ sung ở commit cuối.
 
 ---
 
@@ -255,14 +256,152 @@ ngữ — hành vi đúng). Hai ngoại lệ nhỏ, không liên quan lane này 
   `drama-tap` và `drama-tap-chi-tiet` là **cùng một bức** — tôi vẫn giữ cả bốn file để đối
   chiếu, nhưng cần biết chúng không độc lập nhau.
 
-## 9. Những gì chưa làm được
+---
+
+# PHẦN II — THÊM MỘT BIẾN THỂ NHÃN BGM (14 ký tự)
+
+**Brief:** `.kilo/briefs/add-missing-bgm-label.md` · **Base:** `666a75a` · **Ngày:** 2026-10-02
+**Commit mã nguồn:** `160803f` — `feat(vi): add the missing bgm mood label for 轻快专业 so the
+postMix cue localises` · **File:** `frontend/src/lib/dramaScriptLabels.ts` (+21 −2)
+
+## 10. Sửa đúng **một** mục, và vì sao đó **không phải bịa**
+
+Thêm đúng một khoá vào `BGM_MOOD_LABELS`:
+
+| Khoá | zh | en | vi |
+|---|---|---|---|
+| `轻快专业` | `轻快专业` | `brisk and professional` | `nhanh gọn và chuyên nghiệp` |
+
+**Phần 3 của báo cáo cũ đã kết luận sai ở một chỗ, và tôi đính chính.** Nó viết
+`轻快专业` *"không nằm trong bất kỳ danh sách nào ở backend"* nên tôi *"không thêm nhãn"*. Điều
+đó chỉ đúng với `BGM_MOOD_KEYWORDS` (`seedance_segments.py:293-299`) và
+`_infer_bgm_mood` (`build_fragments.py`) — hai danh sách **suy luận**. `轻快专业` còn nằm ở
+bốn chỗ khác trong backend, và những chỗ đó là **giá trị thật của sản phẩm**:
+
+| Chỗ | Vai trò |
+|---|---|
+| `backend/app/services/pipeline.py:752` | chốt fallback cuối cho `project.bgm_lock` |
+| `backend/app/services/templates_seed.py:73,130,297` | `audio_config.bgm_mood` của template đã seed |
+| `backend/app/services/templates_seed_huoke.py:123` | như trên, bộ template 获客 |
+| `backend/app/services/templates_seed.py:109` | câu lệnh trong prompt: *"bgm 全片统一为轻快专业"* |
+| `backend/tests/test_seedance_segments.py` | giá trị fixture cho mọi test cue BGM |
+
+Tức là nó là **mặc định BGM của cả hệ thống**, không phải chuỗi mô hình tự nghĩ ra. Thêm
+nhãn cho nó là điền một lỗ hổng thật, không phải bịa từ vựng.
+
+Cơ chế khớp không cần sửa thêm code: `build_production_cues()`
+(`seedance_segments.py:400-404`) dán đuôi `，音量低于人声` rồi bọc `后期混音`, và
+`localizeScriptCue()` đã bỏ đuôi đó trước khi tra (commit `666a75a`). Nên **cả hai** nhánh
+`postMix` và `volume` đều khớp mục này — thêm một khoá là đủ.
+
+## 11. Chuỗi đích lấy từ database bằng **công cụ đọc text**, không giải mã bằng mắt
+
+`frontend/.kilo/probe-episode.mjs` (gitignored) đăng nhập, gọi `GET /api/drama/episodes/3`
+rồi ghi `content` thô ra `frontend/.kilo/probe-episode.json` bằng `writeFileSync(..., 'utf8')`.
+Đọc file đó bằng công cụ đọc, fragment **id=8**:
+
+```
+【字幕：后期叠旁白字幕，简体中文逐句同步】
+【BGM：后期混音 · 轻快专业，音量低于人声】
+@duration:4
+远景：清晨的老街，薄雾未散，@asset:19 静静躺在巷口，@asset:18 站在路口望向深处，手里的伞还在滴水
+@duration:6
+@asset:18 走近半步，@asset:20 被攥在掌心，低声说：「这张照片，你见过吗？」
+```
+
+Khoá cần tra là `轻快专业` — phần giữa sau khi bỏ tiền tố `【BGM：后期混音 · ` và đuôi
+`，音量低于人声】`.
+
+**53 ký tự văn xuôi còn lại không được đụng tới.** Tôi không sửa `localizeScriptContent`, không
+thêm bảng từ vựng mới, không dịch dòng kịch bản. Số đo ở §13 là bằng chứng: giảm **đúng 14**.
+
+## 12. Build và lint
+
+```
+npm run lint   -> 0 error · 40 warning   (đúng baseline, không tăng)
+npm run build  -> exit 0 · built in 1.07s · 0 error
+```
+
+Không thêm i18n key nào (`zh`/`en`/`vi` của bảng này là `LocalizedText` nên thiếu `zh` sẽ
+fail build), và không có cast nào.
+
+## 13. Số đo audit
+
+_(bổ sung sau khi chạy xong)_
+
+## 14. Biến thể BGM **khác** mà tôi thấy — báo lại, không tự thêm
+
+Sáu chuỗi trong `seedance_segments.BGM_MOOD_KEYWORDS` (`:293-299`) cộng
+`DEFAULT_BGM_MOOD` (`:37`) đều đã có sẵn đuôi `，音量低于人声` và sẽ đi qua `build_production_cues`
+thành cue `【BGM：后期混音 · …】`. Sau khi bỏ đuôi thì **không mục nào trùng** với 7 mục đang có
+trong bảng:
+
+| Chuỗi (đã bỏ đuôi) | So với bảng hiện có |
+|---|---|
+| `低沉紧张、鼓点渐强，烘托压迫感` | gần `低沉紧张、鼓点渐强，烘托压迫与危机感` nhưng **khác** |
+| `温暖人文、钢琴弦乐铺底` | không có |
+| `轻电子氛围，克制不抢戏` | không có |
+| `轻快专业、干净电子铺底` | **khác** mục `轻快专业` vừa thêm (có đuôi `、干净电子铺底`) |
+| `史诗弦乐铺底，气势克制` | không có |
+| `贴合内容的轻量配乐，情绪平稳，不抢旁白` | gần `贴合剧情氛围的轻量配乐，情绪随画面起伏` nhưng **khác** |
+
+Đây là **6 mục**, tức mở rộng bảng — vượt "thêm đúng một biến thể" của brief, nên tôi **không
+thêm** và giao lại board. Ghi chú: `低沉紧张、鼓点渐强，烘托压迫感` và
+`贴合内容的轻量配乐，情绪平稳，不抢旁白` **gần** nhưng không bằng hai mục đã có, nên bảng phải
+giữ cả hai bên; không được gộp làm một.
+
+## 15. Phát hiện ngoài phạm vi — **tiếng Trung mà audit không đo được**
+
+`frontend/src/lib/segmentDuration.ts:27`:
+
+```
+export const SEGMENT_SCRIPT_PLACEHOLDER = `${SUBTITLE_CUE}\n【BGM：后期混音 · 轻快专业，音量低于人声】\n@duration:4\n过肩工位操作画面…`
+```
+
+Nó được dùng làm `placeholder` của textarea ở `StoryboardPage.tsx:1507`. Attribute
+`placeholder` **không nằm trong `innerText`**, mà bộ đếm của `visual-audit.mjs` đo `innerText` —
+nên trang nào có placeholder này vẫn báo "sạch" trong khi người dùng thật nhìn thấy tiếng
+Trung. Đây là loại lọt mà phép đo hiện tại **về nguyên tắc không bắt được**.
+
+Tôi **không sửa**: nó là chuỗi mẫu để người dùng bắt chước, nằm ngoài phạm vi brief, và sửa nó
+cần một quyết định riêng (dịch placeholder thì người dùng copy ra nội dung tiếng Việt rồi gửi
+lên backend, cần kiểm xem còn đúng định dạng không).
+
+## 16. Độ tin cậy của phép đo — đã phải thử lại nhiều lần
+
+Máy đang chạy **nhiều audit song song** (tiến trình của lane khác và của board, cùng dùng
+worktree `bunny/2`). Hệ quả đo được, không phải lỗi code:
+
+- `visual-audit.mjs` chốt "chỉ một audit chạy một lúc" qua file khoá `frontend/.kilo/audit.lock`.
+  Ba lần của tôi bị **từ chối ngay** với `Da co audit khac dang chay (pid …)`.
+- Lần chạy được khoá nhưng vẫn chết: một lần `Assertion failed: ncrypto::CSPRNG(nullptr, 0)`
+  (node chết ngay lúc khởi động, `EXIT=134`), một lần `Ket noi CDP bi ngat giua chung`
+  kèm `da don 0 tien trinh Edge` — tức Edge của lô đó **không nổi lên** vì máy quá tải
+  (đã đếm tới **860** tiến trình `msedge.exe` lúc ba audit cùng chạy).
+- Một lần bị giết âm thầm (`EXIT=-1`) giữa lô 2, không có dòng lỗi nào.
+
+Lần chạy **hoàn chỉnh đầu tiên** (lúc máy còn rảnh) mất 7,4 phút. Số liệu chỉ được chấp nhận
+khi **hai lần cho kết quả giống hệt**, và cả hai lần đều phải là lần chạy trọn vẹn 25 route ×
+2 locale — không lấy số từ lượt chạy bị giết.
+
+## 9. Những gì chưa làm được (PHẦN I)
 
 1. **Không đạt mục tiêu 25 ký tự mỗi bên.** Không thể đạt bằng lớp nhãn. 53/67 ký tự là văn
    xuôi kịch bản trong `drama_fragments.content` — dịch nó là dịch nội dung người dùng.
    Tôi **không** làm và **không** tính là đã dịch.
-2. **14 ký tự nhãn BGM** cũng chưa hết, vì `轻快专业，音量低于人声` là chuỗi mô hình tự viết —
-   báo ở §3, không bịa.
+2. ~~**14 ký tự nhãn BGM** cũng chưa hết~~ — **ĐÃ XỬ LÝ Ở PHẦN II.** Lý do bỏ qua ở phần này
+   (coi `轻快专业` là chuỗi mô hình tự viết) **sai** — xem §10.
 3. **Chưa thêm nhãn cho nhóm A** (`BGM_MOOD_KEYWORDS`) vì đó là 6 mục mới, tức **mở rộng bảng
-   nhãn**, vượt quá "chỉ nối dây" — chờ board quyết.
+   nhãn**, vượt quá "chỉ nối dây" — chờ board quyết. Vẫn còn nguyên ở PHẦN II §14.
 4. **Chưa sửa lỗi bố cục** đè khung soạn ở §6 (việc CSS, ngoài phạm vi).
 5. **Chưa có số đo "sau"** — bổ sung ở commit tiếp theo.
+
+## 17. Những gì chưa làm được (PHẦN II)
+
+1. **Chưa có số đo audit "sau" hai lần.** Máy đang chạy nhiều audit song song nên nhiều lượt
+   bị giết giữa chừng — chi tiết ở §16. Số ở §13 chỉ chốt khi **hai lần giống hệt**.
+2. **6 biến thể BGM của nhóm A chưa có nhãn** — §14, giao board.
+3. **Chưa xử lý `SEGMENT_SCRIPT_PLACEHOLDER`** — §15, tiếng Trung mà bộ đếm `innerText` không
+   bắt được. Cần quyết định riêng, không tự ý sửa.
+4. **Chưa sửa lỗi bố cục** đè khung soạn kịch bản (§6 của phần I) — việc CSS, ngoài phạm vi.
+5. **53 ký tự văn xuôi kịch bản vẫn còn nguyên** — đúng yêu cầu, không tính là lỗi giao diện.
