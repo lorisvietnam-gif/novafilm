@@ -578,7 +578,9 @@ async function auditRoutes(ROUTES, token, locale) {
   for (let i = 0; i < 40; i++) {
     await sleep(500)
     try {
-      version = await (await fetch(`http://127.0.0.1:${PORT}/json/version`)).json()
+      version = await (await fetch(`http://127.0.0.1:${PORT}/json/version`, {
+        signal: AbortSignal.timeout(5000),
+      })).json()
       break
     } catch { /* chua len */ }
   }
@@ -595,9 +597,11 @@ async function auditRoutes(ROUTES, token, locale) {
   //
   // Tái sử dụng một tab là cách đúng: không có tab nào để đóng, không có tiến trình nào để
   // rò. Đo được số tiến trình giữ phẳng 13 → 9.
+  // `fetch` không có timeout mặc định, nên Edge treo ở `/json/new` sẽ giữ lượt chạy vô thời hạn.
   const tab = await (
     await fetch(`http://127.0.0.1:${PORT}/json/new?${encodeURIComponent(BASE + '/')}`, {
       method: 'PUT',
+      signal: AbortSignal.timeout(CDP_TIMEOUT_MS),
     })
   ).json()
 
@@ -608,9 +612,20 @@ async function auditRoutes(ROUTES, token, locale) {
   // route, nếu không lỗi của route trước sẽ bị tính cho route sau.
   let consoleErrors = []
 
+  // Bắt tay socket cũng phải có thời hạn. Đo được: Edge chết **giữa** lúc ta mở tab, nên
+  // `/json/new` vẫn trả về `webSocketDebuggerUrl` cho một trình duyệt đã biến mất, và
+  // `new WebSocket(...)` không bao giờ `open` cũng không bao giờ `error`. Lượt chạy đứng yên
+  // 22 phút, CPU = 0, không in dòng nào — cùng cái chết âm thầm mà `send()` đã có timeout
+  // để tránh, chỉ là chỗ này chưa có.
   await new Promise((res, rej) => {
-    ws.onopen = res
-    ws.onerror = rej
+    const timer = setTimeout(() => {
+      rej(new Error(
+        `Ket noi CDP khong bat tay xong sau ${CDP_TIMEOUT_MS / 1000}s. `
+          + `Edge da chet giua chung. Route nay KHONG duoc coi la da kiem tra.`,
+      ))
+    }, CDP_TIMEOUT_MS)
+    ws.onopen = () => { clearTimeout(timer); res() }
+    ws.onerror = (e) => { clearTimeout(timer); rej(new Error(`Ket noi CDP that bai: ${e?.message || e}`)) }
   })
 
   ws.onmessage = (ev) => {
