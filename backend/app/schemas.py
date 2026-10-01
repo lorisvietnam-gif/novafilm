@@ -277,6 +277,8 @@ class ProjectDownloadRequest(BaseModel):
 class ContentExpandRequest(BaseModel):
     topic: str = Field(default="", max_length=2000)
     mode: str = Field(default="theme", pattern="^(theme|script)$")
+    # Ngôn ngữ người dùng đang chọn. Để rỗng = giữ hành vi cũ (tiếng Trung).
+    locale: str = Field(default="zh", max_length=8)
 
 
 class ContentExpandOut(BaseModel):

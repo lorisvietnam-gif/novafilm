@@ -135,6 +135,13 @@ class Settings(BaseSettings):
     # Text model: the open-source build is fixed to TokenFree New API; pick the model in the admin UI
     openai_api_key: str = ""
     openai_base_url: str = "https://www.tokenfree.com/v1"
+    # Nhà cung cấp riêng cho model tạo ảnh. Kira AI dùng chuẩn OpenAI, đồng bộ, endpoint
+    # `POST /v1/images/generations` trên base `https://kiraai.vn/api/v1`.
+    # Base này **đã bao gồm `/v1`** — không cộng thêm `/v1` khi ghép URL.
+    # Model: `hy-image-v3.5-free`. Kira nhận **tỉ lệ khung hình qua `extra_body.aspect_ratio`**,
+    # không phải tham số `size` chuẩn.
+    kira_base_url: str = "https://kiraai.vn/api/v1"
+    kira_api_key: str = ""
     # kimi is just the default example; the real value comes from the admin channel models list, and can be deepseek-chat etc.
     model_llm: str = "kimi-k2.6"
     model_image: str = "doubao-seedream-5-0-260128"
