@@ -16,6 +16,7 @@ import {
 } from '../../lib/dramaProjectSteps'
 import { formatDramaUsageBrief } from '../../lib/dramaUsage'
 import { resolveStoryboardPath } from '../../lib/dramaStoryboardNav'
+import { dramaProjectTitle } from '../../lib/projectTitleLabels'
 import { isCanvasWorkflow } from '../../lib/dramaWorkflow'
 import { AssetsStep } from './AssetsStep'
 import { OutlineStep } from './OutlineStep'
@@ -141,13 +142,13 @@ function WorkspaceInner() {
     const next = titleDraft.trim()
     if (!next || !project) {
       setEditingTitle(false)
-      setTitleDraft(project?.title || '')
+      setTitleDraft(dramaProjectTitle(project?.title))
       return
     }
     try {
       const updated = await dramaApi.updateProject(id, { title: next })
       setProject(updated)
-      setTitleDraft(updated.title)
+      setTitleDraft(dramaProjectTitle(updated.title))
     } catch (err) {
       setError(err instanceof Error ? localizeBackendMessage(err.message) : 'Lưu tiêu đề thất bại')
     } finally {
@@ -210,14 +211,14 @@ function WorkspaceInner() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') void saveTitle()
                   if (e.key === 'Escape') {
-                    setTitleDraft(project.title)
+                    setTitleDraft(dramaProjectTitle(project.title))
                     setEditingTitle(false)
                   }
                 }}
               />
             ) : (
               <button type="button" className="drama-title-display" onClick={() => setEditingTitle(true)}>
-                {project.title}
+                {dramaProjectTitle(project.title)}
               </button>
             )}
           </div>
@@ -249,7 +250,7 @@ function WorkspaceInner() {
               project={project}
               onProjectChange={(p) => {
                 setProject(p)
-                setTitleDraft(p.title)
+                setTitleDraft(dramaProjectTitle(p.title))
               }}
               onError={reportError}
             />

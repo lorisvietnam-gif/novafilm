@@ -77,15 +77,36 @@ def pick_migratable_api_key(channels: list[SystemModelChannel]) -> str:
 
 
 def apply_tokenfree_flat_overlay(flat: dict[str, Any], channels: list[SystemModelChannel]) -> dict[str, Any]:
-    """运行时把 TokenFree Key / Base 同步到 LLM 与方舟客户端共用字段。"""
+    """Trải khoá TokenFree xuống cấu hình phẳng cho ảnh / video / âm thanh.
+
+    **Chỉ khi TokenFree thực sự sở hữu model văn bảm** mới được đè `openai_*`.
+
+    Bản gốc đè `openai_base_url` và `openai_api_key` vô điều kiện, nên khi có thêm một nhà cung
+    cấp riêng cho model văn bản thì cấu hình đó **bị giấu mất**: `.env` bị bỏ qua, và
+    `PATCH /api/admin/settings/models` ghi xong thì đọc lại lại về TokenFree — đúng triệu chứng
+    đã gặp. Nay chỉ đè phần mà TokenFree thật sự phục vụ.
+    """
     channel = next((item for item in channels if item.id == TOKENFREE_CHANNEL_ID), None)
     if channel is None:
         return flat
     out = dict(flat)
-    out["openai_base_url"] = TOKENFREE_BASE_URL
     out["ark_base_url"] = TOKENFREE_BASE_URL
+
     key = (channel.api_key or "").strip()
+
+    # Chỉ đè phần văn bản khi cấu hình văn bản **chưa được đặt**, hoặc đã trỏ về chính
+    # TokenFree. Nếu ai đó đã cấu hình một nhà cung cấp khác thì phải tôn trọng lựa chọn đó.
+    # (Cách kiểm tra bằng cách so danh sách model không dùng được: TokenFree và kênh văn bản nằm
+    # ở hai danh sách model **không giao nhau**, nên "có kênh nào khác giữ model của TokenFree
+    # không" luôn sai — và nó khiến lớp đè vô hiệu, đúng lỗi ta đang sửa.)
+    current_text_base = (flat.get("openai_base_url") or "").strip().rstrip("/")
+    text_is_unset_or_tokenfree = (not current_text_base) or current_text_base == TOKENFREE_BASE_URL.rstrip("/")
+
+    if text_is_unset_or_tokenfree:
+        out["openai_base_url"] = TOKENFREE_BASE_URL
+        if key:
+            out["openai_api_key"] = key
+
     if key:
-        out["openai_api_key"] = key
         out["ark_api_key"] = key
     return out

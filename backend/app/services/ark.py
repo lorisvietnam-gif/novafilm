@@ -2329,7 +2329,12 @@ class ArkGateway:
             bgm_lock=bgm_lock or segplan.infer_bgm_mood(style_prefix),
         )
 
-    async def expand_content(self, topic: str, mode: str = "theme") -> dict[str, str]:
+    async def expand_content(
+        self,
+        topic: str,
+        mode: str = "theme",
+        locale: str = "zh",
+    ) -> dict[str, str]:
         """Expand a short topic into title + theme brief or full narration script."""
         topic = (topic or "").strip() or "人工智能如何改变日常生活"
         mode = "script" if mode == "script" else "theme"
@@ -2351,9 +2356,24 @@ class ArkGateway:
                 "title：8-18 字。"
                 "content：一句话主题，40-90 字，写清受众与要讲清的核心知识点；不要换行。"
             )
+        # Chỉ thị ngôn ngữ đầu ra.
+        #
+        # Trước đây prompt viết cứng bằng tiếng Trung và **không** yêu cầu ngôn ngữ, nên model
+        # trả lời tiếng Trung bất kể giao diện đang là tiếng Việt hay tiếng Anh.
+        # `locale` là lựa chọn của người dùng; mặc định `zh` để không đổi hành vi cũ.
+        lang = str(locale or "zh").strip().lower()[:2]
+        directive = {
+            "vi": "title và content BẮT BUỘC viết bằng tiếng Việt, có dấu đầy đủ.",
+            "en": "Write title and content in English.",
+        }.get(lang, "title 和 content 必须使用简体中文。")
+        topic_label = {"vi": "Chủ đề / nguyên liệu", "en": "Topic / material"}.get(
+            lang, "主题/素材"
+        )
+        system = f"{system}\n{directive}"
+
         content = await chat_completions(
             system,
-            f"主题/素材：{topic}",
+            f"{topic_label}：{topic}",
             temperature=0.6,
             max_tokens=4096,
             timeout=90.0,

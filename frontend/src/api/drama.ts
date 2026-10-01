@@ -1,5 +1,6 @@
 import { throwApiError } from '../lib/apiError'
 import { localized, type LocalizedText } from '../lib/localeStrings'
+import { API_BASE as apiBase } from '../api'
 
 /**
  * Văn bản dự phòng khi backend không trả `detail` dạng chuỗi.
@@ -13,17 +14,19 @@ const COPY: Record<string, LocalizedText> = {
   uploadFailed: { zh: '上传失败', en: 'Upload failed', vi: 'Tải lên thất bại' },
 }
 
-function defaultApiBase() {
-  if (typeof window !== 'undefined' && window.location?.hostname) {
-    const { protocol, hostname } = window.location
-    return `${protocol}//${hostname}:8000`
-  }
-  return 'http://127.0.0.1:8000'
-}
-
-const _viteApiBase = import.meta.env.VITE_API_BASE
-const API_BASE =
-  _viteApiBase === undefined || _viteApiBase === null ? defaultApiBase() : String(_viteApiBase)
+/**
+ * Dùng CHUNG `API_BASE` với `api.ts`.
+ *
+ * Trước đây file này **tự định nghĩa lại** `API_BASE` bằng đúng cách kiểm tra sai:
+ * `_viteApiBase === undefined || null ? defaultApiBase() : String(_viteApiBase)`. Biến rỗng thì
+ * rơi vào `String('')` = `''` → gọi **cùng origin** → không có `/api` → 7 trang drama và tài
+ * nguyên báo lỗi kết nối trong khi mọi trang khác vẫn tốt. Board đã sửa `api.ts` nhưng bỏ sót
+ * bản sao ở đây, nên phải tìm ra bằng cách so sánh **danh sách route báo lỗi**: cứ 7 trang
+ * drama/tài nguyên là lỗi.
+ *
+ * Một định nghĩa duy nhất — để lỗi này không thể tái diễn.
+ */
+const API_BASE = apiBase
 
 /** 导出 API 根地址，供静态资源 URL 拼接 */
 export function getDramaApiBase() {
@@ -63,6 +66,78 @@ function authHeaders(): HeadersInit {
   return token
     ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
     : { 'Content-Type': 'application/json' }
+}
+
+/** Mức bằng chứng của một mục trong hồ sơ model. Không có mức thứ tư. */
+export type PromptEvidenceLevel = 'verified' | 'assumed' | 'unknown'
+
+export type PromptProfileFact = {
+  key: string
+  level: PromptEvidenceLevel
+  value: string
+  sources: string[]
+  note: string
+}
+
+export type PromptProfileFailure = {
+  key: string
+  level: PromptEvidenceLevel
+  summary: string
+  source: string
+}
+
+export type PromptModelProfile = {
+  id: string
+  label: string
+  family: string
+  readiness: 'evidence-based' | 'docs-based' | 'skeleton'
+  compiler_mode: string
+  evidence_counts: Record<PromptEvidenceLevel, number>
+  dialect: PromptProfileFact[]
+  parameters: PromptProfileFact[]
+  references: PromptProfileFact[]
+  failures: PromptProfileFailure[]
+  hints: {
+    aspect_ratios: string[]
+    resolutions: string[]
+    duration_values: number[]
+    duration_min: number
+    duration_max: number
+  }
+}
+
+export type PromptCompileBody = {
+  model: string
+  scene: {
+    subject?: string
+    action?: string
+    setting?: string
+    shot_size?: string
+    camera?: string
+    light?: string
+    style?: string
+    narration?: string
+    dialogue?: { speaker: string; text: string }[]
+    references?: { label: string; url: string; kind: string }[]
+    continuity_frame_url?: string
+    burn_subtitles?: boolean
+    avoid?: string[]
+  }
+  aspect_ratio?: string
+  duration_sec?: number
+  resolution?: string
+}
+
+export type PromptCompileResult = {
+  model: string
+  label: string
+  readiness: PromptModelProfile['readiness']
+  compiler_mode: string
+  prompt: string
+  parameters: Record<string, unknown>
+  warnings: { code: string; detail: string }[]
+  evidence_counts: Record<PromptEvidenceLevel, number>
+  used_facts: PromptProfileFact[]
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -565,4 +640,12 @@ export const dramaApi = {
     ),
   saveCanvas: (body: { project_id: number; nodes: unknown[]; edges: unknown[] }) =>
     request<{ ok: boolean }>('/api/drama/canvas', { method: 'POST', body: JSON.stringify(body) }),
+
+  listPromptProfiles: () =>
+    request<{ models: PromptModelProfile[] }>('/api/drama/prompt-compiler/profiles'),
+  compilePrompt: (body: PromptCompileBody) =>
+    request<PromptCompileResult>('/api/drama/prompt-compiler/compile', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 }

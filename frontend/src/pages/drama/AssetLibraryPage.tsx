@@ -19,6 +19,7 @@ import { DramaImageLightbox } from './DramaImageLightbox'
 import { filterDramaLibraryAssets, isDramaLibraryAsset } from '../../lib/dramaLibraryAssets'
 import { DRAMA_VOICE_BINDING_ENABLED } from '../../lib/dramaVoiceBinding'
 import { pageCountOf } from '../../lib/pagination'
+import { dramaProjectTitle } from '../../lib/projectTitleLabels'
 import RequireAuth from './RequireAuth'
 import './drama.css'
 
@@ -147,7 +148,7 @@ function AssetLibraryInner() {
 
   const projectNameById = useMemo(() => {
     const map = new Map<number, string>()
-    for (const p of projects) map.set(p.id, p.title || `Dự án #${p.id}`)
+    for (const p of projects) map.set(p.id, dramaProjectTitle(p.title) || `Dự án #${p.id}`)
     return map
   }, [projects])
 
@@ -156,7 +157,7 @@ function AssetLibraryInner() {
       { value: '', label: 'Tất cả dự án' },
       ...projects.map((p) => ({
         value: String(p.id),
-        label: p.title || `Dự án #${p.id}`,
+        label: dramaProjectTitle(p.title) || `Dự án #${p.id}`,
       })),
     ],
     [projects],

@@ -53,7 +53,9 @@ services:
       DATABASE_URL_SYNC: postgresql+psycopg2://${POSTGRES_USER:?set POSTGRES_USER}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:?set POSTGRES_DB}
       REDIS_URL: redis://redis:6379/0
     volumes:
-      # 成片与分镜素材：换容器不丢，备份也是备份这一份。
+      # 成片、分镜素材、以及 OSS 关闭时用户自己上传的资产图片（后端写到
+      # static/generated/p{project_id}/，与成片同一目录）：换容器不丢，备份也是备份这一份。
+      # 少挂这一个卷，用户的角色图会在重建容器时无声消失。
       - media:/app/static/generated
       - voice_previews:/app/static/voice_previews
     depends_on:

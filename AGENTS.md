@@ -129,10 +129,76 @@ báo origin của frontend.
 5. **`PUBLIC_BASE_URL` của backend** — dùng cho link email và URL media.
 
 ### Chưa được quyết, để dành
-- **Media/Egress.** Với `OSS_ENABLED=false`, FastAPI phục vụ `/static` từ đĩa VPS. Sản phẩm
-  xử lý video mà băng thông video chạy trên một VPS là khoản chi phí cần tính trước.
-  Cơ chế OSS có sẵn là Aliyun (Trung Quốc) — độ trễ tới Việt Nam và người dùng quốc tế sẽ tệ.
-  Cần chọn nhà cung cấp lưu trữ trước khi ra mắt.
+- ~~Media/Egress.~~ **ĐÃ QUYẾT 2026-10-01 — xem mục 9.**
+
+## 10. NỢ KỸ THUẬT ĐANG MỞ (rà lại ở mỗi đợt)
+
+- **Audit chưa từng chạy sạch hai lần liên tiếp.** Tiêu chuẩn board là hai lần cho kết quả
+  giống hệt. Lượt gần nhất chỉ có **một** lần sạch. Trước khi tin một con số, **chạy hai lần**.
+- **`/__drama/projects/{id}/episodes` còn tiếng Trung** — đây là **nội dung kịch bản trong
+  database**, không phải giao diện. Sẽ dọn khi khởi tạo database thật, không tính là nợ UI.
+- ~~**Cấu hình model có hai nguồn gây xung đột**~~ **ĐÃ SỬA 2026-10-01.** Kẻ ghi đè là
+  `apply_tokenfree_flat_overlay` (`tokenfree_gateway.py`) đè `openai_base_url` / `openai_api_key`
+  vô điều kiện, cộng thêm `_ensure_tokenfree_channel` (`model_settings.py`) ghim base URL mỗi
+  lần nạp. Nay mỗi nhà cung cấp có **channel riêng**: `tokenfree` (ảnh/video/TTS), `text-openai`
+  (Kira), `image-kira` (Kira). Đã kiểm chứng: PATCH giữ được giá trị, không còn bị về TokenFree.
+- **Lưu ý khi đổi nhà cung cấp:** hàng cấu hình trong **database** có quyền ưu tiên cao hơn
+  `.env`. Đổi `.env` một mình **không có tác dụng** — phải sửa qua `PATCH
+  /api/admin/settings/models` (hoặc trang quản trị).
+- **`billing_llm_per_m = 5.0` là giả định chưa đo.** Phải sửa trước khi bắt đầu thu credit.
+- **Chưa bật `hy-image-v3.5-free` làm model ảnh** — nó chưa có bảng giá nên
+  `estimate_task_fon` trả về con số khác và `test_tool_image_1k_uses_six_credits` vỡ. Phải
+  **định giá trước**, không bật trước rồi tính sau.
+- **Sinh kịch bản chế độ `script` chậm** — `vi/script` mất ~55 giây, và một lần trả rỗng ở 60 giây.
+  Cần kiểm lại trước khi cho người dùng thật dùng.
+- **`billing_llm_per_m = 5.0` là giả định chưa đo.** Khoá Gemini hiện **miễn phí**. Phải sửa
+  trước khi bắt đầu thu credit, nếu không con số tính tiền sẽ sai.
+- **Chưa build Docker image lần nào** — máy không cài Docker. Lên VPS phải dành thời gian.
+- **Chưa kiểm OAuth với provider thật** — cần `client_id`/`secret` thật và URL https công khai.
+  Cả bốn provider đều từ chối `localhost`.
+- **`passlib` + `bcrypt` xung đột phiên bản** — cảnh báo bị nuốt mỗi lần đăng nhập. Chưa giao ai.
+- **`api/drama.ts` từng có bản sao riêng của `API_BASE`** và làm hỏng 7 trang. Đã gộp về một
+  nguồn, nhưng đó là bài học: **hai bản sao của cùng một quyết định là nguồn sự cố.**
+
+## 11. BÁO CÁO CỦA LANE PHẢI NẰM TRÊN ĐĨA
+Tiến trình `kilo run` **không gửi được tin nhắn lên board** (bị từ chối với `Board messages
+cannot be sent to yourself`). Báo cáo chỉ tồn tại trong **tin nhắn cuối của tiến trình** — và
+tiến trình chết là mất sạch. Đã xảy ra: một lượt giao chẩn đoán kết thúc với **0 commit, 0
+file**, mất toàn bộ kết quả phân tích.
+
+Luật: **việc quan trọng phải ghi ra file và `git commit` TRƯỚC khi báo cáo xong.** Tin nhắn cuối
+chỉ nên chứa đường dẫn file và commit hash, không chứa nội dung.
+
+## 9. KIẾN TRÚC LƯU TRỮ MEDIA — "chỉ lưu tri thức" (chủ sản phẩm chốt 2026-10-01)
+
+### Nguyên tắc
+1. **Postgres chỉ giữ tri thức tạo tác**: prompt gốc, negative prompt, seed, model id, tỉ lệ khung
+   hình, cấu trúc storyboard. **Không lưu file nhị phân trong DB.**
+2. **Không lưu media nặng trên đĩa VPS.** Đĩa VPS đắt khi scale và băng thông ra bị tính tiền.
+3. **Object storage: Cloudflare R2** (tương thích S3), **không dùng Aliyun OSS**. R2 **miễn phí
+   băng thông ra** — đó là lý do chọn R2 thay vì OSS.
+4. **VPS chỉ gánh điều phối** (FastAPI). Dữ liệu nặng sang R2.
+5. **OAuth ẩn sau feature flag** cho tới khi có `client_id`/`secret` thật và domain https công khai.
+6. **Docker:** chỉ cần `Dockerfile` + `docker-compose.yml` sẵn sàng. **Không bắt buộc build image
+   trên máy cá nhân.**
+
+### Điểm đã CHỐT — không còn là câu hỏi mở
+Chủ sản phẩm **xác nhận**: URL từ AI Gateway / nhà cung cấp upstream **hầu hết là URL ký số
+(presigned) và chết sau vài giờ đến vài ngày**. Nếu chỉ lưu URL gốc mà không có bản lưu vĩnh
+viễn, tính năng *"Xem lại lịch sử tác phẩm"* sau một đêm sẽ thành **đống link 403/404**.
+
+**Chốt:** R2 giữ **tác phẩm đã render**. Postgres giữ **tri thức**. Đó là lý do chọn R2 — egress
+miễn phí. Không lưu gì trên đĩa VPS, không tốn tiền băng thông, và tác phẩm tồn tại vĩnh viễn.
+
+Phương án *"xem lại thì render lại từ prompt đã lưu"* bị loại: mỗi lần xem lại là một lần tạo
+video mới — tốn tiền và phải chờ.
+
+### Hệ quả phải xử lý
+`backend/app/api/drama/assets.py` hiện **ghi ảnh tải lên xuống `static/generated/p{project_id}/`**
+khi OSS tắt — thay đổi này **vừa merge hôm nay** và **trái ngược** quyết định mới. Nó giải quyết
+lỗi "không tải ảnh được", nhưng giờ phải giới hạn: **đĩa chỉ dùng cho phát triển và kiểm thử**;
+chạy thật mà chưa có object storage thì **phải báo lỗi rõ ràng**, không âm thầm ghi xuống đĩa rồi
+mất khi dựng lại container.
 
 ## 7. MÔ HÌNH GIAI ĐOẠN — LOCALHOST TRƯỚC, VPS SAU (chủ sản phẩm chốt 2026-09-30)
 

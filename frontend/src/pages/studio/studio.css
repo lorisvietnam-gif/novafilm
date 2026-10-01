@@ -53,6 +53,70 @@
   letter-spacing: -0.02em;
 }
 
+/* ---------- Lỗi 1: nút toàn chiều rộng nuốt mất nhãn tiếng Việt ---------
+   `.pf-btn` đặt `white-space: nowrap`, rồi `.pf-btn-block` ghim `width: 100%`.
+   Ở cột tóm tắt 300px, hộp nút còn 264px nhưng nhãn
+   «Bước tiếp theo: Cấu hình phong cách» dài 287px — chữ vẽ tràn ra ngoài cả hai mép.
+   Đo bằng width-audit ở 1440px: scrollWidth 287 > clientWidth 264.
+
+   Sửa bằng cách cho nút xuống dòng. KHÔNG dùng `overflow: hidden`: chữ bị cắt thì
+   người dùng đọc không trọn, đó chính là lỗi đang được báo.
+   `overflow-wrap: anywhere` thay cho `break-word` là cố ý: nó cũng co min-content của
+   phần tử lại, nên chính nút này không còn ép lưới `.pf-create` rộng ra nữa — trước đó
+   nó là phần tử rộng nhất (348px) và làm trang tràn ngang 70px ở màn 360px. */
+
+.studio-scoped .pf-btn-block {
+  white-space: normal;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Lỗi 2: thanh 6 bước không được lấn tiêu đề và không được tràn -----
+   Đo trước khi sửa (width-audit, locale `vi`): số dòng thực tế của thanh là
+   1 ở 1440px, 2 ở 1024px và 768px, 5 ở 390px và 360px. Ở 1024px và 768px dải bước tràn
+   xuống dưới hẹp giữa tiêu đề «Tạo dự án»; ở 360px thanh cao 168px. Đó là chỗ bị lấn.
+
+   Sửa theo ba điều kiện, đồng thời:
+   1. `min-width: 0` trên các con của hàng đầu trang — đây là mấu chốt. Không có nó,
+      flex item giữ `min-width: auto`, tức là bề rộng max-content của sáu bước đẩy cả
+      hàng `pf-page-head-row` rộng ra và làm trang tràn ngang.
+   2. Thanh tự xuống hàng riêng khi không còn chỗ bên cạnh tiêu đề, và cách đệm dọc
+      đủ để nó không ăn vào dải tiêu đề.
+   3. Rút gọn đường nối ở bề rộng hẹp để 1024px vừa đủ một dòng, và ở màn điện thoại
+      dải vẫn gấp thành nhiều dòng **đầy đủ sáu bước** — cuộn ngang sẽ giấu mất bước 4-6,
+      mà người dùng cần đọc đủ sáu nhãn. */
+
+.studio-scoped .pf-page-head-row {
+  row-gap: 0.55rem;
+}
+
+.studio-scoped .pf-page-head-row > * {
+  min-width: 0;
+}
+
+.studio-scoped .pf-page-head-row > .pf-stepper {
+  /* `0 1 auto` giữ nguyên bố cục cũ ở màn rộng: thanh co về kích thước nội dung và
+     nằm sát mép phải. `1 1 auto` sẽ kéo thanh giãn hết hàng và làm bước 1 dạt vào
+     giữa trang. */
+  flex: 0 1 auto;
+}
+
+.studio-scoped .pf-page-head-row > .pf-stepper > .pf-stepper {
+  flex: 0 0 auto;
+}
+
+.studio-scoped .pf-page-head-row > .pf-stepper .pf-step {
+  white-space: nowrap;
+}
+
+/* Bề rộng hẹp: đường nối 28px x 5 là 140px lãng phí trong khi nhãn bước mới là thứ
+   người dùng đọc. Rút xuống 16px đủ để dãy vẫn ra dải bước. */
+@media (max-width: 1100px) {
+  .studio-scoped .pf-page-head-row > .pf-stepper .pf-step-line {
+    width: 16px;
+  }
+}
+
 /* ---------- Media frames ------------------------------------------------ */
 
 .studio-still {
@@ -545,6 +609,52 @@
 
 .studio-scoped .pf-shot-status {
   transition: background-color var(--studio-dur) var(--studio-ease);
+}
+
+/* ==========================================================================
+   Bàn dựng: cột trái và cột tiến độ
+   Lỗi thị giác: hai cột bị kẹp còn 220px, nên nhãn ngắt dòng ("Tên dự / án",
+   "Phong / cách") và các nút bị tràn ra ngoài thẻ. Nới ra 256px — cùng ngôn ngữ
+   bố cục với cột phải 260px của trang phong cách — và cho nhãn quyền giữ nguyên
+   một dòng, để **giá trị** xuống dòng thay vì nhãn.
+   ========================================================================== */
+
+/* Chỉ nới cột ở bề rộng máy tính. Ở dưới 1100px, `styles/printfilm.css` đã gộp
+   `.pf-board` về một cột; không đặt ngoài media query thì `.pf-board.studio-scoped`
+   (độ ưu tiên cao hơn) sẽ thắng và ép ba cột 256px lên điện thoại. */
+@media (min-width: 1101px) {
+  .pf-board.studio-scoped {
+    grid-template-columns: minmax(0, 256px) minmax(0, 1fr) minmax(0, 256px);
+  }
+}
+
+/* Nhãn không bao giờ bị cắt giữa chữ; giá trị thì xuống dòng và canh phải. */
+.pf-board.studio-scoped .pf-meta-list li {
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.pf-board.studio-scoped .pf-meta-list span:first-child {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.pf-board.studio-scoped .pf-meta-list span:last-child {
+  min-width: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+/* `.pf-side-actions` là lưới hai cột; ở cột hẹp thì nhãn nút dài hơn ô và bị tràn ra
+   ngoài thẻ. Xếp dọc một cột: không còn tràn, và cả ba nút đều dễ bấm trên điện thoại. */
+.pf-board.studio-scoped > .pf-create-col .pf-side-actions {
+  grid-template-columns: 1fr;
+}
+
+/* Khối prompt: cho ba dòng thay vì hai, và bỏ chặt cứng ở mép dưới nên phần bị cắt
+   trông như lỗi hiển thị. Giá trị đầy đủ vẫn mở được trong hộp sửa. */
+.pf-board.studio-scoped .pf-prompt-chip span {
+  -webkit-line-clamp: 3;
 }
 
 /* ---------- Reduced motion --------------------------------------------- */

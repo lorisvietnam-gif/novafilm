@@ -4,6 +4,10 @@
  *
  * Chạy:  set AUDIT_BASE=http://127.0.0.1:5271 && node scripts\layout-audit.mjs
  *
+ * Bề rộng đo: mặc định 1440 (bản desktop đã đạt). Thêm `AUDIT_WIDTHS=360,390` để
+ * đo lại ở các bề rộng điện thoại — cùng một component có thể tràn ở 390 nhưng
+ * không ở 1440, và số đo phải là số chứ không phải cảm nhận.
+ *
  * Cùng cơ chế với `visual-audit.mjs`: Edge headless + Chrome DevTools Protocol,
  * không cài thêm gì. Khác ở chỗ: nó **đo** thay vì **đếm ký tự** — báo những chỗ
  * bề ngang bị tràn, bị cắt, hoặc tràn ra ngoài khung chứa.
@@ -19,9 +23,15 @@ const EDGE = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
 const PORT = 9336
 const BASE = process.env.AUDIT_BASE || 'http://127.0.0.1:5173'
 const API = 'http://127.0.0.1:8000'
-const OUT = 'C:\\Users\\NOVAST~1\\AppData\\Local\\Temp\\kilo\\audit'
+const OUT = process.env.AUDIT_OUT || 'C:\\Users\\NOVAST~1\\AppData\\Local\\Temp\\kilo\\audit'
 const PROFILE = 'C:\\Users\\NOVAST~1\\AppData\\Local\\Temp\\kilo\\edge-layout-profile'
 const TOLERANCE = 2
+const HEIGHT = 1400
+// `AUDIT_WIDTHS=360,390,430` để đo nhiều bề rộng. Không đặt thì chỉ 1440.
+const WIDTHS = (process.env.AUDIT_WIDTHS || '1440')
+  .split(',')
+  .map((w) => Number(w.trim()))
+  .filter((w) => Number.isFinite(w) && w > 0)
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
@@ -96,6 +106,8 @@ const ROUTES = [
 const MEASURE = `(() => {
   const doc = document.documentElement
   const pageOverflow = Math.max(0, doc.scrollWidth - doc.clientWidth)
+  const scrollWidth = doc.scrollWidth
+  const innerWidth = window.innerWidth
 
   const describe = (el) => {
     const cls = typeof el.className === 'string' ? el.className.trim() : ''
@@ -117,17 +129,28 @@ const MEASURE = `(() => {
       clipped.push({ el: describe(el), over, hidden: cs.textOverflow === 'ellipsis' })
     }
     const r = el.getBoundingClientRect()
-    if (r.width > 0 && r.right > doc.clientWidth + ${TOLERANCE}) {
-      escaped.push({ el: describe(el), right: Math.round(r.right), limit: doc.clientWidth })
+    if (r.width > 0 && r.right > window.innerWidth + ${TOLERANCE}) {
+      escaped.push({ el: describe(el), right: Math.round(r.right), limit: window.innerWidth })
     }
   }
-  return { pageOverflow, clipped, escaped }
+  // Sắp theo mức vượt: phần tử tràn nhiều nhất đứng đầu, để tên thủ phạm hiện ra
+  // trước thay vì phải đọc hết danh sách.
+  const byOverflow = (a, b) => (b.right - b.limit) - (a.right - a.limit)
+  escaped.sort(byOverflow)
+  clipped.sort((a, b) => b.over - a.over)
+  return { pageOverflow, scrollWidth, innerWidth, clipped, escaped }
 })()`
 
 async function main() {
   const token = await getToken()
   const studio = await ensureStudioProject(token)
   const all = [...ROUTES, [`/studio/${studio}/style`, 'studio-phong-cach'], [`/studio/${studio}`, 'studio-storyboard']]
+  // `AUDIT_ROUTES=/,/pricing` để chỉ đo vài route khi lặp nhiều bề rộng.
+  .filter(([route]) => {
+    const only = process.env.AUDIT_ROUTES
+    if (!only) return true
+    return only.split(',').map((r) => r.trim()).includes(route)
+  })
 
   const { spawn } = await import('node:child_process')
   const edge = spawn(
@@ -160,6 +183,7 @@ async function main() {
 
   const results = []
   for (const locale of ['vi', 'en']) {
+    for (const width of WIDTHS) {
     for (const [route, name] of all) {
       const tab = await (
         await fetch(`http://127.0.0.1:${PORT}/json/new?${encodeURIComponent(BASE + '/')}`, { method: 'PUT' })
@@ -189,6 +213,14 @@ async function main() {
         expression: `localStorage.setItem('novafilm.locale', ${JSON.stringify(locale)});
                      localStorage.setItem('token', ${JSON.stringify(token)});`,
       })
+      // Ép bề rộng khung nhìn thật sự. Không có lệnh này thì Edge headless dùng
+      // bề rộng mặc định và mọi số đo "di động" đều vô nghĩa.
+      await send('Emulation.setDeviceMetricsOverride', {
+        width,
+        height: HEIGHT,
+        deviceScaleFactor: 1,
+        mobile: width < 768,
+      })
       await send('Page.enable')
       await send('Page.navigate', { url: BASE + route })
       await sleep(2600)
@@ -196,25 +228,35 @@ async function main() {
       await sleep(2600)
 
       const measured = await send('Runtime.evaluate', { expression: MEASURE, returnByValue: true })
-      const m = measured?.result?.value || { pageOverflow: 0, clipped: [], escaped: [] }
-
-      const shot = await send('Page.captureScreenshot', { format: 'png' })
-      if (shot?.data) {
-        mkdirSync(join(OUT, locale), { recursive: true })
-        writeFileSync(join(OUT, locale, `layout-${name}.png`), Buffer.from(shot.data, 'base64'))
+      const m = measured?.result?.value || {
+        pageOverflow: 0,
+        scrollWidth: width,
+        innerWidth: width,
+        clipped: [],
+        escaped: [],
       }
 
-      results.push({ locale, route, ...m })
+      const suffix = WIDTHS.length > 1 ? `-${width}` : ''
+      const shot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false })
+      if (shot?.data) {
+        mkdirSync(join(OUT, locale), { recursive: true })
+        writeFileSync(join(OUT, locale, `layout-${name}${suffix}.png`), Buffer.from(shot.data, 'base64'))
+      }
+
+      results.push({ locale, width, route, ...m })
       const bad = m.pageOverflow > TOLERANCE || m.clipped.length || m.escaped.length
       console.log(
-        `${locale}  ${route.padEnd(26)}` +
-          ` trangTran=${String(m.pageOverflow).padStart(4)}` +
+        `${locale}  ${String(width).padEnd(5)} ${route.padEnd(26)}` +
+          ` scrollW=${String(m.scrollWidth).padStart(5)}` +
+          ` innerW=${String(m.innerWidth).padStart(5)}` +
+          ` tranTrang=${String(m.pageOverflow).padStart(4)}` +
           ` catChu=${String(m.clipped.length).padStart(3)}` +
           ` tranKhung=${String(m.escaped.length).padStart(3)}` +
           (bad ? '   <-- CAN KIEM' : ''),
       )
       ws.close()
       await fetch(`http://127.0.0.1:${PORT}/json/close/${tab.id}`)
+    }
     }
   }
 
@@ -223,8 +265,10 @@ async function main() {
   console.log('\n===== CHI TIET =====')
   for (const r of results) {
     if (!r.pageOverflow && !r.clipped.length && !r.escaped.length) continue
-    console.log(`\n${r.locale}  ${r.route}`)
-    if (r.pageOverflow) console.log(`  trang tran ngang ${r.pageOverflow}px`)
+    console.log(`\n${r.locale}  ${r.width}px  ${r.route}`)
+    console.log(
+      `  scrollWidth=${r.scrollWidth}  innerWidth=${r.innerWidth}  tran ngang=${r.pageOverflow}px`,
+    )
     for (const c of r.clipped.slice(0, 6)) {
       console.log(`  cat chu ${c.over}px${c.hidden ? ' (ellipsis)' : ''}: ${c.el}`)
     }

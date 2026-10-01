@@ -12,11 +12,14 @@ from __future__ import annotations
 import base64
 import logging
 import mimetypes
+import os
+import re
+import uuid
 from contextlib import contextmanager
 from contextvars import ContextVar
 from functools import wraps
-from pathlib import Path
-from typing import Any, Callable, Iterator, TypeVar
+from pathlib import Path, PurePosixPath
+from typing import Any, BinaryIO, Callable, Iterator, TypeVar
 
 import httpx
 
@@ -287,6 +290,166 @@ def publish_local(path: Path, *, sync: bool = False, retries: int = 2) -> str:
     except Exception as exc:  # noqa: BLE001
         logger.error("OSS sync upload failed for %s, keeping local URL: %s", path, exc)
         return local_url
+
+
+# --- 用户上传（本地落盘）---------------------------------------------------------
+# 用户上传是整个后端最危险的入口：文件名来自客户端、字节来自客户端。
+# 规则：文件名一律由服务端生成，扩展名走白名单，内容看 magic bytes，大小有上限。
+
+UPLOAD_MAX_BYTES = 20 * 1024 * 1024
+UPLOAD_CHUNK_BYTES = 256 * 1024
+
+_IMAGE_CONTENT_TYPES: dict[str, str] = {
+    "image/jpeg": ".jpg",
+    "image/jpg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+    "image/gif": ".gif",
+}
+_IMAGE_SUFFIX_CONTENT_TYPES: dict[str, str] = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+}
+# 只接受这些扩展名参与路径拼接：名字里其余字符一律丢弃。
+_IMAGE_SUFFIXES = frozenset(_IMAGE_SUFFIX_CONTENT_TYPES)
+
+# 服务器生成的文件名片段；asset id / uuid，不含用户输入。
+_SAFE_STEM_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+_CONTROL_CHARS_RE = re.compile(r"[\x00-\x1f\x7f]")
+
+_MAGIC_PNG = b"\x89PNG\r\n\x1a\n"
+
+
+class UploadRejected(ValueError):
+    """上传被拒：类型、体积或文件名不合法。status_code 供 API 直接转成 HTTPException。"""
+
+    def __init__(self, detail: str, *, status_code: int = 400) -> None:
+        super().__init__(detail)
+        self.detail = detail
+        self.status_code = status_code
+
+
+def resolve_image_upload_type(
+    content_type: str | None, filename: str | None
+) -> tuple[str, str]:
+    """确定上传图片的 (ext, content_type)。
+
+    content_type 在白名单就用它；为空或 application/octet-stream（浏览器习惯）才退回
+    文件名后缀，后缀同样必须命中白名单。``../``、``..\\``、绝对路径、NUL 都不会进入
+    返回值：ext 一定出自 _IMAGE_SUFFIXES，用户文件名不会成为路径的一部分。
+    内容真伪另有 magic bytes 把关（见 _sniff_image_ext）。
+    """
+    declared = (content_type or "").split(";")[0].strip().lower()
+    ext = _IMAGE_CONTENT_TYPES.get(declared)
+    if ext is None:
+        # 空类型和 application/octet-stream 是浏览器的常见习惯：退回文件名后缀。
+        # 其余类型是客户端明确声明的，不在白名单就直接拒，不给"换个后缀蒙混"的机会。
+        if declared and declared != "application/octet-stream":
+            raise UploadRejected("仅支持 JPG / PNG / WebP / GIF 图片")
+        # PurePosixPath 在 Windows 上也只把 "/" 当分隔符；后缀之前若含分隔符会被
+        # 归到 name 里，因此这里取到的 suffix 是干净的最后一个片段。
+        raw_name = (filename or "").replace("\\", "/")
+        if _CONTROL_CHARS_RE.search(raw_name):
+            raise UploadRejected("文件名包含非法字符")
+        suffix = PurePosixPath(raw_name).suffix.lower()
+        if suffix not in _IMAGE_SUFFIXES:
+            raise UploadRejected("仅支持 JPG / PNG / WebP / GIF 图片")
+        ext = ".jpg" if suffix == ".jpeg" else suffix
+    return ext, _IMAGE_SUFFIX_CONTENT_TYPES[ext]
+
+
+def _sniff_image_ext(head: bytes) -> str | None:
+    """按 magic bytes 判断真实图片格式；不是图片返回 None（含 HTML / SVG / 可执行文件）。"""
+    if head.startswith(_MAGIC_PNG):
+        return ".png"
+    if head.startswith(b"\xff\xd8\xff"):
+        return ".jpg"
+    if head.startswith((b"GIF87a", b"GIF89a")):
+        return ".gif"
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return ".webp"
+    return None
+
+
+def _assert_inside_static_root(path: Path) -> Path:
+    """纵深防御：确认最终路径仍在 backend/static 内，逃出去就拒绝。"""
+    root = STATIC_ROOT.resolve()
+    resolved = path.resolve()
+    if resolved != root and root not in resolved.parents:
+        raise UploadRejected("非法的存储路径", status_code=400)
+    return resolved
+
+
+def save_local_upload(
+    fileobj: BinaryIO,
+    *,
+    project_id: int,
+    stem: str,
+    ext: str,
+    max_bytes: int = UPLOAD_MAX_BYTES,
+) -> tuple[Path, str]:
+    """把上传流写到 backend/static/generated/p{project_id}/ 下，返回 (绝对路径, /static URL)。
+
+    - 目录复用 project_dir()，和成片/分镜素材同一套路径，compose 里同一个 media 卷即可持久化。
+    - 文件名只由 stem + uuid4 + 白名单 ext 组成；用户提供的 filename 不参与。
+    - O_EXCL 打开：万一名字撞了，绝不覆盖别人的文件。
+    - 流式写并累计字节数：客户端谎报 Content-Length 也撑不满磁盘。
+    - 任何异常都删掉半成品，不留垃圾文件。
+    """
+    if not _SAFE_STEM_RE.fullmatch(stem):
+        raise UploadRejected("非法的存储文件名")
+    if ext not in _IMAGE_SUFFIXES:
+        raise UploadRejected("不支持的图片格式")
+
+    # 先读首个分片按 magic bytes 定真实格式：声明的 content type 可以伪造，
+    # 落盘的扩展名必须跟字节一致，否则 /static 会用错误的 Content-Type 把 HTML 发出去。
+    first = fileobj.read(UPLOAD_CHUNK_BYTES)
+    sniffed = _sniff_image_ext(first) if first else None
+    if not first:
+        raise UploadRejected("空文件")
+    if sniffed is None:
+        raise UploadRejected("文件内容不是有效的图片")
+    ext = sniffed
+
+    dest_dir = project_dir(int(project_id))
+    dest: Path | None = None
+    written = 0
+    try:
+        for _ in range(8):
+            candidate = dest_dir / f"{stem}_{uuid.uuid4().hex}{ext}"
+            if candidate.exists():
+                continue
+            try:
+                # O_EXCL：文件已存在就直接失败，绝不覆盖。
+                fd = os.open(candidate, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+            except FileExistsError:
+                continue
+            dest = candidate
+            break
+        if dest is None:
+            raise UploadRejected("无法分配存储文件名", status_code=503)
+
+        with os.fdopen(fd, "wb") as handle:
+            chunk = first
+            while chunk:
+                written += len(chunk)
+                if written > max_bytes:
+                    raise UploadRejected(f"文件不能超过 {max_bytes // (1024 * 1024)}MB")
+                handle.write(chunk)
+                chunk = fileobj.read(UPLOAD_CHUNK_BYTES)
+        if written <= 0:
+            raise UploadRejected("空文件")
+    except BaseException:
+        if dest is not None:
+            dest.unlink(missing_ok=True)
+        raise
+
+    resolved = _assert_inside_static_root(dest)
+    return resolved, rel_static_url(resolved)
 
 
 def republish_url(url: str | None, *, sync: bool = True) -> str | None:

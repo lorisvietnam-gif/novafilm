@@ -104,6 +104,24 @@ export const zhShell = {
     forgotSent: '若该邮箱已注册，将收到重置邮件',
     resetSuccess: '密码已更新，请使用新密码登录',
     resetTokenMissing: '重置链接无效，请重新申请找回密码',
+    oauthDivider: '或使用其他账号登录',
+    oauthPending: '第三方登录正在准备中',
+    oauthConnecting: '正在连接 {provider}…',
+    oauthFinishing: '正在完成登录…',
+    oauthSetupTitle: '完善账号',
+    oauthSetupLede: '{provider} 账号没有提供邮箱，请设置邮箱和密码，我们会为你创建账号。',
+    oauthSetupLedeUnknown: '第三方账号没有提供邮箱，请设置邮箱和密码，我们会为你创建账号。',
+    oauthSetupFailed: '无法完善账号，请重试',
+    oauthErrorAccessDenied: '你已取消第三方登录。',
+    oauthErrorStateInvalid: '登录会话无效或已过期，请重试。',
+    oauthErrorMissingCode: '没有收到登录码，请重试。',
+    oauthErrorRedirectInvalid: '返回地址无效，请重试。',
+    oauthErrorProviderUnavailable: '该登录方式尚未配置。',
+    oauthErrorProviderFailed: '对方拒绝了请求，请重试。',
+    oauthErrorServiceUnavailable: '登录服务暂时不可用，请稍后重试。',
+    oauthErrorEmailTaken: '该邮箱已有账号，请先用密码登录后再绑定第三方登录。',
+    oauthErrorIdentityConflict: '第三方登录绑定已失效，请联系客服。',
+    oauthErrorGeneric: '登录未完成，请重试。',
   },
   create: {
     title: '开始创作',
@@ -236,5 +254,31 @@ export const zhShell = {
     GENERATING: '生成中',
     WAIT_IMAGE: '待出图',
     WAIT_VIDEO: '待出视频',
+  },
+
+  /**
+   * 错误框文案 —— 用户唯一能读到的一层。
+   *
+   * 这里替代后端返回的原始字符串：错误码与 request id 只留在浏览器 console。
+   * 每句都告诉用户下一步能做什么，而不只是说「出错了」。键名对应 `lib/apiError.ts`
+   * 里的 `ApiErrorKind`。
+   */
+  errors: {
+    title: '出错了',
+    aiAuth: '尚未连上 AI 服务。请到「设置」检查 API 密钥后再试 —— 通常是密钥已过期或被吊销。',
+    aiRateLimit: 'AI 服务当前请求过多。请等约一分钟后重试，或减少单次生成的镜头数。',
+    aiUnavailable: 'AI 服务没有响应。请几分钟后重试，或到「设置」检查 API 密钥。',
+    billing: '本步骤的余额不足。充值后再试，已生成的内容不会丢失。',
+    quota: '当前套餐的额度已用完。请升级套餐，或等下一个计费周期。',
+    auth: '登录状态已过期。重新登录后继续即可，项目不会丢失。',
+    notFound: '找不到该数据。请刷新页面，或回到列表重新选择。',
+    validation: '有输入项不合法，请求被拒绝。请按标记修正后再试。',
+    rateLimit: '操作太快了。请稍等几秒再重试。',
+    network: '无法连接服务器。请检查网络后重试；若服务器维护中，请稍后再来。',
+    invalid: '服务器返回的数据无法读取。请稍后重试。',
+    unknown: '生成内容时出错。请几分钟后重试；若仍失败，请把项目名称一并反馈给我们。',
+    retry: '重试',
+    dismiss: '关闭提示',
+    topUp: '去充值 →',
   },
 } as const

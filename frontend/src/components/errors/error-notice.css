@@ -1,0 +1,107 @@
+/* ==========================================================================
+   Khung thông báo lỗi — dùng chung cho cả sản phẩm.
+   Chỉ dùng token `danger` đã có sẵn nên tự đổi theo sáng/tối; không thêm màu mới và
+   không đụng tới tông vàng thương hiệu.
+   ========================================================================== */
+
+.pf-error-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  margin: 0 0 1rem;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--pf-danger-stroke);
+  border-left-width: 3px;
+  border-radius: var(--pf-radius-sm, 12px);
+  background: var(--pf-danger-soft);
+  color: var(--pf-danger-ink);
+}
+
+.pf-error-notice-icon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--pf-danger-stroke);
+  color: var(--pf-surface, #fff);
+}
+
+/* `flex: 1 1 0` chứ không phải `auto`: khi khung bật `flex-wrap` ở bề rộng hẹp, `auto`
+   lấy bề rộng `max-content` của đoạn văn bản dài, làm cả dòng vượt quá khung và đẩy nút
+   đóng xuống dòng kế tiếp. Basis 0 thì đoạn văn luôn nhường chỗ cho biểu tượng và nút đóng. */
+.pf-error-notice-body {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.pf-error-notice-title {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.pf-error-notice-text {
+  margin: 0.2rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--pf-ink);
+}
+
+/* Liên kết nạp tiền nằm ngay dưới câu, không chen vào giữa dòng chữ. */
+.pf-error-notice-topup {
+  display: inline-block;
+  margin-top: 0.45rem;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.pf-error-notice > .pf-btn {
+  flex: 0 0 auto;
+  align-self: center;
+}
+
+.pf-error-notice-close {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: -2px -2px 0 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--pf-muted);
+  cursor: pointer;
+  transition:
+    color 160ms cubic-bezier(0.32, 0.72, 0, 1),
+    border-color 160ms cubic-bezier(0.32, 0.72, 0, 1),
+    background-color 160ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.pf-error-notice-close:hover {
+  color: var(--pf-danger-ink);
+  border-color: var(--pf-danger-stroke);
+  background: var(--pf-surface);
+}
+
+.pf-error-notice :focus-visible {
+  outline: 2px solid var(--pf-danger-stroke);
+  outline-offset: 2px;
+}
+
+/* Khung hẹp (điện thoại): chỉ nút «Thử lại» mới xuống dòng. Biểu tượng và nút đóng
+   vẫn giữ nguyên ở dòng đầu — nút đóng rơi xuống góc dưới trông như lỗi bố cục. */
+@media (max-width: 560px) {
+  .pf-error-notice {
+    flex-wrap: wrap;
+  }
+
+  .pf-error-notice > .pf-btn {
+    flex: 1 0 100%;
+    margin-left: 2.2rem;
+    justify-content: center;
+  }
+}

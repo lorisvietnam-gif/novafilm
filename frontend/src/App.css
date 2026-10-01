@@ -109,6 +109,35 @@
   font-size: 0.95rem;
 }
 
+.auth-oauth {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pf-space-2);
+}
+
+.auth-oauth-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--pf-space-3);
+  color: var(--pf-muted);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.auth-oauth-divider::before,
+.auth-oauth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--pf-line);
+}
+
+.auth-oauth-note {
+  color: var(--pf-muted);
+  margin: 0;
+  font-size: 0.9rem;
+}
+
 @media (max-width: 900px) {
   .auth-shell {
     grid-template-columns: 1fr;
