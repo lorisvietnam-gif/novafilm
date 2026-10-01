@@ -11,6 +11,7 @@ import { useI18n } from '../../i18n'
 import { handleBillingError } from '../../lib/billingError'
 import { homeCategoryLabel } from '../../lib/categories'
 import { mediaModelDescription } from '../../lib/mediaModelLabels'
+import { studioProjectTitle } from '../../lib/projectTitleLabels'
 import { kepuStepIndex, kepuSteps } from '../../lib/status'
 import { getDramaImageStylePreviewUrl } from '../../lib/dramaImageStylePreviews'
 import { templateName } from '../../lib/templateLabels'
@@ -255,7 +256,7 @@ export default function StyleConfigPage() {
               <IconChevronLeft size={18} />
               {t('studio.style.back')}
             </button>
-            <h1 className="pf-page-title">{project?.title || t('studio.style.titleFallback')}</h1>
+            <h1 className="pf-page-title">{studioProjectTitle(project?.title) || t('studio.style.titleFallback')}</h1>
           </div>
           <Stepper
             steps={kepuSteps(pipelineMode)}
