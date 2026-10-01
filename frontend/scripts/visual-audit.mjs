@@ -16,12 +16,71 @@ import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const EDGE = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
+
 /**
- * Cổng debug **đổi mỗi lần chạy**. Cố định `:9333` thì một phiên Edge mồ côi nào đó chiếm
- * cổng là mọi lần chạy sau đều hoặc bị chặn, hoặc âm thầm nối nhầm vào phiên cũ và đo ra số bịa.
- * Chọn cổng theo pid nên hai lần chạy song song không đụng nhau.
+ * Cổng debug. Phải **tự thử và tự kiểm**, không được đoán.
+ *
+ * Công thức cũ `9400 + (pid % 400)` **không an toàn**: nó chỉ đảm bảo khác nhau khi hai tiến
+ * trình có pid khác nhau dưới 400, mà điều đó không giữ được khi nhiều lane chạy audit cùng
+ * lúc trên một máy. Đo được hai profile khác nhau cùng treo trên cổng 9456.
+ *
+ * Hậu quả còn tệ hơn va chạm: khi cổng đã bị chiếm, Edge của ta **không báo lỗi mà thoát
+ * im với mã 0** (đo được: `EXITED code=0`), và mọi lệnh `/json/*` sau đó lọt vào trình duyệt
+ * *của người khác*. Audit điều khiển sai trình duyệt, đo nhầm, rồi treo khi trình duyệt kia
+ * biến mất — và báo cáo vẫn trông bình thường.
+ *
+ * Vì vậy: thử một cổng thật sự trống, rồi **xác nhận bằng chính profile** rằng cổng đó thuộc
+ * về Edge vừa spawn. Thấy profile lạ trên cổng của mình thì báo lỗi, không đo tiếp.
  */
-const PORT = 9400 + (process.pid % 400)
+const PORT_MIN = Number(process.env.AUDIT_PORT_MIN || 19400)
+const PORT_MAX = Number(process.env.AUDIT_PORT_MAX || 19999)
+
+/**
+ * Cổng thật sự dùng ở lần chạy này. Gán trong `main()` sau khi `pickPort()` chọn được,
+ * và kiểm tra lại bằng profile ngay sau khi Edge lên — xem `assertOurBrowser()`.
+ */
+let PORT = 0
+
+/** Cổng này có đang bị ai giữ không. */
+async function portBusy(port) {
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/json/version`, {
+      signal: AbortSignal.timeout(700),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+/** Cổng trống: không ai trả lời, và không có tiến trình Edge nào đang giữ. */
+function portHeldByProcess(port) {
+  try {
+    const out = execFileSync(
+      'netstat',
+      ['-ano', '-p', 'TCP'],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000 },
+    )
+    return out.split(/\r?\n/).some((l) => l.includes(`:${port} `) && l.includes('LISTENING'))
+  } catch {
+    return false
+  }
+}
+
+async function pickPort() {
+  // Dải rộng nên va chạm hiếm; thử nhiều cổng trước khi tuyệt vọng.
+  for (let i = 0; i < 60; i++) {
+    const port = PORT_MIN + Math.floor(Math.random() * (PORT_MAX - PORT_MIN))
+    if (portHeldByProcess(port)) continue
+    if (await portBusy(port)) continue
+    return port
+  }
+  throw new Error(
+    `Khong tim duoc cong debug trong [${PORT_MIN}, ${PORT_MAX}]. `
+      + `May dang chay qua nhieu Edge. Dong het cac phien headless roi chay lai.`,
+  )
+}
+
 /**
  * `AUDIT_BASE` / `AUDIT_API` để một lane trỏ audit vào **dev server của chính nó**.
  * Không có hai biến này thì mọi lane đều đang đo `main` ở `:5173` — tức là đo nhầm thứ mình
@@ -162,29 +221,23 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const CDP_TIMEOUT_MS = Number(process.env.AUDIT_CDP_TIMEOUT_MS || 60_000)
 
 /**
- * Đóng một route: đóng socket **trước**, chờ xong rồi mới đóng tab.
+ * Đóng socket rồi đóng tab, **chỉ dùng ở cuối cùng** một lần chạy.
  *
- * Vì sao phải đóng tab: trước đây chỉ `ws.close()` — đóng kết nối debug, **không** đóng
- * tab. Mỗi route vì thế để lại một tab thật trong Edge, mỗi tab một tiến trình renderer, và
- * số tiến trình Edge **tăng đều**: đo được 20 → 46 tiến trình và 2.5GB → 5.7GB trong một
- * lần chạy, 60 tiến trình còn sống sau khi script kết thúc. Rồi máy không còn đủ bộ nhớ,
- * renderer mới bị giết giữa lúc đang chụp, phản hồi CDP không bao giờ tới, và audit chết
- * im. Đó là mắt xích nối giữa "rò tiến trình" và "chết không có thông báo".
+ * Không được gọi ở giữa chừng. Đo được: đóng tab bằng `/json/close` khiến Edge **tự tắt** —
+ * tiến trình tụt 15 → 10 → 0 và audit chết ở route thứ 4, không có crash nào trong Event
+ * Log. Đó là lý do `auditRoutes` chỉ mở **một** tab và điều hướng nó qua mọi route.
  *
- * Thứ tự cũng quan trọng: `/json/close` gọi **ngay** sau `ws.close()` khi bắt tay đóng chưa
- * xong là điều kiện của lỗi libuv mà comment cũ mô tả. Chờ `onclose` trước rồi hẵng đóng tab
- * thì không còn va chạm đó, mà vẫn giải quyết được vấn đề thật.
+ * Thứ tự socket-trước-tab vẫn cần giữ: `/json/close` gọi khi bắt tay đóng socket chưa xong
+ * là điều kiện của lỗi libuv mà comment cũ mô tả.
  */
-async function closeRoute(ws, tab) {
+async function closeTab(ws, tab) {
   try {
-    if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
-      await new Promise((res) => {
-        ws.onclose = res
-        ws.onerror = res
-        ws.close()
-        setTimeout(res, 2000) // không để chờ bắt tay đóng treo nếu Edge đã đi
-      })
-    }
+    await new Promise((res) => {
+      ws.onclose = res
+      ws.onerror = res
+      ws.close()
+      setTimeout(res, 2000) // không để chờ bắt tay đóng treo nếu Edge đã đi
+    })
   } catch { /* socket da hong */ }
   try {
     await fetch(`http://127.0.0.1:${PORT}/json/close/${tab.id}`)
@@ -305,21 +358,8 @@ async function main() {
 
   const { spawn } = await import('node:child_process')
 
-  // Chặn trước: nếu cổng debug còn bị chiếm bởi phiên Edge cũ, `/json/version` sẽ trả về
-  // phiên CŨ và mọi thứ ta làm sau đó đều nói với sai trình duyệt — trang trắng, không lỗi JS,
-  // đo ra số bịa. Thà báo lỗi còn hơn báo cáo sai.
-  try {
-    const stale = await fetch(`http://127.0.0.1:${PORT}/json/version`)
-    if (stale.ok) {
-      throw new Error(
-        `cong debug ${PORT} dang bi chiem boi mot Edge khac. `
-          + `Dong Edge cu: taskkill /F /IM msedge.exe /FI "WINDOWTITLE eq *headless*" `
-          + `roi chay lai. KHONG bo qua loi nay — ket qua se do sai.`,
-      )
-    }
-  } catch (e) {
-    if (e instanceof Error && e.message.startsWith('cong debug')) throw e
-  }
+  // Chọn cổng **thật sự trống**, thay vì đoán từ pid. Xem `pickPort`.
+  PORT = await pickPort()
 
   const edge = spawn(EDGE, [
     '--headless=new',
@@ -350,6 +390,46 @@ async function main() {
 }
 
 /**
+ * Chứng minh cổng debug đang trỏ tới **trình duyệt của lần chạy này**, không phải của ai khác.
+ *
+ * Đây là chốt chặn cuối và là chốt chặn duy nhất đáng tin. `pickPort()` giảm xác suất va
+ * chạm, nhưng vẫn có khe thời gian: giữa lúc ta kiểm tra cổng trống và lúc Edge ta bind,
+ * một lane khác có thể chiếm mất. Khi đó Edge ta **thoát mã 0, không báo lỗi**, và mọi
+ * `/json/*` rơi vào trình duyệt khác — audit điều khiển sai Edge, đo nhầm, rồi treo.
+ *
+ * Cách kiểm: Edge luôn để lại một tiến trình cha mang đúng `--user-data-dir` của nó. Nếu cổng
+ * của ta có Edge nhưng không tiến trình nào dùng profile của ta, thì cổng đó thuộc về
+ * người khác và ta phải dừng, chứ không được đo tiếp.
+ */
+async function assertOurBrowser() {
+  const tag = PROFILE.replace(/'/g, "''")
+  let owners = 0
+  try {
+    const out = execFileSync(
+      'powershell',
+      ['-NoProfile', '-Command',
+        `Get-CimInstance Win32_Process -Filter "Name='msedge.exe'" `
+        + `| Where-Object { $_.CommandLine -like '*${tag}*' } `
+        + `| Measure-Object | Select-Object -ExpandProperty Count`],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 8000 },
+    )
+    owners = Number(out.trim()) || 0
+  } catch (e) {
+    throw new Error(
+      `Khong xac minh duoc Edge thuoc san audit (${e.message}). `
+        + `Thay vi do tren trinh duyet la, audit dung lai.`,
+    )
+  }
+  if (owners === 0) {
+    throw new Error(
+      `Cong ${PORT} dang tra loi nhung khong co Edge nao dung profile ${PROFILE}. `
+        + `Nghia la Edge cua audit da chet va tay phai trinh duyet cua lane khac. `
+        + `Audit dung la — so do ra se thuoc ve trinh duyet khac.`,
+    )
+  }
+}
+
+/**
  * Chạy vòng lặp route. Tách riêng để `finally` bảo đảm dọn dẹp chạy dù hàm này ném lỗi.
  */
 async function auditRoutes(ROUTES, token) {
@@ -362,103 +442,119 @@ async function auditRoutes(ROUTES, token) {
     } catch { /* chua len */ }
   }
   if (!version) throw new Error('Edge headless khong len duoc')
-  console.log('Edge da len')
+  await assertOurBrowser()
+  console.log(`Edge da len (cong ${PORT})`)
+
+  // MỞ **MỘT** tab cho cả lần chạy rồi chỉ điều hướng nó qua từng route.
+  //
+  // Trước đây mỗi route mở một tab mới, và cả hai cách sửa đều sai:
+  //   - Không đóng tab: Edge mọc thêm một tiến trình renderer mỗi route, đo được 15 → 34
+  //     tiến trình, máy kiệt sức dần.
+  //   - Đóng tab bằng `/json/close`: Edge bị giật mình rồi **tự tắt**. Đo được tiến trình
+  //     tụt 15 → 10 → 0 và audit chết ở route thứ 4, không có crash nào trong Event Log.
+  //
+  // Tái sử dụng một tab là cách đúng: không có tab nào để đóng, không có tiến trình nào để
+  // rò. Đo được 50/50 lần điều hướng với số tiến trình giữ phẳng 13 → 9.
+  const tab = await (
+    await fetch(`http://127.0.0.1:${PORT}/json/new?${encodeURIComponent(BASE + '/')}`, {
+      method: 'PUT',
+    })
+  ).json()
+
+  const ws = new WebSocket(tab.webSocketDebuggerUrl)
+  let id = 0
+  const pending = new Map()
+  // Phải là `let`: cùng một tab đi qua nhiều trang, nên bộ đếm lỗi JS phải xoá trước mỗi
+  // route, nếu không lỗi của route trước sẽ bị tính cho route sau.
+  let consoleErrors = []
+
+  await new Promise((res, rej) => {
+    ws.onopen = res
+    ws.onerror = rej
+  })
+
+  ws.onmessage = (ev) => {
+    const msg = JSON.parse(ev.data)
+    if (msg.id && pending.has(msg.id)) {
+      const p = pending.get(msg.id)
+      clearTimeout(p.timer)
+      p.res(msg.result)
+      pending.delete(msg.id)
+    }
+    if (msg.method === 'Runtime.exceptionThrown') {
+      const d = msg.params?.exceptionDetails
+      consoleErrors.push(d?.exception?.description || d?.text || 'exception')
+    }
+  }
+
+  /**
+   * Mỗi lệnh CDP **phải** có thời hạn.
+   *
+   * Đây là nguyên nhân thật khiến audit chết âm thầm. `send()` trả về một promise chỉ được
+   * resolve bởi `onmessage`. Khi trình duyệt chết giữa chừng — renderer văng, Edge bị giết,
+   * socket đứt — Edge **không** gửi phản hồi, nên promise đó treo vĩnh viễn, `main()` không
+   * bao giờ trả về, `catch()` không bao giờ chạy.
+   *
+   * Và node không báo lỗi: khi mọi handle đã đóng và chỉ còn một promise treo, event loop
+   * **rỗng và node thoát với mã 0, in không một dòng nào**. Đã đo trực tiếp:
+   * `main().catch()` + `await new Promise(() => {})` cho ra `EXIT=0` với output rỗng.
+   * Đó chính xác là triệu chứng "in 5 dòng rồi thoài, không có thông báo lỗi".
+   *
+   * Nên: hết giờ thì **ném lỗi có tên**. Lỗi thì in được, treo thì chết không dấu vết.
+   */
+  const send = (method, params = {}) =>
+    new Promise((res, rej) => {
+      const n = ++id
+      const timer = setTimeout(() => {
+        pending.delete(n)
+        rej(new Error(
+          `CDP khong tra loi cho "${method}" sau ${CDP_TIMEOUT_MS / 1000}s. `
+            + `Renderer/Edge co the da chet. Route nay KHONG duoc coi la da kiem tra.`,
+        ))
+      }, CDP_TIMEOUT_MS)
+      pending.set(n, { res, rej, timer })
+      try {
+        ws.send(JSON.stringify({ id: n, method, params }))
+      } catch (e) {
+        clearTimeout(timer)
+        pending.delete(n)
+        rej(new Error(`CDP "${method}" gui khong duoc: ${e.message}`))
+      }
+    })
+
+  // Socket đứt thì mọi lệnh đang chờ đều vô lời vĩnh viễn — phải **từ chối** chứ không chờ để
+  // chúng treo, vì treo chính là thứ giết tiến trình im lặng. Tuyệt đối không resolve với
+  // `undefined`: `undefined` trôi qua mọi `?.` và ra `text = ''`, tức là route bị đọc thành
+  // "0 ký tự Trung" — tức là **báo sạch trong khi thật ra là trắng trang**. Đó đúng là cái
+  // bẫy mà audit này sinh ra để tránh.
+  ws.onclose = () => {
+    for (const [, p] of pending) {
+      clearTimeout(p.timer)
+      p.rej(new Error(
+        'Ket noi CDP bi ngat giua chung. Renderer/Edge co the da chet. '
+          + 'Route nay KHONG duoc coi la da kiem tra.',
+      ))
+    }
+    pending.clear()
+  }
 
   const results = []
-  for (const locale of ['vi', 'en']) {
-    const dir = join(OUT, locale)
-    mkdirSync(dir, { recursive: true })
+  try {
+    // `Page.enable` chỉ cần một lần cho cả phiên.
+    await send('Page.enable')
 
-    for (const [route, name] of ROUTES) {
-      const tab = await (
-        await fetch(`http://127.0.0.1:${PORT}/json/new?${encodeURIComponent(BASE + '/')}`, {
-          method: 'PUT',
-        })
-      ).json()
+    for (const locale of ['vi', 'en']) {
+      const dir = join(OUT, locale)
+      mkdirSync(dir, { recursive: true })
 
-      const ws = new WebSocket(tab.webSocketDebuggerUrl)
-      let id = 0
-      const pending = new Map()
-      const consoleErrors = []
-
-      await new Promise((res, rej) => {
-        ws.onopen = res
-        ws.onerror = rej
-      })
-
-      // Dọn tab **bất kể route này có hỏng hay không**. Xem giải thích ở `finally` bên dưới.
-      try {
-
-      ws.onmessage = (ev) => {
-        const msg = JSON.parse(ev.data)
-        if (msg.id && pending.has(msg.id)) {
-          clearTimeout(pending.get(msg.id).timer)
-          pending.get(msg.id).res(msg.result)
-          pending.delete(msg.id)
-        }
-        if (msg.method === 'Runtime.exceptionThrown') {
-          const d = msg.params?.exceptionDetails
-          consoleErrors.push(d?.exception?.description || d?.text || 'exception')
-        }
-      }
-
-      /**
-       * Mỗi lệnh CDP **phải** có thời hạn.
-       *
-       * Đây là nguyên nhân thật khiến audit chết âm thầm. Trước đây `send()` trả về một
-       * promise chỉ được resolve bởi `onmessage`. Khi trình duyệt chết giữa chừng — renderer
-       * văng, Edge bị giết, socket đứt — Edge **không** gửi phản hồi, nên promise đó treo
-       * vĩnh viễn, `main()` không bao giờ trả về, `catch()` không bao giờ chạy.
-       *
-       * Và node không báo lỗi: khi mọi handle đã đóng và chỉ còn một promise treo, event
-       * loop **rỗng và node thoát với mã 0, in không một dòng nào**. Đã đo trực tiếp:
-       * `main().catch()` + `await new Promise(() => {})` cho ra `EXIT=0` với output rỗng.
-       * Đó chính xác là triệu chứng "in 5 dòng rồi thoài, không có thông báo lỗi".
-       *
-       * Nên: hết giờ thì **ném lỗi có tên**. Lỗi thì in được, treo thì chết không dấu vết.
-       */
-      const send = (method, params = {}) =>
-        new Promise((res, rej) => {
-          const n = ++id
-          const timer = setTimeout(() => {
-            pending.delete(n)
-            rej(new Error(
-              `CDP khong tra loi cho "${method}" sau ${CDP_TIMEOUT_MS / 1000}s. `
-                + `Renderer/Edge co the da chet. Route nay KHONG duoc coi la da kiem tra.`,
-            ))
-          }, CDP_TIMEOUT_MS)
-          pending.set(n, { res, rej, timer })
-          try {
-            ws.send(JSON.stringify({ id: n, method, params }))
-          } catch (e) {
-            clearTimeout(timer)
-            pending.delete(n)
-            rej(new Error(`CDP "${method}" gui khong duoc: ${e.message}`))
-          }
-        })
-
-      // Socket đứt thì mọi lệnh đang chờ đều vô lời vĩnh viễn — phải **từ chối** chứ không
-      // chờ để chúng treo, vì treo chính là thứ giết tiến trình im lặng. Tuyệt đối không
-      // resolve với `undefined`: `undefined` sẽ trôi qua mọi `?.` và ra `text = ''`, tức là
-      // route bị đọc thành "0 ký tự Trung" — tức là **báo sạch trong khi thật ra là trắng
-      // trang**. Đó đúng là cái bẫy mà audit này sinh ra để tránh.
-      ws.onclose = () => {
-        for (const [, p] of pending) {
-          clearTimeout(p.timer)
-          p.rej(new Error(
-            `Ket noi CDP bi ngat giua chung. Renderer/Edge co the da chet. `
-              + `Route nay KHONG duoc coi la da kiem tra.`,
-          ))
-        }
-        pending.clear()
-      }
+      for (const [route, name] of ROUTES) {
+        consoleErrors = []
 
         // Chặt locale + token rồi tải lại trang để ứng dụng đọc đúng giá trị.
         await send('Runtime.evaluate', {
           expression: `localStorage.setItem('novafilm.locale', ${JSON.stringify(locale)});
                        localStorage.setItem('token', ${JSON.stringify(token)});`,
         })
-        await send('Page.enable')
         await send('Page.navigate', { url: BASE + route })
         await sleep(2600)
         await send('Page.reload', { ignoreCache: false })
@@ -468,7 +564,7 @@ async function auditRoutes(ROUTES, token) {
           expression: 'document.body ? document.body.innerText : ""',
           returnByValue: true,
         })
-        const text = textRes?.result?.value || ''
+        const text = textRes?.result?.value ?? ''
 
         const apiDown = API_ERROR_MARKERS.some((m) => text.includes(m))
         const cjk = apiDown ? -1 : (text.match(/[\u4e00-\u9fff]/g) || []).length
@@ -508,10 +604,12 @@ async function auditRoutes(ROUTES, token) {
         if (process.env.AUDIT_VERBOSE && cjk > 0) {
           for (const line of cjkLines) console.log(`        | ${line.slice(0, 160)}`)
         }
-      } finally {
-        await closeRoute(ws, tab)
       }
     }
+  } finally {
+    // Chỉ đóng tab ở đây, MỘT LẦN, sau khi đã đo xong. Gọi ở giữa chừng sẽ khiến Edge tự
+    // tắt — xem `closeTab`.
+    await closeTab(ws, tab)
   }
 
   writeFileSync(join(OUT, 'report.json'), JSON.stringify(results, null, 2))
