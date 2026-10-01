@@ -1,0 +1,425 @@
+/*
+ * CSS riêng của hộp thoại "Toàn bộ prompt phân cảnh".
+ *
+ * Không đụng `src/styles/` theo luật lane; mọi màu ở đây lấy từ token.
+ *
+ * MÀU: `--pf-accent` (#f2c94c) là **chỉ để tô**, không phải màu chữ — nó chỉ đạt
+ * 1.59:1 trên nền sáng. Chữ trên nền vàng dùng `--pf-on-accent` (10.76:1), chữ
+ * mang tông vàng trên nền thường dùng `--pf-accent-ink` (7.50:1 sáng · 13.39:1 tối).
+ * Khoảng nét tô vàng dùng `--pf-accent-stroke` vì 600 là bước duy nhất vượt 3:1 ở
+ * cả hai chủ đề.
+ *
+ * ĐỌC: đây là màn hình người dùng đọc để dán, nên prompt là `monospace`, xuống dòng
+ * được (`pre-wrap` + `overflow-wrap: anywhere`) và **không** bị cắt — không dùng
+ * `text-overflow`, không giới hạn số dòng.
+ */
+
+.drama-prompt-bundle .pf-modal-body {
+  /* Thân hộp thoại không cuộn: giữ thanh công cụ và thanh thông báo luôn nhìn thấy,
+     chỉ danh sách cảnh cuộn. */
+  overflow: hidden;
+  padding: 0;
+  gap: 0;
+}
+
+.drama-prompt-bundle__shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: min(78vh, 760px);
+}
+
+.drama-prompt-bundle__top {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pf-space-2);
+  padding: var(--pf-space-3) var(--pf-space-4);
+  border-bottom: 1px solid var(--pf-line-hairline);
+}
+
+.drama-prompt-bundle__subtitle {
+  margin: 0;
+  color: var(--pf-ink-secondary);
+  font-size: 0.86rem;
+}
+
+/* ---- Thông báo sau khi sao chép ------------------------------------- */
+
+.drama-prompt-bundle__status {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--pf-space-1-5);
+  padding: var(--pf-space-2) var(--pf-space-2-5);
+  border: 1px solid var(--pf-line);
+  border-left-width: 3px;
+  border-radius: var(--pf-radius-sm);
+  background: var(--pf-surface-sunken);
+  color: var(--pf-ink);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.drama-prompt-bundle__status.is-ok {
+  border-left-color: var(--pf-success-stroke);
+  background: var(--pf-success-soft);
+  color: var(--pf-success-ink);
+}
+
+.drama-prompt-bundle__status.is-fallback {
+  border-left-color: var(--pf-warning-stroke);
+  background: var(--pf-warning-soft);
+  color: var(--pf-warning-ink);
+}
+
+.drama-prompt-bundle__status.is-error {
+  border-left-color: var(--pf-danger-stroke);
+  background: var(--pf-danger-soft);
+  color: var(--pf-danger-ink);
+}
+
+/* ---- Hộp cảnh báo máy chủ chưa có nhà cung cấp ----------------------- */
+
+.drama-prompt-bundle__notice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pf-space-1-5);
+  padding: var(--pf-space-3);
+  border: 1px solid var(--pf-warning-stroke);
+  border-radius: var(--pf-radius-md);
+  background: var(--pf-warning-soft);
+}
+
+.drama-prompt-bundle__notice-title {
+  display: flex;
+  align-items: center;
+  gap: var(--pf-space-1-5);
+  margin: 0;
+  color: var(--pf-warning-ink);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.drama-prompt-bundle__notice-body {
+  margin: 0;
+  color: var(--pf-warning-ink);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.drama-prompt-bundle__notice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--pf-space-2);
+  margin-top: var(--pf-space-0-5);
+}
+
+/* ---- Ghi chú trung thực về mô hình ---------------------------------- */
+
+.drama-prompt-bundle__model-note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pf-space-1);
+  margin: 0;
+  padding: var(--pf-space-2-5) var(--pf-space-3);
+  border: 1px solid var(--pf-line);
+  border-left: 3px solid var(--pf-accent-stroke);
+  border-radius: var(--pf-radius-sm);
+  background: var(--pf-accent-soft);
+  color: var(--pf-ink-secondary);
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+.drama-prompt-bundle__model-note strong {
+  color: var(--pf-accent-ink);
+  font-weight: 600;
+}
+
+/* ---- Thanh công cụ ---------------------------------------------------- */
+
+.drama-prompt-bundle__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--pf-space-2);
+}
+
+.drama-prompt-bundle__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pf-space-1);
+  min-width: 0;
+}
+
+.drama-prompt-bundle__field-label {
+  color: var(--pf-ink-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.drama-prompt-bundle__field-hint {
+  max-width: 46ch;
+  color: var(--pf-ink-tertiary);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.drama-prompt-bundle__select {
+  min-width: 200px;
+  max-width: 100%;
+  height: 40px;
+  padding: 0 var(--pf-space-2);
+  border: 1px solid var(--pf-line-control);
+  border-radius: var(--pf-radius-sm);
+  background: var(--pf-surface);
+  color: var(--pf-ink);
+  font-family: inherit;
+  font-size: 0.86rem;
+}
+
+.drama-prompt-bundle__spacer {
+  flex: 1 1 auto;
+}
+
+.drama-prompt-bundle__count {
+  margin: 0;
+  color: var(--pf-ink-secondary);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Nút ------------------------------------------------------------- */
+
+.drama-prompt-bundle__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--pf-space-1-5);
+  min-height: 40px;
+  padding: 0 var(--pf-space-4);
+  border: 1px solid var(--pf-line);
+  border-radius: var(--pf-radius-pill);
+  background: var(--pf-surface);
+  color: var(--pf-ink);
+  font-family: inherit;
+  font-size: 0.86rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background var(--pf-dur-fast) var(--pf-ease-standard),
+    border-color var(--pf-dur-fast) var(--pf-ease-standard);
+}
+
+.drama-prompt-bundle__btn:hover:not(:disabled) {
+  border-color: var(--pf-line-control);
+  background: var(--pf-surface-raised);
+}
+
+.drama-prompt-bundle__btn:disabled {
+  color: var(--pf-ink-disabled);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Nút chính: tô vàng thương hiệu, chữ gần đen để đạt AA. */
+.drama-prompt-bundle__btn.is-primary {
+  border-color: transparent;
+  background: var(--pf-accent);
+  color: var(--pf-on-accent);
+  font-weight: 600;
+}
+
+.drama-prompt-bundle__btn.is-primary:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--pf-accent-hover);
+}
+
+/* Nút phụ trong hộp cảnh báo: nền kính, chữ cùng tông cảnh báo. */
+.drama-prompt-bundle__btn.is-quiet {
+  background: transparent;
+  color: var(--pf-warning-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.drama-prompt-bundle__btn.is-quiet:hover:not(:disabled) {
+  background: rgb(var(--pf-ink-rgb) / 0.06);
+  border-color: var(--pf-warning-stroke);
+}
+
+/* Vòng focus trên nền vàng không được cùng tông với nền. */
+.drama-prompt-bundle__btn:focus-visible,
+.drama-prompt-bundle__select:focus-visible {
+  outline: var(--pf-focus-ring-width) solid var(--pf-focus-ring);
+  outline-offset: var(--pf-focus-ring-offset);
+}
+
+.drama-prompt-bundle__btn.is-primary:focus-visible {
+  outline-color: var(--pf-focus-ring-on-fill);
+}
+
+/* ---- Danh sách cảnh -------------------------------------------------- */
+
+.drama-prompt-bundle__scroll {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pf-space-2-5);
+  min-height: 0;
+  padding: var(--pf-space-3) var(--pf-space-4);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.drama-prompt-bundle__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pf-space-2-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.drama-prompt-bundle__toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--pf-space-1-5);
+}
+
+.drama-prompt-bundle__toggle .drama-prompt-bundle__btn[aria-pressed='true'] {
+  border-color: var(--pf-accent-stroke);
+  background: var(--pf-accent-soft);
+  color: var(--pf-accent-ink);
+  font-weight: 600;
+}
+
+.drama-prompt-bundle__scene {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pf-space-2);
+  padding: var(--pf-space-3);
+  border: 1px solid var(--pf-line-hairline);
+  border-radius: var(--pf-radius-md);
+  background: var(--pf-surface-raised);
+}
+
+.drama-prompt-bundle__scene-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--pf-space-2);
+}
+
+.drama-prompt-bundle__scene-name {
+  margin: 0;
+  color: var(--pf-ink);
+  font-size: 0.94rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.drama-prompt-bundle__params {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--pf-space-1-5);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.drama-prompt-bundle__param {
+  padding: 0.12rem var(--pf-space-2);
+  border: 1px solid var(--pf-line);
+  border-radius: var(--pf-radius-pill);
+  background: var(--pf-surface-sunken);
+  color: var(--pf-ink-secondary);
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.drama-prompt-bundle__refs {
+  margin: 0;
+  color: var(--pf-ink-tertiary);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.drama-prompt-bundle__adjust {
+  margin: 0;
+  color: var(--pf-accent-ink);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.drama-prompt-bundle__prompt {
+  margin: 0;
+  padding: var(--pf-space-2-5);
+  border: 1px solid var(--pf-line);
+  border-radius: var(--pf-radius-sm);
+  background: var(--pf-surface-well);
+  color: var(--pf-ink);
+  font-family: var(--pf-font-mono);
+  font-size: 0.8rem;
+  line-height: 1.65;
+  /* Đọc để dán: xuống dòng ở mọi nơi, không bao giờ cắt. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 2;
+}
+
+/* Cảnh chưa có prompt: nói thẳng, không dựng khung rỗng để người dùng đi dán. */
+.drama-prompt-bundle__empty {
+  margin: 0;
+  padding: var(--pf-space-2-5);
+  border: 1px dashed var(--pf-line-control);
+  border-radius: var(--pf-radius-sm);
+  color: var(--pf-ink-secondary);
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.drama-prompt-bundle__none {
+  margin: 0;
+  padding: var(--pf-space-4);
+  border: 1px dashed var(--pf-line-control);
+  border-radius: var(--pf-radius-md);
+  color: var(--pf-ink-secondary);
+  font-size: 0.88rem;
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* ---- Màn hình nhỏ ----------------------------------------------------- */
+
+@media (max-width: 560px) {
+  .drama-prompt-bundle__shell {
+    max-height: 82vh;
+  }
+
+  .drama-prompt-bundle__top,
+  .drama-prompt-bundle__scroll {
+    padding: var(--pf-space-3);
+  }
+
+  /* Chạm tay: chiều cao tối thiểu 44px theo khuyến nghị WCAG 2.2. */
+  .drama-prompt-bundle__btn,
+  .drama-prompt-bundle__select {
+    min-height: 44px;
+  }
+
+  .drama-prompt-bundle__btn {
+    flex: 1 1 auto;
+  }
+
+  .drama-prompt-bundle__field,
+  .drama-prompt-bundle__select {
+    width: 100%;
+  }
+
+  .drama-prompt-bundle__spacer {
+    display: none;
+  }
+}
