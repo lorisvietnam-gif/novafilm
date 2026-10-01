@@ -261,6 +261,12 @@ export type User = {
   phone?: string
 }
 
+/** Một cách đăng nhập xã hội backend thực sự phục vụ được (client_id + client_secret đều có). */
+export type OAuthProvider = {
+  id: string
+  label: string
+}
+
 export type BillingSku = {
   id: string
   name: string
@@ -382,6 +388,32 @@ export const api = {
     return request<{ ok: boolean }>('/api/auth/reset-password', {
       method: 'POST',
       body: JSON.stringify({ token, new_password }),
+    })
+  },
+  /** Nguồn duy nhất để biết nút đăng nhập xã hội nào được hiện. Rỗng = chưa cấu hình. */
+  oauthProviders() {
+    return request<{ providers: OAuthProvider[] }>('/api/auth/providers')
+  },
+  /**
+   * Điểm vào luồng đăng nhập xã hội. Backend phát state + PKCE rồi 302 sang provider, nên
+   * frontend chỉ điều hướng tới đây và không bao giờ tự dựng URL authorize.
+   */
+  oauthLoginUrl(providerId: string) {
+    return `${API_BASE}/api/auth/${encodeURIComponent(providerId)}/login`
+  },
+  /** Đổi mã một lần lấy JWT. Mã hết hạn sau 2 phút và không dùng lại được. */
+  oauthExchange(code: string) {
+    return request<{
+      access_token: string
+      setup_required: boolean
+      setup_token: string
+    }>('/api/auth/oauth/exchange', { method: 'POST', body: JSON.stringify({ code }) })
+  },
+  /** Nhánh B: provider không cho email thì bổ sung email + mật khẩu rồi mới có JWT. */
+  oauthSetup(body: { setup_token: string; email: string; password: string; nickname: string }) {
+    return request<{ access_token: string }>('/api/auth/oauth/setup', {
+      method: 'POST',
+      body: JSON.stringify(body),
     })
   },
   me() {
