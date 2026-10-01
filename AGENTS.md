@@ -70,7 +70,11 @@ cd backend
 .venv\Scripts\python.exe -m pytest -q
 ```
 
-**Baseline (đo thật trên Windows, 2026-09-30, sau Wave 1.1b/1.1c/1.2/1.3: `4 failed, 635 passed, 1 skipped`).
+****BẮT BUỘC** thêm --basetemp= trỏ vào thư mục trong worktree (ví dụ --basetemp=..\.kilo\pytest).
+%TEMP% trên máy này hay bị khoá và pytest báo hàng loạt PermissionError: [WinError 5] — trông
+như code hỏng nhưng thực ra chỉ là lỗi thư mục tạm. Đã xảy ra và suýt làm board tưởng lane phá hỏng.
+
+Baseline (đo thật trên Windows, 2026-09-30, sau Wave 1.1b/1.1c/1.2/1.3: `4 failed, 635 passed, 1 skipped`).
 Cả lỗi failed lẫn lỗi skipped đều là vấn đề có sẵn từ upstream, board đã chạy lại ở commit gốc
 `88755c3` và xác nhận — không phải do ta:
 
