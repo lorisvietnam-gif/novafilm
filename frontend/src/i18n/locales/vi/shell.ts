@@ -239,4 +239,35 @@ export const viShell = {
     WAIT_IMAGE: 'Chờ tạo ảnh',
     WAIT_VIDEO: 'Chờ tạo video',
   },
+
+  /**
+   * Câu chữ cho khung lỗi — chỗ **duy nhất** người dùng đọc được khi có lỗi.
+   *
+   * Đây là lớp thay thế cho lỗi thô từ backend: mã lỗi và request id chỉ nằm trong
+   * console trình duyệt. Mỗi câu đều chỉ rõ **người dùng làm gì tiếp theo**, không chỉ
+   * báo là lỗi. Khoá khớp với `ApiErrorKind` trong `lib/apiError.ts`.
+   */
+  errors: {
+    title: 'Có lỗi xảy ra',
+    aiAuth:
+      'Chưa kết nối được dịch vụ AI. Bạn kiểm tra khoá API trong phần Cài đặt rồi thử lại — thường là khoá đã hết hạn hoặc bị thu hồi.',
+    aiRateLimit:
+      'Dịch vụ AI đang nhận quá nhiều yêu cầu. Bạn chờ khoảng một phút rồi thử lại, hoặc tạo ít cảnh hơn trong một lượt.',
+    aiUnavailable:
+      'Dịch vụ AI không phản hồi. Bạn thử lại sau ít phút, hoặc kiểm tra khoá API trong phần Cài đặt.',
+    billing: 'Số dư chưa đủ cho bước này. Bạn nạp thêm rồi thử lại — phần đã tạo vẫn còn nguyên.',
+    quota: 'Bạn đã dùng hết lượt của gói hiện tại. Bạn nâng cấp gói, hoặc chờ sang kỳ tính dụng kế tiếp.',
+    auth: 'Phiên đăng nhập đã hết hạn. Bạn đăng nhập lại rồi thử tiếp — dự án không bị mất.',
+    notFound: 'Không tìm thấy dữ liệu này. Bạn tải lại trang, hoặc quay lại danh sách để chọn mục khác.',
+    validation: 'Có ô nhập chưa đúng nên yêu cầu bị từ chối. Bạn sửa lại ô được đánh dấu rồi thử lại.',
+    rateLimit: 'Bạn thao tác hơi nhanh. Bạn chờ vài giây rồi thử lại.',
+    network:
+      'Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại, hoặc quay lại sau ít phút nếu máy chủ đang bảo trì.',
+    invalid: 'Máy chủ trả về dữ liệu không hợp lệ. Vui lòng thử lại sau.',
+    unknown:
+      'Có lỗi xảy ra khi tạo nội dung. Bạn thử lại sau ít phút; nếu vẫn lỗi, báo lại giúp chúng tôi kèm tên dự án.',
+    retry: 'Thử lại',
+    dismiss: 'Đóng thông báo',
+    topUp: 'Nạp tiền →',
+  },
 } as const
