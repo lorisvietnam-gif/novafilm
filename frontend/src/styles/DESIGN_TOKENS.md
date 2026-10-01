@@ -162,6 +162,50 @@ failure mode it prevents is the one that appears the moment someone writes
 `background: var(--pf-accent); color: var(--pf-accent-ink)`, which is a
 perfectly reasonable line to write and silently breaks only in dark.
 
+**2026-09-30, later — that audit was wrong, twice.** The claim "no stylesheet
+currently pairs them" was produced by reading declarations, and five sites did
+pair them. All five now measured on the rendered page, not derived:
+
+| Site | What it declared | Dark, measured | Now |
+|---|---|---|---|
+| `printfilm.css` `.pf-land-product-tag` | `background: var(--pf-lime)` + `color: var(--pf-accent-ink)` | `#f8dc87` on `#f2c94c` = **1.18:1** | `color: var(--pf-on-accent)` → **12.15:1** |
+| `method.css` `.pf-method-skip` | `.pf-method a` overrode it to `var(--m-lime-deep)` = `--pf-accent-ink` | `#f8dc87` on `#f2c94c` = **1.18:1** | `.pf-method a.pf-method-skip` → **12.15:1** |
+| `printfilm.css` `.pf-pricing-sku-cta.is-primary` | filled, no `color`, so `--pf-ink` was inherited | `#f5f5f7` on `#f2c94c` = **1.46:1** | `color: var(--pf-on-accent)` → **12.15:1** |
+| `printfilm.css` `.pf-page-btn.active` | filled, no `color` | `#f5f5f7` on `#f2c94c` = **1.46:1** | `color: var(--pf-on-accent)` → **12.15:1** |
+| `printfilm.css` `.pf-step.active .pf-step-dot` | filled, no `color` | `#f5f5f7` on `#f2c94c` = **1.46:1** | `color: var(--pf-on-accent)` → **12.15:1** |
+
+Three of the five were a different failure with the same symptom: not a wrong
+token but **no token at all**. `.pf-pricing-sku-cta` declares
+`color: var(--pf-ink)` on its base rule, so a variant that changes only the
+background inherits the page's body ink — near-white in dark. Reading the
+declaration list would have shown "accent fill, ink inherited" and stopped.
+
+So the rule is narrower and stronger than "never pair `--pf-accent-ink` with
+`--pf-accent`":
+
+> **Any rule that sets an accent fill sets its ink too. If a variant changes the
+> background of a control, it re-declares the colour in the same block.**
+
+The variant-without-a-colour shape is the one that recurs, and it is invisible in
+a declaration sweep because the offending declaration is in a *different* rule.
+
+### 2e. `.pf-btn-ai` — the case where no single ink works
+
+`background: color-mix(in srgb, var(--pf-lime) 55%, var(--pf-surface))` is a light
+olive in light mode and a **dark** olive in dark mode, so `--pf-on-accent` is
+right in one and wrong in the other. Measured:
+
+| Ink | Light | Dark |
+|---|---|---|
+| `--pf-on-accent` | **10.50:1** | **1.07:1** |
+| `--pf-accent-ink` | **4.61:1** | **7.02:1** |
+
+`--pf-accent-ink` is the token meant for exactly this: accent-ramp ink that still
+reads, because it is *light in light and dark in dark* by construction — which is
+the opposite of what an accent fill needs. Section 2c's rule is about fills;
+this is the counterpart for tinted *fields*. Its `:hover` fills with the accent
+outright, so it flips back to `--pf-on-accent` there.
+
 ### 2d. Why a fixed `color-mix` percentage is the same bug in disguise
 
 `color-mix(in srgb, var(--pf-accent) N%, var(--pf-surface))` looks theme-aware
@@ -391,14 +435,39 @@ Two chips were sitting at 0.72 (3.43:1) and were moved to 0.78 (8.17:1):
 
 ### 7a. The opposite treatment, and why it is not an inconsistency
 
-`.pf-drama-card-cover` is **pale**, where every other plate in the product is
-dark. Its fallback writes the drama title vertically in `--pf-ink-secondary`, so
-it needs a light field. A white wash at 0.5–0.68 over the ink-wash plate keeps
-the darkest region near `#c6c6c6`, where `--pf-ink-secondary` measures **5.2:1**.
+*Corrected 2026-09-30 — this paragraph described a rule the stylesheet does not
+have. It is left in place, marked, because a wrong measurement that still reads
+as measured is worse than a missing one.*
 
-A system that produced one treatment everywhere would be a system that could not
-place text in two different orientations. Dark here, pale there, measured
-separately, is the correct answer.
+`.pf-drama-card-cover` was described here as **pale**, carrying a white wash at
+0.5–0.68 with the drama title written vertically in `--pf-ink-secondary`. What it
+actually is:
+
+```css
+.pf-drama-card-cover {
+  background-color: var(--pf-surface-media);
+  background-image: linear-gradient(var(--pf-media-wash-soft), var(--pf-media-wash)),
+                    var(--pf-media-plate-myth);
+}
+.pf-drama-card-cover-fallback {
+  position: absolute; inset: 0; writing-mode: vertical-rl;
+  color: var(--pf-media-ink);
+  text-shadow: 0 1px 0 var(--pf-media-ink-halo);
+}
+```
+
+So it is the **dark** treatment: a plate behind a media wash, with the vertical
+title in the on-media ink. Checked on a project whose cover was still generating —
+screenshot at 1280px dark shows the wuxia plate with the title set vertically,
+centred, which is what `place-items: center` plus `writing-mode: vertical-rl`
+produces. The vertical title is deliberate, and it only renders when
+`cover_url` is empty, so the horizontal `.pf-drama-card-title` below the image is
+never a duplicate.
+
+The argument this section was making still stands, and now has a real example
+attached: the same plate and the same wash appear here and on the landing hero,
+and only the ink differs, because the copy's orientation differs. A system that
+produced one treatment everywhere could not set text vertically at all.
 
 ### 7b. The one place the decorative rung is legal
 
@@ -696,7 +765,159 @@ they are the known tail.
 
 ---
 
-## 13. What is deliberately not a token
+## 13. Text over photography, measured on the rendered pixels
+
+Section 7 gives the ladder *derived from the token values*, compositing white ink
+over `#ffffff` — the brightest pixel a JPEG can hold. That is the right bound for
+a scrim, and it is a bound, not a measurement: it assumes the scrim is doing its
+job everywhere on the band.
+
+This pass measured the actual pixels instead. `scripts/contrast-on-media.mjs`
+screenshots the element's box twice — once normally, once with
+`color: transparent !important` — and every pixel in the second capture is by
+construction the background. Percentiles of that are the real field the text sits
+in. See section 15 for how to re-run it.
+
+Two things this catches that a derived number cannot:
+
+- **A band whose scrim does not cover its own copy.** The `/method` lede measured
+  a median background luminance of 0.017 — very dark, 13.15:1 — and a 95th
+  percentile of 0.255, because the last ladder rung faded to
+  `--pf-media-scrim-soft` at the right edge of a band whose copy column is 44rem
+  inside 1120px. Holding the right-hand end at `--pf-media-scrim-strong` brings
+  the worst case up without hiding the photograph.
+- **Bands that are light in one theme and dark in the other.** `.pf-help-page-hero`
+  and `.pf-legal-hero` wash the plate with `--pf-surface-rgb`, not with the dark
+  media scrim, so their ink has to *flip with the theme* — which is why their h1
+  inherits `--pf-ink` and is correct. Their subtitles were on `--pf-muted`, the
+  weakest rung, and failed only in dark:
+
+| Subtitle | Light, before | Dark, before | Light, now | Dark, now | Threshold |
+|---|---|---|---|---|---|
+| `/help` lead | 4.68:1 | **3.65:1** | 5.81:1 | **4.58:1** | 4.5:1 |
+| `/contact` crumb | 5.79:1 | **3.54:1** | 7.22:1 | **5.38:1** | 4.5:1 |
+| `/terms` crumb | 5.58:1 | **4.01:1** | 7.04:1 | **5.90:1** | 4.5:1 |
+
+`--pf-on-media` was the first thing tried here and it is wrong for these bands:
+white measured **1.05:1** on `/help` in light mode. These two are *not* scrim
+bands, and the difference is the whole answer. One rung up, `--pf-ink-secondary`,
+is what the band can carry in both directions. `/contact` additionally needed its
+wash tightened from `0.88 / 0.76 / 0.96` to `0.93 / 0.82 / 0.97`, because its
+river plate is the darkest of the seven and the breadcrumb came out 0.04 short.
+
+### Everything else on a band, current
+
+Measured 2026-09-30 at 1280px, both themes, by the pixel method. A pass is judged
+on the **median** background: a block of text is read over the field it occupies,
+not over one specular highlight. The worst column is the 5th/95th percentile
+against the same ink, printed so the tail is visible.
+
+| Band | Ink | Median | Worst | Need |
+|---|---|---|---|---|
+| landing hero kicker | `rgba(255,255,255,0.78)` | 8.14:1 | 5.20:1 | 4.5 |
+| landing hero h1 | `#ffffff` | 15.84:1 | 11.80:1 | 3 |
+| `/method` kicker | `#f8dc87` | 11.50:1 | 9.29:1 | 4.5 |
+| `/method` h1 | `#ffffff` | 15.54:1 | 12.97:1 | 3 |
+| `/method` lede | `rgba(255,255,255,0.92)` | 13.15:1 | 2.55:1 | 4.5 |
+| `/method` lede `em` | `#ffffff` | 12.19:1 | 3.20:1 | 4.5 |
+| `/pricing` hero h1 | `#ffffff` | 17.37:1 | 12.47:1 | 3 |
+| `/pricing` hero lede | `rgba(255,255,255,0.9)` | 13.42:1 | 9.31:1 | 4.5 |
+| `/pricing` feature chip | `#ffffff` | 17.34:1 | 13.36:1 | 4.5 |
+| `/auth` panel h1 | `#1c1c1a` / `#f5f5f7` | 17.07 / 16.57:1 | same | 3 |
+
+**Count measured, count failing AA: 26 / 0.**
+
+---
+
+## 13a. The sweep that covers everything else
+
+`scripts/contrast-audit.mjs` walks the rendered DOM instead of the stylesheet:
+for every element with its own text node it rebuilds the effective background by
+climbing the tree and compositing each non-transparent layer, then computes the
+ratio. Current result: **599 samples over 14 routes × 2 themes, 0 failures on
+every pair it can resolve.**
+
+It reports pairs it *cannot* resolve rather than guessing at them, which is the
+point of running the pixel script as well. A pair is unresolvable when an ancestor
+carries a `background-image`: there is no background colour to climb to, so the
+sweep stops at the page surface and reports a number that is arithmetically fine
+and completely wrong. Those are marked `onArt: true` and are section 13's job.
+
+Two other known blind spots, both benign and both reported rather than hidden:
+
+- `color: transparent` on an image placeholder yields 1:1. That is the
+  visually-hidden-text technique, not something to be read.
+- A gradient's own alpha ramp is not modelled, so a *sampled* gradient pair is
+  judged against its composite rather than its endpoints.
+
+### The episode editor: a file with no dark mode at all
+
+Found by adding `/drama/projects/4/episodes` to the sweep's route list, which the
+first version of this pass had left out. `pages/drama/drama.css` had **no
+`prefers-color-scheme` block and no `[data-theme]` selector anywhere in 7,000
+lines**, and eleven panel backgrounds written as literal white —
+`rgba(255,255,255,0.72)`, `rgba(245,245,245,0.95)` and so on. Those are "paper over
+a dark plate" washes: correct in light, and in dark they leave the panel bright
+while `--pf-ink` flips, so the ink inverts against its own background.
+
+Measured on the page, dark theme, before:
+
+| Site | Ink | On | Ratio |
+|---|---|---|---|
+| `.drama-ep-header` — the episode title | `#f5f5f7` | `#e9e9e9` | **1.11:1** |
+| `.drama-ep-editor-box` — the shot prompt | `#f5f5f7` | `#bababa` | **1.78:1** |
+| `.drama-ep-script-issue.is-warn` | `#ffb340` | `#c0b7a9` | **1.11:1** |
+| `.drama-ep-asset-thumb` — the "M" initial | `#45454f` | `#08080a` | **2.11:1** |
+
+The first two mean the episode title and the entire shot-prompt panel were
+unreadable in dark mode. A screenshot of the page at 1280px dark before the fix
+shows a bright header bar with the episode title invisible in it.
+
+Fixed by a dark-only block at the foot of `drama.css` mapping those washes onto
+`--pf-surface-bar` / `--pf-surface-overlay` / `--pf-surface-float`, and by moving
+`.drama-ep-asset-thumb` off `--pf-line-strong` — which is a **border** token being
+used as ink — onto `--pf-ink-tertiary` at 5.26:1 light and 6.79:1 dark. The block
+is dark-only, so no light path changed.
+
+**Two failures remain and both are exempt.** `.drama-ep-compose-btn--header`
+measures 2.48:1 light and 2.27:1 dark, and it is the disabled export button —
+verified `disabled: true` in the DOM, not inferred. WCAG 1.4.3 exempts inactive
+components, and this is the same case section 12b already records for disabled
+labels elsewhere.
+
+**The lesson is the sweep's route list, not the CSS.** Ten of fourteen routes were
+clean and the eleventh found six failures. A sweep is only as good as the routes
+you point it at, and "the pages I already looked at" is not a route list.
+
+---
+
+## 13b. `/method` was a second design system
+
+Not a contrast finding, but it is the reason two contrast numbers above moved, and
+it belongs in this document because the pattern is the general one.
+
+`pages/method/method.css` opened with eleven `--m-*` colours, every one a static
+hex literal, and no `prefers-color-scheme` block anywhere in the file. Measured on
+`prefers-color-scheme: dark`, **the page stayed bright white while every other page
+in the same screenshot run was dark.** Its accent was `#b6ff00` against the
+product's `#f2c94c`; its font stack was `'Noto Sans SC', 'PingFang SC'`, which is
+China-first and renders Vietnamese with a different metric set; and it had three
+separate `Space Grotesk` declarations beside three more in the same stack.
+
+All eleven names now point at `--pf-*`. Because those tokens already flip with the
+theme, the page gained a dark mode without a single `prefers-color-scheme` block.
+The `--m-*` names are kept so the diff reads and the ~500 lines below the block
+stay untouched.
+
+**The general rule:** a page-local palette is a second design system wearing a
+prefix. It costs a theme, it costs a contrast sweep (the sweep finds the ink, but
+a human reading `tokens.css` has no way to know `--m-lime-deep` is even in the
+product), and it will drift. A page may have local *names*; it may not have local
+*values*.
+
+---
+
+## 14. What is deliberately not a token
 
 | Value | Why it stays literal |
 |---|---|
@@ -708,7 +929,7 @@ they are the known tail.
 
 ---
 
-## 14. Open items, highest value first
+## 15. Open items, highest value first
 
 1. **`srcset` on component previews.** `DramaImageStylePreviewImg` loads 2560px
    originals into ~200px boxes. CSS cannot add `srcset` to an `<img src>`. The
@@ -729,10 +950,19 @@ they are the known tail.
 5. **Forced-colours mode** is handled in `base.css` (system colours restored,
    backgrounds and shadows stripped), but it has not been screenshot-verified on
    Windows High Contrast.
+6. **Three tiles still have no plate.** Section 12's table of accent-fill sites
+   was a declaration sweep and missed five real failures (section 2c), so the
+   same class of gap may exist for `background-image` sites. The three
+   placeholders found by eye this pass — `.drama-asset-placeholder`,
+   `.pf-help-cat-media`, `.drama-asset-card .ph` — now carry a plate, but a
+   pixel-based sweep of *every* plate site has not been run.
+7. **`.pf-method-copy { color: … !important }`** in `method.css` fights
+   something unspecified and predates this pass. Left alone rather than remove it
+   blind, but it is a rule that will silently outlive whatever it was overriding.
 
 ---
 
-## 15. How to re-derive any number in this document
+## 16. How to re-derive any number in this document
 
 Every ratio is a WCAG 2.2 relative-luminance computation:
 
@@ -746,3 +976,27 @@ Translucent pairs are composited first — a foreground over a background at alp
 `a` is `fg * a + bg * (1 - a)` — which is how the glass sweep and the media
 ladder were produced. The worst case for anything translucent is the most
 extreme backdrop it can have, not the average one.
+
+### Run the two sweeps
+
+Both need the backend up on `:8000` and a build being served somewhere. They do
+not modify anything; point `AUDIT_BASE` at *your own* build, not a colleague's,
+or every number in the output describes the wrong code.
+
+```powershell
+cd frontend
+$env:VITE_API_BASE = "http://localhost:8000"; npm run build
+npm run preview -- --host 127.0.0.1 --port 4273 --strictPort
+
+# Section 13a — every text pair whose background resolves to a colour.
+$env:AUDIT_BASE = "http://127.0.0.1:4273"
+node scripts\contrast-audit.mjs .kilo\audit\contrast.json
+
+# Section 13 — text on photography, measured on pixels.
+node scripts\contrast-on-media.mjs .kilo\audit\on-media.json
+```
+
+Both clean up the Edge profile they create. If a run is killed mid-flight, delete
+`%TEMP%\novafilm-*-edge-*` by hand: a leaked profile is ~450MB, and enough of them
+will fill the drive — which is exactly what happened during this pass and cost an
+unrecoverable-looking truncated stylesheet before it was spotted.

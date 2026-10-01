@@ -4376,7 +4376,12 @@
   padding-bottom: 133.333%; /* 3:4 */
   background: var(--ep-soft);
   overflow: hidden;
-  color: var(--pf-line-strong);
+  /* `--pf-line-strong` is a BORDER token, not an ink token. It measured
+     #b3b5bd on --pf-surface-sunken at 1.83:1 in light and #45454f on
+     #08080a at 2.11:1 in dark, for the character initial this tile shows when
+     an asset has no image yet. `--pf-ink-tertiary` is the rung meant for a
+     small label on a sunken tile: 5.26:1 light, 6.79:1 dark. */
+  color: var(--pf-ink-tertiary);
   font-weight: 700;
   flex: none;
 }
@@ -7216,4 +7221,80 @@
 .drama-episode-dir-empty > p {
   position: relative;
   z-index: 1;
+}
+
+
+/* ===========================================================================
+   Khoi nen cuoi file nay: cac lop "giay" viet tinh.
+
+   `drama.css` khong co mot khoi `prefers-color-scheme` nao. Mot loat nen panel
+   viet tinh bang `rgba(255,255,255,...)` hoac `rgba(245,245,245,0.95)` — mot
+   lop giay trang phu len mot anh nen toi. O sang thi dung; o toi, muc do trong
+   khong doi, con chu thi doi theo `--pf-ink` va lap nguoc.
+
+   Do tren man hinh that, khong phai do doc code:
+
+     `.drama-ep-header`     nen `#f5f5f5` tinh, chu `--pf-ink` -> `#f5f5f7`
+                            o toi, do tuong phan 1.11:1. Cau tieu de tap
+                            ("Tap 1 - Cuoc gap o cong vien") khong doc duoc.
+     `.drama-ep-editor-box` nen `rgba(255,255,255,0.72)` tren `#08080a` ->
+                            `#bababa`, chu `#f5f5f7` -> 1.78:1. Ca khung chinh
+                            lich va khung nay khong doc duoc o toi.
+     `.drama-ep-script-issue.is-warn` 1.11:1 — ham theo chinh nen do nen se
+                            theo khi hai lop tren dung; khong can sua rieng.
+
+   Chi khai bao o TOI, nen sang giong het va khong co duong nao bi lan. Cac
+   nen trong danh sach duoi day la "giay tren anh nen toi": chung HON mot nen
+   phang vi do phai phai xuyen qua mot buc anh. Do do la `--pf-surface-bar`,
+   `--pf-surface-overlay`, `--pf-surface-float` — ca bau deu lat theo chu de.
+
+   Giu nguyen alpha cua tung lop o phan sang de hinh dang khong doi gi: doi
+   nen, khong doi bo cuc.
+   =========================================================================== */
+@media (prefers-color-scheme: dark) {
+  .drama-agent-tips,
+  .drama-workspace-top,
+  .drama-episodes-tips,
+  .drama-ep-header,
+  .drama-episode-edit-top,
+  .drama-ep-editor-box,
+  .drama-ep-project-output-readonly {
+    background: var(--pf-surface-bar);
+  }
+
+  .drama-agent-char-count {
+    background: var(--pf-surface-float);
+  }
+
+  .drama-style-modal-check.on-media {
+    background: var(--pf-surface-overlay);
+  }
+
+  .drama-project-row-check {
+    background: var(--pf-surface-float);
+  }
+
+  .drama-gen-fab-panel {
+    background: var(--pf-surface-overlay);
+  }
+}
+
+[data-theme='dark'] .drama-agent-tips,
+[data-theme='dark'] .drama-workspace-top,
+[data-theme='dark'] .drama-episodes-tips,
+[data-theme='dark'] .drama-ep-header,
+[data-theme='dark'] .drama-episode-edit-top,
+[data-theme='dark'] .drama-ep-editor-box,
+[data-theme='dark'] .drama-ep-project-output-readonly {
+  background: var(--pf-surface-bar);
+}
+
+[data-theme='dark'] .drama-agent-char-count,
+[data-theme='dark'] .drama-project-row-check {
+  background: var(--pf-surface-float);
+}
+
+[data-theme='dark'] .drama-style-modal-check.on-media,
+[data-theme='dark'] .drama-gen-fab-panel {
+  background: var(--pf-surface-overlay);
 }
