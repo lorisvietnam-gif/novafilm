@@ -239,4 +239,35 @@ export const enShell = {
     WAIT_IMAGE: 'Need image',
     WAIT_VIDEO: 'Need clip',
   },
+
+  /**
+   * Copy for the error notice — the only layer a user actually reads.
+   *
+   * This stands in for the raw backend string: error codes and request ids stay in the
+   * browser console. Every line says what the user can do next, not just that it broke.
+   * Keys mirror `ApiErrorKind` in `lib/apiError.ts`.
+   */
+  errors: {
+    title: 'Something went wrong',
+    aiAuth:
+      'Could not reach the AI service. Check your API key in Settings, then try again — the key is usually expired or revoked.',
+    aiRateLimit:
+      'The AI service is taking too many requests right now. Wait about a minute and try again, or generate fewer shots per run.',
+    aiUnavailable:
+      'The AI service did not respond. Try again in a few minutes, or check your API key in Settings.',
+    billing: 'Not enough balance for this step. Top up and try again — everything already generated is kept.',
+    quota: 'You have used all the quota on your current plan. Upgrade the plan, or wait for the next billing period.',
+    auth: 'Your session has expired. Sign in again to continue — the project is not lost.',
+    notFound: 'That item could not be found. Reload the page, or go back to the list and pick another.',
+    validation: 'Some input was not accepted. Fix the highlighted fields and try again.',
+    rateLimit: 'That was a little too fast. Wait a few seconds and try again.',
+    network:
+      'Connection failed — could not reach the server. Check your network and try again, or come back in a few minutes while the server is down for maintenance.',
+    invalid: 'Failed to fetch — the server sent a reply this page could not read. Please try again.',
+    unknown:
+      'Something failed while generating. Try again in a few minutes; if it keeps failing, tell us which project it was.',
+    retry: 'Try again',
+    dismiss: 'Dismiss',
+    topUp: 'Top up →',
+  },
 } as const
