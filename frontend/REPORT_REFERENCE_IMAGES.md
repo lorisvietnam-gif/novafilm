@@ -47,7 +47,19 @@ Trước merge: `git diff --stat main..bunny/1` = **84 file, +632 / −9122** (n
 |---|---|
 | `frontend/src/lib/referenceImages.ts` (136 dòng, mới hoàn toàn) | còn |
 | `CanvasStore.tsx` — chặn trần 9 ảnh trước khi gọi API | còn |
-| `CanvasNodeGeneratePanel.tsx` | còn |
+
+### Đính chính một điểm trong brief
+
+Brief §2 liệt kê `CanvasNodeGeneratePanel.tsx` là "sửa đổi nhỏ của bạn". Kiểm tra bằng
+`git log origin/main..HEAD -- …/CanvasNodeGeneratePanel.tsx` cho ra **rỗng** — trong hai commit
+của tôi (`2e3d160`, `2b630f2`) **không hề có** file này. Việc thật của tôi chỉ gồm đúng hai
+file: `referenceImages.ts` (136 dòng) và `CanvasStore.tsx` (+10).
+
+Sau merge, file đó **giống hệt `main`** (`git diff origin/main -- …` rỗng). Nghĩa là không có
+mất mát gì: hoặc brief ghi thừa một file, hoặc có tiến trình khác đã sửa nó rồi được `main`
+hợp nhất trước. Tôi ghi ra đây để board không đối chiếu danh sách của brief với nhánh rồi tưởng
+tôi xoá việc của chính mình — đó là **cùng một bài học** mà báo cáo backend §2.3 của lane
+`bunny/4` đã ghi lại.
 
 ### Nguyên nhân gốc
 
