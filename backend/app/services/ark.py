@@ -66,6 +66,7 @@ from app.services.tokenfree_video import (
 )
 from app.services import storage
 from app.services.drama.seedance_i2v_role import resolve_seedance_i2v_image_role
+from app.services.media_ref_limits import MAX_REFERENCE_IMAGES
 from app.services.ffmpeg_compose import is_near_silent_audio
 from app.services.drama.llm import _extract_json
 from app.services.llm_client import chat_completions
@@ -1162,15 +1163,28 @@ class ArkGateway:
         # 纯 first_frame 禁止传 ratio，且实测即使静帧竖屏也可能吐横屏。
         image_role, target_ratio = resolve_seedance_i2v_image_role(ratio)
         extra_refs: list[str] = []
+        # 同一张图重复提交会被上游按张数计；静帧本身也占一张，先去重再算张数
+        seen_refs: set[str] = {image_ref}
         for raw in extra_image_urls or []:
             text_url = str(raw or "").strip()
-            if not text_url:
+            if not text_url or text_url in seen_refs:
                 continue
+            seen_refs.add(text_url)
             try:
                 safe_extra = await ensure_seedance_compatible_image_url(text_url)
-                extra_refs.append(await self._resolve_image_ref(safe_extra, prefer_https=True))
+                resolved_extra = await self._resolve_image_ref(safe_extra, prefer_https=True)
             except Exception:  # noqa: BLE001
                 logger.warning("Seedance extra ref resolve failed url=%s", text_url[:120])
+                continue
+            if resolved_extra in seen_refs:
+                continue
+            seen_refs.add(resolved_extra)
+            extra_refs.append(resolved_extra)
+        # 静帧 + 参考图合计超上限就报错；悄悄截断会让角色画错
+        if len(extra_refs) + 1 > MAX_REFERENCE_IMAGES:
+            raise RuntimeError(
+                f"Seedance 参考图 {len(extra_refs) + 1} 张，超过单次上限 {MAX_REFERENCE_IMAGES} 张"
+            )
         if extra_refs:
             # 多图只能走 reference_image，不能与 first_frame 混用
             image_role = "reference_image"
@@ -1184,7 +1198,7 @@ class ArkGateway:
                 "role": image_role,
             },
         ]
-        for extra in extra_refs[:2]:
+        for extra in extra_refs:
             content.append(
                 {
                     "type": "image_url",
