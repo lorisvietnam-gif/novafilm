@@ -144,17 +144,16 @@ báo origin của frontend.
 6. **Docker:** chỉ cần `Dockerfile` + `docker-compose.yml` sẵn sàng. **Không bắt buộc build image
    trên máy cá nhân.**
 
-### Điểm board đã nêu và cần chủ sản phẩm xác nhận
-Kế hoạch ban đầu nói *"xem lại video cũ thì load URL gốc từ CDN nhà cung cấp"*. **URL đó có thời
-hạn** — thường chỉ sống vài giờ đến vài ngày, nên sẽ không phát được sau đó. Phương án thay thế là
-render lại từ prompt đã lưu, tức **mỗi lần xem lại là một lần tạo video mới**.
+### Điểm đã CHỐT — không còn là câu hỏi mở
+Chủ sản phẩm **xác nhận**: URL từ AI Gateway / nhà cung cấp upstream **hầu hết là URL ký số
+(presigned) và chết sau vài giờ đến vài ngày**. Nếu chỉ lưu URL gốc mà không có bản lưu vĩnh
+viễn, tính năng *"Xem lại lịch sử tác phẩm"* sau một đêm sẽ thành **đống link 403/404**.
 
-**Khuyến nghị của board:** R2 giữ **tác phẩm đã render**. Đó chính là lý do R2 miễn phí egress.
-Cái nằm trong DB là **tri thức**; cái nẩm trong R2 là **tác phẩm**. Như vậy vẫn không lưu gì trên
-đĩa VPS và vẫn không tốn tiền băng thông, mà video cũ vẫn xem lại được.
+**Chốt:** R2 giữ **tác phẩm đã render**. Postgres giữ **tri thức**. Đó là lý do chọn R2 — egress
+miễn phí. Không lưu gì trên đĩa VPS, không tốn tiền băng thông, và tác phẩm tồn tại vĩnh viễn.
 
-Còn mở: bunny/4 được giao **tìm bằng chứng** về thời hạn URL nhà cung cấp trong code, và nếu tìm
-được bằng chứng trái với dự đoán của board thì phải nói thẳng.
+Phương án *"xem lại thì render lại từ prompt đã lưu"* bị loại: mỗi lần xem lại là một lần tạo
+video mới — tốn tiền và phải chờ.
 
 ### Hệ quả phải xử lý
 `backend/app/api/drama/assets.py` hiện **ghi ảnh tải lên xuống `static/generated/p{project_id}/`**
