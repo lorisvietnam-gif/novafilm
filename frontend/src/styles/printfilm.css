@@ -688,12 +688,27 @@
   margin: 0 0 3rem;
 }
 
+/* --------------------------------------------------------------------------
+   The two product cards are the first thing under the hero, so they carry the
+   first real photograph: the still is a full-height column on the LEFT and the
+   copy sits beside it, not under it. Before this the still was a 96px square,
+   which read as an icon chip rather than as a frame.
+
+   `align-items: stretch` lets the art take the card's full height, and the art's
+   right edge is MASKED rather than bordered, so the photograph dissolves into the
+   card surface instead of being cut by a hard vertical line. The card clips it,
+   so the mask is the only seam there is.
+
+   All the copy stays on the flat card surface — no text sits on these pixels, so
+   the pair is the ordinary surface/ink pair already measured by contrast-audit.
+   -------------------------------------------------------------------------- */
 .pf-land-product {
   display: flex;
-  align-items: flex-start;
-  gap: 1rem;
+  align-items: stretch;
+  gap: 0;
   width: 100%;
-  padding: 1.45rem 1.35rem;
+  padding: 0;
+  overflow: hidden;
   border-radius: 22px;
   border: 1px solid var(--pf-line);
   background: var(--pf-surface);
@@ -727,14 +742,20 @@
   background: var(--pf-surface-sunken);
 }
 
+/* The still column. No border-radius of its own — the card clips it — and the
+   mask is what makes the join soft. */
 .pf-land-product-art {
   position: relative;
   flex-shrink: 0;
-  width: 96px;
-  height: 96px;
-  border-radius: var(--pf-radius-md);
+  align-self: stretch;
+  width: 232px;
+  height: auto;
+  min-height: 212px;
+  border-radius: 0;
   overflow: hidden;
   background: var(--pf-surface-sunken);
+  -webkit-mask-image: linear-gradient(to right, #000 66%, transparent 100%);
+  mask-image: linear-gradient(to right, #000 66%, transparent 100%);
 }
 
 .pf-land-product-art img {
@@ -744,13 +765,17 @@
   display: block;
 }
 
-/* Icon 48px thu nhỏ thành huy hiệu ở góc dưới trái của ảnh thu nhỏ */
+/* Icon stays a 30px badge on the still, now pinned to the bottom-left of a
+   full-height column instead of a 96px square. It sits on the darkest, most
+   opaque part of the frame, and it rides the mask, so it needs its own stacking
+   slot to stay above the fade. */
 .pf-land-product-art .pf-land-product-icon {
   position: absolute;
-  left: 6px;
-  bottom: 6px;
-  width: 30px;
-  height: 30px;
+  z-index: 1;
+  left: 10px;
+  bottom: 10px;
+  width: 34px;
+  height: 34px;
   border-radius: var(--pf-radius-sm);
   font-size: 0.95rem;
 }
@@ -769,9 +794,13 @@
 .pf-land-product-body {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 0.28rem;
   flex: 1;
   min-width: 0;
+  /* The card no longer has padding, so the copy column supplies its own and the
+     still can bleed to the card edge. */
+  padding: 1.45rem 1.15rem;
 }
 
 .pf-land-product-body strong {
@@ -841,7 +870,8 @@
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  margin-top: 0.2rem;
+  align-self: center;
+  margin: 0 1.35rem;
 }
 
 .pf-land-section-head {
@@ -875,16 +905,48 @@
   list-style: none;
 }
 
+/* The three steps each open on a 16:10 frame. Landscape here, against the
+   portrait still of the product cards above, so the page does not repeat one
+   shape down the whole column. The card clips the bleed, so the frame reaches
+   the card edges and the copy below keeps the original padding. */
 .pf-land-pipeline-list li {
+  position: relative;
   background: var(--pf-surface);
   border: 1px solid var(--pf-line);
   border-radius: 18px;
-  padding: 1.15rem 1.2rem 1.25rem;
+  padding: 0 1.2rem 1.25rem;
+  overflow: hidden;
 }
 
-.pf-land-step-no {
+.pf-land-step-art {
+  position: relative;
   display: block;
-  margin-bottom: 0.55rem;
+  margin: 0 -1.2rem 1rem;
+  aspect-ratio: 16 / 10;
+  background: var(--pf-surface-sunken);
+}
+
+.pf-land-step-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* The step number moves onto the seam between frame and copy. Its fill is the
+   OPAQUE card surface, not a scrim — so the pair it draws is the same
+   surface/accent-ink pair the card already used in text form, and nothing about
+   it has to be measured against a photograph. */
+.pf-land-step-no {
+  position: absolute;
+  left: 1.2rem;
+  bottom: 0;
+  z-index: 1;
+  transform: translateY(38%);
+  padding: 0.24rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--pf-line);
+  background: var(--pf-surface);
   font-family: 'Space Grotesk', 'Noto Sans', 'Noto Sans SC', sans-serif;
   font-size: 0.82rem;
   font-weight: 650;
@@ -910,6 +972,68 @@
   margin: 0 0 3rem;
 }
 
+/* --------------------------------------------------------------------------
+   The style reel — all 21 looks, as one wide strip.
+
+   The repository ships 21 styles and 47 derivatives and the landing page showed
+   two of them. This is the contact sheet: a horizontal rail of 156x208 frames,
+   the shape of a strip of film rather than a grid of tiles. It scrolls sideways
+   on purpose — that keeps the strip 21 stills tall instead of seven rows, and it
+   means the browser only ever fetches the frames near the viewport, because every
+   `img` in here is `loading="lazy"`.
+
+   The mask on the right edge is the scroll affordance: the last visible frame
+   dissolves instead of being sliced by the container.
+   -------------------------------------------------------------------------- */
+.pf-land-reel {
+  display: flex;
+  gap: 0.6rem;
+  margin: 0 0 1.5rem;
+  padding-bottom: 0.35rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  -webkit-mask-image: linear-gradient(to right, #000 92%, transparent 100%);
+  mask-image: linear-gradient(to right, #000 92%, transparent 100%);
+}
+
+.pf-land-reel-cell {
+  flex: 0 0 auto;
+  width: 156px;
+  margin: 0;
+  scroll-snap-align: start;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: var(--pf-radius-md);
+  border: 1px solid var(--pf-line);
+  background: var(--pf-surface-sunken);
+}
+
+.pf-land-reel-cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* The edge of a film strip between the tools heading and the tool tiles. Pure CSS —
+   two hairlines with a run of perforations between them, not a drawn asset — and
+   it is the one piece of the page that needs no photograph because it is already a
+   picture of the thing the page is selling. The holes take `--pf-ink-rgb`, which
+   is near-white in dark mode and near-black in light, so they read as holes on the
+   page's own surface in both themes instead of vanishing into one of them. */
+.pf-land-sprocket {
+  height: 14px;
+  margin-bottom: 1rem;
+  border-top: 1px solid var(--pf-line);
+  border-bottom: 1px solid var(--pf-line);
+  background-image: linear-gradient(to right, rgb(var(--pf-ink-rgb) / 0.22) 0 5px, transparent 5px 16px);
+  background-size: 16px 6px;
+  background-position: left center;
+  background-repeat: repeat-x;
+}
+
 .pf-land-cap-grid,
 .pf-land-who-grid {
   display: grid;
@@ -927,6 +1051,27 @@
   border: 1px solid var(--pf-line);
   border-radius: 16px;
   padding: 1.1rem 1.15rem;
+}
+
+/* The audience cards open on a 21:9 band — much wider than the pipeline frames
+   above them — so three consecutive sections never share a silhouette. */
+.pf-land-who-grid article {
+  padding: 0 1.15rem 1.1rem;
+  overflow: hidden;
+}
+
+.pf-land-who-art {
+  display: block;
+  margin: 0 -1.15rem 0.95rem;
+  aspect-ratio: 21 / 9;
+  background: var(--pf-surface-sunken);
+}
+
+.pf-land-who-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .pf-land-cap-grid strong,
@@ -990,8 +1135,28 @@
 
 /* The closing band is the one warm daylight frame in the set, so the exhale
    after a dark hero reads as a deliberate change of light rather than another
-   dark slab. Full-bleed, same alignment trick as the hero. */
+   dark slab. Full-bleed, same alignment trick as the hero.
+
+   The photograph is an `<img>` child rather than a background layer, because a
+   CSS background image cannot be lazy-loaded and this band is ~2400px below the
+   top of the page. Three stacked layers, bottom to top:
+
+     0  `.pf-land-close-art`  the photograph, lazy
+     1  `::before`            the scrim ladder — SAME gradient the background used
+     2  the copy              z-index 2 via `.pf-land-close > *`
+
+   The scrim and the frame offset are custom properties so media.css can rotate
+   them at narrow widths without restating the ladder — see the note there. */
 .pf-land-close {
+  --pf-land-close-scrim: linear-gradient(
+    100deg,
+    var(--pf-media-scrim-full) 0%,
+    var(--pf-media-scrim-strong) 28%,
+    var(--pf-media-scrim) 50%,
+    var(--pf-media-scrim-soft) 72%,
+    var(--pf-media-scrim-none) 94%
+  );
+  --pf-land-close-frame-position: 40% 62%;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -999,26 +1164,39 @@
   flex-wrap: wrap;
   position: relative;
   isolation: isolate;
+  overflow: hidden;
   margin: 0 0 var(--pf-rhythm-section);
   margin-inline: calc(50% - 50vw);
   padding-block: clamp(2.5rem, 5vw, 3.75rem);
   padding-inline: max(var(--pf-gutter), calc(50vw - (var(--pf-shell-max) - 3rem) / 2));
   color: var(--pf-on-media-strong);
   background-color: var(--pf-scrim-rgb);
-  background-image:
-    linear-gradient(
-      100deg,
-      var(--pf-media-scrim-full) 0%,
-      var(--pf-media-scrim-strong) 28%,
-      var(--pf-media-scrim) 50%,
-      var(--pf-media-scrim-soft) 72%,
-      var(--pf-media-scrim-none) 94%
-    ),
-    var(--pf-media-band-hills);
-  background-size: cover, cover;
-  background-position: center, 40% 62%;
-  background-repeat: no-repeat, no-repeat;
   border: 0;
+}
+
+.pf-land-close > * {
+  position: relative;
+  z-index: 2;
+}
+
+.pf-land-close-art {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: var(--pf-land-close-frame-position);
+  display: block;
+}
+
+.pf-land-close::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: var(--pf-land-close-scrim);
+  pointer-events: none;
 }
 
 .pf-land-close h2 {
@@ -7691,6 +7869,17 @@ button.pf-shot-editable:disabled {
     min-height: 0;
   }
 
+  /* Two product cards side by side no longer have room for a fixed 232px still
+     column plus a chevron, so the still tracks the viewport instead of a fixed
+     width, and the chevron goes — the card is still one big button target. */
+  .pf-land-product-art {
+    width: clamp(126px, 25vw, 200px);
+  }
+
+  .pf-land-product-go {
+    display: none;
+  }
+
   .pf-drama-card-grid,
   .pf-plan-grid,
   .pf-help-cats {
@@ -8216,25 +8405,34 @@ button.pf-shot-editable:disabled {
 }
 
 @media (max-width: 560px) {
+  /* A 232px column cannot survive a 360px screen, so the still moves back to a
+     banner above the copy and the card regains its own padding. The card still
+     clips the banner, and the banner keeps its own radius only because the mask
+     has to come off: fading the full width of the card would eat the card edge. */
   .pf-land-product {
     flex-wrap: wrap;
-    padding: var(--pf-space-4);
-    gap: var(--pf-space-3);
+    padding: 0;
+    gap: 0;
   }
 
-  /* The thumbnail becomes a banner above the copy instead of a 96px square
-     beside it, so the description gets the full card width. */
   .pf-land-product-art {
     width: 100%;
-    height: 132px;
-    border-radius: var(--pf-radius-md);
+    min-height: 0;
+    height: 168px;
+    border-radius: 0;
+    -webkit-mask-image: none;
+    mask-image: none;
   }
 
   .pf-land-product-art .pf-land-product-icon {
     left: auto;
-    right: var(--pf-space-2);
-    top: var(--pf-space-2);
+    right: var(--pf-space-3);
+    top: var(--pf-space-3);
     bottom: auto;
+  }
+
+  .pf-land-product-body {
+    padding: var(--pf-space-4);
   }
 
   .pf-land-product-body strong {
@@ -8246,6 +8444,18 @@ button.pf-shot-editable:disabled {
      The banner image carries the affordance instead. */
   .pf-land-product-go {
     display: none;
+  }
+
+  /* The reel is already a rail; on a narrow screen the frames shrink rather than
+     the rail wrapping, and the right fade is removed because at this width the
+     fade would cover a third of the visible strip. */
+  .pf-land-reel {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  .pf-land-reel-cell {
+    width: 132px;
   }
 }
 
