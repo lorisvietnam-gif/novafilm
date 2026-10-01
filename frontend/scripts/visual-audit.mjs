@@ -305,13 +305,24 @@ async function ensureData(token) {
     out.studio = created.id
   }
 
-  const dramas = await api('/api/drama/projects', { headers })
-  if (asList(dramas).length) {
-    out.drama = dramas[0].id
+  // Chọn project drama **đã có tập**, không phải project mới nhất.
+  //
+  // Trước đây lấy `dramas[0]`, tức project mới nhất. Nhưng project vừa tạo chưa chạy script
+  // nên `episode_count = 0`, và route `/drama/projects/{d}/episodes/{e}` bị rơi khỏi danh
+  // sách: audit chỉ còn 48/50 route mà vẫn in tổng kết như thể đã đủ. Đo được: database có
+  // project id=4 với 2 tập, nhưng audit vẫn báo `episode=null` vì id=10 mới hơn lại rỗng.
+  //
+  // Duyệt từng project cho tới khi thấy project nào có tập thật; chỉ tạo mới khi không có.
+  const dramaList = asList(await api('/api/drama/projects', { headers }))
+  for (const d of dramaList) {
     try {
-      const eps = asList(await api(`/api/drama/episodes?project_id=${out.drama}`, { headers }))
-      if (asList(eps).length) out.episode = eps[0].id
-    } catch { /* chua co tap */ }
+      const eps = asList(await api(`/api/drama/episodes?project_id=${d.id}`, { headers }))
+      if (eps.length) {
+        out.drama = d.id
+        out.episode = eps[0].id
+        break
+      }
+    } catch { /* project nay khong doc duoc danh sach tap */ }
   }
 
   if (!out.drama) {
@@ -337,8 +348,40 @@ async function ensureData(token) {
   return out
 }
 
+/**
+ * Chặn sớm khi ổ đĩa đầy.
+ *
+ * Đã xảy ra thật: máy còn **4.8MB trống** và audit chết giữa chừng với
+ * `ENOSPC: no space left on device` khi ghi ảnh. Nguyên nhân gốc là rò profile: mỗi lần
+ * chạy để lại ~490MB trong `edge-profile-<pid>`, và 23 lần chạy là đầy ổ.
+ *
+ * Báo lỗi ngay ở đầu thay vì để chết lúc ghi ảnh — và nói rõ cần dọn cái gì.
+ */
+function assertDiskSpace() {
+  const needBytes = 400 * 1024 * 1024
+  // Lấy ký tự ổ từ đường dẫn ảnh: `D:\...` -> `D`.
+  const drive = /([A-Za-z]):/.exec(resolve(OUT))?.[1]
+  if (!drive) return
+  let free = Infinity
+  try {
+    const probe = execFileSync('powershell', ['-NoProfile', '-Command',
+      `(Get-PSDrive -Name '${drive.toUpperCase()}').Free`],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 8000 })
+    free = Number(probe.trim())
+  } catch {
+    return // không đo được thì đừng chặn audit
+  }
+  if (!Number.isFinite(free) || free >= needBytes) return
+  throw new Error(
+    `O dia chi con ${(free / 1024 / 1024).toFixed(1)}MB — khong du de luu 50 anh chup. `
+      + `Do la hau qua cua viec ro profile cua cac lan chay truoc. `
+      + `Don cac thu muc \`frontend/.kilo/edge-profile-*\` roi chay lai.`,
+  )
+}
+
 async function main() {
   console.log(`anh chup o: ${OUT}`)
+  assertDiskSpace()
   const token = await getToken()
   console.log('da lay token')
 
