@@ -17,14 +17,20 @@ from __future__ import annotations
 from app.services.drama.seedance_i2v_role import resolve_seedance_i2v_image_role
 from app.services.media_ref_limits import (
     MAX_REFERENCE_IMAGES,
+    ReferenceImageError,
     cap_url_list,
     subject_image_budget,
 )
 from app.services.style_lock import seedream_ref_urls, split_seedream_subject_style_refs
 
-
-class ReferenceImageError(ValueError):
-    """参考图不合法；``str(exc)`` 直接就是给用户看的报错文案。"""
+__all__ = [
+    "MAX_REFERENCE_IMAGES",
+    "ReferenceImageError",
+    "ensure_reference_image_mode",
+    "merge_video_extra_refs",
+    "reference_image_budget",
+    "resolve_project_reference_images",
+]
 
 
 # 本镜静帧永远占一张（ark content[1]）
