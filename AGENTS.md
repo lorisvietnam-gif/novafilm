@@ -169,12 +169,6 @@ báo origin của frontend.
   trong khi `/api/billing/preflight` báo `false` cùng lúc. Ở `auth.py` nó nằm trong luồng xác
   thực — **đừng sửa vội.** Phải có test xác thực xanh trước, rồi mới đổi sang `get_settings()`
   lúc gọi hàm. Xem `docs/briefs/` khi giao.
-- **`auth.py:36` chụp `settings = get_settings()` ở cấp module — CHƯA SỬA, cố ý để riêng.**
-  `billing.py:32` có đúng lỗi đó và đã sửa (`422265a`): giá trị bị đóng băng lúc import,
-  **trước** khi lifespan nạp overlay từ DB, nên `/api/billing/wallet` báo `billing_enabled: true`
-  trong khi `/api/billing/preflight` báo `false` cùng lúc. Ở `auth.py` nó nằm trong luồng xác
-  thực — **đừng sửa vội.** Phải có test xác thực xanh trước, rồi mới đổi sang `get_settings()`
-  lúc gọi hàm. Xem `docs/briefs/` khi giao.
 
 ## 11. BÁO CÁO CỦA LANE PHẢI NẰM TRÊN ĐĨA
 Tiến trình `kilo run` **không gửi được tin nhắn lên board** (bị từ chối với `Board messages
