@@ -6,6 +6,15 @@ from __future__ import annotations
 MAX_REFERENCE_IMAGES = 9
 
 
+class ReferenceImageError(ValueError):
+    """参考图违规；``str(exc)`` 直接就是给用户看的报错文案。
+
+    住在本模块而不是各调用方，因为上限是全局的、错误类型也必须是**同一个**：
+    谁都可能在拼请求体时撞上限（API 层校验、Seedance 拼装、TokenFree 包装），
+    上层只需要 ``except ReferenceImageError`` 就能一网打尽。
+    """
+
+
 def cap_url_list(urls: list[str] | None, *, limit: int = MAX_REFERENCE_IMAGES) -> list[str]:
     """去重并截到上游可上传张数。"""
     out: list[str] = []

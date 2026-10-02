@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.services.media_ref_limits import MAX_REFERENCE_IMAGES
+from app.services.media_ref_limits import MAX_REFERENCE_IMAGES, ReferenceImageError
 from app.services.tokenfree_gateway import TOKENFREE_CHANNEL_ID
 
 # 方舟原生异步视频任务前缀
@@ -73,6 +73,11 @@ def wrap_seedance_payload_for_newapi(payload: dict[str, Any]) -> dict[str, Any]:
     TokenFree 会把 metadata.input 转成下游插件 `{model, input}`。
     下游 Seedance 只认 reference_image_urls / first_frame_url，不认 content/images。
     多参考时禁止再写顶层 image / images，也不要把同一批图塞进 content，否则会按张数重复计数并触发参考图上限。
+
+    Raises:
+        ReferenceImageError: 去重后参考图超过 ``MAX_REFERENCE_IMAGES`` 张。
+            这里是最后一道关卡，所以**报错**而不是截断 —— 上一版在 9 张处
+            ``break``，多出来的图人间蒸发且无人知情。
     """
     src = dict(payload)
     content = src.get("content")
@@ -108,19 +113,27 @@ def wrap_seedance_payload_for_newapi(payload: dict[str, Any]) -> dict[str, Any]:
             duration_text = str(duration).strip()
     ratio = str(src.get("ratio") or "").strip()
     uses_reference_images = any(role == "reference_image" for role in image_roles)
-    capped_images: list[str] = []
-    capped_roles: list[str] = []
+    # 同一张图重复提交会被上游按张数计，所以先按 URL 去重再算张数。
+    # 关键：**去重之后不截断**。超过 9 张直接报错给调用方，而不是悄悄丢掉多出来的图 ——
+    # 被丢掉的那张可能正是角色定妆照，用户却毫不知情，只会觉得"AI 画错人了"。
+    unique_images: list[str] = []
+    unique_roles: list[str] = []
     seen_urls: set[str] = set()
     for url, role in zip(images, image_roles):
         if url in seen_urls:
             continue
         seen_urls.add(url)
-        capped_images.append(url)
-        capped_roles.append(role)
-        if len(capped_images) >= MAX_REFERENCE_IMAGES:
-            break
-    images = capped_images
-    image_roles = capped_roles
+        unique_images.append(url)
+        unique_roles.append(role)
+    if len(unique_images) > MAX_REFERENCE_IMAGES:
+        raise ReferenceImageError(
+            f"Yêu cầu có {len(unique_images)} ảnh tham chiếu, vượt trần "
+            f"{MAX_REFERENCE_IMAGES} ảnh mỗi lượt "
+            f"(sẽ bị bỏ {len(unique_images) - MAX_REFERENCE_IMAGES} ảnh). "
+            "Hệ thống không tự cắt bớt — bạn xoá bớt ảnh rồi tạo lại."
+        )
+    images = unique_images
+    image_roles = unique_roles
     meta_input: dict[str, Any] = {}
     if duration_text:
         meta_input["duration"] = duration_text
