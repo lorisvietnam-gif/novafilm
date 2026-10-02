@@ -439,17 +439,53 @@ async def _ensure_bootstrapped_channels(db: AsyncSession) -> list[SystemModelCha
     return rows
 
 
+def _heal_env_channel_row(row: SystemModelChannelRow, channel: SystemModelChannel) -> bool:
+    """Bật lại dòng của nhà cung cấp mà `.env` đang khai; điền phần còn trống.
+
+    Bản gốc tắt **mọi** dòng không phải TokenFree ở mỗi lần nạp cấu hình, nên dòng của Kira
+    (và của nhà cung cấp văn bản) bị tắt vĩnh viễn: `synchronize_logical_models_with_channels`
+    bỏ qua channel `enabled=False`, nên `hy-image-v3.5-free` không bao giờ có logical model,
+    và request sinh ảnh rơi xuống Seedream của TokenFree.
+
+    Ở bản mở, admin chỉ quản lý được channel TokenFree
+    (`get_admin_routing_settings` lọc ra TokenFree), nên không có đường nào tắt channel của
+    nhà cung cấp khác có chủ đích. Vì vậy bật lại ở đây là **hồi phục**, không phải ghi đè lựa
+    chọn của người dùng: `base_url` chỉ điền khi trống, khoá chỉ điền khi dòng chưa có khoá,
+    còn `models` / `sort_order` / `advanced_config` giữ nguyên — đó là điều kiện để
+    `PATCH /api/admin/settings/models` không bị đọc lại thành giá trị cũ.
+    """
+    changed = False
+    if channel.enabled and not row.enabled:
+        row.enabled = True
+        changed = True
+    if channel.api_key and not _decrypt_secret(row.api_key_ciphertext or ""):
+        row.api_key_ciphertext = _encrypt_secret(channel.api_key)
+        changed = True
+    if channel.base_url and not (row.base_url or "").strip():
+        row.base_url = channel.base_url
+        changed = True
+    return changed
+
+
 async def _ensure_env_channels(db: AsyncSession, existing: list[SystemModelChannelRow]) -> None:
     """Bảo đảm có channel cho mỗi nhà cung cấp khai trong `.env`, nếu chưa có thì thêm.
 
     Idempotent: chỉ tạo dòng khi thiếu. Cột đã có thì **không** bị ghi đè — đó là nguyên nhân
     khiến `PATCH /api/admin/settings/models` trả 200 rồi đọc lại thì về giá trị cũ.
+    Dòng đã có mà bị tắt thì được bật lại: xem `_heal_env_channel_row`.
     """
     rows = {row.id: row for row in existing}
     from app.services.tokenfree_gateway import TOKENFREE_CHANNEL_ID
 
+    changed = False
     for channel in _bootstrap_channels_from_env():
-        if channel.id == TOKENFREE_CHANNEL_ID or channel.id in rows:
+        if channel.id == TOKENFREE_CHANNEL_ID:
+            continue
+        existing_row = rows.get(channel.id)
+        if existing_row is not None:
+            if _heal_env_channel_row(existing_row, channel):
+                db.add(existing_row)
+                changed = True
             continue
         row = SystemModelChannelRow(
             id=channel.id,
@@ -467,6 +503,11 @@ async def _ensure_env_channels(db: AsyncSession, existing: list[SystemModelChann
         )
         db.add(row)
         rows[channel.id] = row
+        changed = True
+    if changed:
+        # Nạp cấu hình là việc đọc; chỉ khi có dòng mới / dòng vừa hồi phục mới ghi xuống,
+        # để lần nạp sau không phải lặp lại việc này nữa.
+        await db.commit()
 
 
 async def _ensure_tokenfree_channel(db: AsyncSession, existing: list[SystemModelChannelRow]) -> None:
@@ -479,6 +520,9 @@ async def _ensure_tokenfree_channel(db: AsyncSession, existing: list[SystemModel
     )
     from app.services.tokenfree_pricing import canonicalize_channel_models
 
+    env_enabled_ids = {
+        channel.id for channel in _bootstrap_channels_from_env() if channel.enabled
+    }
     runtime = [_channel_row_to_runtime(row) for row in existing]
     migrated_key = pick_migratable_api_key(runtime)
     token_row = next((row for row in existing if row.id == TOKENFREE_CHANNEL_ID), None)
@@ -521,7 +565,10 @@ async def _ensure_tokenfree_channel(db: AsyncSession, existing: list[SystemModel
         if merged != list(token_row.models or []):
             token_row.models = merged
     for row in existing:
-        if row.id != TOKENFREE_CHANNEL_ID:
+        # Dòng lạ (mua sẵn, còn sót) thì tắt. Nhưng nhà cung cấp mà `.env` **đang khai** thì
+        # phải sống: vòng lặt này trước đây tắt luôn chúng, nên channel Kira ảnh và channel
+        # văn bản bị tắt vĩnh viễn ở lần nạp thứ hai trở đi.
+        if row.id != TOKENFREE_CHANNEL_ID and row.id not in env_enabled_ids:
             row.enabled = False
     await db.commit()
 
