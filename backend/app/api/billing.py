@@ -39,14 +39,17 @@ class CreateOrderBody(BaseModel):
 
 @router.get("/wallet")
 async def wallet(user: User = Depends(get_current_user)) -> dict:
+    # 不用模块级的 `settings`：它在本模块 import 时就求值，早于 lifespan 从数据库
+    # 覆盖配置，于是会报出与 /preflight 相反的 billing_enabled。
+    current = get_settings()
     return {
         "balance_fen": int(user.balance_fen or 0),
         "frozen_fen": int(user.frozen_fen or 0),
         "balance_yuan": round(int(user.balance_fen or 0) / 100, 2),
         "frozen_yuan": round(int(user.frozen_fen or 0) / 100, 2),
         "plan": user.plan or "free",
-        "billing_enabled": settings.billing_enabled,
-        "markup": settings.billing_markup,
+        "billing_enabled": current.billing_enabled,
+        "markup": current.billing_markup,
     }
 
 
