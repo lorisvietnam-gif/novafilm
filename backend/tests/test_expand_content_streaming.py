@@ -1,4 +1,4 @@
-"""Regression tests for the `script` mode rewrite.
+﻿"""Regression tests for the `script` mode rewrite.
 
 Two things this file locks, both of which were measured, not guessed:
 
@@ -22,6 +22,7 @@ import pytest
 
 from app.services.ark import _EXPAND_LENGTH_RULES, ArkGateway
 from app.services.llm_client import (
+    _read_sse_chunk,
     _read_sse_delta,
     _stream_chat,
     _upstream_error,
@@ -35,6 +36,11 @@ def _sse(payload: dict) -> str:
 
 def _delta(content: str = "", reasoning: str = "") -> str:
     return _sse({"choices": [{"delta": {"content": content, "reasoning_content": reasoning}}]})
+
+
+def _finished(*deltas: str) -> str:
+    """A complete stream: deltas plus the [DONE] terminator a real provider sends."""
+    return "\n".join([*deltas, "data: [DONE]"])
 
 
 # --- SSE parsing ----------------------------------------------------------------
@@ -80,10 +86,11 @@ def _stream_transport() -> httpx.MockTransport:
 
 async def test_stream_chat_assembles_the_whole_reply():
     async with httpx.AsyncClient(transport=_stream_transport()) as client:
-        status, content, err = await _stream_chat(client, "http://x/v1/chat/completions", {}, {})
-    assert status == 200
-    assert content == "Ghép cà phê"
-    assert err == ""
+        result = await _stream_chat(client, "http://x/v1/chat/completions", {}, {})
+    assert result.status == 200
+    assert result.content == "Ghép cà phê"
+    assert result.err_body == ""
+    assert result.complete is True
 
 
 async def test_stream_chat_returns_error_body_for_upstream_failures():
@@ -92,10 +99,40 @@ async def test_stream_chat_returns_error_body_for_upstream_failures():
         lambda request: httpx.Response(504, text="<html>504 Gateway Time-out</html>")
     )
     async with httpx.AsyncClient(transport=transport) as client:
-        status, content, err = await _stream_chat(client, "http://x/v1/chat/completions", {}, {})
-    assert status == 504
-    assert content == ""
-    assert "504" in err
+        result = await _stream_chat(client, "http://x/v1/chat/completions", {}, {})
+    assert result.status == 504
+    assert result.content == ""
+    assert "504" in result.err_body
+
+
+async def test_stream_chat_flags_a_reply_that_was_cut_off():
+    # the connection dies before [DONE]: what arrived is a half-written JSON object
+    body = _delta('{"title":"T","content":"only the first half')
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(200, text=body, headers={"content-type": "text/event-stream"})
+    )
+    async with httpx.AsyncClient(transport=transport) as client:
+        result = await _stream_chat(client, "http://x/v1/chat/completions", {}, {})
+    assert result.complete is False
+    assert result.content  # partial text is still reported, so the log can show it
+
+
+async def test_stream_chat_treats_a_dropped_connection_as_incomplete():
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.RemoteProtocolError("incomplete chunked read")
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport) as client:
+        result = await _stream_chat(client, "http://x/v1/chat/completions", {}, {})
+    assert result.complete is False
+    assert result.status == 200
+
+
+def test_finish_reason_alone_marks_a_reply_complete():
+    # some gateways close without sending [DONE]; finish_reason is enough
+    body = "\n".join([_delta("done"), _sse({"choices": [{"delta": {}, "finish_reason": "stop"}]})])
+    assert _read_sse_chunk(body.splitlines()[1])[2] == "stop"
+
 
 
 # --- the 60s wall is the reason streaming is not optional ----------------------
@@ -208,7 +245,7 @@ async def test_chat_completions_sends_stream_true_by_default(monkeypatch):
 
     def handler(request: httpx.Request) -> httpx.Response:
         seen.append(json.loads(request.content))
-        return httpx.Response(200, text=_delta("ok"), headers={"content-type": "text/event-stream"})
+        return httpx.Response(200, text=_finished(_delta("ok")), headers={"content-type": "text/event-stream"})
 
     _use_route(monkeypatch)
     _use_transport(monkeypatch, handler)
@@ -254,8 +291,29 @@ async def test_chat_completions_degrades_when_a_channel_refuses_streaming(monkey
     assert "stream" not in calls[1]
 
 
-async def test_chat_completions_does_not_degrade_on_a_gateway_timeout(monkeypatch):
-    # retrying a 504 without streaming would just hit the same 60s wall twice
+async def test_chat_completions_retries_a_gateway_timeout_once(monkeypatch):
+    # 60s gateway walls are transient, not fatal: retry once, and stay on the stream path
+    calls: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        calls.append(body)
+        if len(calls) == 1:
+            return httpx.Response(504, text="<html>504 Gateway Time-out</html>")
+        return httpx.Response(
+            200, text=_finished(_delta("ok")), headers={"content-type": "text/event-stream"}
+        )
+
+    _use_route(monkeypatch)
+    _use_transport(monkeypatch, handler)
+
+    assert await chat_completions("sys", "usr") == "ok"
+    assert len(calls) == 2
+    # both attempts streamed -- downgrading to non-streaming would just hit the same wall
+    assert all(call["stream"] is True for call in calls)
+
+
+async def test_chat_completions_gives_up_after_one_gateway_retry(monkeypatch):
     calls: list[dict] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -264,10 +322,50 @@ async def test_chat_completions_does_not_degrade_on_a_gateway_timeout(monkeypatc
 
     _use_route(monkeypatch)
     _use_transport(monkeypatch, handler)
+    # keep the test fast: the backoff is a real 2s sleep otherwise
+    monkeypatch.setattr("app.services.llm_client.GATEWAY_RETRY_BACKOFF_SEC", 0.0)
 
     with pytest.raises(RuntimeError, match="504"):
         await chat_completions("sys", "usr")
+    assert len(calls) == 2
+
+
+async def test_chat_completions_tries_non_streaming_once_on_a_client_error(monkeypatch):
+    # A 4xx that is not 429/5xx is ambiguous: it may just mean "this channel does not
+    # accept stream". So we try the old non-streaming shape exactly once and then stop -
+    # no gateway retry on top of it. Worst case a genuine 400 costs two requests, which
+    # is cheaper than breaking every channel that lacks streaming support.
+    calls: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(json.loads(request.content))
+        return httpx.Response(400, text="bad request")
+
+    _use_route(monkeypatch)
+    _use_transport(monkeypatch, handler)
+
+    with pytest.raises(RuntimeError, match="400"):
+        await chat_completions("sys", "usr")
+    assert len(calls) == 2
+    assert calls[0]["stream"] is True
+    assert "stream" not in calls[1]
+
+
+
+async def test_chat_completions_can_opt_out_of_the_gateway_retry(monkeypatch):
+    calls: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(json.loads(request.content))
+        return httpx.Response(429, text="")
+
+    _use_route(monkeypatch)
+    _use_transport(monkeypatch, handler)
+
+    with pytest.raises(RuntimeError, match="429"):
+        await chat_completions("sys", "usr", retry_gateway=False)
     assert len(calls) == 1
+
 
 
 async def test_chat_completions_preserves_the_thinking_key_while_streaming(monkeypatch):
@@ -275,7 +373,7 @@ async def test_chat_completions_preserves_the_thinking_key_while_streaming(monke
 
     def handler(request: httpx.Request) -> httpx.Response:
         seen.append(json.loads(request.content))
-        return httpx.Response(200, text=_delta("ok"), headers={"content-type": "text/event-stream"})
+        return httpx.Response(200, text=_finished(_delta("ok")), headers={"content-type": "text/event-stream"})
 
     _use_route(monkeypatch, model="deepseek-chat")
     _use_transport(monkeypatch, handler)
@@ -298,4 +396,42 @@ async def test_chat_completions_returns_empty_for_an_empty_stream(monkeypatch):
 
     assert await chat_completions("sys", "usr") == ""
     assert len(calls) == 1
+
+
+async def test_chat_completions_retries_once_when_the_stream_is_cut_off(monkeypatch):
+    # first stream dies mid-JSON; the retry completes and is what the caller gets
+    bodies = iter(
+        [
+            _delta('{"title":"T","content":"cut off here'),
+            _finished(_delta('{"title":"T","content":"whole"}')),
+        ]
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200, text=next(bodies), headers={"content-type": "text/event-stream"}
+        )
+
+    _use_route(monkeypatch)
+    _use_transport(monkeypatch, handler)
+
+    out = await chat_completions("sys", "usr")
+    assert out == '{"title":"T","content":"whole"}'
+
+
+async def test_chat_completions_raises_rather_than_returning_a_halved_script(monkeypatch):
+    # two truncated streams in a row must surface as an error, never as short content
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            text=_delta('{"title":"T","content":"cut off'),
+            headers={"content-type": "text/event-stream"},
+        )
+
+    _use_route(monkeypatch)
+    _use_transport(monkeypatch, handler)
+
+    with pytest.raises(RuntimeError, match="截断"):
+        await chat_completions("sys", "usr")
+
 

@@ -2438,13 +2438,30 @@ class ArkGateway:
         system = f"{system}\n{directive}"
 
         user = f"{topic_label}：{topic}"
-        content = await chat_completions(
-            system,
-            user,
-            temperature=0.6,
-            max_tokens=4096,
-            timeout=90.0,
-        )
+        # response_format=json_object：靠 prompt 求模型输出 JSON 是靠不住的，实测
+        # script 模式仍会偶发吐出解析不了的正文。chat_storyboard 和 drama_chat_json
+        # 早就用这个参数，这里是最后一个还在靠自觉的结构化调用。
+        json_format = {"type": "json_object"}
+        try:
+            content = await chat_completions(
+                system,
+                user,
+                temperature=0.6,
+                max_tokens=4096,
+                timeout=90.0,
+                response_format=json_format,
+            )
+        except RuntimeError as exc:
+            if "response_format" not in str(exc).lower() and "json_object" not in str(exc).lower():
+                raise
+            logger.warning("扩写渠道不支持 response_format，降级普通调用: %s", exc)
+            content = await chat_completions(
+                system,
+                user,
+                temperature=0.6,
+                max_tokens=4096,
+                timeout=90.0,
+            )
         if not (content or "").strip():
             # 空正文重试一次就够了：再失败就让 _parse_expand_content 报错。
             # 任何情况下都不要回落到写死的 mock 文案——用户会拿这段文字去生成视频，
