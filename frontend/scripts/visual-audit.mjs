@@ -1062,11 +1062,35 @@ async function navigateAndSettle(route, locale, token, send, waitForSettled) {
   let lastError = null
   for (let attempt = 1; attempt <= ROUTE_ATTEMPTS; attempt += 1) {
     try {
-      // Chặt locale + token rồi tải lại trang để ứng dụng đọc đúng giá trị.
-      await send('Runtime.evaluate', {
-        expression: `localStorage.setItem('novafilm.locale', ${JSON.stringify(locale)});
-                     localStorage.setItem('token', ${JSON.stringify(token)});`,
-      })
+      // Ghi localStorage **trước**, rồi mới điều hướng. Trừ khi trang chưa có origin
+      // thật (`about:blank` lúc mở tab đầu tiên) thì `setItem` ném SecurityError; khi
+      // đó mới đi tới app một lần để lấy origin rồi ghi lại.
+      //
+      // Vì sao không đi tới `/` trước mỗi route: làm vậy nhân **đôi** số lần
+      // `Page.navigate` trên 26 route, và CDP phải trả lời nhiều hơn gấp đôi — đã
+      // làm một lượt audit chết vì `Runtime.evaluate` hụt 60s. Cách này chỉ tốn
+      // thêm **một** lần điều hướng cho cả lượt.
+      //
+      // Nếu chỉ ghi mà không kiểm `exceptionDetails` thì hỏng âm thầm: giá trị không
+      // được ghi và trang rơi về ngôn ngữ trình duyệt (`en`). Đã xảy ra thật — ảnh
+      // trong thư mục `vi/` là ảnh tiếng Anh. `document.readyState` không cứu được vì
+      // nó trả "complete" ngay cả trên `about:blank`.
+      const seed = `(() => {
+        localStorage.setItem('novafilm.locale', ${JSON.stringify(locale)});
+        localStorage.setItem('token', ${JSON.stringify(token)});
+        return localStorage.getItem('novafilm.locale');
+      })()`
+      let seeded = await send('Runtime.evaluate', { expression: seed })
+      if (seeded?.exceptionDetails) {
+        await send('Page.navigate', { url: BASE + '/' })
+        await waitForSettled(`${route} (lay origin)`)
+        seeded = await send('Runtime.evaluate', { expression: seed })
+      }
+      if (seeded?.exceptionDetails) {
+        throw new Error(
+          `khong ghi duoc locale: ${describeException(seeded.exceptionDetails)}`,
+        )
+      }
       await send('Page.navigate', { url: BASE + route })
       await waitForSettled(`${route} (lan chay dau)`)
       await send('Page.reload', { ignoreCache: false })
