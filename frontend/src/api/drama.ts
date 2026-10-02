@@ -1,6 +1,6 @@
 import { throwApiError } from '../lib/apiError'
 import { localized, type LocalizedText } from '../lib/localeStrings'
-import { API_BASE as apiBase } from '../api'
+import { API_BASE as apiBase, withLocale } from '../api'
 
 /**
  * Văn bản dự phòng khi backend không trả `detail` dạng chuỗi.
@@ -366,6 +366,13 @@ export const dramaApi = {
       body: JSON.stringify(body),
     }),
 
+  /**
+   * Sinh tóm tắt kịch bản.
+   *
+   * Kiểu tham số **cố tình đóng** — không có `locale`. Ngôn ngữ do `withLocale()` gắn
+   * vào từ ngôn ngữ đang hiện trên giao diện, nên không để call site truyền đè: muốn
+   * sinh bằng ngôn ngữ khác thì phải đổi ngôn ngữ của app, không phải đổi tham số.
+   */
   scriptSummary: (body: {
     project_id: number
     creative?: string
@@ -374,8 +381,9 @@ export const dramaApi = {
   }) =>
     request<DramaScriptSummaryResult>('/api/drama/agents/script_summary', {
       method: 'POST',
-      body: JSON.stringify(body),
+      body: JSON.stringify(withLocale(body)),
     }),
+  /** Sinh kịch bản từng tập. Kiểu tham số đóng, `locale` gắn như `scriptSummary`. */
   episodeScript: (body: {
     project_id: number
     batch_size?: number
@@ -388,7 +396,7 @@ export const dramaApi = {
   }) =>
     request<DramaEpisodeScriptResult>('/api/drama/agents/episode_script', {
       method: 'POST',
-      body: JSON.stringify(body),
+      body: JSON.stringify(withLocale(body)),
     }),
   addEpisode: (body: { project_id: number; title?: string }) =>
     request<{ ok: boolean; episode_number: number; script: DramaScript }>(

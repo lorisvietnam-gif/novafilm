@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "check:wizard": "node scripts/wizard-error-check.mjs",
+    "check:locale": "node scripts/locale-payload-check.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
