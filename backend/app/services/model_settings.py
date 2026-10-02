@@ -12,9 +12,13 @@ from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# Danh sách model tạo ảnh của Kira. Model id lấy từ trang model chính thức của Kira; thêm model mới
+# Danh sách model Kira phục vụ. Model id lấy từ trang model chính thức của Kira; thêm model mới
 # chỉ cần bổ sung vào đây, không phải sửa chỗ khác.
-KIRA_IMAGE_MODELS = ["hy-image-v3.5-free"]
+#
+# `deepseek-v4-flash-free` là model **văn bản** của chính Kira, thêm vào đây làm kênh dự
+# phòng khi Gemini trả 429 (đã đo: `kiraai.vn` trả 200, `generativelanguage.googleapis.com`
+# trả 404 cho đúng tên model này — nên nó **không** thuộc channel `text-openai`).
+KIRA_IMAGE_MODELS = ["hy-image-v3.5-free", "deepseek-v4-flash-free"]
 
 from app.config import Settings, get_settings, reload_settings
 from app.models_settings import AppSettings, SystemModelChannelRow
@@ -510,6 +514,25 @@ async def _ensure_env_channels(db: AsyncSession, existing: list[SystemModelChann
         await db.commit()
 
 
+async def _db_configured_channel_ids(db: AsyncSession) -> set[str]:
+    """Channel id nào đang được logical model trong database trỏ tới.
+
+    Đây là dấu hiệu "người vận hành đã cấu hình cố ý" — khác với dòng lạ còn sót lại.
+    Không có tín hiệu này thì nhà cung cấp chỉ khai trong DB bị tắt ở mỗi lần nạp cấu hình.
+    """
+    app_row = (
+        await db.execute(select(AppSettings).where(AppSettings.id == "default"))
+    ).scalar_one_or_none()
+    config = (app_row.config_json if app_row else None) or {}
+    channel_ids: set[str] = set()
+    for item in config.get("logical_models") or []:
+        for binding in (item or {}).get("bindings") or []:
+            channel_id = str((binding or {}).get("channel_id") or "").strip()
+            if channel_id:
+                channel_ids.add(channel_id)
+    return channel_ids
+
+
 async def _ensure_tokenfree_channel(db: AsyncSession, existing: list[SystemModelChannelRow]) -> None:
     """Khoá channel TokenFree: chỉ ghim Base URL **khi tạo mới**."""
     from app.services.tokenfree_gateway import (
@@ -564,11 +587,23 @@ async def _ensure_tokenfree_channel(db: AsyncSession, existing: list[SystemModel
         merged = canonicalize_channel_models(token_row.models)
         if merged != list(token_row.models or []):
             token_row.models = merged
+    db_configured_channel_ids = await _db_configured_channel_ids(db)
     for row in existing:
         # Dòng lạ (mua sẵn, còn sót) thì tắt. Nhưng nhà cung cấp mà `.env` **đang khai** thì
-        # phải sống: vòng lặt này trước đây tắt luôn chúng, nên channel Kira ảnh và channel
+        # phải sống: vòng lặp này trước đây tắt luôn chúng, nên channel Kira ảnh và channel
         # văn bản bị tắt vĩnh viễn ở lần nạp thứ hai trở đi.
-        if row.id != TOKENFREE_CHANNEL_ID and row.id not in env_enabled_ids:
+        #
+        # Ngoại lệ thứ hai: dòng **được giao cấu hình trong database** (một logical model
+        # đang trỏ tới) thì cũng phải sống. Không có ngoại lệ này thì một nhà cung cấp chỉ
+        # khai trong DB — không có trong `.env` — bị tắt ở *mọi* lần nạp. Đo được: `text-openai`
+        # (Google) chỉ tồn tại trong DB, nên nó bị tắt, `gemini-3.5-flash` biến mất khỏi
+        # logical models, rồi `normalize_default_models` lập tức chuyển model văn bản mặc
+        # định sang model kế tiếp còn resolve được. Đổi nhà cung cấp văn bản lúc đó là âm thầm.
+        if (
+            row.id != TOKENFREE_CHANNEL_ID
+            and row.id not in env_enabled_ids
+            and row.id not in db_configured_channel_ids
+        ):
             row.enabled = False
     await db.commit()
 

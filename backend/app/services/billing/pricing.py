@@ -202,12 +202,22 @@ def charge_fen_for_usage(
 def _catalog_image_fen_if_per_call(settings: Settings, model: str, *, size: str = "") -> int | None:
     """gpt-image / Seedream 按张价；token 计价模型返回 None。"""
     from app.services.tokenfree_image import is_seedream_family, tokenfree_working_image_model
-    from app.services.tokenfree_pricing import charge_fen_official_image, lookup_rate, resolve_billing_image_size
+    from app.services.tokenfree_pricing import (
+        charge_fen_official_image,
+        is_kira_hy_image,
+        lookup_rate,
+        resolve_billing_image_size,
+    )
 
     raw = (model or getattr(settings, "model_image", "") or "").strip()
     mid = tokenfree_working_image_model(raw)
     if not mid:
         mid = "gpt-image-2"
+    # Kira HY Image 价目表里没有行，也不是 Seedream 家族：不先认它，下面三个条件全落空，
+    # 函数就返回 None，用量行会掉到 token 兜底 —— 上游 0 token ⇒ charge 0 分，整笔冻结全退。
+    # 预扣走的是 `charge_fen_official_image`（est=10），结算却走这里，于是冻结 10 却收 0。
+    if is_kira_hy_image(mid):
+        return charge_fen_official_image(settings, model=mid, size=size)
     rate = lookup_rate(mid)
     if rate and rate.billing == "token":
         return None
