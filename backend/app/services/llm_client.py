@@ -58,6 +58,73 @@ def _llm_extra_body(model: str) -> dict[str, Any]:
     return {}
 
 
+# 把上游状态码翻成人能看懂、能动手处理的话。
+#
+# 504 来自供应商前面的 nginx，只带一段 HTML；429 经常连 body 都是空的。以前这两种都原样
+# 拼进 "LLM error {code}: {text}"，到界面上要么是一整段 <center>504 Gateway Time-out</center>，
+# 要么是一个后面什么都没有的冒号——用户只看到"失败"，看不到能做什么。
+def _upstream_error(status_code: int, text: str, model: str) -> RuntimeError:
+    detail = (text or "").strip()
+    if detail.lower().startswith(("<!doctype", "<html")):
+        detail = ""
+    if status_code == 429:
+        return RuntimeError(f"文字模型 {model} 当前被限流（HTTP 429），请稍后重试。")
+    if status_code >= 500:
+        return RuntimeError(
+            f"文字模型 {model} 上游网关超时或暂时不可用（HTTP {status_code}），请重试。"
+        )
+    # 保留上游原文：渠道不支持 response_format / json_object 时，调用方靠匹配这些字样
+    # 降级重试（ark.chat_storyboard、drama.llm.drama_chat_json）。
+    return RuntimeError(f"LLM error {status_code}: {detail[:800]}")
+
+
+# 从一行 SSE 里取出 (content, reasoning_content) 增量
+def _read_sse_delta(line: str) -> tuple[str, str]:
+    if not line.startswith("data:"):
+        return "", ""
+    raw = line[len("data:"):].strip()
+    if not raw or raw == "[DONE]":
+        return "", ""
+    try:
+        chunk = json.loads(raw)
+    except json.JSONDecodeError:
+        return "", ""
+    # 某些网关在 HTTP 200 的流里塞 error 事件
+    if chunk.get("error"):
+        return "", ""
+    choices = chunk.get("choices") or []
+    if not choices:
+        return "", ""
+    delta = choices[0].get("delta") or {}
+    return str(delta.get("content") or ""), str(delta.get("reasoning_content") or "")
+
+
+# 流式拉一次 chat/completions，返回 (http_status, 拼好的正文, 错误时的响应体)。
+#
+# 流式不是为了"更快返回给浏览器"——调用方拿到的仍然是拼好的整段字符串，接口返回结构没变。
+# 流式是为了让上游在生成期间持续吐字节，从而绕开供应商 nginx 的 proxy_read_timeout。
+async def _stream_chat(
+    client: httpx.AsyncClient,
+    url: str,
+    headers: dict[str, str],
+    payload: dict[str, Any],
+) -> tuple[int, str, str]:
+    chunks: list[str] = []
+    reasoning_len = 0
+    async with client.stream("POST", url, headers=headers, json=payload) as res:
+        if res.status_code >= 400:
+            await res.aread()
+            return res.status_code, "", res.text
+        async for line in res.aiter_lines():
+            content, reasoning = _read_sse_delta(line)
+            if content:
+                chunks.append(content)
+            reasoning_len += len(reasoning)
+    if reasoning_len:
+        logger.warning("文字 LLM 流里带 reasoning_content，长度=%s", reasoning_len)
+    return res.status_code, "".join(chunks), ""
+
+
 # Extract the body text from a chat/completions response
 def _message_content(data: dict[str, Any]) -> str:
     choices = data.get("choices") or []
@@ -73,6 +140,12 @@ def _message_content(data: dict[str, Any]) -> str:
 
 
 # Call the OpenAI-compatible chat/completions endpoint
+#
+# stream=True（默认）是必须的，不是优化。上游供应商前面挂着一层 nginx，
+# proxy_read_timeout 约 60s：非流式请求在模型把整段生成完之前一个字节都不会发出去，
+# 只要生成超过 60s 就被网关掐成 504。实测同一个 2500 字的越语请求：
+# 非流式 60.6s 必然 504，流式 205.6s 正常返回。传 stream=False 可以退回旧行为，
+# 但那就等于把 60s 的墙又请回来。
 async def chat_completions(
     system: str,
     user: str,
@@ -81,6 +154,7 @@ async def chat_completions(
     max_tokens: int = DEFAULT_MAX_TOKENS,
     timeout: float = 300.0,
     response_format: dict[str, Any] | None = None,
+    stream: bool = True,
 ) -> str:
     settings = get_settings()
     logical_id = resolve_logical_model_id("text", None)
@@ -123,16 +197,29 @@ async def chat_completions(
         max_tokens,
     )
     async with httpx.AsyncClient(timeout=timeout) as client:
-        res = await client.post(
-            f"{base}/chat/completions",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-            json=payload,
-        )
+        url = f"{base}/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        if stream:
+            status, streamed, err_body = await _stream_chat(
+                client, url, headers, {**payload, "stream": True}
+            )
+            if status < 400:
+                logger.info("文字 LLM 流式返回 content_len=%s", len(streamed))
+                # 空正文交给调用方处理：chat_storyboard、drama_chat_json、expand_content
+                # 都已经有"空了就重试"的逻辑，这里不重复重试（重试=再付一次 token）。
+                return streamed
+            if status == 429 or status >= 500:
+                # 限流和网关故障跟流不流式无关，换回非流式只是再撞一次同一堵墙
+                raise _upstream_error(status, err_body, model)
+            # 渠道不认 stream 参数：还没收到任何字节，降级重试是安全的
+            logger.warning("文字 LLM 渠道拒绝流式(HTTP %s)，降级为非流式", status)
+
+        res = await client.post(url, headers=headers, json=payload)
         if res.status_code >= 400:
-            raise RuntimeError(f"LLM error {res.status_code}: {res.text[:800]}")
+            raise _upstream_error(res.status_code, res.text, model)
         body = (res.text or "").strip()
         if not body:
             raise RuntimeError(f"LLM 返回空响应体 (HTTP {res.status_code})")
