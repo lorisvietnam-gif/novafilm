@@ -82,6 +82,49 @@ VIDEO_CREATE_READ_SEC = 180.0
 VIDEO_POLL_READ_SEC = 60.0
 VIDEO_FETCH_READ_SEC = 30.0
 
+# 扩写（/content/expand）三条语言的长度要求。
+#
+# 旧版三种语言共用一句中文的 "content：300-700 字"。问题在于「字」是汉字单位：
+# 输出中文时它就是字，模型照做；输出越南语/英语时模型把它读成「词」，于是交出
+# 1531-2274 个字符而不是 300-700 个——实测同一个模型约 35 completion token/秒，
+# 越语 1656 token 要 56 秒，而越语本来就是同内容里最费 token 的语言。
+# 于是 script 模式又慢又长，长到一定程度还会撞上上游 60s 网关墙（见 llm_client）。
+#
+# 现在按输出语言各自说明长度单位，用的是实测更短的那句写法。
+_EXPAND_LENGTH_RULES: dict[str, dict[str, str]] = {
+    "zh": {
+        "title": "8-18 字，吸引人、无标点堆砌。",
+        "script": (
+            "300-700 字，口语化，分 4-8 个自然段，有开场钩子、知识点、收尾；"
+        ),
+        "theme": "一句话主题，40-90 字，写清受众与要讲清的核心知识点；不要换行。",
+    },
+    "vi": {
+        "title": "8-18 ký tự, hấp dẫn, không dồn dấu câu.",
+        "script": (
+            "300-700 ký tự (kể cả khoảng trắng), nói tự nhiên, chia 4-8 đoạn văn có mở bài,"
+            " kiến thức chính và câu kết; tuyệt đối không vượt quá 700 ký tự. "
+            "Hãy đếm số ký tự của trường content trước khi trả lời."
+        ),
+        "theme": (
+            "một câu chủ đề dài 40-90 ký tự, nêu rõ đối tượng và kiến thức cốt lõi; "
+            "viết liền một dòng."
+        ),
+    },
+    "en": {
+        "title": "8-18 characters, catchy, no stacked punctuation.",
+        "script": (
+            "300-700 characters (spaces included), conversational, split into 4-8 natural "
+            "paragraphs with a hook, the key facts and a closing line; never exceed 700 "
+            "characters. Count the characters in the content field before you answer."
+        ),
+        "theme": (
+            "a single-sentence theme of 40-90 characters naming the audience and the core "
+            "point; keep it on one line."
+        ),
+    },
+}
+
 
 def _upstream_timeout(read_sec: float, *, connect: float = 30.0) -> httpx.Timeout:
     """上游 HTTP 超时：建连短、等结果长，避免 ReadTimeout 被当成连不上。"""
@@ -2343,27 +2386,31 @@ class ArkGateway:
         if self.mock:
             return self._mock_expand_content(topic, mode)
 
+        lang = str(locale or "zh").strip().lower()[:2]
         if mode == "script":
             system = (
                 "你是科普短视频文案作者。根据用户主题写一篇可直接用于旁白的完整口播文案。"
                 "只输出严格 JSON：{\"title\":\"作品名\",\"content\":\"完整文案\"}。"
-                "title：8-18 字，吸引人、无标点堆砌。"
-                "content：300-700 字，口语化，分 4-8 个自然段，有开场钩子、知识点、收尾；"
+                "title："
+                f"{_EXPAND_LENGTH_RULES[lang]['title']}"
+                "content："
+                f"{_EXPAND_LENGTH_RULES[lang]['script']}"
                 "不要 markdown、不要分镜编号、不要标题行。"
             )
         else:
             system = (
                 "你是科普短视频选题策划。把用户输入扩写成一句清晰具体的创作主题。"
                 "只输出严格 JSON：{\"title\":\"作品名\",\"content\":\"主题句\"}。"
-                "title：8-18 字。"
-                "content：一句话主题，40-90 字，写清受众与要讲清的核心知识点；不要换行。"
+                "title："
+                f"{_EXPAND_LENGTH_RULES[lang]['title']}"
+                "content："
+                f"{_EXPAND_LENGTH_RULES[lang]['theme']}"
             )
         # Chỉ thị ngôn ngữ đầu ra.
         #
         # Trước đây prompt viết cứng bằng tiếng Trung và **không** yêu cầu ngôn ngữ, nên model
         # trả lời tiếng Trung bất kể giao diện đang là tiếng Việt hay tiếng Anh.
         # `locale` là lựa chọn của người dùng; mặc định `zh` để không đổi hành vi cũ.
-        lang = str(locale or "zh").strip().lower()[:2]
         directive = {
             "vi": "title và content BẮT BUỘC viết bằng tiếng Việt, có dấu đầy đủ.",
             "en": "Write title and content in English.",
@@ -2373,14 +2420,30 @@ class ArkGateway:
         )
         system = f"{system}\n{directive}"
 
+        user = f"{topic_label}：{topic}"
         content = await chat_completions(
             system,
-            f"{topic_label}：{topic}",
+            user,
             temperature=0.6,
             max_tokens=4096,
             timeout=90.0,
         )
-        return self._parse_expand_content(content or "{}", topic, mode)
+        if not (content or "").strip():
+            # 空正文重试一次就够了：再失败就让 _parse_expand_content 报错。
+            # 任何情况下都不要回落到写死的 mock 文案——用户会拿这段文字去生成视频，
+            # 编出来的内容比一条明确的报错糟糕得多。
+            logger.warning("扩写 LLM 返回空内容，重试一次 mode=%s locale=%s", mode, locale)
+            content = await chat_completions(
+                system,
+                f"{user}\n\n"
+                "【重要】上次返回是空的。请只输出一个完整 JSON 对象，"
+                "含 title 与 content 两个字符串字段，content 不能为空，"
+                "不要 markdown、不要代码围栏。",
+                temperature=0.6,
+                max_tokens=4096,
+                timeout=90.0,
+            )
+        return self._parse_expand_content(content, topic, mode)
 
     def _mock_expand_content(self, topic: str, mode: str) -> dict[str, str]:
         short = topic[:18].rstrip("？?。.!！") or "科普短片"
@@ -2402,24 +2465,39 @@ class ArkGateway:
         return {"title": title[:24], "content": content}
 
     def _parse_expand_content(self, raw: str, topic: str, mode: str) -> dict[str, str]:
+        """把模型返回解析成 title/content。
+
+        解析不出来就抛错，**绝不**回落到 _mock_expand_content：
+        那段 mock 是写死的简体中文。以前这里静默回落，于是越语/英语界面在模型超时、
+        返回空、或吐出半截 JSON 的时候，会拿到一段看起来完全正常的中文文案——
+        用户不会知道自己拿到的是假货，而是会拿它去生成视频。
+        一条明确的报错比一段编出来的文字安全得多。
+        """
         text = (raw or "").strip()
+        if not text:
+            raise RuntimeError("文案模型返回空内容，请重试或稍后再试")
         if text.startswith("```"):
             text = re.sub(r"^```(?:json)?\s*", "", text)
             text = re.sub(r"\s*```$", "", text)
+        data: Any = None
         try:
             data = json.loads(text)
         except json.JSONDecodeError:
+            # 模型偶尔会在 JSON 外面裹一段话，取最外层花括号再试一次
             m = re.search(r"\{[\s\S]*\}", text)
-            if not m:
-                return self._mock_expand_content(topic, mode)
-            try:
-                data = json.loads(m.group(0))
-            except json.JSONDecodeError:
-                return self._mock_expand_content(topic, mode)
+            if m:
+                try:
+                    data = json.loads(m.group(0))
+                except json.JSONDecodeError:
+                    data = None
+        if not isinstance(data, dict):
+            raise RuntimeError(
+                f"文案模型没有返回可解析的 JSON（收到 {len(text)} 个字符），请重试"
+            )
         title = str(data.get("title") or "").strip() or topic[:18]
         content = str(data.get("content") or "").strip()
         if not content:
-            return self._mock_expand_content(topic, mode)
+            raise RuntimeError("文案模型返回的 content 为空，请重试")
         if mode == "theme":
             content = content.replace("\n", " ").strip()[:100]
         else:
