@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import pytest
+
 from app.services.ark import ArkGateway, _build_task_result_from_payload
-from app.services.media_ref_limits import MAX_REFERENCE_IMAGES
+from app.services.media_ref_limits import MAX_REFERENCE_IMAGES, ReferenceImageError
 from app.services.tokenfree_gateway import TOKENFREE_BASE_URL, TOKENFREE_CHANNEL_ID
 from app.services.tokenfree_video import (
     extract_video_task_id,
@@ -183,28 +185,87 @@ def test_wrap_seedance_payload_from_generate_body_includes_continuity():
     assert "first_frame_url" not in wrapped["metadata"]["input"]
 
 
-def test_wrap_seedance_payload_caps_reference_images():
-    """下游最多 9 张；同一批图不得在 content / images 里再写一份。"""
-    content = [{"type": "text", "text": "群戏"}]
-    for i in range(12):
+def _seedance_body_with_images(count: int, *, role: str = "reference_image") -> dict:
+    content: list[dict] = [{"type": "text", "text": "群戏"}]
+    for i in range(count):
         content.append(
             {
                 "type": "image_url",
                 "image_url": {"url": f"https://cdn.example.com/{i}.png"},
-                "role": "reference_image",
+                "role": role,
             }
         )
-    wrapped = wrap_seedance_payload_for_newapi(
-        {"model": "seedance-2-5", "content": content, "duration": 8}
-    )
+    return {"model": "seedance-2-5", "content": content, "duration": 8}
+
+
+def test_wrap_seedance_payload_keeps_exactly_nine_reference_images():
+    """刚好 9 张要**照发**，且同一批图不得在 content / images 里再写一份。"""
+    wrapped = wrap_seedance_payload_for_newapi(_seedance_body_with_images(MAX_REFERENCE_IMAGES))
     refs = wrapped["metadata"]["input"]["reference_image_urls"]
     assert len(refs) == MAX_REFERENCE_IMAGES
+    assert refs == [f"https://cdn.example.com/{i}.png" for i in range(MAX_REFERENCE_IMAGES)]
     assert "images" not in wrapped
     assert "images" not in wrapped["metadata"]["input"]
     assert all(
         not (isinstance(item, dict) and item.get("type") == "image_url")
         for item in wrapped["metadata"]["input"].get("content") or []
     )
+
+
+def test_wrap_seedance_payload_rejects_ten_reference_images():
+    """第 10 张必须**报错**，不能悄悄发 9 张。
+
+    这是本 bug 的核心断言。旧实现在去重循环里 `break` 到 9 张，多出来的图人间蒸发、
+    不报任何错 —— 于是用户永远不知道自己的第 10 张图（很可能正是角色定妆照）被丢了，
+    只觉得「AI 画错人了」。少发一张图 = 角色画错，比失败更糟。
+    """
+    with pytest.raises(ReferenceImageError) as err:
+        wrap_seedance_payload_for_newapi(_seedance_body_with_images(MAX_REFERENCE_IMAGES + 1))
+    message = str(err.value)
+    # 报错要说清有多少张、 trần là bao nhiêu、bị bỏ bao nhiêu
+    assert str(MAX_REFERENCE_IMAGES + 1) in message
+    assert str(MAX_REFERENCE_IMAGES) in message
+    assert "1" in message
+    # 报错文案要让人知道这不是"没生成"，而是"图太多了"
+    assert "ảnh" in message
+
+
+def test_wrap_seedance_payload_rejects_far_over_limit_reference_images():
+    """远超上限（12 张）同样报错，并且说清会被丢掉几张。"""
+    with pytest.raises(ReferenceImageError) as err:
+        wrap_seedance_payload_for_newapi(_seedance_body_with_images(12))
+    message = str(err.value)
+    assert "12" in message
+    assert str(12 - MAX_REFERENCE_IMAGES) in message
+
+
+def test_wrap_seedance_payload_dedups_before_counting_the_limit():
+    """重复图先去重再去数张数：10 个 URL 里只有 8 个不同地址 → 放行。
+
+    反过来不行：上游按张数计费，同一张图发 10 次会当成 10 张。
+    """
+    body = _seedance_body_with_images(MAX_REFERENCE_IMAGES)
+    # 把第 0 张重复塞一遍 → 10 个条目，但只有 9 个不同地址 → 仍然合法
+    body["content"].append(
+        {
+            "type": "image_url",
+            "image_url": {"url": "https://cdn.example.com/0.png"},
+            "role": "reference_image",
+        }
+    )
+    assert len(body["content"]) == MAX_REFERENCE_IMAGES + 2  # text + 9 图 + 1 重复
+    wrapped = wrap_seedance_payload_for_newapi(body)
+    refs = wrapped["metadata"]["input"]["reference_image_urls"]
+    assert len(refs) == MAX_REFERENCE_IMAGES
+    assert len(set(refs)) == len(refs)
+
+
+def test_wrap_seedance_payload_rejects_ten_first_frame_images_too():
+    """不只多参考图会超限：纯首/尾帧路径同样走这里，也必须报错而不是截断。"""
+    with pytest.raises(ReferenceImageError):
+        wrap_seedance_payload_for_newapi(
+            _seedance_body_with_images(MAX_REFERENCE_IMAGES + 1, role="first_frame")
+        )
 
 
 def test_prepare_video_create_body_only_wraps_tokenfree():
