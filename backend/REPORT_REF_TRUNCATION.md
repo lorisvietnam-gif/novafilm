@@ -19,21 +19,22 @@ tiếng Việt** thay vì cắt, chuỗi lỗi **tới tận người dùng** (�
 ### 1.1 Chuỗi thật trên đường Canvas (đã kiểm chứng bằng test)
 
 ```
-raise ReferenceImageError(...)                    tokenfree_video.py:125
- └ wrap_seedance_payload_for_newapi               tokenfree_video.py:78
-    └ prepare_video_create_body                   tokenfree_video.py:203
-       └ ArkGateway._video_json                   ark.py:537-545
-          └ gen_video_seedance_body               ark.py:1387   ← 漫剧分镜实际走这里
-             └ submit_prepared_fragment_video     drama/generation.py:1651
-                └ submit_fragment_video_task      drama/jobs.py:1187
-                   └ _run_drama_fragment_video    tasks/handlers.py:79
-                      └ execute_task_run          tasks/executor.py:95
-                         └ except Exception        tasks/executor.py:124
-                            └ _fail_task          tasks/executor.py:188
-                               ├ task.status  = "failed"
-                               ├ task.error_code = "ReferenceImageError"
-                               ├ task.error_message = <tiếng Việt>
-                               └ frag.params["generation"] ← lỗi gốc   executor.py:208-221
+raise ReferenceImageError(...)                    media_ref_limits.py:50
+ └ ensure_within_reference_image_limit             media_ref_limits.py:33
+    └ wrap_seedance_payload_for_newapi            tokenfree_video.py:70  (gọi ở :128)
+       └ prepare_video_create_body                tokenfree_video.py:191
+          └ ArkGateway._video_json                ark.py:540-548
+             └ gen_video_seedance_body            ark.py:1378  ← 漫剧分镜实际走这里
+                └ submit_prepared_fragment_video  drama/generation.py:1642 (gọi ở jobs.py:1187)
+                   └ submit_fragment_video_task   drama/jobs.py:1187
+                      └ _run_drama_fragment_video tasks/handlers.py:79
+                         └ execute_task_run       tasks/executor.py:95
+                            └ except Exception   tasks/executor.py:124
+                               └ _fail_task       tasks/executor.py:188
+                                  ├ task.status  = "failed"
+                                  ├ task.error_code = "ReferenceImageError"
+                                  ├ task.error_message = <tiếng Việt>
+                                  └ frag.params["generation"] ← lỗi gốc  executor.py:208-221
 ```
 
 **Hai mặt trước người dùng** (đều qua polling, không cần SSE):
@@ -124,12 +125,15 @@ test đó giữ cho hành vi cắt âm thầm sống sót. Đã thay bằng bộ
 ### 3.1 Kênh Ark native **hoàn toàn không có chốt chặn** — đã sửa
 
 `prepare_video_create_body` chỉ bọc khi `uses_tokenfree_video()` đúng; ngoài đó trả body
-nguyên trạng. Mà **漫剧分镜 đi qua `gen_video_seedance_body`**. Nên cùng một request 10 ảnh:
+nguyên trạng. Mà **漫剧分镜 đi qua `gen_video_seedance_body`** (`ark.py:1378`). Nên cùng một
+request 10 ảnh:
 trên TokenFree bị chặn, trên Ark native thì **gửi nguyên 10 ảnh đi**. Và danh mục drama
-được dựng **không cap** (`build_seedance_generate_body.py:287-307` cộng thêm画风板 và尾帧),
-nên >9 là **thật**, không phải giả định.
+được dựng **không cap**: `build_seedance_reference_catalog`
+(`drama/build_seedance_generate_body.py:301-307`) append **mọi** asset được tham chiếu vào
+`catalog.images`, chỉ khử trùng theo `asset_id`, không giới hạn số lượng (rồi cộng thêm画风板
+và尾帧). Nên >9 là **thật**, không phải giả định.
 
-Đã thêm chốt chặn vào `ark.py:1395-1404`. Chạy **trước** khi resolve URL, có chủ ý: mỗi ảnh đều
+Đã thêm chốt chặn vào `ark.py:1396-1410`. Chạy **trước** khi resolve URL, có chủ ý: mỗi ảnh đều
 gọi `ensure_seedance_compatible_image_url` (tải + đệm + upload OSS), làm việc đó cho một
 request chắc chắn bị từ chối là lãng phí và có thể để lại file rác trên OSS. Đánh đổi: hai URL
 sau này resolve về cùng một ảnh CDN sẽ bị đếm là 2 — **từ chối nhầm còn hơn cho qua nhầm**.
