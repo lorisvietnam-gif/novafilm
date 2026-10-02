@@ -33,6 +33,16 @@ VIDEO_RATE_SAMPLE_SECONDS = 5.0
 KIRA_HY_IMAGE_MODEL = "hy-image-v3.5"
 KIRA_HY_IMAGE_CHARGE_FEN = 10
 
+
+def is_kira_hy_image(model: str) -> bool:
+    """上游模型名是否属于 Kira HY Image 家族（含 `-free` 等别名后缀）。
+
+    价目表里没有 Kira 的行，`is_seedream_family` 也不认它，所以定价分派
+    (`_catalog_image_fen_if_per_call`) 必须先问这一句，否则永远落到 token 兜底。
+    """
+    name = (model or "").strip().lower()
+    return KIRA_HY_IMAGE_MODEL in name
+
 # 本站视频结算参考价（16:9、无视频输入、5 秒）→ 各清晰度价（元）；用于展示与预扣
 VENDOR_VIDEO_YUAN_5S_BY_RES: dict[str, dict[str, float]] = {
     "seedance-2-0": {"480p": 2.31, "720p": 4.97},
@@ -463,7 +473,7 @@ def charge_fen_official_image(settings: Settings, *, model: str = "", size: str 
     mid = tokenfree_working_image_model(raw_model)
     # Kira 的 HY Image 固定按张收费，不走 TokenFree 价目也不走 Kie 积分档。
     # 没有这一条它会掉进下面的 2K 兜底，被收 35 分。
-    if KIRA_HY_IMAGE_MODEL in mid.lower():
+    if is_kira_hy_image(mid):
         return _markup_charge(KIRA_HY_IMAGE_CHARGE_FEN, settings)
     resolved = resolve_billing_image_size(settings, model=raw_model, size=size)
     rate = lookup_rate(mid)
