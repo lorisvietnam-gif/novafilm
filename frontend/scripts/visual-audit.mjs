@@ -244,6 +244,30 @@ const WIZARD_NEXT = `(() => {
 })()`
 
 /**
+ * Rút lời giải thích thật ra khỏi `exceptionDetails` của CDP.
+ *
+ * `exceptionDetails.text` **luôn** bằng chuỗi `"Uncaught"` khi đoạn JS trong trang ném
+ * lỗi — nó là nhãn của giao thức, không phải nội dung lỗi. Lỗi nằm ở
+ * `exceptionDetails.exception.description` (`"Error: khong tim thay nut buoc sau\n    at …"`).
+ *
+ * Trước đây dòng này viết `text || description`, nên vì `"Uncaught"` luôn có mặt,
+ * nhánh `description` **không bao giờ chạy** và mọi lỗi đều bị báo chung một chữ
+ * `Uncaught`. Đã xảy ra thật: `/wizard` dừng cả lô audit ở bước `buoc-2-y-tuong` mà
+ * báo cáo chỉ ghi "Uncaught" — không ai biết là nút bấm không có hay là handler ném lỗi.
+ */
+function describeException(details) {
+  const described = details?.exception?.description
+  if (described) {
+    return described
+      .split('\n')
+      .filter((line) => line.trim())
+      .slice(0, 4)
+      .join(' | ')
+  }
+  return details?.text || 'loi khong ro'
+}
+
+/**
  * Điền ý tưởng rồi bấm nút soạn.
  *
  * Gán giá trị phải qua setter của prototype rồi bắn `input` — React đọc giá trị qua
@@ -557,6 +581,21 @@ async function main() {
     ]).filter(([p]) => !p.includes('null')),
   ]
 
+  // `AUDIT_ONLY` lọc theo **tên ảnh** (`tram-de-prompt`, `studio`, …) hoặc theo đường dẫn
+  // (`/wizard`). Chỉ dùng khi sửa một trang: 25 route mất vài phút, mà lúc đó người ta
+  // chỉ cần xem trang vừa đụng. Bỏ trống (mặc định) thì chạy đủ như trước.
+  const only = (process.env.AUDIT_ONLY || '').trim()
+  const routes = only
+    ? ROUTES.filter(([p, name]) => p === only || name === only || p.includes(only))
+    : ROUTES
+  if (only && !routes.length) {
+    throw new Error(
+      `AUDIT_ONLY="${only}" khong khop route nao. `
+        + `Ten hop le: ${ROUTES.map(([, n]) => n).join(', ')}`,
+    )
+  }
+  if (only) console.log(`AUDIT_ONLY=${only} -> ${routes.length}/${ROUTES.length} route`)
+
   const { spawn } = await import('node:child_process')
 
   // Chia thành nhiều lô, **mỗi lô một Edge sạch**.
@@ -584,8 +623,8 @@ async function main() {
   sweepStaleEdge()
 
   for (const locale of ['vi', 'en']) {
-    for (let i = 0; i < ROUTES.length; i += BATCH) {
-      const chunk = ROUTES.slice(i, i + BATCH)
+    for (let i = 0; i < routes.length; i += BATCH) {
+      const chunk = routes.slice(i, i + BATCH)
       batch++
       PROFILE = join(PROFILE_ROOT, `lot-${batch}`)
       PORT = await pickPort()
@@ -949,8 +988,7 @@ async function auditRoutes(ROUTES, token, locale) {
           })
           if (run?.exceptionDetails) {
             throw new Error(
-              `Buoc lai thu tren ${route} that bai (${stepDef.suffix}): `
-                + `${run.exceptionDetails.text || run.exceptionDetails.exception?.description || 'loi khong ro'}`,
+              `Buoc lai thu tren ${route} that bai (${stepDef.suffix}): ${describeException(run.exceptionDetails)}`,
             )
           }
           await waitForSettled(`${route} (${stepDef.suffix})`)
