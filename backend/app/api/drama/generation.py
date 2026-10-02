@@ -247,7 +247,7 @@ async def generate_voice(
             project_id=project.id,
             type="voice",
             asset_type="audio",
-            name=(body.name or "").strip() or "未命名音色",
+            name=(body.name or "").strip() or "Giọng đọc chưa đặt tên",
             params={"voicePrompt": prompt, "generation": {"status": "generating"}},
         )
         db.add(asset)

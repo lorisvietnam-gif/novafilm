@@ -100,7 +100,7 @@ class Project(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     template_id: Mapped[str] = mapped_column(ForeignKey("templates.id"), index=True)
-    title: Mapped[str] = mapped_column(String(200), default="未命名作品")
+    title: Mapped[str] = mapped_column(String(200), default="Chưa có tên")
     source_type: Mapped[str] = mapped_column(String(16), default="theme")  # theme | script
     source_text: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(32), default=ProjectStatus.DRAFT)

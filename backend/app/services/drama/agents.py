@@ -635,6 +635,17 @@ def normalize_series_title(raw: str | None) -> str:
     return title
 
 
+DEFAULT_PROJECT_TITLES = {
+    # Tên mặc định hiện tại (xem `api/drama/projects.py`, `models_drama.py`, `schemas_drama.py`).
+    "Dự án drama chưa có tên",
+    "Dự án bảng vẽ tự do",
+    # Tên mặc định cũ: dữ liệu đã nằm sẵn trong database, đổi mã nguồn không đổi dữ liệu cũ.
+    # Bỏ chúng khỏi đây thì logic đặt tên tự động coi nhầm dự án cũ là "người dùng đã đặt tên".
+    "未命名漫剧",
+    "自由画布项目",
+}
+
+
 def pick_auto_project_title(
     summary: dict[str, Any],
     *,
@@ -651,7 +662,7 @@ def pick_auto_project_title(
     creative_prefix = (creative or "").strip()[:20]
     looks_default = (
         not current
-        or current in {"未命名漫剧", "自由画布项目"}
+        or current in DEFAULT_PROJECT_TITLES
         or len(current) > 36
         or (creative_prefix and current.startswith(creative_prefix))
         or current.endswith("…")
