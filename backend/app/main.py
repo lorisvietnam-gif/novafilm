@@ -21,7 +21,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select, text
 
-from app.api import auth, billing, projects, tasks, templates, tools
+from app.api import auth, billing, projects, tasks, templates, tools, wizard
 from app.api import api_keys as user_api_keys
 from app.api import oauth as auth_oauth
 from app.api.v1 import router as v1_router
@@ -115,6 +115,7 @@ app.include_router(tasks.router, prefix="/api")
 app.include_router(billing.router, prefix="/api")
 app.include_router(tools.router, prefix="/api")
 app.include_router(user_api_keys.router, prefix="/api")
+app.include_router(wizard.router, prefix="/api")
 app.include_router(v1_router, prefix="/api")
 app.include_router(drama_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
