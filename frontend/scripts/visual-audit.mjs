@@ -181,6 +181,53 @@ process.on('exit', () => {
 const CJK = /[\u4e00-\u9fff]/
 
 /**
+ * Tách ký tự Trung thành hai loại **không được gộp**:
+ *
+ * 1. **Marker Seedance (Nhóm D)** — hợp đồng máy↔máy, phải giữ nguyên. Danh sách lấy
+ *    từ nguồn sự thật `backend/app/services/seedance_segments.py`: `PRODUCTION_META_PREFIXES`
+ *    cùng các tiền tố cue. Dịch chúng làm Seedance **đọc to mô tả hình thành lời thoại**
+ *    và làm hỏng luồng lồng tiếng.
+ * 2. **Nội dung** — chỉ chỗ này mới là ứng viên cho việc dịch.
+ *
+ * Trước khi tách, con số audit trộn hai thứ nên **không diễn giải được**.
+ */
+const SEEDANCE_META_PREFIXES = [
+  '【字幕', '【BGM', '【配乐', '【人物介绍', '【片头', '【背景介绍', '【强制约束',
+  '【旁白', '【对白', '【画面', '【空镜',
+]
+const SEEDANCE_META_RE = /【(?:字幕|BGM|配乐|人物介绍|片头|背景介绍|强制约束|旁白|对白|画面|空镜)[^\n]*/g
+const DURATION_TOKEN_RE_G = /@duration:\d+/g
+
+/** Trả về `{ marker, content }` — số ký tự Trung của marker Seedance và của nội dung. */
+function splitCjk(text) {
+  const src = text || ''
+  const spans = []
+  for (const m of src.matchAll(SEEDANCE_META_RE)) spans.push([m.index, m.index + m[0].length])
+  for (const m of src.matchAll(DURATION_TOKEN_RE_G)) spans.push([m.index, m.index + m[0].length])
+  spans.sort((a, b) => a[0] - b[0])
+  // Gộp các khoảng chồng nhau để không đếm hai lần.
+  const merged = []
+  for (const [s, e] of spans) {
+    const last = merged[merged.length - 1]
+    if (last && s <= last[1]) last[1] = Math.max(last[1], e)
+    else merged.push([s, e])
+  }
+  let marker = 0
+  const hit = new Uint8Array(src.length)
+  for (const [s, e] of merged) {
+    for (let i = s; i < e; i += 1) {
+      if (CJK.test(src[i])) {
+        marker += 1
+        hit[i] = 1
+      }
+    }
+  }
+  let content = 0
+  for (let i = 0; i < src.length; i += 1) if (!hit[i] && CJK.test(src[i])) content += 1
+  return { marker, content }
+}
+
+/**
  * Bộ đếm ký tự Trung **bị lừa** bởi trang báo lỗi: khi API chết, trang vẫn render bằng tiếng Việt
  * nhưng không có dữ liệu nào, nên ký tự Trung = 0 và trang **trông như đã sạch**.
  * Đã xảy ra thật: `/templates` báo `cjk=1` trong khi ảnh chụp cho thấy
@@ -910,7 +957,10 @@ async function auditRoutes(ROUTES, token, locale) {
         const text = textRes?.result?.value ?? ''
 
         const apiDown = API_ERROR_MARKERS.some((m) => text.includes(m))
-        const cjk = apiDown ? -1 : (text.match(/[\u4e00-\u9fff]/g) || []).length
+        const split = splitCjk(text)
+        const cjk = apiDown ? -1 : split.marker + split.content
+        const cjkMarker = apiDown ? 0 : split.marker
+        const cjkContent = apiDown ? 0 : split.content
         const rawKeys = [...new Set(text.match(RAW_KEY) || [])]
         const visible = text.trim().length
 
@@ -968,7 +1018,7 @@ async function auditRoutes(ROUTES, token, locale) {
           .filter((l) => CJK.test(l))
           .slice(0, 40)
 
-        results.push({ locale, route, cjk, rawKeys, visible, apiDown, errors: consoleErrors.length, cjkLines })
+        results.push({ locale, route, cjk, cjkMarker, cjkContent, rawKeys, visible, apiDown, errors: consoleErrors.length, cjkLines })
 
         console.log(
           `${locale}  ${route.padEnd(34)} cjk=${String(cjk).padStart(4)}` +
@@ -1020,8 +1070,8 @@ async function auditRoutes(ROUTES, token, locale) {
             locale,
             route,
             suffix: stepDef.suffix,
-            cjk,
-            rawKeys,
+cjk,
+          rawKeys,
             errors: consoleErrors.length,
           })
           console.log(
