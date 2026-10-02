@@ -6,7 +6,9 @@ import { zh } from './locales/zh'
 /**
  * Hợp đồng văn bản toàn site.
  *
- * `zh` khai báo bằng `as const`, nên chính tên khoá và cấu trúc của `zh` là chuẩn.
+ * `vi` khai báo bằng `as const`, nên chính tên khoá và cấu trúc của `vi` là chuẩn.
+ * Trước đây chuẩn là `zh`; hàng rào đã được đảo chiều (2026-10-02) vì tiếng Việt
+ * là ngôn ngữ chính của sản phẩm — thiếu khoá tiếng Việt giờ làm build FAIL.
  * `Widen` chỉ nới kiểu literal thành `string` để các ngôn ngữ khác gán được; nó
  * không thêm và cũng không bỏ khoá nào, và không có cast nào.
  *
@@ -19,7 +21,7 @@ import { zh } from './locales/zh'
  *   phải object literal, nên TypeScript không chạy excess-property check và khoá
  *   thừa lọt qua im lặng. (Trước đây `vi` có `nav.langVi` trong khi `zh` không có,
  *   và build vẫn xanh.) Vì vậy khoá thừa phải được rà soát thủ công — ví dụ bằng
- *   script parity đối chiếu với `zh` — chứ không thể tin vào trình biên dịch.
+ *   script parity đối chiếu với `vi` — chứ không thể tin vào trình biên dịch.
  *
  * `NoExtraKey` dưới đây thu hẹp lỗ hổng đó một nấc: nó làm pack có khoá thừa ở
  * cấp NGOÀI CÙNG hỏng compile. Khoá thừa lồng sâu bên trong vẫn nằm ngoài tầm
@@ -29,22 +31,27 @@ type Widen<T> = T extends string
   ? string
   : { readonly [K in keyof T]: Widen<T[K]> }
 
-export type Messages = Widen<typeof zh>
+export type Messages = Widen<typeof vi>
 
 /**
  * Cấu trúc của pack đã bị siết: mọi khoá có trong pack mà không có trong `Messages`
  * đều bị khai báo là `never`, nên pack không còn gán được nếu thừa khoá ở cấp ngoài.
  * Không dùng cast — lỗi vẫn hiện ra như một lỗi gán kiểu thật.
+ *
+ * `Pack` phải là kiểu THÔ của pack, không phải `Messages`: nếu khai báo
+ * `NoExtraKey<Messages>` thì `Exclude<keyof Pack, keyof Messages>` rỗng và hàng
+ * rào khoá thừa biến mất. Với `Pack = typeof zh`, khoá lạ của `zh` bị ép thành
+ * `never` trong kiểu đích, nên gán `zh` vào đó là lỗi thật.
  */
 type NoExtraKey<Pack extends object> = Pack &
   Record<Exclude<keyof Pack, keyof Messages>, never>
 
+const viExact: NoExtraKey<typeof vi> = vi
 const zhExact: NoExtraKey<typeof zh> = zh
 const enExact: NoExtraKey<typeof en> = en
-const viExact: NoExtraKey<typeof vi> = vi
 
 export const messages: Record<Locale, Messages> = {
+  vi: viExact,
   zh: zhExact,
   en: enExact,
-  vi: viExact,
 }

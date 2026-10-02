@@ -10,10 +10,13 @@
  * im lặng. Vì vậy: **regex và điều kiện `includes()` giữ nguyên**, chỉ `title` /
  * `message` / `suggestion` do ta tự viết mới được dịch.
  *
- * Một hệ quả chưa giải quyết được ở frontend: vài nhánh đặt `message: text`, tức
- * hiển thị lại nguyên văn thông báo lỗi của backend. Chuỗi đó vẫn là tiếng Trung cho
- * tới khi backend có bản `vi`. `title` và `suggestion` của chính ta thì đã là
- * tiếng Việt.
+ * Một hệ quả từng chưa giải quyết: vài nhánh đặt `message: text`, tức hiển thị lại
+ * nguyên văn thông báo lỗi tiếng Trung, dù `title` và `suggestion` đã là tiếng Việt.
+ * Nay đã xong: **không còn nhánh nào in thô `text` vào `message`.** Câu giải thích luôn
+ * do ta viết bằng ngôn ngữ đang chọn, còn `withDetail()` chỉ nối thêm phần thô khi nó
+ * **không phải tiếng Trung** (mã lỗi, `content[3]`, `File type not supported`) — thứ dùng
+ * được để điều tra và không cần dịch. Chuỗi thô vẫn còn nguyên trong `job.error` /
+ * `task.error_message` và được `reportApiError()` in ra console để không mất gì.
  */
 
 import { dialog } from './dialog'
@@ -71,6 +74,31 @@ function slotLabel(name: string): string {
   return known ? localized(known) : name
 }
 
+/** Chuỗi có ký tự Trung hay không — dùng để quyết định có giữ nguyên văn làm chi tiết. */
+const HAS_CJK = /[\u4e00-\u9fff]/
+
+/**
+ * Phần chi tiết kỹ thuật đi kèm câu đã dịch.
+ *
+ * `text` ở đây là thông báo **thô** của backend / nhà cung cấp, và phần lớn là tiếng
+ * Trung (`生图失败`, `上一镜失败`…). Trước đây nhiều nhánh đặt thẳng `message: text`, nên
+ * hộp thoại hiện nguyên tiếng Trung dù `title` và `suggestion` đã là tiếng Việt.
+ *
+ * Quy tắc ở đây: **câu giải thích thì luôn viết bằng ngôn ngữ đang chọn, phần thô chỉ
+ * giữ lại khi nó không phải tiếng Trung.** Giữ lại chuỗi tiếng Trung là vô ích với người
+ * đọc — họ không đọc được — nên bỏ hẳn còn hơn in ra. Chuỗi kỹ thuật tiếng Anh
+ * (`content[3]`, `File type not supported`, mã lỗi) thì vẫn giữ: đó là thứ dùng được
+ * để điều tra và bản thân nó không cần dịch.
+ *
+ * Chuỗi thô **không** bị mất: `DramaGenTaskDetail` vẫn đọc `job.error` / `task.error_message`
+ * gốc và in ra console qua `reportApiError()`.
+ */
+function withDetail(message: string, text: string, max: number): string {
+  if (HAS_CJK.test(text)) return message
+  const clipped = text.length > max ? `${text.slice(0, max)}…` : text
+  return clipped && clipped !== message ? `${message} (${clipped})` : message
+}
+
 // Cố rút tên slot đã được gán trong lỗi (content_labels từ backend)
 function extractNamedSlot(text: string): string | null {
   const named = text.match(/(角色|场景|道具|旁白|参考图|音色)「([^」]+)」/)
@@ -120,7 +148,15 @@ export function formatDramaGenError(raw: string | null | undefined): DramaGenErr
         en: 'Upstream timed out',
         vi: 'Mô hình thượng nguồn phản hồi quá hạn',
       }),
-      message: text.length > 200 ? `${text.slice(0, 200)}…` : text,
+      message: withDetail(
+        localized({
+          zh: '已经连上 TokenFree，但出图或出视频等待超过上限。',
+          en: 'TokenFree is reachable, but waiting for the image or video exceeded the limit.',
+          vi: 'Đã kết nối được TokenFree nhưng thời gian chờ tạo ảnh hoặc video đã vượt quá giới hạn.',
+        }),
+        text,
+        200,
+      ),
       suggestion: localized({
         zh: '已经连上 TokenFree，但出图/出视频等待超过上限。请稍后重试；若文本能生成、只有图/视频超时，多半是上游排队较慢，不是代理断网。',
         en: 'TokenFree is reachable, but waiting for the image or video exceeded the limit. Retry shortly. If text generates and only images or videos time out, upstream is most likely queueing slowly rather than your proxy dropping.',
@@ -136,7 +172,15 @@ export function formatDramaGenError(raw: string | null | undefined): DramaGenErr
         en: 'Cannot reach the image or video service',
         vi: 'Không kết nối được dịch vụ ảnh hoặc video',
       }),
-      message: text.length > 200 ? `${text.slice(0, 200)}…` : text,
+      message: withDetail(
+        localized({
+          zh: '本机当前连不上图片或视频服务。',
+          en: 'This machine cannot reach the image or video service.',
+          vi: 'Máy này hiện không kết nối được dịch vụ ảnh hoặc video.',
+        }),
+        text,
+        200,
+      ),
       suggestion: localized({
         zh: '本机当前连不上上游（常见于代理未放行或网络中断）。请检查网络/代理后重试，并确认后台 TokenFree 渠道密钥有效。',
         en: 'This machine cannot reach upstream right now (usually the proxy is blocking it, or the network dropped). Check the network or proxy and retry, and confirm the TokenFree channel key in the admin is valid.',
@@ -185,13 +229,15 @@ export function formatDramaGenError(raw: string | null | undefined): DramaGenErr
   if (isBillingError(text)) {
     return {
       title: localized({ zh: '余额不足', en: 'Insufficient balance', vi: 'Số dư không đủ' }),
-      message: /余额不足|请先充值/.test(text)
-        ? text
-        : localized({
-            zh: '当前余额不足，无法继续生成。',
-            en: 'Your balance is too low to keep generating.',
-            vi: 'Số dư hiện tại không đủ để tiếp tục tạo.',
-          }),
+      message: withDetail(
+        localized({
+          zh: '当前余额不足，无法继续生成。',
+          en: 'Your balance is too low to keep generating.',
+          vi: 'Số dư hiện tại không đủ để tiếp tục tạo.',
+        }),
+        text,
+        160,
+      ),
       suggestion: localized({
         zh: '请先充值后再重试该任务。',
         en: 'Top up first, then retry this job.',
@@ -265,7 +311,15 @@ export function formatDramaGenError(raw: string | null | undefined): DramaGenErr
         en: 'Still failing after several attempts',
         vi: 'Tạo nhiều lần vẫn thất bại',
       }),
-      message: text,
+      message: withDetail(
+        localized({
+          zh: '同一次任务内的自动重试已用完，仍未生成成功。',
+          en: 'The automatic retry budget for this job ran out and generation still failed.',
+          vi: 'Số lần tự thử lại trong cùng tác vụ đã hết mà vẫn chưa tạo được.',
+        }),
+        text,
+        200,
+      ),
       suggestion: localized({
         zh: '这是同一次任务内的自动重试耗尽，不是禁止你再点生成。请根据真实原因（常见是参考图真人审核）改素材或文案后，再重新点生成。',
         en: 'This is the automatic retry budget for one job running out, not a block on you generating again. Fix the asset or the text for the real reason (most often a real-person check on a reference image), then generate again.',
@@ -438,13 +492,15 @@ export function formatDramaGenError(raw: string | null | undefined): DramaGenErr
         en: 'Unsupported reference image format',
         vi: 'Định dạng ảnh tham chiếu không được hỗ trợ',
       }),
-      message: text.includes('参考图格式不支持')
-        ? text
-        : localized({
-            zh: '上游拒绝了参考图：File type not supported（常见原因是 SVG 占位图或非位图）。',
-            en: 'Upstream rejected the reference image: File type not supported (usually an SVG placeholder or a non-bitmap file).',
-            vi: 'Phía thượng nguồn đã từ chối ảnh tham chiếu: File type not supported (nguyên nhân thường gặp là ảnh SVG dự phòng hoặc ảnh không phải bitmap).',
-          }),
+      message: withDetail(
+        localized({
+          zh: '上游拒绝了参考图：File type not supported（常见原因是 SVG 占位图或非位图）。',
+          en: 'Upstream rejected the reference image: File type not supported (usually an SVG placeholder or a non-bitmap file).',
+          vi: 'Phía thượng nguồn đã từ chối ảnh tham chiếu: File type not supported (nguyên nhân thường gặp là ảnh SVG dự phòng hoặc ảnh không phải bitmap).',
+        }),
+        text,
+        160,
+      ),
       suggestion: localized({
         zh: '检查本镜引用的角色/场景/道具封面是否为 PNG/JPG/WEBP。若仍是 SVG 占位图，请对该资产重新生图或上传位图后再生成视频。',
         en: 'Check that the character, scene, or prop covers this shot uses are PNG, JPG, or WEBP. If they are still SVG placeholders, regenerate the image for that asset or upload a bitmap, then generate the video again.',
@@ -487,7 +543,15 @@ export function formatDramaGenError(raw: string | null | undefined): DramaGenErr
   if (/Seedance|上游生成失败/i.test(text)) {
     return {
       title: localized({ zh: '视频生成失败', en: 'Video generation failed', vi: 'Tạo video thất bại' }),
-      message: text.length > 160 ? `${text.slice(0, 160)}…` : text,
+      message: withDetail(
+        localized({
+          zh: '视频服务未能生成本镜。',
+          en: 'The video service could not generate this shot.',
+          vi: 'Dịch vụ video không tạo được cảnh này.',
+        }),
+        text,
+        160,
+      ),
       suggestion: localized({
         zh: '可稍后重试该分镜；连续失败时请更换参考图或简化脚本。',
         en: 'Retry this shot later. If it keeps failing, change the reference image or simplify the script.',
@@ -517,7 +581,21 @@ export function formatDramaGenError(raw: string | null | undefined): DramaGenErr
       title: text.includes('取消')
         ? localized({ zh: '已取消', en: 'Cancelled', vi: 'Đã huỷ' })
         : localized({ zh: '任务已中断', en: 'The job was interrupted', vi: 'Tác vụ đã bị gián đoạn' }),
-      message: text,
+      message: withDetail(
+        text.includes('取消')
+          ? localized({
+              zh: '这次生成已被取消。',
+              en: 'This generation was cancelled.',
+              vi: 'Lần tạo này đã bị huỷ.',
+            })
+          : localized({
+              zh: '这次生成被中断，没有跑完。',
+              en: 'This generation was interrupted before it finished.',
+              vi: 'Lần tạo này bị gián đoạn, không chạy xong.',
+            }),
+        text,
+        160,
+      ),
       suggestion: localized({
         zh: '需要成片时请重新入队生成。',
         en: 'Queue a new job when you need the finished film.',
@@ -526,11 +604,15 @@ export function formatDramaGenError(raw: string | null | undefined): DramaGenErr
     }
   }
 
-  // Đã là câu tiếng Trung ngắn: hiển thị nguyên văn, chỉ bổ sung gợi ý chung
-  if (!/[{[\]"]/.test(text) && text.length <= 120 && /[\u4e00-\u9fff]/.test(text)) {
+  // Câu tiếng Trung ngắn, không có dấu JSON: nói rõ là lỗi không rõ thay vì in nguyên văn
+  if (!/[{[\]"]/.test(text) && text.length <= 120 && HAS_CJK.test(text)) {
     return {
       title: localized({ zh: '生成失败', en: 'Generation failed', vi: 'Tạo thất bại' }),
-      message: text,
+      message: localized({
+        zh: '生成未成功，服务端没有给出更具体的原因。',
+        en: 'Generation failed and the service gave no more specific reason.',
+        vi: 'Tạo không thành công và phía dịch vụ không nêu lý do cụ thể hơn.',
+      }),
       suggestion: localized({
         zh: '请按提示处理后重新生成该分镜。',
         en: 'Handle what the message says, then generate this shot again.',
@@ -541,7 +623,15 @@ export function formatDramaGenError(raw: string | null | undefined): DramaGenErr
 
   return {
     title: localized({ zh: '生成失败', en: 'Generation failed', vi: 'Tạo thất bại' }),
-    message: text.length > 200 ? `${text.slice(0, 200)}…` : text,
+    message: withDetail(
+      localized({
+        zh: '生成未成功。',
+        en: 'Generation failed.',
+        vi: 'Tạo không thành công.',
+      }),
+      text,
+      200,
+    ),
     suggestion: localized({
       zh: '请检查本镜参考图与脚本后重试。',
       en: 'Check this shot’s reference image and script, then retry.',
