@@ -321,8 +321,55 @@ Không sửa file nào của lane khác, không sửa `ark.py:702`/`:729`, khôn
 
 ---
 
-## 9. Còn lại
+## 9. Audit 26 route — kết quả đo thật, kể cả chỗ chưa đo xong
 
-Audit **đầy đủ 26 route** đang chạy nền từ worktree này (frontend `:5194` → backend `:8024`).
-Kết quả sẽ ghi thêm vào đây nếu khác với `4 failed` ở trên. Đây là lần chạy đầu tiên kể từ khi
-endpoint tồn tại, nên nó là lần đầu đo được trần đủ 26 route thay vì dừng giữa chừng ở `/wizard`.
+Chạy đầy đủ từ worktree lane (frontend `:5194` → backend `:8024`).
+
+**Điều quan trọng nhất: audit không còn dừng ở `/wizard`.** Nó đi qua `/wizard`, qua cả 4 bước
+walkthrough, rồi tiếp tục `/history`, `/studio`, `/studio/new`, `/drama`, `/drama/assets`,
+`/studio/55/*`, `/drama/projects/16*`. Trước khi có endpoint, nó chết ngay tại đó và 15 route
+còn lại không bao giờ được đo.
+
+### Đo được
+
+| lượt | route | ghi chú |
+|---|---|---|
+| `vi` | **26/26** | kèm 4 ảnh walkthrough của `/wizard`; tổng 30 ảnh |
+| `en` | 17/26 | kèm 4 ảnh walkthrough của `/wizard`; tổng 21 ảnh |
+
+### Chưa đo xong — nói rõ, không làm tròn
+
+Lượt `en` **chết ở lô 7**, 3 route cuối chưa kịp đo:
+
+```
+LOI: Error: Ket noi CDP bi ngat giua chung. Renderer/Edge co the da chet.
+    Route nay KHONG duoc coi la da kiem tra.
+  [lot 7] en 8 route · da don 0 tien trinh Edge
+```
+
+`da don 0 tien trinh Edge` tức là Edge của lô đó đã chết trước lúc dọn — nghi vấn hết RAM.
+Chính `visual-audit.mjs:615-623` có ghi chú từng đo được **858 tiến trình `msedge` còn sống** và
+máy hết RAM. Đây là lỗi hạ tầng của máy chạy audit, **không phải** trang hỏng và không liên
+quan tới endpoint này.
+
+⇒ **Chưa đạt tiêu chuẩn hai lượt giống hệt của board** (`AGENTS.md` mục 10). Lần chạy này
+đủ để chứng minh `/wizard` không còn làm hỏng cả lô, nhưng **không** đủ để đóng nốt mục
+"trần 25 route". Cần chạy lại `en` khi máy rảnh tay, hoặc giảm `AUDIT_BATCH`.
+
+### Đọc số ký tự Trung
+
+Vài route vẫn còn tiếng Trung, và **nguồn không phải giao diện**:
+
+| route | `vi` | nguồn |
+|---|---|---|
+| `/assets`, `/drama/assets` | 31 | dữ liệu backend (tên tài nguyên) |
+| `/drama/projects/16` | 806 | **nội dung kịch bản trong database** — `AGENTS.md` mục 10 đã ghi loại này |
+| `/drama/projects/16/episodes`, `.../episodes/3` | 53 | cùng loại, nội dung database |
+| `/drama/projects/16/canvas` | 50 | cùng loại |
+| `/settings` | 4 (`vi`), 2 (`en`) | chỗ này dính |
+| mọi trang | +1 | nút chuyển ngôn ngữ `中`, đúng nền đo đã ghi ở `AGENTS.md` mục 8 |
+
+Nền đo cũ trong `AGENTS.md` dùng `/drama/projects/2` — id đó không tồn tại nên render rỗng và
+chỉ ra 39 ký tự. Lần này audit dùng `/drama/projects/16` (id thật trong DB local), nên con số
+cao hơn là do **dữ liệu kịch bản**, không phải do `vi` dịch thiếu. Đây là loại nợ `AGENTS.md`
+mục 10 đã ghi là "dọn khi khởi tạo database thật, không tính là nợ UI".
