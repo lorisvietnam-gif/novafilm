@@ -15,7 +15,7 @@ tên model.
 from __future__ import annotations
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from app.config import Settings
 from app.models_settings import SystemModelChannelRow
@@ -80,7 +80,18 @@ def _row(*, id: str, base_url: str, key: str, models: list[str], enabled: bool, 
 
 
 async def _seed_channels(db, *, kira_enabled: bool = False) -> None:
-    """Dựng đúng trạng thái DB thật: Kira bị tắt bởi khoá TokenFree, thêm một dòng lạ."""
+    """Dựng đúng trạng thái DB thật: Kira bị tắt bởi khoá TokenFree, thêm một dòng lạ.
+
+    Dọn các dòng sắp gieo trước. `load_model_settings_cache` trong lúc chạy sẽ
+    commit dòng channel ra ngoài transaction của test, nên bảng thử còn dữ liệu sót
+    từ lần chạy trước; gieo thẳng sẽ dính `duplicate key` trên khoá chính và bốn test
+    này fail dù code đúng. Xoá trước làm hàm giep **lặp lại được**.
+    """
+    await db.execute(
+        delete(SystemModelChannelRow).where(
+            SystemModelChannelRow.id.in_([TOKENFREE_CHANNEL_ID, KIRA_ID, "legacy-vendor"])
+        )
+    )
     db.add(
         _row(
             id=TOKENFREE_CHANNEL_ID,
