@@ -128,6 +128,89 @@ _EXPAND_LENGTH_RULES: dict[str, dict[str, str]] = {
     },
 }
 
+# Tên ngôn ngữ đầu ra, theo mã locale. **Một bảng duy nhất cho cả `chat_storyboard`
+# lẫn `expand_content`** — mỗi chỗ một bảng riêng là hai nguồn sự thật, chúng sẽ trôi
+# lệch nhau sau vài lần sửa (đúng cái bài học đã nêu ở AGENTS.md về `API_BASE`).
+#
+# Ghi chú: mọi prompt vẫn **viết lệnh bằng tiếng Trung**. Ngôn ngữ của câu chỉ thị và
+# ngôn ngữ của nội dung kịch bản là hai thứ khác nhau; chỉ nội dung mới cần đổi theo
+# locale của người dùng.
+_OUTPUT_LANGUAGE_NAMES: dict[str, str] = {
+    "zh": "简体中文",
+    "vi": "tiếng Việt, có dấu đầy đủ",
+    "en": "English",
+}
+
+# Dạng danh từ ngắn, dùng ở vị trí tính từ ("... 一致的<tiếng Việt>首帧提示词").
+# Tách khỏi bảng trên vì "tiếng Việt, có dấu đầy đủ" là cả mệnh đề, nhét vào giữa
+# câu sẽ ra câu vỡ.
+_OUTPUT_LANGUAGE_NOUNS: dict[str, str] = {
+    "zh": "中文",
+    "vi": "tiếng Việt",
+    "en": "English",
+}
+
+# Danh sách trường phải nằm trong câu ép ngôn ngữ của `chat_storyboard`, không tách
+# riêng: câu đó vừa bảo ngôn ngữ vừa nhắc lại cấu trúc đầu ra. Gỡ danh sách đi thì
+# LLM có thể trả về thứ gì đó `_parse_storyboard` không đọc nổi. Vì vậy ở các ngôn
+# ngữ khác Trung ta **dịch câu, không xoá danh sách**.
+_STORYBOARD_FIELD_LIST_ZH = "title、text、img_prompt、video_prompt、camera、bgm、segments"
+_STORYBOARD_FIELD_LIST_LATIN = (
+    "title, text, img_prompt, video_prompt, camera, bgm, segments"
+)
+
+
+def resolve_output_language(locale: str, *, default: str) -> str:
+    """Chuẩn hoá `locale` xuống mã ngôn ngữ có chỉ thị; lạ hoặc rỗng thì rơi về `default`."""
+    lang = str(locale or "").strip().lower()[:2]
+    if lang in _OUTPUT_LANGUAGE_NAMES:
+        return lang
+    return default
+
+
+def _storyboard_language_rule(lang: str, *, with_fields: bool) -> str:
+    """Câu ép ngôn ngữ cho prompt phân cảnh, đã giữ danh sách trường.
+
+    `with_fields=False` dùng cho nhánh image_text, vốn chỉ có một câu
+    "所有字段必须使用简体中文。" không liệt kê trường — giữ nguyên hình dạng cũ.
+    """
+    name = _OUTPUT_LANGUAGE_NAMES.get(lang, _OUTPUT_LANGUAGE_NAMES["zh"])
+    if lang == "vi":
+        listed = f" ({_STORYBOARD_FIELD_LIST_LATIN})" if with_fields else ""
+        return f"Mọi trường{listed} phải viết bằng {name}."
+    if lang == "en":
+        listed = f" ({_STORYBOARD_FIELD_LIST_LATIN})" if with_fields else ""
+        return f"Every field{listed} must be written in {name}."
+    listed = f"（包括 {_STORYBOARD_FIELD_LIST_ZH}）" if with_fields else ""
+    return f"所有字段必须使用{name}{listed}。"
+
+
+def _frame_prompt_language(lang: str) -> str:
+    """Tên ngôn ngữ cho `img_prompt`, chèn giữa câu tiếng Trung nên cần khoảng trắng.
+
+    Tiếng Trung không khoảng cách chữ, nên `一致的中文首帧提示词` là đúng; chữ Latin
+    dán liền sẽ ra `一致的tiếng Việt首帧提示词` — đọc được nhưng dính liền.
+    """
+    noun = _OUTPUT_LANGUAGE_NOUNS.get(lang, _OUTPUT_LANGUAGE_NOUNS["zh"])
+    if lang == "zh":
+        return noun
+    return f" {noun} "
+
+
+def _storyboard_prompt_language(lang: str) -> str:
+    """Ngôn ngữ của img_prompt/video_prompt, dùng để gỡ mâu thuẫn với câu ép ngôn ngữ."""
+    if lang == "vi":
+        return (
+            "img_prompt và video_prompt viết bằng tiếng Việt, có dấu đầy đủ; "
+            "thuật ngữ chuyên ngành có thể giữ nguyên."
+        )
+    if lang == "en":
+        return (
+            "img_prompt and video_prompt must be written in English; "
+            "technical terms may stay as they are."
+        )
+    return "img_prompt 与 video_prompt 禁止英文句子，专有名词可保留原文。"
+
 
 def _upstream_timeout(read_sec: float, *, connect: float = 30.0) -> httpx.Timeout:
     """上游 HTTP 超时：建连短、等结果长，避免 ReadTimeout 被当成连不上。"""
@@ -590,6 +673,7 @@ class ArkGateway:
         output_ratio: str = "16:9",
         shot_range_override: tuple[int, int] | None = None,
         allow_source_names: bool = False,
+        locale: str = "",
     ) -> StoryboardResult:
         if self.mock:
             return await asyncio.to_thread(
@@ -614,6 +698,14 @@ class ArkGateway:
         mode = (consistency_mode or "character").strip().lower()
         if mode not in {"character", "style", "diverse"}:
             mode = "character"
+
+        # Thứ tự nguồn: tham số rõ ràng → `DEFAULT_LOCALE` trong settings → "vi".
+        # Rơi về tiếng Việt chứ không phải tiếng Trung: đây là sản phẩm tiếng Việt,
+        # còn khách tiếng Trung thì gửi `locale="zh"` và nhận lại đúng câu cũ.
+        lang = resolve_output_language(
+            locale or self.settings.default_locale,
+            default="vi",
+        )
 
         if mode == "diverse":
             if (character_hint or "").strip():
@@ -699,7 +791,8 @@ class ArkGateway:
             ratio = (output_ratio or "16:9").strip() or "16:9"
             orient = "竖屏" if ratio == "9:16" else ("方形" if ratio == "1:1" else "横屏")
             system = (
-                f"你是{orient}图文短视频编剧。所有字段必须使用简体中文。"
+                f"你是{orient}图文短视频编剧。"
+                f"{_storyboard_language_rule(lang, with_fields=False)}"
                 f"{consistency}{llm_system_addon}"
                 f"每镜 duration 在 {duration_min}-{shot_cap} 秒。"
                 "这是「静图+叠字+配音」模式：不生成 AI 视频，但需要旁白配音；"
@@ -726,8 +819,8 @@ class ArkGateway:
                 else f"画风与人物必须全片一致；拆成 {shot_range} 镜，短镜快切。"
             )
             system = (
-                "你是短视频分镜编剧。所有字段必须使用简体中文"
-                "（包括 title、text、img_prompt、video_prompt、camera、bgm、segments）。"
+                "你是短视频分镜编剧。"
+                f"{_storyboard_language_rule(lang, with_fields=True)}"
                 f"{consistency}{llm_system_addon}"
                 f"每镜 duration 在 {duration_min}-{shot_cap} 秒，不要为凑满上限而注水。"
                 "shots 字段说明："
@@ -737,11 +830,12 @@ class ArkGateway:
                 "subtitle(可选，一句要点概括 8-22字)、"
                 "text(旁白台词，与 segments 中 narration 文案一致或为其摘要)、"
                 "segments(必填数组，精确到每一段：每项 duration、kind=visual|narration|action、text)、"
-                "img_prompt(与首段 visual 一致的中文首帧提示词，含具体景物与构图)、"
+                f"img_prompt(与首段 visual 一致的{_frame_prompt_language(lang)}"
+                "首帧提示词，含具体景物与构图)、"
                 "video_prompt(可与 segments 画面摘要一致)、"
                 "camera(运镜，如：缓慢上摇/轻推/横移)、bgm(情绪，全片同一氛围)。"
                 "顶层另输出 bgm_lock(全片统一 BGM 氛围一句，与各镜 bgm 一致)。"
-                "img_prompt 与 video_prompt 禁止英文句子，专有名词可保留原文。"
+                f"{_storyboard_prompt_language(lang)}"
                 f"{segment_rules}"
                 f"{diversity_note}"
             )
@@ -2441,6 +2535,8 @@ class ArkGateway:
             return self._mock_expand_content(topic, mode)
 
         lang = str(locale or "zh").strip().lower()[:2]
+        if lang not in _OUTPUT_LANGUAGE_NAMES:
+            lang = "zh"
         if mode == "script":
             system = (
                 "你是科普短视频文案作者。根据用户主题写一篇可直接用于旁白的完整口播文案。"
@@ -2465,10 +2561,15 @@ class ArkGateway:
         # Trước đây prompt viết cứng bằng tiếng Trung và **không** yêu cầu ngôn ngữ, nên model
         # trả lời tiếng Trung bất kể giao diện đang là tiếng Việt hay tiếng Anh.
         # `locale` là lựa chọn của người dùng; mặc định `zh` để không đổi hành vi cũ.
-        directive = {
-            "vi": "title và content BẮT BUỘC viết bằng tiếng Việt, có dấu đầy đủ.",
-            "en": "Write title and content in English.",
-        }.get(lang, "title 和 content 必须使用简体中文。")
+        #
+        # Tên ngôn ngữ lấy từ `_OUTPUT_LANGUAGE_NAMES` — cùng bảng `chat_storyboard` dùng,
+        # nên thêm ngôn ngữ thứ tư chỉ phải sửa một chỗ.
+        if lang == "en":
+            directive = f"Write title and content in {_OUTPUT_LANGUAGE_NAMES['en']}."
+        elif lang == "vi":
+            directive = f"title và content BẮT BUỘC viết bằng {_OUTPUT_LANGUAGE_NAMES['vi']}."
+        else:
+            directive = f"title 和 content 必须使用{_OUTPUT_LANGUAGE_NAMES['zh']}。"
         topic_label = {"vi": "Chủ đề / nguyên liệu", "en": "Topic / material"}.get(
             lang, "主题/素材"
         )
