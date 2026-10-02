@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { isBillingError, PRICING_PATH } from '../../lib/billingError'
+import { localizeBackendMessage } from '../../lib/backendMessages'
 import { useLocalizedText } from '../../lib/useLocalizedText'
 import type { LocalizedText } from '../../lib/localeStrings'
 
@@ -32,16 +33,26 @@ export default function BillingErrorNotice({
   const text = String(message || '').trim()
   if (!text) return null
   const Tag = inline ? 'span' : 'p'
+
+  // PHÂN LOẠI TRÊN CHUỖI THÔ, HIỂN THỊ CHUỖI ĐÃ DỊCH — thứ tự này là bắt buộc.
+  //
+  // `isBillingError()` dò chính xác tiếng Trung mà backend trả về (`余额不足`,
+  // `请先充值`…). Nếu dịch trước rồi mới phân loại, regex không còn trúng và mất
+  // luôn liên kết nạp tiền — đúng loại lỗi "thông báo biến mất im lặng" mà
+  // `dramaGenError.ts` đã ghi. Vì vậy: `isBillingError` nhận `text` thô, còn cái
+  // in ra là `shown`.
+  const shown = localizeBackendMessage(text)
+
   if (!isBillingError(text)) {
     return (
       <Tag className={className} style={style} role={inline ? undefined : 'alert'}>
-        {text}
+        {shown}
       </Tag>
     )
   }
   return (
     <Tag className={className} style={style} role={inline ? undefined : 'alert'}>
-      {text}{' '}
+      {shown}{' '}
       <Link to={PRICING_PATH} className="pf-link pf-billing-topup-link">
         {linkText || lt(TOPUP_LABEL)}
       </Link>
