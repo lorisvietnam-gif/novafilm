@@ -89,9 +89,11 @@ def _payload_image_model(payload: dict) -> str:
     for val in (
         payload.get("model"),
         payload.get("image_model"),
+        payload.get("model_id"),
         gen.get("model"),
         prepared.get("model"),
         prepared.get("image_model"),
+        prepared.get("model_id"),
     ):
         text = str(val or "").strip()
         if text:
