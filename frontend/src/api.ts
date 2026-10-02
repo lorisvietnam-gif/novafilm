@@ -366,6 +366,25 @@ export type Work = {
   published_at: string
 }
 
+/**
+ * Kết quả `POST /api/wizard/generate_prompt`.
+ *
+ * `prompt` là phần **bắt buộc** và là thứ bước 4 chủ yếu hiện ra. `script` và `frames`
+ * để tuỳ chọn vì hợp đồng của backend chỉ hứa "một prompt tiếng Anh"; trang tự tách
+ * `prompt` thành các khung khi backend không gửi `frames` — xem `WizardPage.tsx`.
+ */
+export type WizardFrame = {
+  title?: string
+  narration?: string
+  prompt: string
+}
+
+export type WizardPromptResult = {
+  prompt: string
+  script?: string
+  frames?: WizardFrame[]
+}
+
 export const api = {
   assetUrl(path: string | null | undefined, cacheBust?: string | number) {
     if (!path) return ''
@@ -783,5 +802,21 @@ export const api = {
   },
   eventsUrl(projectId: number) {
     return `${API_BASE}/api/projects/${projectId}/events`
+  },
+
+  /**
+   * `/wizard` bước 2: nộp ý tưởng, nhận về prompt viết cho Veo.
+   *
+   * Hợp đồng do `docs/briefs/case-wizard-backend-b4.md` chốt: nhận `{ idea, language }`,
+   * trả về **một prompt tiếng Anh**. Các trường `script` và `frames` là tuỳ chọn — nếu
+   * backend có trả thì trang dùng, không có thì trang tự tách prompt thành các khung.
+   *
+   * Không có mục nào ở đây gọi tới API video: NOVAFILM là trạm đẻ prompt, không render.
+   */
+  wizardGeneratePrompt(body: { idea: string; language: 'vi' | 'en' }) {
+    return request<WizardPromptResult>('/api/wizard/generate_prompt', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
   },
 }

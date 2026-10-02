@@ -1,0 +1,321 @@
+﻿/* ==========================================================================
+   NOVAFILM — /wizard (trạm đẻ prompt bốn bước)
+   Lớp bổ sung cho `src/pages/wizard/**`.
+
+   Không selector nào của `src/styles/printfilm.css` bị xoá hay đổi tên ở đây;
+   mọi rule mới đều nằm dưới `.wizard-scoped` nên không rò sang trang khác.
+   Chỉ dùng token đã có sẵn — không hard-code màu.
+   ========================================================================== */
+
+.wizard-scoped {
+  --wizard-wash: color-mix(in srgb, var(--pf-lime) 16%, transparent);
+}
+
+/* --- Thanh bốn bước ------------------------------------------------------ */
+/* Dùng lại class `pf-stepper` / `pf-step` / `pf-step-dot` / `pf-step-line`
+   của printfilm.css, chỉ thêm phần bấm được. Những class đó vốn dùng cho
+   `Stepper` (span), nên ở đây phải trả nền/border mặc định cho <button>. */
+.wizard-step-nav {
+  margin: 0;
+  border: 0;
+  padding: 0.2rem;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  border-radius: var(--pf-radius-sm);
+}
+
+.wizard-step-nav:disabled {
+  cursor: default;
+}
+
+.wizard-step-nav:not(:disabled):hover .pf-step {
+  color: var(--pf-ink);
+}
+
+.wizard-step-nav:focus-visible {
+  outline: none;
+  box-shadow: var(--pf-focus-ring);
+}
+
+/* --- Bước 1: ảnh tham chiếu -------------------------------------------- */
+.wizard-ref-grid {
+  display: grid;
+  gap: var(--pf-space-4);
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.wizard-drop {
+  border: 1px dashed var(--pf-line-strong);
+  border-radius: var(--pf-radius-md);
+  padding: var(--pf-space-3);
+  background: var(--pf-surface);
+}
+
+.wizard-drop-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.15rem;
+  font-weight: 600;
+  color: var(--pf-ink);
+}
+
+.wizard-drop-hint {
+  margin: 0 0 0.6rem;
+  font-size: var(--pf-text-sm);
+  color: var(--pf-muted);
+}
+
+.wizard-drop-empty {
+  font-size: var(--pf-text-sm);
+  color: var(--pf-muted);
+}
+
+.wizard-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.65rem;
+}
+
+.wizard-thumb {
+  position: relative;
+  width: 76px;
+}
+
+.wizard-thumb img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border: 1px solid var(--pf-line);
+  border-radius: var(--pf-radius-sm);
+  background: var(--pf-surface);
+}
+
+.wizard-thumb-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--pf-line-strong);
+  border-radius: 999px;
+  background: var(--pf-surface);
+  color: var(--pf-ink);
+  cursor: pointer;
+}
+
+.wizard-thumb-remove:hover {
+  background: var(--wizard-wash);
+}
+
+.wizard-ref-note {
+  margin-top: 0.75rem;
+  font-size: var(--pf-text-sm);
+  color: var(--pf-muted);
+}
+
+/* --- Bước 2: ý tưởng ---------------------------------------------------- */
+.wizard-textarea {
+  display: block;
+  width: 100%;
+  min-height: 7.5rem;
+  padding: var(--pf-space-3) 0.8rem;
+  border: 1px solid var(--pf-line);
+  border-radius: var(--pf-radius-sm);
+  background: var(--pf-surface);
+  color: var(--pf-ink);
+  font: inherit;
+  resize: vertical;
+}
+
+.wizard-textarea:focus {
+  outline: none;
+  border-color: var(--pf-line-strong);
+  box-shadow: var(--pf-focus-ring);
+}
+
+.wizard-field-error {
+  margin: 0.35rem 0 0.7rem;
+  font-size: var(--pf-text-sm);
+  color: var(--pf-ink);
+  font-weight: 600;
+}
+
+.wizard-textarea[aria-invalid='true'] {
+  border-color: var(--pf-line-strong);
+  background: var(--wizard-wash);
+}
+
+.wizard-readout {
+  margin-top: var(--pf-space-4);
+  display: grid;
+  gap: 0.85rem;
+}
+
+.wizard-readout-label {
+  display: block;
+  font-size: var(--pf-text-sm);
+  font-weight: 600;
+  color: var(--pf-ink);
+  margin-bottom: 0.3rem;
+}
+
+.wizard-readout-body {
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--pf-line);
+  border-radius: var(--pf-radius-sm);
+  background: var(--pf-surface);
+  white-space: pre-wrap;
+  color: var(--pf-ink);
+}
+
+.wizard-draft-note {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--pf-line-strong);
+  border-radius: var(--pf-radius-sm);
+  background: var(--wizard-wash);
+  font-size: var(--pf-text-sm);
+  color: var(--pf-ink);
+}
+
+/* --- Bước 3: đích đến và giọng ----------------------------------------- */
+.wizard-target-grid {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.wizard-target {
+  display: block;
+  width: 100%;
+  text-align: start;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--pf-line);
+  border-radius: var(--pf-radius-sm);
+  background: var(--pf-surface);
+  color: var(--pf-ink);
+  cursor: pointer;
+  font: inherit;
+}
+
+.wizard-target:hover {
+  border-color: var(--pf-line-strong);
+}
+
+.wizard-target.is-active {
+  border-color: var(--pf-lime);
+  background: var(--wizard-wash);
+}
+
+.wizard-target-name {
+  display: block;
+  font-weight: 600;
+}
+
+.wizard-target-hint {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: var(--pf-text-sm);
+  color: var(--pf-muted);
+}
+
+.wizard-select {
+  display: block;
+  width: 100%;
+  margin-top: 0.35rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--pf-line);
+  border-radius: var(--pf-radius-sm);
+  background: var(--pf-surface);
+  color: var(--pf-ink);
+  font: inherit;
+}
+
+/* --- Bước 4: xuất prompt ------------------------------------------------ */
+.wizard-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.1rem;
+  margin: 0 0 var(--pf-space-4);
+  font-size: var(--pf-text-sm);
+  color: var(--pf-muted);
+}
+
+.wizard-frames {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.wizard-frame {
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--pf-line);
+  border-radius: var(--pf-radius-sm);
+  background: var(--pf-surface);
+}
+
+.wizard-frame-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: var(--pf-ink);
+}
+
+.wizard-frame-narration {
+  margin: 0.25rem 0 0;
+  font-size: var(--pf-text-sm);
+  color: var(--pf-muted);
+}
+
+.wizard-frame-prompt {
+  margin: 0.45rem 0 0.6rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--pf-radius-sm);
+  background: var(--pf-bg);
+  font-family: var(--pf-font-mono);
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+  color: var(--pf-ink);
+}
+
+/* --- Hành động chung ----------------------------------------------------- */
+.wizard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: var(--pf-space-5);
+  padding-top: var(--pf-space-4);
+  border-top: 1px solid var(--pf-line);
+}
+
+.wizard-panel {
+  margin-top: var(--pf-space-4);
+}
+
+.wizard-notice {
+  margin: 0 0 var(--pf-space-4);
+  font-size: var(--pf-text-sm);
+  color: var(--pf-muted);
+}
+
+@media (max-width: 430px) {
+  .wizard-ref-grid,
+  .wizard-target-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .wizard-thumb {
+    width: 64px;
+  }
+}

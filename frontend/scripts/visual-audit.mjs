@@ -202,7 +202,7 @@ const API_ERROR_MARKERS = [
   'is not valid JSON',
   'Unexpected token',
 ]
-const RAW_KEY = /\b(common|home|nav|auth|tools|pricing|help|legal|shell|drama|studio)\.[a-zA-Z][a-zA-Z0-9]*/g
+const RAW_KEY = /\b(common|home|nav|auth|tools|pricing|help|legal|shell|drama|studio|wizard)\.[a-zA-Z][a-zA-Z0-9]*/g
 
 /** Route cần kiểm. `:id` sẽ thay bằng giá trị thật bên dưới. */
 const ROUTES_BASE = [
@@ -219,12 +219,71 @@ const ROUTES_BASE = [
   ['/contact', 'lien-he'],
   ['/settings', 'tai-khoan'],
   ['/pricing', 'bang-gia'],
+  ['/wizard', 'tram-de-prompt'],
   ['/history', 'lich-su'],
   ['/studio', 'studio'],
   ['/studio/new', 'studio-tao-moi'],
   ['/drama', 'drama-danh-sach'],
   ['/drama/assets', 'drama-tai-nguyen'],
 ]
+
+/**
+ * Ý tưởng dùng khi lái thử `/wizard`. Cố ý viết tiếng Việt: ô nhập là của người dùng
+ * Việt, và endpoint `generate_prompt` chưa có nên đoạn này đang chạy đúng nhánh lỗi.
+ */
+const WIZARD_IDEA =
+  'Một cô gái trẻ mặc áo khoác da chạy băng qua phố mưa lúc đêm, dừng lại trước một quán cà phê nhỏ, ngẩng đầu nhìn đèn neon và thở dài.'
+
+/** Bấm nút cuối trong `.wizard-actions` — luôn là "Tiếp tục", không phụ thuộc ngôn ngữ. */
+const WIZARD_NEXT = `(() => {
+  const btns = document.querySelectorAll('.wizard-actions .pf-btn')
+  const next = btns[btns.length - 1]
+  if (!next) throw new Error('khong tim thay nut buoc sau')
+  next.click()
+  return true
+})()`
+
+/**
+ * Điền ý tưởng rồi bấm nút soạn.
+ *
+ * Gán giá trị phải qua setter của prototype rồi bắn `input` — React đọc giá trị qua
+ * value tracker, gán thẳng `element.value` thì React không thấy thay đổi.
+ */
+const WIZARD_GENERATE = `(() => {
+  const area = document.querySelector('.wizard-textarea')
+  if (!area) throw new Error('khong tim thay o nhap y tuong')
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
+  setter.call(area, ${JSON.stringify(WIZARD_IDEA)})
+  area.dispatchEvent(new Event('input', { bubbles: true }))
+  const go = document.querySelector('.wizard-generate')
+  if (!go) throw new Error('khong tim thay nut soan')
+  go.click()
+  return true
+})()`
+
+/**
+ * Một số trang **không** hiện hết nội dung ở lần tải đầu. `/wizard` chỉ dựng bước 1;
+ * các bước sau chỉ mở ra khi bấm. Chụp một lần thì không chứng minh được bước 2–4 có
+ * dựng không, và `npm run build` cũng không — xem AGENTS.md mục 7.
+ *
+ * Khai báo chuỗi thao tác cho từng route; mỗi bước chạy một đoạn JS trong trang rồi
+ * chụp ảnh riêng `<route>-<suffix>.png`. Bước nào ném lỗi thì **cả lô dừng** — một
+ * bước không chạy được nghĩa là route đó chưa được kiểm, không phải là "0 ký tự Trung".
+ */
+const WALKTHROUGHS = {
+  'tram-de-prompt': [
+    { suffix: 'buoc-2-y-tuong', run: WIZARD_NEXT },
+    // Bấm soạn: endpoint chưa có nên đoạn này cố tình đi qua nhánh lỗi của bước 2,
+    // đúng thứ brief yêu cầu phải thấy bằng ảnh: có lỗi tiếng Việt, không trắng trang,
+    // và bước 4 vẫn tới được.
+    { suffix: 'buoc-2-da-soan', run: WIZARD_GENERATE },
+    { suffix: 'buoc-3-dich-den', run: WIZARD_NEXT },
+    { suffix: 'buoc-4-sao-chep', run: WIZARD_NEXT },
+  ],
+}
+
+/** Số ký tự Trung và khoá i18n lọt ra ở các bước lái thử, gộp vào `report.json`. */
+const walkResults = []
 
 /**
  * Route có `:id` sẽ được điền từ dữ liệu thật trong database. Không có dữ liệu thì
@@ -803,16 +862,7 @@ async function auditRoutes(ROUTES, token, locale) {
     {
       for (const [route, name] of ROUTES) {
         consoleErrors = []
-
-        // Chặt locale + token rồi tải lại trang để ứng dụng đọc đúng giá trị.
-        await send('Runtime.evaluate', {
-          expression: `localStorage.setItem('novafilm.locale', ${JSON.stringify(locale)});
-                       localStorage.setItem('token', ${JSON.stringify(token)});`,
-        })
-        await send('Page.navigate', { url: BASE + route })
-        await waitForSettled(`${route} (lan chay dau)`)
-        await send('Page.reload', { ignoreCache: false })
-        await waitForSettled(`${route} (sau reload)`)
+        await navigateAndSettle(route, locale, token, send, waitForSettled)
 
         const textRes = await send('Runtime.evaluate', {
           expression: 'document.body ? document.body.innerText : ""',
@@ -890,6 +940,58 @@ async function auditRoutes(ROUTES, token, locale) {
         if (process.env.AUDIT_VERBOSE && cjk > 0) {
           for (const line of cjkLines) console.log(`        | ${line.slice(0, 160)}`)
         }
+
+        for (const stepDef of WALKTHROUGHS[name] || []) {
+          const run = await send('Runtime.evaluate', {
+            expression: stepDef.run,
+            returnByValue: true,
+            awaitPromise: true,
+          })
+          if (run?.exceptionDetails) {
+            throw new Error(
+              `Buoc lai thu tren ${route} that bai (${stepDef.suffix}): `
+                + `${run.exceptionDetails.text || run.exceptionDetails.exception?.description || 'loi khong ro'}`,
+            )
+          }
+          await waitForSettled(`${route} (${stepDef.suffix})`)
+
+          const stepMetrics = await send('Page.getLayoutMetrics')
+          const stepShot = await send('Page.captureScreenshot', {
+            format: 'png',
+            captureBeyondViewport: true,
+            clip: {
+              x: 0,
+              y: 0,
+              width: Math.ceil(stepMetrics?.cssContentSize?.width || 1280),
+              height: Math.min(Math.ceil(stepMetrics?.cssContentSize?.height || 900), 4000),
+              scale: 1,
+            },
+          })
+          if (stepShot?.data) {
+            writeFileSync(join(dir, `${name}-${stepDef.suffix}.png`), Buffer.from(stepShot.data, 'base64'))
+          }
+
+          const stepText = await send('Runtime.evaluate', {
+            expression: 'document.body ? document.body.innerText : ""',
+            returnByValue: true,
+          })
+          const text = stepText?.result?.value ?? ''
+          const cjk = (text.match(/[\u4e00-\u9fff]/g) || []).length
+          const rawKeys = [...new Set(text.match(RAW_KEY) || [])]
+          walkResults.push({
+            locale,
+            route,
+            suffix: stepDef.suffix,
+            cjk,
+            rawKeys,
+            errors: consoleErrors.length,
+          })
+          console.log(
+            `   -> ${locale} ${route} ${stepDef.suffix.padEnd(20)} cjk=${String(cjk).padStart(4)}`
+              + (rawKeys.length ? `  KEY_LEAK=${rawKeys.join(',')}` : '')
+              + (consoleErrors.length ? `  JS_ERROR=${consoleErrors.length}` : ''),
+          )
+        }
       }
     }
   } finally {
@@ -901,9 +1003,53 @@ async function auditRoutes(ROUTES, token, locale) {
   return results
 }
 
+/** Số lần thử lại khi một route không ổn định. Xem `navigateAndSettle`. */
+const ROUTE_ATTEMPTS = Math.max(1, Number(process.env.AUDIT_ATTEMPTS || 2))
+
+/**
+ * Chặt locale + token, tải trang, rồi đo lại lần nữa sau reload.
+ *
+ * Vì sao phải thử lại: đã xảy ra thật là `Trang /privacy (sau reload) khong on dinh
+ * sau 45s (readyState=interactive, chu=0)`, và hậu quả **không phải** một route hỏng
+ * mà là cả lô dừng — 15 route còn lại không được đo. `readyState=interactive` kèm
+ * `innerText` r��ng là tài liệu đang nạp, tức là trạng thái *quá độ* của trình duyệt,
+ * không phải trang hỏng: route đó mở lại bình thường.
+ *
+ * Vì vậy một lần hụt thì **tải lại rồi đo lại**, và chỉ ném lỗi khi hụt liên tiếp
+ * `ROUTE_ATTEMPTS` lần. Trang thật sự hỏng vẫn hụt mọi lần nên vẫn bị báo — thử lại
+ * để đo lại sự bất ổn định, không phải để che lỗi. Mỗi lần thử lại đều được in ra,
+ * không giấu lặng.
+ */
+async function navigateAndSettle(route, locale, token, send, waitForSettled) {
+  let lastError = null
+  for (let attempt = 1; attempt <= ROUTE_ATTEMPTS; attempt += 1) {
+    try {
+      // Chặt locale + token rồi tải lại trang để ứng dụng đọc đúng giá trị.
+      await send('Runtime.evaluate', {
+        expression: `localStorage.setItem('novafilm.locale', ${JSON.stringify(locale)});
+                     localStorage.setItem('token', ${JSON.stringify(token)});`,
+      })
+      await send('Page.navigate', { url: BASE + route })
+      await waitForSettled(`${route} (lan chay dau)`)
+      await send('Page.reload', { ignoreCache: false })
+      await waitForSettled(`${route} (sau reload)`)
+      return
+    } catch (e) {
+      lastError = e
+      console.log(
+        `   !! ${route} khong on dinh (lan ${attempt}/${ROUTE_ATTEMPTS}): ${e.message || e}`,
+      )
+    }
+  }
+  throw lastError
+}
+
 /** In tổng kết cho toàn bộ lần chạy. Tách khỏi `auditRoutes` vì chạy theo lô. */
 function report(results) {
-  writeFileSync(join(OUT, 'report.json'), JSON.stringify(results, null, 2))
+  writeFileSync(
+    join(OUT, 'report.json'),
+    JSON.stringify({ routes: results, walkthrough: walkResults }, null, 2),
+  )
 
   console.log('\n===== TONG HOP =====')
   for (const locale of ['vi', 'en']) {
@@ -925,6 +1071,23 @@ function report(results) {
           (r.rawKeys.length ? ` keyLeak=${r.rawKeys.length}` : '') +
           (r.errors ? ` jsError=${r.errors}` : '') +
           (r.visible < 40 ? ' RONG' : ''),
+      )
+    }
+  }
+
+  // Các bước lái thử không tính vào "25 route" — báo riêng để con số route không bị
+  // phóng lên và đọc sai. Một khoá i18n lọt ra ở đây vẫn là lỗi thật.
+  if (walkResults.length) {
+    const leaked = walkResults.filter((w) => w.rawKeys.length || w.errors)
+    console.log(
+      `\n--- lai thu: ${walkResults.length} buoc · `
+        + `${walkResults.reduce((a, w) => a + w.cjk, 0)} ky tu Trung · ${leaked.length} buoc van van`,
+    )
+    for (const w of leaked) {
+      console.log(
+        `   ${w.locale} ${w.route} ${w.suffix}`
+          + (w.rawKeys.length ? ` keyLeak=${w.rawKeys.join(',')}` : '')
+          + (w.errors ? ` jsError=${w.errors}` : ''),
       )
     }
   }

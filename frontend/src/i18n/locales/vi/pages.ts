@@ -1075,4 +1075,100 @@ export const viPages = {
       csvHeader: ['Số cảnh', 'Lời dẫn', 'Mô tả hình ảnh', 'Thời lượng (giây)', 'Trạng thái', 'Tiêu đề cảnh quay'],
     },
   },
+
+  /**
+   * `/wizard` — trạm đẻ prompt bốn bước.
+   *
+   * NOVAFILM **không** render video ở đây: không có API video nào chạy được, nên trang
+   * này chỉ soạn prompt rồi đưa cho người dùng dán sang Google Flow / Muse / Kling.
+   * Vì vậy bước 4 chỉ có nút sao chép, và không có khoá nào gọi tới video.
+   */
+  wizard: {
+    title: 'Trạm đẻ prompt',
+    lede: 'Bốn bước: ảnh tham chiếu → ý tưởng → đích đến và giọng đọc → sao chép prompt để dán sang công cụ khác.',
+    notARenderer:
+      'NOVAFILM không render video. Trang này soạn prompt xong rồi bạn dán sang Veo, Muse hoặc Kling để quay.',
+
+    /** Bốn nhãn bước, đúng thứ tự. `Stepper` nhận sẵn chuỗi đã dịch. */
+    steps: ['Ảnh tham chiếu', 'Ý tưởng', 'Đích đến & giọng', 'Sao chép prompt'],
+
+    refs: {
+      title: 'Ảnh tham chiếu',
+      hint: 'Không bắt buộc. Ảnh giúp mô tả nhân vật và bối cảnh cụ thể hơn.',
+      character: 'Nhân vật',
+      characterHint: 'Ảnh chính của nhân vật. Có thể thêm nhiều ảnh.',
+      background: 'Bối cảnh',
+      backgroundHint: 'Nơi diễn ra cảnh. Nếu chưa có, để trống cũng được.',
+      addImage: 'Chọn ảnh',
+      removeImage: 'Bỏ ảnh này',
+      clearAll: 'Xoá tất cả ảnh',
+      empty: 'Chưa có ảnh nào.',
+      count: '{count} ảnh',
+      localOnly:
+        'Ảnh chỉ nằm trong trình duyệt của bạn, chưa tải lên máy chủ. Bạn vẫn dán ảnh thật sang Veo / Kling bằng tay.',
+      notAnImage: 'Tệp này không phải là ảnh.',
+      readFailed: 'Không đọc được ảnh này.',
+    },
+
+    idea: {
+      title: 'Bạn muốn video kể gì?',
+      hint: 'Viết bằng tiếng Việt, càng cụ thể càng tốt: ai, ở đâu, làm gì, kết thúc thế nào.',
+      label: 'Ý tưởng của bạn',
+      placeholder:
+        'Ví dụ: cô gái trẻ mặc áo khoác da chạy băng qua phố mưa lúc đêm, dừng lại trước một quán cà phê nhỏ, ngẩng đầu nhìn đèn neon và thở dài.',
+      empty: 'Bạn chưa viết ý tưởng nào.',
+      generate: 'Soạn kịch bản & prompt',
+      generating: 'Đang soạn…',
+      regenerate: 'Soạn lại',
+      scriptLabel: 'Kịch bản',
+      promptLabel: 'Prompt',
+      noResult: 'Chưa có kết quả. Hãy viết ý tưởng rồi bấm nút soạn.',
+      framesLabel: 'Các khung hình',
+      localDraftNotice:
+        'Đây là bản nháp tự soạn tại trình duyệt, chưa qua mô hình AI. Chỉ dùng để bạn không bị chặn ở đây — hãy thử nút soạn lại khi dịch vụ sẵn sàng.',
+    },
+
+    target: {
+      title: 'Đích đến',
+      hint: 'Prompt sẽ được chỉnh theo đích đến bạn chọn.',
+      labels: ['Veo 3.1', 'Muse', 'Kling', 'Seedance'],
+      hints: [
+        'Mô tả dài, giàu chi tiết về chuyển động máy quay và ánh sáng.',
+        'Giữ câu ngắn, ưu tiên cảm xúc và nhịp điệu.',
+        'Nhấn mạnh chuyển động liên tục và mô tả vật lý rõ ràng.',
+        'Tách từng khung và viết lời dẫn riêng cho mỗi khung.',
+      ],
+      voice: 'Giọng đọc',
+      voiceHint: 'Mô tả tính chất giọng. Đây chỉ là chỉ dẫn cho bạn, NOVAFILM không có model đọc lời.',
+      voiceNames: [
+        'Trầm ấm, kể chuyện',
+        'Nữ trẻ, gần gũi',
+        'Nam trung tính, rõ ràng',
+        'Nữ bản tin, chuyên nghiệp',
+        'Nam giàu năng lượng',
+        'Không lời dẫn',
+      ],
+    },
+
+    export: {
+      title: 'Prompt cuối cùng',
+      hint: 'Sao chép từng khung rồi dán vào công cụ của bạn. Nút này không gọi API video nào.',
+      frameTitle: 'Khung {no}',
+      copyFrame: 'Sao chép khung này',
+      copyAll: 'Sao chép tất cả',
+      copied: 'Đã sao chép',
+      copyFailed: 'Sao chép tự động không được. Bạn bôi đen và copy thủ công.',
+      emptyFrames: 'Chưa có khung hình nào để sao chép.',
+      summaryLabel: 'Tóm tắt thiết lập',
+      summaryTarget: 'Đích đến: {target}',
+      summaryVoice: 'Giọng: {voice}',
+      goBack: 'Quay lại ý tưởng',
+    },
+
+    nav: {
+      back: 'Quay lại',
+      next: 'Tiếp tục',
+      skip: 'Bỏ qua',
+    },
+  },
 } as const

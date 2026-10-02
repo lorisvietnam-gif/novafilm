@@ -1071,4 +1071,93 @@ export const enPages = {
       csvHeader: ['Shot', 'Narration', 'Visual description', 'Duration (s)', 'Status', 'Shot title'],
     },
   },
+
+  /** `/wizard` — the four-step prompt station. This page never calls a video API. */
+  wizard: {
+    title: 'Prompt station',
+    lede: 'Four steps: reference images → idea → destination and voice → copy the prompt into another tool.',
+    notARenderer:
+      'NOVAFILM does not render video here. This page writes the prompt, then you paste it into Veo, Muse or Kling to shoot.',
+
+    steps: ['Reference images', 'Idea', 'Destination & voice', 'Copy prompt'],
+
+    refs: {
+      title: 'Reference images',
+      hint: 'Optional. Images let the prompt describe the character and setting more precisely.',
+      character: 'Character',
+      characterHint: 'The main image of the character. Add as many as you like.',
+      background: 'Setting',
+      backgroundHint: 'Where the scene takes place. You can leave this empty.',
+      addImage: 'Choose image',
+      removeImage: 'Remove this image',
+      clearAll: 'Remove all images',
+      empty: 'No images yet.',
+      count: '{count} images',
+      localOnly:
+        'Images stay in your browser and are not uploaded. You still paste the real images into Veo or Kling yourself.',
+      notAnImage: 'That file is not an image.',
+      readFailed: 'Could not read this image.',
+    },
+
+    idea: {
+      title: 'What should the video be about?',
+      hint: 'Write in English or Vietnamese — be specific about who, where, what happens, and how it ends.',
+      label: 'Your idea',
+      placeholder:
+        'Example: a young woman in a leather jacket runs through a rainy street at night, stops in front of a small coffee shop, looks up at a neon sign and sighs.',
+      empty: 'You have not written an idea yet.',
+      generate: 'Draft script & prompt',
+      generating: 'Drafting…',
+      regenerate: 'Draft again',
+      scriptLabel: 'Script',
+      promptLabel: 'Prompt',
+      noResult: 'No result yet. Write an idea and press the draft button.',
+      framesLabel: 'Frames',
+      localDraftNotice:
+        'This is a draft assembled in your browser, not written by an AI model. It only exists so you are not stuck here — press Draft again once the service is up.',
+    },
+
+    target: {
+      title: 'Destination',
+      hint: 'The prompt is adjusted for the destination you pick.',
+      labels: ['Veo 3.1', 'Muse', 'Kling', 'Seedance'],
+      hints: [
+        'Long, detailed description of camera movement and lighting.',
+        'Short sentences, focused on mood and rhythm.',
+        'Emphasise continuous motion and clear physical description.',
+        'Split into separate frames with a narration line for each.',
+      ],
+      voice: 'Voice',
+      voiceHint: 'This describes the voice for you. NOVAFILM has no speech model — it is a note, not a setting.',
+      voiceNames: [
+        'Low, warm, storytelling',
+        'Young woman, friendly',
+        'Neutral man, clear',
+        'Female newsreader, professional',
+        'Energetic man',
+        'No narration',
+      ],
+    },
+
+    export: {
+      title: 'Final prompt',
+      hint: 'Copy each frame and paste it into your tool. No button here calls a video API.',
+      frameTitle: 'Frame {no}',
+      copyFrame: 'Copy this frame',
+      copyAll: 'Copy all',
+      copied: 'Copied',
+      copyFailed: 'Automatic copy failed. Select the text and copy it by hand.',
+      emptyFrames: 'There are no frames to copy yet.',
+      summaryLabel: 'Settings summary',
+      summaryTarget: 'Destination: {target}',
+      summaryVoice: 'Voice: {voice}',
+      goBack: 'Back to the idea',
+    },
+
+    nav: {
+      back: 'Back',
+      next: 'Continue',
+      skip: 'Skip',
+    },
+  },
 } as const
