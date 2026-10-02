@@ -826,6 +826,38 @@ async function auditRoutes(ROUTES, token, locale) {
         const visible = text.trim().length
 
         const metrics = await send('Page.getLayoutMetrics')
+        // Ép mọi `<img loading="lazy">` tải xong TRƯỚC khi chụp.
+        //
+        // `captureBeyondViewport: true` chụp cả trang mà **không cuộn**, nên ảnh lazy ngoài
+        // ngưỡng của trình duyệt **chưa tải**, và ô của chúng hiện đúng màu nền thẻ — trông
+        // giống "ô đen trống" nhưng thực ra là ảnh chưa tới.
+        //
+        // Đo được trên trang chủ: cuộn trước khi chụp thì ảnh chưa tải đi từ **16 xuống 0**,
+        // và lộ ra **đúng 1 ảnh hỏng thật**. Không có bước này thì mọi kết luận thị giác rút ra
+        // từ ảnh audit đều sai.
+        await send('Runtime.evaluate', {
+          expression: `(async () => {
+            const step = Math.max(200, Math.floor(window.innerHeight * 0.8))
+            for (let y = 0; y <= document.body.scrollHeight; y += step) {
+              window.scrollTo(0, y)
+              await new Promise(r => setTimeout(r, 90))
+            }
+            window.scrollTo(0, 0)
+            await Promise.all(
+              Array.from(document.images)
+                .filter(img => !img.complete)
+                .map(img => new Promise(r => {
+                  img.addEventListener('load', r, { once: true })
+                  img.addEventListener('error', r, { once: true })
+                  setTimeout(r, 4000)
+                })),
+            )
+            return document.images.length
+          })()`,
+          awaitPromise: true,
+        })
+        await waitForSettled(`${route} (sau cuộn)`)
+
         const shot = await send('Page.captureScreenshot', {
           format: 'png',
           captureBeyondViewport: true,
