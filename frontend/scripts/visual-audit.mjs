@@ -1170,6 +1170,17 @@ function report(results) {
     const scored = rows.filter((r) => !r.apiDown)
     const bad = scored.filter((r) => r.cjk > 0 || r.rawKeys.length || r.errors || r.visible < 40)
     const total = scored.reduce((a, r) => a + r.cjk, 0)
+    // Tách hai nguồn: marker Seedance là hợp đồng máy↔máy (cấm dịch), nội dung mới là
+    // phần locale thay đổi được. Gộp chung thì không biết con số nào là nợ thật.
+    const markerTotal = scored.reduce((a, r) => a + (r.cjkMarker || 0), 0)
+    const contentTotal = scored.reduce((a, r) => a + (r.cjkContent || 0), 0)
+    const badContent = scored.filter(
+      (r) => (r.cjkContent || 0) > 0 || r.rawKeys.length || r.errors || r.visible < 40,
+    )
+    console.log(
+      `  ${locale}: marker Seedance (cam tinh, KHONG duoc dich) = ${markerTotal}`
+      + ` · noi dung (co the dich) = ${contentTotal}`,
+    )
     console.log(
       `${locale}: ${rows.length} route · ${total} ky tu Trung · ${bad.length} route van van` +
         (broken.length ? ` · ${broken.length} route API CHET (khong duoc tinh vao tong)` : ''),
