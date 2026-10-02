@@ -176,7 +176,7 @@ class ShotUpdate(BaseModel):
 
 class ProjectCreate(BaseModel):
     template_id: str
-    title: str = "未命名作品"
+    title: str = "Chưa có tên"
     source_type: str = Field(default="theme", pattern="^(theme|script)$")
     source_text: str = Field(min_length=2, max_length=20000)
     resolution_mode: str = Field(default="preview", pattern="^(preview|hd)$")

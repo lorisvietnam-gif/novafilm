@@ -122,7 +122,7 @@ async def create_project(
     )
     project = DramaProject(
         user_id=user.id,
-        title=title or ("自由画布项目" if workflow == "canvas" else "未命名漫剧"),
+        title=title or ("Dự án bảng vẽ tự do" if workflow == "canvas" else "Dự án drama chưa có tên"),
         description=body.description,
         params=project_params,
     )

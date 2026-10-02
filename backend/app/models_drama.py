@@ -17,7 +17,7 @@ class DramaProject(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    title: Mapped[str] = mapped_column(String(200), default="未命名漫剧")
+    title: Mapped[str] = mapped_column(String(200), default="Dự án drama chưa có tên")
     description: Mapped[str | None] = mapped_column(String(512), nullable=True)
     content: Mapped[dict | list | None] = mapped_column(JSON, nullable=True)
     params: Mapped[dict | None] = mapped_column(JSON, nullable=True)

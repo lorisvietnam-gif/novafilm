@@ -1367,7 +1367,7 @@ async def generate_asset_image(
             project_id=project.id,
             type=kind,
             asset_type="image",
-            name=name or "未命名资产",
+            name=name or "Tài sản chưa đặt tên",
             cover=url,
             url=url,
             params=gen_meta,

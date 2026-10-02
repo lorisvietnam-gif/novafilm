@@ -11,7 +11,7 @@ from app.schemas_tasks import TaskRunBriefOut
 
 
 class DramaProjectCreate(BaseModel):
-    title: str = Field(default="未命名漫剧", max_length=200)
+    title: str = Field(default="Dự án drama chưa có tên", max_length=200)
     description: str | None = None
     source: str = Field(default="", description="原始创意文案")
     episode_count: int = Field(default=12, ge=1, le=120)
