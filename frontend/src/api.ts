@@ -4,6 +4,7 @@ import {
   templateExtraPrompt,
   templateStylePrompt,
 } from './lib/templatePromptLabels'
+import { getActiveLocale } from './i18n/detect'
 
 function defaultApiBase() {
   if (typeof window !== 'undefined' && window.location?.hostname) {
@@ -73,6 +74,27 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throwApiError(res.status, err.detail, res.statusText)
   }
   return readJson<T>(res, path)
+}
+
+/**
+ * Dán ngôn ngữ đang hiện trên giao diện vào body của một lời gọi sinh kịch bản.
+ *
+ * Vì sao đọc thẳng module state thay vì nhận tham số:
+ *
+ * - Đây là cùng cơ chế `lib/localeStrings.ts` đã dùng để chọn chuỗi ngoài React —
+ *   không phải một cách làm mới.
+ * - Hai nơi gọi sinh kịch bản của `/drama` (`OutlineStep.tsx`, `OutlineEpisodePanel.tsx`)
+ *   **không** dùng `useI18n()`. Truyền `locale` từ từng call site sẽ phải thêm import
+ *   vào hai file không có nó, tạo ra nguồn sự thật thứ hai cho cùng một quyết định.
+ * - Bắt ở tầng API nghĩa là một call site **mới** cũng không thể quên gửi locale: không
+ *   có chỗ nào phải nhớ.
+ *
+ * `activeLocale` được `I18nProvider` ghi ngay trong initializer của `useState`
+ * (`i18n/context.tsx:29`) và mỗi lần đổi ngôn ngữ (`:36`), nên tại thời điểm người dùng
+ * bấm nút nó luôn là ngôn ngữ đang hiển thị.
+ */
+export function withLocale<T extends object>(body: T): T & { locale: string } {
+  return { ...body, locale: getActiveLocale() }
 }
 
 export type PipelineMode = 'full' | 'image_text'
@@ -627,11 +649,11 @@ export const api = {
      * `list[str]`. Backend chặn trước mọi thứ: URL không công khai, trùng URL, và tổng
      * vượt trần 9 đều ra lỗi đọc được chứ không cắt bớt.
      *
-     * **Không có ảnh thì hành vi y hệt trước**: gửi `?restart=true` và **không** gửi
-     * body. Backend khai báo `body: ProjectGenerateIn | None = None` và có test
-     * `test_generate_without_body_still_accepts_query_restart` giữ tương thích ngược,
-     * nên client cũ vẫn chạy được. Gửi body rỗng cũng chạy, nhưng thêm một request body
-     * rỗng chỉ để nói "không có gì" là rác — nên ở đây **không** gửi.
+     * **Body luôn được gửi**, kể cả khi không có ảnh tham chiếu. Trước đây nhánh này cố
+     * tình để `body: undefined` với lý do "gửi body rỗng chỉ để nói không có gì là rác" —
+     * lý do đó **đã hết hiệu lực**: body giờ luôn mang `locale`, tức là không còn rỗng.
+     * Tương thích ngược vẫn giữ nguyên ở phía server: `body: ProjectGenerateIn | None`
+     * cùng test `test_generate_without_body_still_accepts_query_restart` giữ cho client cũ.
      */
     generate(
       id: number,
@@ -644,12 +666,14 @@ export const api = {
       },
     ) {
       const q = opts?.restart ? '?restart=true' : ''
-      const subject = opts?.subject_ref_urls ?? []
-      const style = opts?.style_ref_urls ?? []
-      const hasRefs = subject.length > 0 || style.length > 0
+      const body = withLocale({
+        restart: Boolean(opts?.restart),
+        subject_ref_urls: opts?.subject_ref_urls ?? [],
+        style_ref_urls: opts?.style_ref_urls ?? [],
+      })
       return request<Project>(`/api/projects/${id}/generate${q}`, {
         method: 'POST',
-        body: hasRefs ? JSON.stringify({ restart: Boolean(opts?.restart), subject_ref_urls: subject, style_ref_urls: style }) : undefined,
+        body: JSON.stringify(body),
       })
     },
   cancelProject(id: number) {
@@ -713,7 +737,7 @@ export const api = {
   expandContent(topic: string, mode: 'theme' | 'script' = 'theme') {
     return request<{ title: string; content: string }>('/api/content/expand', {
       method: 'POST',
-      body: JSON.stringify({ topic, mode }),
+      body: JSON.stringify(withLocale({ topic, mode })),
     })
   },
   publish(projectId: number) {
