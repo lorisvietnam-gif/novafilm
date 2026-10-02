@@ -1062,11 +1062,27 @@ async function navigateAndSettle(route, locale, token, send, waitForSettled) {
   let lastError = null
   for (let attempt = 1; attempt <= ROUTE_ATTEMPTS; attempt += 1) {
     try {
-      // Chặt locale + token rồi tải lại trang để ứng dụng đọc đúng giá trị.
-      await send('Runtime.evaluate', {
-        expression: `localStorage.setItem('novafilm.locale', ${JSON.stringify(locale)});
-                     localStorage.setItem('token', ${JSON.stringify(token)});`,
+      // Đi tới một trang thật của app TRƯỚC khi ghi localStorage. Ở `about:blank`
+      // thì `localStorage.setItem` ném SecurityError, mà `Runtime.evaluate` không
+      // `awaitPromise` sẽ trả lỗi trong `exceptionDetails` chứ không ném ra ngoài —
+      // nên giá trị im lặng không được ghi và trang rơi về ngôn ngữ trình duyệt (`en`).
+      // Đã xảy ra thật: ảnh trong thư mục `vi/` là ảnh tiếng Anh, nhìn tưởng đã
+      // Việt hoá. `document.readyState` không cứu được vì nó trả "complete" ngay cả
+      // trên `about:blank` — phải chờ chính tài liệu của app.
+      await send('Page.navigate', { url: BASE + '/' })
+      await waitForSettled(`${route} (chuan bi quoc te)`)
+      const seeded = await send('Runtime.evaluate', {
+        expression: `(() => {
+          localStorage.setItem('novafilm.locale', ${JSON.stringify(locale)});
+          localStorage.setItem('token', ${JSON.stringify(token)});
+          return localStorage.getItem('novafilm.locale');
+        })()`,
       })
+      if (seeded?.exceptionDetails) {
+        throw new Error(
+          `khong ghi duoc locale: ${describeException(seeded.exceptionDetails)}`,
+        )
+      }
       await send('Page.navigate', { url: BASE + route })
       await waitForSettled(`${route} (lan chay dau)`)
       await send('Page.reload', { ignoreCache: false })
