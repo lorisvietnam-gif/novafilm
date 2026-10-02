@@ -1116,6 +1116,24 @@ export const zhPages = {
       voiceNames: ['低沉温暖，叙事感', '年轻女性，亲切', '中性男声，清晰', '女新闻播报，专业', '男声，有活力', '无旁白'],
     },
 
+    board: {
+      title: '美术指导板',
+      hint: '从你的提示词里切出的七个字段。你通常只需要其中一个 —— 按那张卡片的 Copy，只粘这一段。',
+      labels: {
+        subject: '主体',
+        action: '动作',
+        setting: '场景',
+        camera: '机位',
+        lighting: '光线',
+        style: '风格',
+        duration: '时长',
+      },
+      emptyField: '你的提示词没有提到这一项。',
+      copy: '复制',
+      copyField: '复制{field}',
+      coverage: '{total} 个字段里填了 {filled} 个',
+    },
+
     export: {
       title: '最终提示词',
       hint: '逐镜复制到你自己的工具里。本页没有任何按钮会调用视频接口。',
@@ -1125,6 +1143,9 @@ export const zhPages = {
       copied: '已复制',
       copyFailed: '自动复制失败，请手动选中文字复制。',
       emptyFrames: '还没有可以复制的分镜。',
+      toastAll: '提示词已复制。粘到外部渲染平台上就能生成。',
+      toastField: '{field}已复制。只把这一段粘到外部渲染平台上。',
+      toastFrame: '第 {no} 镜已复制。粘到外部渲染平台上就能生成。',
       summaryLabel: '设置摘要',
       summaryTarget: '目标：{target}',
       summaryVoice: '配音：{voice}',

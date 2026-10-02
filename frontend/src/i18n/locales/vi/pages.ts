@@ -1150,6 +1150,38 @@ export const viPages = {
       ],
     },
 
+    /**
+     * Bảng chỉ đạo nghệ thuật — bảy thẻ của bước 4.
+     *
+     * Nhãn ở đây là **tên trường của bảng**, không phải văn bản người dùng nhập, nên nó
+     * không đi qua `promptLabel` hay bất kỳ pack prompt nào: chúng được gửi cho mô hình
+     * video và phải giữ tiếng Anh (xem `DRAFT_FRAMING` trong `WizardPage.tsx`).
+     */
+    board: {
+      title: 'Bảng chỉ đạo nghệ thuật',
+      hint: 'Bảy trường tách từ prompt của bạn. Thường bạn chỉ cần cắm một trường — bấm Copy ở đúng thẻ đó rồi dán riêng.',
+      labels: {
+        subject: 'Chủ thể',
+        action: 'Hành động',
+        setting: 'Bối cảnh',
+        camera: 'Máy quay',
+        lighting: 'Ánh sáng',
+        style: 'Phong cách',
+        duration: 'Thời lượng',
+      },
+      emptyField: 'Prompt của bạn không nhắc tới phần này.',
+      /**
+       * Chữ trên nút. Giữ **ngắn** — đo bằng mắt: bản đầu ghi "Sao chép phần {field}" làm
+       * nút tràn ra khỏi thẻ ở bản `vi` (tiếng Việt dài hơn tiếng Anh), và nhãn "Chủ thể" bị
+       * vặn xuống hai dòng. Tên trường đã nằm ngay bên cạnh, nên không cần lặp lại.
+       * Bản đầy đủ dùng cho `aria-label` — xem `copyField`.
+       */
+      copy: 'Sao chép',
+      /** Tên truy cập của nút, có tên trường. Không hiện ra mắt. */
+      copyField: 'Sao chép phần {field}',
+      coverage: '{filled} trên {total} trường có nội dung',
+    },
+
     export: {
       title: 'Prompt cuối cùng',
       hint: 'Sao chép từng khung rồi dán vào công cụ của bạn. Nút này không gọi API video nào.',
@@ -1159,6 +1191,14 @@ export const viPages = {
       copied: 'Đã sao chép',
       copyFailed: 'Sao chép tự động không được. Bạn bôi đen và copy thủ công.',
       emptyFrames: 'Chưa có khung hình nào để sao chép.',
+      /**
+       * Toast sau khi sao chép. Nói đúng **một** việc: đã vào bộ nhớ tạm, dán sang nền
+       * tảng khác để quay. Không hứa "đang tạo video" — hệ thống không gọi được API
+       * video nào, nên lời hứa đó là nói dối và người dùng sẽ chờ mãi.
+       */
+      toastAll: 'Đã sao chép toàn bộ prompt. Dán sang nền tảng render bên ngoài để quay.',
+      toastField: 'Đã sao chép phần {field}. Dán riêng phần này sang nền tảng render bên ngoài.',
+      toastFrame: 'Đã sao chép khung {no}. Dán sang nền tảng render bên ngoài để quay.',
       summaryLabel: 'Tóm tắt thiết lập',
       summaryTarget: 'Đích đến: {target}',
       summaryVoice: 'Giọng: {voice}',

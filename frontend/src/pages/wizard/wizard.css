@@ -9,6 +9,25 @@
 
 .wizard-scoped {
   --wizard-wash: color-mix(in srgb, var(--pf-lime) 16%, transparent);
+
+  /*
+   * Champagne #f2c94c **giữ nguyên tông** — nó là `--pf-accent-400` và không được đổi.
+   * "Làm giàu hệ màu quanh nó" nghĩa là dùng các bậc đã có sẵn quanh nó trên thang
+   * `--pf-accent-*`, không phải pha một màu mới.
+   *
+   * Cách dùng, theo luật đã ghi trong `tokens.css`: champagne là **màu tô**, không bao
+   * giờ là màu chữ trên nền sáng (đo được 1,60:1 trên `#ffffff`) và không bao giờ là
+   * viền mảnh trên nền sáng. Ở đây nó xuất hiện đúng ba chỗ, đều không mang chữ:
+   *   - sống lưng champagne của thẻ (`--pf-accent-300`, đậm hơn nên nhìn thấy ở cả hai theme),
+   *   - nền thẻ (`--pf-accent-100`, vừa đủ ấm mà vẫn là nền sáng),
+   *   - viền thẻ rỗng (`--pf-accent-200`).
+   *
+   * Mọi chữ trên bảng dùng `--pf-ink` / `--pf-ink-secondary` — hai màu đã có sẵn và đã
+   * đo đạt trên cả hai theme. Chữ không bao giờ lấy tông champagne.
+   */
+  --wizard-board-card-bg: var(--pf-accent-100);
+  --wizard-board-card-edge: var(--pf-accent-200);
+  --wizard-board-spine: var(--pf-accent-300);
 }
 
 /* --- Thanh bốn bước ------------------------------------------------------ */
@@ -289,6 +308,150 @@
   color: var(--pf-ink);
 }
 
+/* --- Bước 4: bảng chỉ đạo nghệ thuật ------------------------------------ */
+/*
+ * Bảy thẻ, mỗi thẻ một trường của prompt và một nút Copy riêng. Người dùng thường chỉ
+ * cần cắm **một** đoạn — riêng phần máy quay, riêng phần ánh sáng — nên đây là bảng
+ * chứ không phải một ô text.
+ */
+.wizard-board {
+  margin-top: var(--pf-space-4);
+}
+
+.wizard-board-head h3 {
+  margin: 0 0 0.3rem;
+  font-size: var(--pf-text-lg);
+  line-height: var(--pf-leading-prose);
+  color: var(--pf-ink);
+  /*
+   * Serif **ở weight 700** — cùng bộ mặt mà `.pf-page-title` đã dùng và đã tải.
+   *
+   * Chọn 700 là có chủ ý: đo trên `/wizard` cho thấy `Noto Serif 700 loaded` nhưng
+   * `Noto Serif 500 unloaded`. Font serif 500 chưa từng được tải trên trang này, nên
+   * dùng nó ở bảng sẽ tạo thêm **một** lần tải font mới giữa lúc người dùng đang đọc
+   * — đúng cái rủi ro CLS mà brief cảnh báo. 700 thì không: nó đã nằm trong bộ nhớ đệm.
+   * Xem `wizard-cls-check.mjs`.
+   */
+  font-family: var(--pf-font-serif);
+  font-weight: var(--pf-weight-bold);
+  letter-spacing: var(--pf-tracking-tight);
+}
+
+.wizard-board-coverage {
+  margin: 0;
+  font-size: var(--pf-text-sm);
+  color: var(--pf-ink-secondary);
+}
+
+/* Nút lớn, đặt giữa khối kết quả. */
+.wizard-board-primary {
+  display: flex;
+  justify-content: center;
+  margin: var(--pf-space-4) 0;
+}
+
+.wizard-board-grid {
+  display: grid;
+  gap: var(--pf-space-3);
+  /*
+   * 19rem chứ không phải 15rem: ở 250px/cột thì thẻ hẹp đến mức nhãn "Chủ thể" bị vặn
+   * xuống hai dòng và nút sao chép tràn sang thẻ bên cạnh (đã thấy trong ảnh chụp `vi`).
+   */
+  grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+}
+
+.wizard-board-card {
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--wizard-board-card-edge);
+  /* Sống lưng champagne: dấu hiệu "trường nghệ thuật" mà không mang chữ. */
+  border-inline-start: 3px solid var(--wizard-board-spine);
+  border-radius: var(--pf-radius-sm);
+  background: var(--wizard-board-card-bg);
+}
+
+/*
+ * Thẻ không có gì để sao chép thì lùi hẳn về nền mặt phẳng và viền đứt — đọc là "trống"
+ * chứ không phải "một ô nữa". Nút Copy của nó đã bị tắt ở TSX.
+ */
+.wizard-board-card.is-empty {
+  background: var(--pf-surface);
+  border-style: dashed;
+}
+
+.wizard-board-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  /*
+   * `wrap` + `min-width: 0`: ở thẻ hẹp (điện thoại, hoặc bản `vi` với nhãn dài) nút
+   * sao chép rơi xuống dòng dưới thay vì bị bóp còn một từ hoặc tràn ra ngoài thẻ.
+   */
+  flex-wrap: wrap;
+  gap: 0.4rem 0.5rem;
+  margin: 0 0 0.5rem;
+}
+
+.wizard-board-label {
+  min-width: 0;
+  font-weight: var(--pf-weight-bold);
+  color: var(--pf-ink);
+}
+
+.wizard-board-slots {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wizard-board-slot {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.wizard-board-slot-no {
+  font-size: var(--pf-text-xs);
+  letter-spacing: var(--pf-tracking-caps-wide);
+  text-transform: uppercase;
+  color: var(--pf-ink-secondary);
+}
+
+.wizard-board-value {
+  margin: 0;
+  font-size: var(--pf-text-sm);
+  color: var(--pf-ink);
+  /* Prompt là văn bản tự do: một từ dài không được làm vỡ lưới thẻ. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.wizard-board-value.is-empty {
+  font-style: italic;
+  color: var(--pf-ink-secondary);
+}
+
+/*
+ * Toast sau khi sao chép. `role="status"` + `aria-live="polite"` nằm trong TSX.
+ *
+ * `:empty` ẩn đi khi chưa có gì để báo — vùng sống phải có mặt sẵn trong DOM thì nội dung
+ * đổi mới được đọc, nhưng một khối rỗng có khung thì vẫn là một lỗ hổng trên trang.
+ */
+.wizard-toast {
+  margin: 0 0 var(--pf-space-3);
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--pf-accent-200);
+  border-inline-start: 3px solid var(--pf-lime);
+  border-radius: var(--pf-radius-sm);
+  background: var(--pf-accent-100);
+  font-size: var(--pf-text-sm);
+  color: var(--pf-ink);
+}
+
+.wizard-toast:empty {
+  display: none;
+}
+
 /* --- Hành động chung ----------------------------------------------------- */
 .wizard-actions {
   display: flex;
@@ -311,7 +474,8 @@
 
 @media (max-width: 430px) {
   .wizard-ref-grid,
-  .wizard-target-grid {
+  .wizard-target-grid,
+  .wizard-board-grid {
     grid-template-columns: 1fr;
   }
 
