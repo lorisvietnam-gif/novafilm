@@ -7,10 +7,19 @@
   --fc-line: rgba(0, 0, 0, 0.05);
   --fc-panel: rgba(255, 255, 255, 0.95);
   --fc-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 4px 16px rgba(15, 23, 42, 0.04);
+  /* Chiều cao dải tiêu đề. Một biến duy nhất để thanh, bảng cài đặt và cả vùng vẽ
+     dùng chung — tránh kiểu mỗi chỗ một con số ma rồi lệch nhau. */
+  --fc-topbar-h: 64px;
   position: fixed;
   inset: 0;
   width: 100vw;
   height: 100svh;
+  /* Cột dọc: dải tiêu đề là một hàng thật, vùng vẽ chiếm phần còn lại. Nhờ vậy node
+     canvas không bao giờ nằm dưới tiêu đề — trước đây `fitView` canh giữa đồ thị trong
+     cả khung nhìn nên mép trên của đồ thị rơi đúng vào dải tiêu đề (đo được: y≈40px
+     trong khi dải tiêu đề chiếm 20–62px), làm tiêu đề trang và tiêu đề node chồng lên nhau. */
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   background: var(--fc-bg);
   color: var(--fc-ink);
@@ -27,10 +36,11 @@
   min-height: 0;
   z-index: 1;
   border-radius: 0;
+  --fc-topbar-h: 56px;
 }
 
 .free-canvas-page.is-embedded .fc-topbar {
-  padding: 10px 12px;
+  padding: 0 12px;
 }
 
 .free-canvas-page.is-embedded .fc-left-toolbar {
@@ -80,20 +90,40 @@
   pointer-events: auto;
 }
 
+/* Vùng vẽ lấy phần còn lại sau dải tiêu đề. `min-height: 0` là bắt buộc: mặc định
+   flex item có `min-height: auto`, nên nó không co lại được và tràn ra ngoài dải tiêu đề. */
+.free-canvas-page .free-canvas-flow {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Dải tiêu đề: hàng thật trong cột, không phải lớp phủ trong suốt.
+   `order: -1` đưa nó lên trước vùng vẽ dù DOM đặt `FreeCanvasFlow` trước. */
 .fc-topbar {
-  inset: 0 0 auto;
-  padding: 20px;
+  position: relative;
+  inset: auto;
+  order: -1;
+  flex: 0 0 var(--fc-topbar-h);
+  padding: 0 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  /* Cùng màu nền canvas nên dải nhìn như một khoảng trống, chỉ có đường kẻ mảnh
+     ngăn cách. Quan trọng: nền phải đục để chữ node không lọt qua dải tiêu đề. */
+  background: var(--fc-bg);
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.07);
 }
 
 .fc-topbar-left {
   display: flex;
   align-items: center;
   gap: 12px;
+  /* `min-width: 0` cho phép nhóm trái co lại; không có nó thì con mềm giữ nguyên
+     chiều rộng tối thiểu và đẩy nhóm phải ra khỏi khung nhìn. */
   min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
 }
 
 .fc-topbar-right {
@@ -107,6 +137,12 @@
   font-size: 14px;
   font-weight: 500;
   color: var(--fc-ink);
+  /* Tiếng Việt dài hơn tiếng Trung. Cắt bằng dấu chấm lửng thay vì đẩy hàng,
+     và giữ nguyên nội dung — không rút gọn chữ. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .fc-save-pill {
@@ -114,7 +150,9 @@
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #64748b;
+  /* Đo được trên nền #eef1f4: #64748b = 4.20:1 (hụt AA 4.5:1), #475569 = 6.68:1 (đạt). */
+  color: #475569;
+  flex-shrink: 0;
 }
 
 .fc-save-dot {
@@ -1164,7 +1202,9 @@
 
 .fc-settings-pop {
   position: absolute;
-  top: 64px;
+  /* Neo theo chiều cao dải tiêu đề, không đoán số: trước đây `top: 64px` khiến bảng
+     nằm ngay dưới mép dải tiêu đề và bị dải đè lên. */
+  top: calc(var(--fc-topbar-h) + 8px);
   right: 20px;
   z-index: 40;
   width: 260px;
@@ -1437,6 +1477,10 @@
 }
 
 @media (max-width: 720px) {
+  .free-canvas-page {
+    --fc-topbar-h: 56px;
+  }
+
   .fc-node-selector-row {
     flex-wrap: wrap;
   }
