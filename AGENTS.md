@@ -169,6 +169,17 @@ báo origin của frontend.
   trong khi `/api/billing/preflight` báo `false` cùng lúc. Ở `auth.py` nó nằm trong luồng xác
   thực — **đừng sửa vội.** Phải có test xác thực xanh trước, rồi mới đổi sang `get_settings()`
   lúc gọi hàm. Xem `docs/briefs/` khi giao.
+- **TRƯỚC MỖI LẦN ĐO TIỀN, đọc lại cờ cấu hình — đừng tin ký ức.**
+  `billing_enabled` và `model_image` sống trong overlay của DB và **có thể tự trôi về mặc
+  định** giữa các phiên. Đã xảy ra thật: tôi bật billing một lần, nhiều giờ sau đọc
+  `/api/billing/wallet` thấy `false` và kết luận nhầm là lỗi code.
+  - `GET /api/billing/wallet` phải trả `billing_enabled: true` trước khi đo.
+  - `model_image` phải trỏ kênh **có khoá** (`hy-image-v3.5-free` trên Kira; TokenFree
+    thì **rỗng khoá**, dùng vào là hỏng).
+  - **`billing_charged_fen` trên task KHÔNG chứng minh tiền vào ví.** Khi billing tắt,
+    hệ thống vẫn ghi sổ lượng dùng mới động vào ví. Chỉ **`balance_fen` giảm** mới là bằng chứng.
+  - Sửa cờ phải qua `patch_admin_model_settings` / `AdminModelSettingsPatch(billing_enabled=True)`;
+    sửa `.env` hoặc `UPDATE app_settings` tay sẽ không có tác dụng.
 
 ## 11. BÁO CÁO CỦA LANE PHẢI NẰM TRÊN ĐĨA
 Tiến trình `kilo run` **không gửi được tin nhắn lên board** (bị từ chối với `Board messages
