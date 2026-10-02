@@ -240,7 +240,11 @@ phải của endpoint** — bằng chứng thật là ảnh ở trên, chờ t�
 
 ```
 4 failed, 1023 passed, 1 skipped, 5 warnings in 77.06s
+4 failed, 1023 passed, 1 skipped, 5 warnings in 75.08s
 ```
+
+**Hai lượt cho kết quả giống hệt.** `AGENTS.md` mục 10 yêu cầu phải chạy hai lần trước khi tin
+một con số — đã làm.
 
 4 lỗi failed **đúng bằng** baseline `AGENTS.md` và đều có sẵn từ upstream:
 
