@@ -1139,6 +1139,24 @@ export const enPages = {
       ],
     },
 
+    board: {
+      title: 'Art direction board',
+      hint: 'Seven fields cut out of your prompt. You usually only need one of them — press Copy on that card and paste just that part.',
+      labels: {
+        subject: 'Subject',
+        action: 'Action',
+        setting: 'Setting',
+        camera: 'Camera',
+        lighting: 'Lighting',
+        style: 'Style',
+        duration: 'Duration',
+      },
+      emptyField: 'Your prompt does not mention this one.',
+      copy: 'Copy',
+      copyField: 'Copy {field}',
+      coverage: '{filled} of {total} fields filled in',
+    },
+
     export: {
       title: 'Final prompt',
       hint: 'Copy each frame and paste it into your tool. No button here calls a video API.',
@@ -1148,6 +1166,14 @@ export const enPages = {
       copied: 'Copied',
       copyFailed: 'Automatic copy failed. Select the text and copy it by hand.',
       emptyFrames: 'There are no frames to copy yet.',
+      /**
+       * Toast after copying. Says exactly one thing: it is on the clipboard, paste it
+       * into another platform to shoot. Never "creating your video" — no video API is
+       * reachable, so that would be a promise the page cannot keep.
+       */
+      toastAll: 'Prompt copied. Paste it into an external rendering platform to shoot.',
+      toastField: '{field} copied. Paste just that part into an external rendering platform.',
+      toastFrame: 'Frame {no} copied. Paste it into an external rendering platform to shoot.',
       summaryLabel: 'Settings summary',
       summaryTarget: 'Destination: {target}',
       summaryVoice: 'Voice: {voice}',

@@ -21,6 +21,7 @@ import {
   MAX_REFERENCE_IMAGES,
   formatReferenceImageLimitMessage,
 } from '../../lib/referenceImages'
+import { boardCardText, buildArtDirectionBoard, type BoardCard } from './artDirection'
 import './wizard.css'
 
 /** Thứ tự cố định của bốn đích đến; chỉ số dùng để tra nhãn trong pack i18n. */
@@ -83,7 +84,10 @@ export default function WizardPage() {
   const [ideaError, setIdeaError] = useState('')
   const [target, setTarget] = useState<TargetId>('veo')
   const [voice, setVoice] = useState(0)
+  /** Mã của nút vừa bấm: `all`, `frame-<n>`, hoặc `field-<tên trường>`. */
   const [copied, setCopied] = useState('')
+  /** Câu báo cho trình đọc màn hình. Rỗng nghĩa là chưa có gì để báo. */
+  const [toast, setToast] = useState('')
   const [copyFailed, setCopyFailed] = useState(false)
 
   /*
@@ -96,12 +100,39 @@ export default function WizardPage() {
     return () => urls.forEach((u) => URL.revokeObjectURL(u))
   }, [])
 
+  /**
+   * Timer của nút "đã sao chép" phải bị **huỷ** khi rời trang.
+   *
+   * Trước đây gọi `window.setTimeout` rồi bỏ mặc: điều hướng đi trước khi 2 giây trôi
+   * là callback giữ nguyên closure cũ và `setCopied` gọi vào state của một component đã
+   * bỏ rơi. React thì chịu được, nhưng đó là một việc làm mà không ai nhờ, và vài lượt
+   * liên tiếp thì tích tụ timer. Dòng `useEffect(() => clearCopyTimer, [])` dưới đây là
+   * chỗ dọn.
+   */
+  const copyTimer = useRef<number | null>(null)
+  function clearCopyTimer() {
+    if (copyTimer.current !== null) {
+      window.clearTimeout(copyTimer.current)
+      copyTimer.current = null
+    }
+  }
+  useEffect(() => clearCopyTimer, [])
+
   const stepLabels = useMemo(() => m.wizard.steps, [m])
   const targetLabels = useMemo(() => m.wizard.target.labels, [m])
   const targetHints = useMemo(() => m.wizard.target.hints, [m])
   const voiceNames = useMemo(() => m.wizard.target.voiceNames, [m])
   const voiceName = voiceNames[voice] ?? voiceNames[0]
   const targetName = targetLabels[TARGETS.indexOf(target)] ?? targetLabels[0]
+
+  /**
+   * Bảng chỉ đạo nghệ thuật — bảy thẻ của bước 4.
+   *
+   * Tính lại từ `frames` mỗi khi nó đổi, không lưu vào state: nó thuần tuý, và giữ nó
+   * trong state là mở đường cho một bản cũ tồn tại sau khi `frames` đã đổi.
+   */
+  const board = useMemo(() => buildArtDirectionBoard(frames.map((f) => f.prompt)), [frames])
+  const boardFilled = board.cards.filter((c) => c.slots.length).length
 
   const refTotal = character.length + background.length
 
@@ -189,16 +220,42 @@ export default function WizardPage() {
     }
   }
 
-  async function copyText(value: string, token: string) {
+  /**
+ * Bấm nút sao chép: ghi vào bộ nhớ tạm, đổi trạng thái nút, và **báo** việc vừa làm.
+ *
+ * `message` là câu sẽ được trình đọc màn hình đọc lên. Nội dung của nó do **chỗ gọi**
+ * quyết định, không suy ra ở đây — vì lời báo phải nói đúng việc vừa xảy ra, và "vừa
+ * sao chép phần Máy quay" khác "vừa sao chép cả bài".
+ */
+async function copyText(value: string, token: string, message: string) {
     setCopyFailed(false)
+    // Rỗng thì không báo: đó là nút bị tắt, không phải một cú bấm thất bại.
+    if (!value) return
     try {
       await navigator.clipboard.writeText(value)
       setCopied(token)
-      window.setTimeout(() => setCopied(''), 2000)
+      announce(message)
+      clearCopyTimer()
+      copyTimer.current = window.setTimeout(() => {
+        copyTimer.current = null
+        setCopied('')
+      }, 2400)
     } catch {
       // Clipboard API cần ngữ cảnh bảo mật; localhost thì được, http trên LAN thì không.
       setCopyFailed(true)
     }
+  }
+
+  /**
+   * Đẩy câu báo vào vùng sống.
+   *
+   * Xoá trước rồi mới gán ở khung hình kế tiếp: một `aria-live` **không** phát sự kiện
+   * khi nội dung không đổi, nên sao chép cùng một thẻ hai lần liên tiếp sẽ im lặng ở lần
+   * hai — đúng cái lần mà người dùng cần nghe nhất.
+   */
+  function announce(message: string) {
+    setToast('')
+    window.requestAnimationFrame(() => setToast(message))
   }
 
   const canGoBack = step > 0
@@ -375,17 +432,62 @@ export default function WizardPage() {
 
             {copyFailed ? <p className="wizard-draft-note">{t('wizard.export.copyFailed')}</p> : null}
 
+            {/*
+              Vùng sống cho trình đọc màn hình. Phải có mặt trong DOM **trước** khi nội
+              dung đổi: một phần tử sinh ra kèm nội dung thì không được đọc, vì không có
+              gì để so sánh. Rỗng thì `:empty` trong `wizard.css` ẩn đi.
+            */}
+            <p className="wizard-toast" role="status" aria-live="polite">{toast}</p>
+
             {frames.length === 0 ? (
               <p className="wizard-drop-empty">{t('wizard.export.emptyFrames')}</p>
             ) : (
               <>
-                <Button
-                  variant="lime"
-                  size="lg"
-                  onClick={() => copyText(frames.map((f) => f.prompt).join('\n\n'), 'all')}
-                >
-                  {copied === 'all' ? t('wizard.export.copied') : t('wizard.export.copyAll')}
-                </Button>
+                <section className="wizard-board" aria-label={t('wizard.board.title')}>
+                  <div className="wizard-board-head">
+                    <h3>{t('wizard.board.title')}</h3>
+                    <p className="wizard-drop-hint">{t('wizard.board.hint')}</p>
+                    <p className="wizard-board-coverage">
+                      {t('wizard.board.coverage', {
+                        filled: boardFilled,
+                        total: board.cards.length,
+                      })}
+                    </p>
+                  </div>
+
+                  {/*
+                    Nút lớn, đặt **giữa** khối kết quả. Không nằm trong `.wizard-actions` —
+                    `visual-audit.mjs` bấm `.wizard-actions .pf-btn` và lấy nút cuối làm
+                    "Tiếp tục"; đặt nút sao chép vào đó là nó sẽ bấm nhầm.
+                  */}
+                  <div className="wizard-board-primary">
+                    <Button
+                      variant="lime"
+                      size="lg"
+                      onClick={() => copyText(
+                        frames.map((f) => f.prompt).join('\n\n'),
+                        'all',
+                        t('wizard.export.toastAll'),
+                      )}
+                    >
+                      {copied === 'all' ? t('wizard.export.copied') : t('wizard.export.copyAll')}
+                    </Button>
+                  </div>
+
+                  <div className="wizard-board-grid">
+                    {board.cards.map((card) => (
+                      <BoardCardView
+                        key={card.field}
+                        card={card}
+                        label={t(`wizard.board.labels.${card.field}`)}
+                        copied={copied === `field-${card.field}`}
+                        onCopy={(text, message) =>
+                          copyText(text, `field-${card.field}`, message)
+                        }
+                      />
+                    ))}
+                  </div>
+                </section>
 
                 <div className="wizard-frames" style={{ marginTop: '1rem' }}>
                   {frames.map((frame, index) => {
@@ -396,7 +498,11 @@ export default function WizardPage() {
                           <span>{t('wizard.export.frameTitle', { no: index + 1 })}</span>
                           <Button
                             size="sm"
-                            onClick={() => copyText(frame.prompt, token)}
+                            onClick={() => copyText(
+                              frame.prompt,
+                              token,
+                              t('wizard.export.toastFrame', { no: index + 1 }),
+                            )}
                             icon
                           >
                             {copied === token ? (
@@ -436,6 +542,69 @@ export default function WizardPage() {
         </div>
       </div>
     </AppShell>
+  )
+}
+
+/**
+ * Một thẻ của bảng chỉ đạo: nhãn trường, những gì prompt nói về trường đó, nút Copy riêng.
+ *
+ * Nút **tắt** khi trường rỗng. Đây là điểm cố ý: một nút sao chép được mà bên trong rỗng
+ * là một cú bấm nói dối, và nó tệ hơn cả việc không có nút — người dùng tưởng đã lấy đủ
+ * thông tin. Thay vào đó thẻ nói thẳng là prompt không nhắc tới phần này.
+ */
+function BoardCardView({
+  card,
+  label,
+  copied,
+  onCopy,
+}: {
+  card: BoardCard
+  label: string
+  copied: boolean
+  onCopy: (text: string, message: string) => void
+}) {
+  const { t } = useI18n()
+  const text = boardCardText(card)
+  const empty = !text
+
+  return (
+    <article className={`wizard-board-card${empty ? ' is-empty' : ''}`} data-field={card.field}>
+      <p className="wizard-board-card-head">
+        <span className="wizard-board-label">{label}</span>
+        <Button
+          size="sm"
+          variant="outline"
+          icon
+          disabled={empty}
+          /*
+           * Chữ trên nút là `board.copy` (ngắn), còn tên truy cập là `board.copyField` (có
+           * tên trường). Tách hai thứ là chủ ý: đặt tên trường vào chữ nút làm nút tràn ra
+           * khỏi thẻ ở bản `vi`, còn đặt vào `aria-label` thì vừa đủ cho trình đọc màn
+           * hình mà không tốn chỗ.
+           */
+          aria-label={t('wizard.board.copyField', { field: label })}
+          onClick={() => onCopy(text, t('wizard.export.toastField', { field: label }))}
+        >
+          {copied ? <IconCheck size={15} /> : <IconCopy size={15} />}
+          {copied ? t('wizard.export.copied') : t('wizard.board.copy')}
+        </Button>
+      </p>
+
+      {empty ? (
+        <p className="wizard-board-value is-empty">{t('wizard.board.emptyField')}</p>
+      ) : (
+        <ul className="wizard-board-slots">
+          {card.slots.map((slot) => (
+            <li key={slot.frameNo} className="wizard-board-slot">
+              <span className="wizard-board-slot-no">
+                {t('wizard.export.frameTitle', { no: slot.frameNo })}
+              </span>
+              <span className="wizard-board-value">{slot.text}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </article>
   )
 }
 
