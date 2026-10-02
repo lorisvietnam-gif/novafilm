@@ -466,6 +466,14 @@ class ImageResult:
     upstream_cost_fen: int | None = None
 
 
+def _strip_data_url_prefix(value: str) -> str:
+    """去掉 `data:image/png;base64,` 前缀，只留 base64 本体。"""
+    text = (value or "").strip()
+    if text.startswith("data:") and "," in text:
+        return text.split(",", 1)[1].strip()
+    return text
+
+
 class ArkGateway:
     def __init__(self, settings: Settings | None = None) -> None:
         self._settings_override = settings
@@ -995,17 +1003,26 @@ class ArkGateway:
         remote = extract_tokenfree_image_url(data) if on_tokenfree else self._extract_image_url(data)
         if not remote:
             remote = self._extract_image_url(data) or extract_tokenfree_image_url(data)
-        if not remote:
-            logger.warning("出图响应无图片地址: %s", json.dumps(data, ensure_ascii=False)[:500])
-            raise RuntimeError("出图未返回图片地址，请稍后重试")
 
         dest_dir = storage.project_dir(project_id or 0)
         name = f"shot_{(shot_no or 0):03d}_{uuid.uuid4().hex[:12]}.png"
         dest = dest_dir / name
-        dl_headers = None
-        if is_tokenfree_image_url(remote) or is_tokenfree_content_url(remote):
-            dl_headers = {"Authorization": f"Bearer {self._ark_api_key()}"}
-        await storage.download_to(remote, dest, headers=dl_headers)
+
+        if remote:
+            dl_headers = None
+            if is_tokenfree_image_url(remote) or is_tokenfree_content_url(remote):
+                dl_headers = {"Authorization": f"Bearer {self._ark_api_key()}"}
+            await storage.download_to(remote, dest, headers=dl_headers)
+        else:
+            # 上游回的是 base64 图像本体，没有可下载的 URL。直接落盘，否则整张图丢失。
+            inline_b64 = self._extract_image_b64(data)
+            if not inline_b64:
+                logger.warning("出图响应无图片地址: %s", json.dumps(data, ensure_ascii=False)[:500])
+                raise RuntimeError("出图未返回图片，请稍后重试")
+            raw = base64.b64decode(_strip_data_url_prefix(inline_b64))
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(raw)
+
         merged_usage = dict(raw_usage or {})
         if resolved_size:
             merged_usage.setdefault("size", str(resolved_size))
@@ -1135,12 +1152,32 @@ class ArkGateway:
             out = pat.sub(repl, out)
         return out
 
-    def _extract_image_url(self, data: dict[str, Any]) -> str | None:
+    @staticmethod
+    def _extract_image_url(data: dict[str, Any]) -> str | None:
+        """只取真实 URL。
+
+        **不要**在这里回退到 `b64_json`：Kira 这类上游直接回 base64 图像内容，
+        把它当 URL 传给 `download_to()` 会得到 `InvalidURL: URL too long`，
+        一张能生成的图就这样白丢。见 `_extract_image_b64`。
+        """
         if "data" in data and data["data"]:
             item = data["data"][0]
-            return item.get("url") or item.get("b64_json")
+            return item.get("url") or None
         if "url" in data:
             return data["url"]
+        return None
+
+    @staticmethod
+    def _extract_image_b64(data: dict[str, Any]) -> str | None:
+        """上游直接回 base64 图像时的取值（Kira/OpenAI 兼容形态）。"""
+        if "data" in data and data["data"]:
+            b64 = data["data"][0].get("b64_json")
+            if isinstance(b64, str) and b64.strip():
+                return b64.strip()
+        for key in ("b64_json", "image_base64"):
+            val = data.get(key)
+            if isinstance(val, str) and val.strip():
+                return val.strip()
         return None
 
     @staticmethod

@@ -163,6 +163,12 @@ báo origin của frontend.
 - **`passlib` + `bcrypt` xung đột phiên bản** — cảnh báo bị nuốt mỗi lần đăng nhập. Chưa giao ai.
 - **`api/drama.ts` từng có bản sao riêng của `API_BASE`** và làm hỏng 7 trang. Đã gộp về một
   nguồn, nhưng đó là bài học: **hai bản sao của cùng một quyết định là nguồn sự cố.**
+- **`auth.py:36` chụp `settings = get_settings()` ở cấp module — CHƯA SỬA, cố ý để riêng.**
+  `billing.py:32` có đúng lỗi đó và đã sửa (`422265a`): giá trị bị đóng băng lúc import,
+  **trước** khi lifespan nạp overlay từ DB, nên `/api/billing/wallet` báo `billing_enabled: true`
+  trong khi `/api/billing/preflight` báo `false` cùng lúc. Ở `auth.py` nó nằm trong luồng xác
+  thực — **đừng sửa vội.** Phải có test xác thực xanh trước, rồi mới đổi sang `get_settings()`
+  lúc gọi hàm. Xem `docs/briefs/` khi giao.
 
 ## 11. BÁO CÁO CỦA LANE PHẢI NẰM TRÊN ĐĨA
 Tiến trình `kilo run` **không gửi được tin nhắn lên board** (bị từ chối với `Board messages
