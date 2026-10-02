@@ -8,7 +8,7 @@ import ComingSoon from '../components/ui/ComingSoon'
 import CreateChoiceModal from '../components/ui/CreateChoiceModal'
 import { BetaNotice } from '../components/ui/BetaNotice'
 import { useI18n } from '../i18n'
-import { getDramaImageStylePreviewUrl } from '../lib/dramaImageStylePreviews'
+import { getDramaImageStylePreviewCandidates, getDramaImageStylePreviewUrl } from '../lib/dramaImageStylePreviews'
 import { IMAGE_STYLE_IDS, type ImageStyleId } from '../lib/dramaImageStyles'
 import { PRODUCT_ICONS, localizeToolDefs } from '../lib/toolsCatalog'
 
@@ -68,8 +68,26 @@ function stillWidths(id: ImageStyleId): readonly number[] {
   return STILL_WIDTHS[id] ?? STILL_WIDTHS_BASE
 }
 
+/**
+ * Bản gốc cho style không có bản thu nhỏ.
+ *
+ * `getDramaImageStylePreviewUrl` trả về **ứng viên đầu tiên** của dãy
+ * `jpg → png → api → svg` (`getDramaImageStylePreviewCandidates`). Với 20/21 style ứng
+ * viên đầu là `.jpg` và đúng. Riêng `cgi-3d-animation` trên đĩa **chỉ có `.png`**, nên
+ * `.jpg` là URL không tồn tại — và nó hỏng âm thầm: dev server trả `index.html`
+ * (HTTP 200, `Content-Type: text/html`) cho đường dẫn ảnh, nên trình duyệt báo
+ * `complete = true, naturalWidth = 0` thay vì báo lỗi. Ô đen, và không có gì báo.
+ *
+ * `Still` cố ý không đổi `src` khi ảnh hỏng (xem ghi chú của nó), nên phải chọn đúng ứng
+ * viên ngay tại đây.
+ */
+function stillSrcOriginal(id: ImageStyleId): string {
+  const png = getDramaImageStylePreviewCandidates(id).find((url) => url.endsWith('.png'))
+  return png ?? getDramaImageStylePreviewUrl(id)
+}
+
 function stillSrc(id: ImageStyleId): string {
-  if (WITHOUT_DERIVATIVE.has(id)) return getDramaImageStylePreviewUrl(id)
+  if (WITHOUT_DERIVATIVE.has(id)) return stillSrcOriginal(id)
   return `${publicDir()}img/${id}-${stillWidths(id)[0]}.jpg`
 }
 
