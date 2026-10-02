@@ -793,6 +793,55 @@ async def get_admin_routing_settings(db: AsyncSession) -> AdminRoutingSettingsOu
     )
 
 
+# flat 字段 → default_models 属性。两处是同一个决定的两个副本。
+_DEFAULT_FLAT_FIELDS: dict[str, str] = {
+    "model_llm": "text_model",
+    "model_image": "image_model",
+    "model_video": "video_model",
+    "model_audio": "audio_model",
+}
+
+
+def _default_models_updates(patch: dict[str, Any]) -> dict[str, str]:
+    """从 flat patch 里取出「用户设的默认模型」，键为 `DefaultModels` 的属性名。
+
+    `_compose_runtime_state` 把 `default_models` **反写**回 flat（`flat["model_image"] =
+    default_models.image_model`），所以 chỉ ghi flat thì giá trị vừa ghi bị đè *ngay trong
+    lúc patch*, rồi `load_model_settings_cache` lại ghi ngược kết quả đè đó vào DB —
+    PATCH trả 200 nhưng đọc lại thì về giá trị cũ. Vì vậy ở đây phải ghi vào
+    `default_models` (nguồn chân lý) để giá trị người dùng đặt thắng.
+
+    Chuỗi rỗng không tính là "đặt giá trị": đường routing hiện đã coi rỗng là "chưa đặt"
+    và để `normalize_default_models` chọn hợp lệ; giữ nguyên hành vi đó.
+    """
+    updates: dict[str, str] = {}
+    for field, attr in _DEFAULT_FLAT_FIELDS.items():
+        value = patch.get(field)
+        if value is None:
+            continue
+        text = str(value).strip()
+        if text:
+            updates[attr] = text
+    return updates
+
+
+def _with_default_models_updates(
+    raw_defaults: dict[str, Any] | None, patch: dict[str, Any]
+) -> dict[str, str] | None:
+    """`config["default_models"]` mới sau khi áp các giá trị mặc định trong patch.
+
+    Ghi qua `default_models_to_dict` chứ không trộn thẳng vào dict: dict lưu trong DB dùng
+    khoá camelCase (`imageModel`) còn `DefaultModels` dùng tên thuộc tính (`image_model`).
+    Trộn thẳng tạo ra **hai** khoá, mà `default_models_from_dict` đọc camelCase trước — nên
+    giá trị mới bị chính giá trị cũ che mất, đúng triệu chứng PATCH "thành công rồi mất".
+    """
+    updates = _default_models_updates(patch)
+    if not updates:
+        return None
+    base = default_models_from_dict(raw_defaults)
+    return default_models_to_dict(base.model_copy(update=updates))
+
+
 async def patch_admin_model_settings(
     db: AsyncSession,
     body: AdminModelSettingsPatch,
@@ -821,6 +870,9 @@ async def patch_admin_model_settings(
         applied.append(field)
 
     config["flat"] = _encrypt_flat_config(current)
+    new_defaults = _with_default_models_updates(config.get("default_models"), patch)
+    if new_defaults is not None:
+        config["default_models"] = new_defaults
     app_row.config_json = config
     await db.commit()
     await load_model_settings_cache(db)
