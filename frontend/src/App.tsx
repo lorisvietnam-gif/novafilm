@@ -54,6 +54,9 @@ const EpisodesPage = lazy(() => import('./pages/drama/EpisodesPage'))
 const CanvasPage = lazy(() => import('./pages/drama/canvas/CanvasPage'))
 const EpisodeStoryboardPage = lazy(() => import('./pages/drama/episodeCanvas/EpisodeStoryboardPage'))
 
+/** Trạm đẻ prompt bốn bước. Trang độc lập, không sửa `/studio` hay `/drama`. */
+const WizardPage = lazy(() => import('./pages/wizard/WizardPage'))
+
 /** Hai trang pháp lý dùng chung một module nên vẫn là một chunk. */
 const LegalDocPage = lazy(() =>
   import('./pages/LegalDocPage').then((m) => ({ default: m.TermsPage })),
@@ -89,6 +92,7 @@ export default function App() {
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/wizard" element={<WizardPage />} />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/studio/new" element={<CreateProjectPage />} />
           <Route path="/studio/:id/style" element={<StyleConfigPage />} />

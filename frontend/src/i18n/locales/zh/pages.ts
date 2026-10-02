@@ -1058,4 +1058,83 @@ export const zhPages = {
       csvHeader: ['镜号', '旁白', '画面描述', '时长秒', '状态', '镜头标题'],
     },
   },
+
+  /** `/wizard` — 四步提示词工位。本页不调用任何视频接口。 */
+  wizard: {
+    title: '提示词工位',
+    lede: '四个步骤：参考图 → 想法 → 目标平台与配音 → 复制提示词，粘到别的工具里使用。',
+    notARenderer:
+      'NOVAFILM 在这里不渲染视频。本页负责写出提示词，之后你把它粘到 Veo、Muse 或 Kling 去生成。',
+
+    steps: ['参考图', '想法', '目标与配音', '复制提示词'],
+
+    refs: {
+      title: '参考图',
+      hint: '可选。上传图片能让提示词更准确地描述角色与场景。',
+      character: '角色',
+      characterHint: '角色的主要参考图，可以多张。',
+      background: '场景',
+      backgroundHint: '故事发生的地点，留空也可以。',
+      addImage: '选择图片',
+      removeImage: '移除这张图',
+      clearAll: '清空全部图片',
+      empty: '还没有图片。',
+      count: '{count} 张图',
+      localOnly: '图片只留在你的浏览器里，没有上传到服务器；你仍然要自己把图粘到 Veo / Kling。',
+      notAnImage: '这个文件不是图片。',
+      readFailed: '读不出这张图片。',
+    },
+
+    idea: {
+      title: '你想让视频讲什么？',
+      hint: '写清楚是谁、在哪里、发生什么、怎么收尾，越具体越好。',
+      label: '你的想法',
+      placeholder: '例如：夜里下雨，一个穿皮夹克的年轻女孩在街上奔跑，在一家小咖啡馆前停下，抬头看霓虹灯招牌并叹气。',
+      empty: '你还没有写想法。',
+      generate: '生成剧本与提示词',
+      generating: '正在生成…',
+      regenerate: '重新生成',
+      scriptLabel: '剧本',
+      promptLabel: '提示词',
+      noResult: '还没有结果。写下想法后点上面的按钮。',
+      framesLabel: '分镜',
+      localDraftNotice: '这是浏览器里临时拼出的草稿，没有经过 AI 模型，只是为了不把你卡在这里；服务就绪后请点「重新生成」。',
+    },
+
+    target: {
+      title: '目标平台',
+      hint: '提示词会按你选的平台做调整。',
+      labels: ['Veo 3.1', 'Muse', 'Kling', 'Seedance'],
+      hints: [
+        '偏长句，着重描述运镜和光线。',
+        '句子短，重情绪和节奏。',
+        '强调连贯动作与清晰的物理描述。',
+        '按分镜拆开，每一镜单独写旁白。',
+      ],
+      voice: '配音',
+      voiceHint: '这里只是描述你想要的音色；NOVAFILM 没有语音合成模型，它是一条备注而不是设置项。',
+      voiceNames: ['低沉温暖，叙事感', '年轻女性，亲切', '中性男声，清晰', '女新闻播报，专业', '男声，有活力', '无旁白'],
+    },
+
+    export: {
+      title: '最终提示词',
+      hint: '逐镜复制到你自己的工具里。本页没有任何按钮会调用视频接口。',
+      frameTitle: '第 {no} 镜',
+      copyFrame: '复制这一镜',
+      copyAll: '全部复制',
+      copied: '已复制',
+      copyFailed: '自动复制失败，请手动选中文字复制。',
+      emptyFrames: '还没有可以复制的分镜。',
+      summaryLabel: '设置摘要',
+      summaryTarget: '目标：{target}',
+      summaryVoice: '配音：{voice}',
+      goBack: '回到想法那一步',
+    },
+
+    nav: {
+      back: '上一步',
+      next: '继续',
+      skip: '跳过',
+    },
+  },
 } as const
