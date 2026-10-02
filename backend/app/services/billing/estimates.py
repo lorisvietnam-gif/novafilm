@@ -78,6 +78,27 @@ def _payload_image_size(payload: dict) -> str:
     return ""
 
 
+def _payload_image_model(payload: dict) -> str:
+    """从任务 payload 取用户真正选中的生图 model。
+
+    没有这个函数时，预扣一律按 ``settings.model_image``（全局默认）算钱，用户选了
+    别的 model 也看不出来：预扣和结算会对不上，冻结多出来的部分要靠退款抹平。
+    """
+    prepared = payload.get("prepared") if isinstance(payload.get("prepared"), dict) else {}
+    gen = payload.get("generation") if isinstance(payload.get("generation"), dict) else {}
+    for val in (
+        payload.get("model"),
+        payload.get("image_model"),
+        gen.get("model"),
+        prepared.get("model"),
+        prepared.get("image_model"),
+    ):
+        text = str(val or "").strip()
+        if text:
+            return text
+    return ""
+
+
 def _billing_image_size(settings: Settings, *, model: str = "", size: str = "") -> str:
     """计费用清晰度：与 ark 生成侧一致，Pro / sunburst 把 3K·4K 钳到 2K。"""
     return resolve_billing_image_size(settings, model=model, size=size)
@@ -92,7 +113,7 @@ def _buffered_fen(fen: int, settings: Settings) -> int:
 def _catalog_image_fen(settings: Settings, *, model: str = "", size: str = "", payload: dict | None = None) -> int:
     """按张官价预扣，不再乘 1.2。缓冲是给 token 低估用的，张价已是结算价。"""
     body = payload if isinstance(payload, dict) else {}
-    mid = model or settings.model_image
+    mid = model or _payload_image_model(body) or settings.model_image
     resolved = _billing_image_size(settings, model=mid, size=size or _payload_image_size(body))
     return max(1, int(charge_fen_official_image(settings, model=mid, size=resolved)))
 

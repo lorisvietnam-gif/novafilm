@@ -44,6 +44,13 @@ PRESET_MODELS: dict[LogicalModelCapability, tuple[dict[str, str], ...]] = {
             "pricing_hint": "清晰度越高越贵",
             "eta_hint": "约 30–90 秒/张",
         },
+        {
+            "id": "hy-image-v3.5-free",
+            "label": "HY Image v3.5",
+            "note": "Kira 渠道的免费档生图，先导接入用",
+            "pricing_hint": "固定价，不随清晰度变化",
+            "eta_hint": "约 20–60 秒/张",
+        },
     ),
     "video": (
         {

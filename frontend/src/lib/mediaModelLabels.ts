@@ -60,6 +60,23 @@ const MODEL_LABELS: Record<string, ModelText> = {
       vi: 'Khoảng 30–90 giây mỗi ảnh',
     },
   },
+  'hy-image-v3.5-free': {
+    description: {
+      zh: 'Kira 渠道的免费档生图，先导接入用',
+      en: 'Free-tier image generation via Kira, used for the pilot rollout',
+      vi: 'Sinh ảnh gói miễn phí qua Kira, dùng cho đợt thử nghiệm đầu',
+    },
+    pricing_hint: {
+      zh: '固定价，不随清晰度变化',
+      en: 'Flat price, does not vary with resolution',
+      vi: 'Giá cố định, không thay đổi theo độ phân giải',
+    },
+    eta_hint: {
+      zh: '约 20–60 秒/张',
+      en: 'About 20–60 s per image',
+      vi: 'Khoảng 20–60 giây mỗi ảnh',
+    },
+  },
   'seedance-2-0': {
     description: {
       zh: '标准成片，运镜较稳；最高 720p',
