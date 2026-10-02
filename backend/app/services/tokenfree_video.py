@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.services.media_ref_limits import MAX_REFERENCE_IMAGES, ReferenceImageError
+from app.services.media_ref_limits import ensure_within_reference_image_limit
 from app.services.tokenfree_gateway import TOKENFREE_CHANNEL_ID
 
 # 方舟原生异步视频任务前缀
@@ -125,13 +125,7 @@ def wrap_seedance_payload_for_newapi(payload: dict[str, Any]) -> dict[str, Any]:
         seen_urls.add(url)
         unique_images.append(url)
         unique_roles.append(role)
-    if len(unique_images) > MAX_REFERENCE_IMAGES:
-        raise ReferenceImageError(
-            f"Yêu cầu có {len(unique_images)} ảnh tham chiếu, vượt trần "
-            f"{MAX_REFERENCE_IMAGES} ảnh mỗi lượt "
-            f"(sẽ bị bỏ {len(unique_images) - MAX_REFERENCE_IMAGES} ảnh). "
-            "Hệ thống không tự cắt bớt — bạn xoá bớt ảnh rồi tạo lại."
-        )
+    ensure_within_reference_image_limit(unique_images)
     images = unique_images
     image_roles = unique_roles
     meta_input: dict[str, Any] = {}

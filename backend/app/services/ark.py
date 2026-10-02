@@ -66,7 +66,10 @@ from app.services.tokenfree_video import (
 )
 from app.services import storage
 from app.services.drama.seedance_i2v_role import resolve_seedance_i2v_image_role
-from app.services.media_ref_limits import MAX_REFERENCE_IMAGES
+from app.services.media_ref_limits import (
+    MAX_REFERENCE_IMAGES,
+    ensure_within_reference_image_limit,
+)
 from app.services.ffmpeg_compose import is_near_silent_audio
 from app.services.drama.llm import _extract_json
 from app.services.llm_client import chat_completions
@@ -1391,6 +1394,20 @@ class ArkGateway:
 
         payload = dict(body)
         content = payload.get("content")
+        # 渠道无关的张数闸门。TokenFree 那条路由 wrap_seedance_payload_for_newapi 兜底，
+        # 原生方舟却没有第二道关——而**漫剧分镜走的正是这里**。超上限就报错，
+        # 绝不把多出来的图悄悄丢掉：丢的那张很可能就是角色定妆照。
+        #
+        # 故意放在 URL 解析**之前**：这一步每张图都要 ensure_seedance_compatible_image_url，
+        # 对一个注定被拒的请求做这些网络调用是白花钱，还可能在 OSS 留下孤儿文件。
+        # 代价是同一张图经解析后收敛成同一张 CDN 图时会算重一点，宁可多拒不可少拒。
+        ensure_within_reference_image_limit(
+            [
+                str((item.get("image_url") or {}).get("url") or "")
+                for item in (content if isinstance(content, list) else [])
+                if isinstance(item, dict) and item.get("type") == "image_url"
+            ]
+        )
         if isinstance(content, list):
             payload["content"] = await self._resolve_seedance_content_items(
                 content,

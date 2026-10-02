@@ -5,7 +5,11 @@ from __future__ import annotations
 import pytest
 
 from app.services.ark import ArkGateway, _build_task_result_from_payload
-from app.services.media_ref_limits import MAX_REFERENCE_IMAGES, ReferenceImageError
+from app.services.media_ref_limits import (
+    MAX_REFERENCE_IMAGES,
+    ReferenceImageError,
+    ensure_within_reference_image_limit,
+)
 from app.services.tokenfree_gateway import TOKENFREE_BASE_URL, TOKENFREE_CHANNEL_ID
 from app.services.tokenfree_video import (
     extract_video_task_id,
@@ -279,6 +283,113 @@ def test_prepare_video_create_body_only_wraps_tokenfree():
     assert tf["prompt"] == "hi"
     assert tf["metadata"]["input"]["duration"] == "5"
     assert tf["metadata"]["input"]["content"] == body["content"]
+
+
+# ---- 原生方舟渠道的张数闸门（漫剧分镜实际走的那条路） ----
+
+
+def _native_ark_client() -> ArkGateway:
+    """原生方舟渠道的 client，且 mock 关掉（``mock`` 是只读 property）。"""
+    from app.config import get_settings
+
+    settings = get_settings().model_copy(
+        update={
+            "ark_base_url": "https://ark.cn-beijing.volces.com/api/v3",
+            "ark_mock": False,
+            "ark_api_key": "test-dummy-not-a-real-key",
+        }
+    )
+    client = ArkGateway(settings=settings)
+    assert client.mock is False
+    return client
+
+
+@pytest.mark.asyncio
+async def test_gen_video_seedance_body_rejects_ten_images_on_native_ark():
+    """漫剧走 gen_video_seedance_body；原生方舟上原本**完全没有**张数闸门。
+
+    TokenFree 那条路有 wrap_seedance_payload_for_newapi 兜底，原生方舟没有，
+    于是同一份 10 图请求在两个渠道上一个报错、一个照发——10 张全丢给上游，
+    上游要么拒要么只取前几张，用户看到的都不是可读报错。
+    """
+    client = _native_ark_client()
+    body = _seedance_body_with_images(MAX_REFERENCE_IMAGES + 1)
+
+    async def _must_not_resolve(items, *, project_id=0):
+        raise AssertionError("不该做 URL 解析：超限要在解析之前就拒掉")
+
+    client._resolve_seedance_content_items = _must_not_resolve
+    with pytest.raises(ReferenceImageError) as err:
+        await client.gen_video_seedance_body(body, project_id=0)
+    assert str(MAX_REFERENCE_IMAGES + 1) in str(err.value)
+
+
+@pytest.mark.asyncio
+async def test_gen_video_seedance_body_allows_nine_images_on_native_ark():
+    """闸门不能误伤合法请求：刚好 9 张照常往下走。"""
+    client = _native_ark_client()
+    body = _seedance_body_with_images(MAX_REFERENCE_IMAGES)
+
+    async def _passthrough(items, *, project_id=0):
+        return list(items)
+
+    client._resolve_seedance_content_items = _passthrough
+    client._resolve_ark_route = lambda capability, model_id: None
+    client._route_url = lambda path, route=None: "https://ark.example.com" + path
+    client._route_headers = lambda route=None: {}
+
+    sent: dict = {}
+
+    class _Resp:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {"task_id": "t-1"}
+
+    class _Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        async def post(self, url, *, headers=None, json=None):
+            sent["json"] = json
+            return _Resp()
+
+    import app.services.ark as ark_module
+
+    original = ark_module.httpx.AsyncClient
+    ark_module.httpx.AsyncClient = lambda **kwargs: _Client()
+    try:
+        task_id = await client.gen_video_seedance_body(body, project_id=0)
+    finally:
+        ark_module.httpx.AsyncClient = original
+
+    assert task_id == "t-1"
+    images = [
+        item["image_url"]["url"]
+        for item in sent["json"]["content"]
+        if item.get("type") == "image_url"
+    ]
+    assert len(images) == MAX_REFERENCE_IMAGES
+
+
+def test_ensure_within_reference_image_limit_dedups_itself():
+    """去重收在函数内部，调用方漏做也不会误拒合法请求。"""
+    urls = [f"https://cdn.example.com/{i % MAX_REFERENCE_IMAGES}.png" for i in range(20)]
+    assert ensure_within_reference_image_limit(urls) == [
+        f"https://cdn.example.com/{i}.png" for i in range(MAX_REFERENCE_IMAGES)
+    ]
+
+
+def test_ensure_within_reference_image_limit_rejects_over_limit():
+    urls = [f"https://cdn.example.com/{i}.png" for i in range(MAX_REFERENCE_IMAGES + 1)]
+    with pytest.raises(ReferenceImageError) as err:
+        ensure_within_reference_image_limit(urls)
+    assert str(MAX_REFERENCE_IMAGES + 1) in str(err.value)
+    assert str(MAX_REFERENCE_IMAGES) in str(err.value)
 
 
 def test_extract_video_task_id_from_newapi_and_wrapped_data():
