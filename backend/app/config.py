@@ -206,6 +206,11 @@ class Settings(BaseSettings):
     task_runtime_watchdog_interval_sec: float = 5.0
 
     max_shot_duration: int = 30
+    # Ngôn ngữ dùng cho **nội dung** prompt sinh ra khi request không nói rõ:
+    # zh | vi | en. Đây là mặc định của nhà vận hành, người dùng vẫn ghi đè được
+    # bằng `locale` trong request. Chỉ đổi ngôn ngữ của câu chỉ thị trong prompt —
+    # marker Seedance (`【字幕：…】`, `@duration:N`, …) là hợp đồng máy↔máy, không đụng.
+    default_locale: str = "vi"
     default_preview_resolution: str = "480p"
     new_user_quota: int = 5
     # Legacy flag; prefer billing_enabled
