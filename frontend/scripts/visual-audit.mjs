@@ -514,23 +514,34 @@ async function ensureData(token) {
   }
 
   if (!out.drama) {
-    const created = await api('/api/drama/projects', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        title: 'Kiem thu Drama',
-        description: 'Du lieu gia lap de kiem chung giao dien.',
-        source: 'Mot nguoi ban cham ngay trong khu pho xa, phat hien ra dieu khac thuong.',
-        episode_count: 3,
-        image_style_id: 'pixel-art',
-        workflow: 'script',
-      }),
-    })
-    out.drama = created.id
-    try {
-      const eps = asList(await api(`/api/drama/episodes?project_id=${out.drama}`, { headers }))
-      if (asList(eps).length) out.episode = eps[0].id
-    } catch { /* can co script moi co tap */ }
+    // Không tạo mới khi đã có dự án rỗng. Trước đây mỗi lượt audit lại POST
+    // `/api/drama/projects`, nên `drama` nhảy id mỗi lần (63→64→65…) và số đo **tự
+    // ô nhiễm dữ liệu nó đang đo** — đó là lý do hai lượt không bao giờ giống nhau.
+    // Dự án mới chỉ cần khi thật sự chưa có dự án nào.
+    const reusable = dramaList.find((d) => d && d.id)
+    if (reusable) {
+      out.drama = reusable.id
+    } else {
+      const created = await api('/api/drama/projects', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          title: 'Kiem thu Drama',
+          description: 'Du lieu gia lap de kiem chung giao dien.',
+          source: 'Mot nguoi ban cham ngay trong khu pho xa, phat hien ra dieu khac thuong.',
+          episode_count: 3,
+          image_style_id: 'pixel-art',
+          workflow: 'script',
+        }),
+      })
+      out.drama = created.id
+    }
+    if (out.drama) {
+      try {
+        const eps = asList(await api(`/api/drama/episodes?project_id=${out.drama}`, { headers }))
+        if (asList(eps).length) out.episode = eps[0].id
+      } catch { /* can co script moi co tap */ }
+    }
   }
 
   return out
