@@ -1132,6 +1132,8 @@ export const zhPages = {
       copy: '复制',
       copyField: '复制{field}',
       coverage: '{total} 个字段里填了 {filled} 个',
+      /** 没有可读字段标签的镜头，如实告知，不把别的字段内容补进来。 */
+      unlabelledFrames: '还有 {count} 个镜头没能拆出字段 — 见下方原始镜头。',
     },
 
     export: {

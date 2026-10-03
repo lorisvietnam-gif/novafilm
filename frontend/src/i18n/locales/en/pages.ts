@@ -1155,6 +1155,8 @@ export const enPages = {
       copy: 'Copy',
       copyField: 'Copy {field}',
       coverage: '{filled} of {total} fields filled in',
+      /** Frames whose prompt carried no readable field label. */
+      unlabelledFrames: '{count} frames could not be split into fields — see the raw frames below.',
     },
 
     export: {

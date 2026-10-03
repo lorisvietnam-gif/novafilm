@@ -1155,7 +1155,7 @@ export const viPages = {
      *
      * Nhãn ở đây là **tên trường của bảng**, không phải văn bản người dùng nhập, nên nó
      * không đi qua `promptLabel` hay bất kỳ pack prompt nào: chúng được gửi cho mô hình
-     * video và phải giữ tiếng Anh (xem `DRAFT_FRAMING` trong `WizardPage.tsx`).
+     * video và phải giữ tiếng Anh (xem `DRAFT_FIELDS` trong `WizardPage.tsx`).
      */
     board: {
       title: 'Bảng chỉ đạo nghệ thuật',
@@ -1180,6 +1180,12 @@ export const viPages = {
       /** Tên truy cập của nút, có tên trường. Không hiện ra mắt. */
       copyField: 'Sao chép phần {field}',
       coverage: '{filled} trên {total} trường có nội dung',
+      /**
+       * Báo số khung **không** tách được trường nào. Khung đó không được dán vào ô nào cả —
+       * nguyên tắc là thừa trống còn hơn bịa — nên phải nói rõ là còn thiếu, chứ im lặng thì
+       * người dùng tưởng bảng đã đầy. Văn bản gốc của khung vẫn hiện ngay dưới bảng.
+       */
+      unlabelledFrames: 'Còn {count} khung chưa tách được trường nào — xem khung gốc bên dưới.',
     },
 
     export: {
