@@ -7,6 +7,180 @@
    Chỉ dùng token đã có sẵn — không hard-code màu.
    ========================================================================== */
 
+/* --------------------------------------------------------------------------
+   NỀN TRUE BLACK — ghim trang này vào bậc tối của thang trung tính.
+
+   Vì sao ghim **token**, không sơn từng thẻ
+   -----------------------------------------
+   `/wizard` không phải mấy chục rule của riêng nó: nó còn dùng chung
+   `.pf-shell`, `.pf-nav`, `.pf-stepper`, `.pf-btn`, `.pf-field`, `.pf-link`,
+   `.pf-shell-footer` của `printfilm.css`. Sơn tay từng thẻ nghĩa là danh sách
+   25 route dài, và phần lớn nằm trong file không được phép sửa — nên nó sẽ **sai**.
+   Cái duy nhất đổi được mà không đụng `tokens.css` là **đổi giá trị của chính tên
+   token** trong phạm vi trang: mọi rule dùng `var(--pf-...)` tự đổi theo, không
+   selector nào phải đổi tên.
+
+   Vì sao chỉ trong `@media (prefers-color-scheme: light)`
+   ------------------------------------------------------
+   Đo được: ở theme tối, `/wizard` **đã** là nền đen và đã 0 vi phạm AA
+   (`wizard-contrast-check.mjs`: 456 cặp, 0 hụt AA). Không có lý do ghi đè những
+   giá trị đã đúng — làm vậy chỉ tạo thêm một bản sao của `tokens.css` để phải giữ
+   đồng bộ. Vậy nên khối dưới chỉ kích hoạt ở theme **sáng**, nơi nền đang là kem
+   `#f7f8fa` và cần được ghim về bậc tối. Ở theme tối, dòng này không chạy: trang
+   tiếp tục đọc thẳng từ khối tối của `tokens.css`, nên đổi bảng màu tối sau này
+   trang này đi theo, không bị đứng lại ở bản sao.
+
+   Vì sao **không** dùng `--pf-surface-inverse` làm nền
+   --------------------------------------------------
+   Brief ghi `--pf-surface-inverse: #1c1c1a`. `#1c1c1a` đúng là giá trị của token đó
+   **ở theme sáng** — nhưng ở theme mà ứng dụng thực sự chạy, `tokens.css:758` hạ nó
+   xuống `#f5f5f7`, tức một nền **trắng**. Dùng nó làm nền trang sẽ ra trang trắng,
+   ngược hẳn với "true black" và đúng cái vệt sáng mà brief cấm. Đo lại được bằng
+   `getComputedStyle`, không phải suy từ trí nhớ. Thay vào đó dùng **thang trung
+   tính** `--pf-n-*`: nó không đổi theo theme, và các bậc dưới đây **trùng khít** với
+   những gì khối tối của `tokens.css` đã dùng cho đúng vai trò đó, nên không phát
+   minh bảng màu mới — chỉ trỏ tên token vào đúng bậc có sẵn.
+
+   Còn thiếu thì ghim thêm, đo lại. Không hạ ngưỡng AA để cho dễ đạt.
+   -------------------------------------------------------------------------- */
+@media (prefers-color-scheme: light) {
+  :root:has(.wizard-scoped) {
+    /* Nền: bậc tối nhất của thang, đúng vai trò `--pf-bg` ở khối tối. */
+    --pf-bg: var(--pf-n-975);
+    --pf-surface: var(--pf-n-950);
+    --pf-surface-raised: var(--pf-n-925);
+    --pf-surface-sunken: var(--pf-n-1000);
+    --pf-surface-overlay: var(--pf-n-900);
+
+    /* Chữ sáng. `#f5f5f7` là giá trị `--pf-ink` ở khối tối. */
+    --pf-ink: #f5f5f7;
+    --pf-ink-secondary: #a9aab2;
+    --pf-ink-tertiary: #96979f;
+    --pf-ink-disabled: #666773;
+    --pf-ink-inverse: #0e0e11;
+
+    /* Viền. Ở nền đen, đường viền tối không đọc — đây là các giá trị ở khối tối. */
+    --pf-line-hairline: #2a2a32;
+    --pf-line: #32323b;
+    --pf-line-strong: #45454f;
+    --pf-line-control: #787986;
+
+    /*
+     * Bậc nền champagne 50–200 **lật** giữa hai theme, và đây là chỗ dễ sai nhất:
+     * `#fef6dc` là champagne rất sáng — đặt làm nền thẻ trên nền đen thì thẻ đó thành
+     * vệt sáng, đúng cái brief cấm. Ghim về bậc tối của khối tối cho thẻ ấm mà vẫn
+     * là nền tối. Bậc 300 (sống lưng thẻ) **giữ nguyên** `#f8dc87` ở cả hai theme —
+     * champagne đóng vai viền/điểm nhấn, không phải nền.
+     */
+    --pf-accent-50: #2a2415;
+    --pf-accent-100: #363229;
+    --pf-accent-200: #484232;
+
+    /*
+     * Accent đóng vai trò khác nhau giữa hai theme: ở sáng nó là **chữ** trên nền sáng
+     * (bậc 800), ở tối là **chữ** trên nền tối (bậc 300). Ghim theo bản tối, vì đây là
+     * trang nền tối ở cả hai theme. `#f2c94c` (bậc 400) không đổi — brief đóng băng nó.
+     */
+    --pf-accent-rgb: 248 220 135;
+    --pf-accent-ink: var(--pf-accent-300);
+    --pf-accent-ink-soft: var(--pf-accent-400);
+    --pf-on-accent: #0e0e11;
+    --pf-accent-on-fill: var(--pf-on-accent);
+    --pf-accent-glow: rgb(var(--pf-accent-rgb) / 0.26);
+
+    /*
+     * Glass và thanh dính. Đo được: chừa khối này lại thì nền kính vẫn là
+     * `rgb(255 255 255 / 0.86)` — phủ lên nền đen ra `rgb(221, 221, 222)`, và chữ sáng
+     * trên đó đo ra **1,24:1** (`span.brand-word`). Đây là lý do thanh điều hướng là
+     * vệt sáng, không phải vì thiếu sơn.
+     */
+    --pf-surface-glass: rgb(22 22 26 / 0.86);
+    --pf-surface-rgb: 22 22 26;
+    --pf-surface-bar: rgb(22 22 26 / 0.86);
+    --pf-surface-bar-rgb: 22 22 26;
+    --pf-surface-float: var(--pf-n-900);
+    --pf-surface-float-rgb: 35 35 41;
+    --pf-surface-well: #0b0b0e;
+    --pf-surface-well-rgb: 11 11 14;
+    --pf-surface-media: var(--pf-n-925);
+
+    --pf-glass-bg: rgb(22 22 26 / 0.86);
+    --pf-glass-bg-rgb: 22 22 26;
+    --pf-glass-edge: rgb(255 255 255 / 0.14);
+    --pf-glass-edge-soft: rgb(255 255 255 / 0.08);
+    --pf-glass-edge-inner: rgb(255 255 255 / 0.10);
+    --pf-glass-bg-soft: rgb(22 22 26 / 0.72);
+    --pf-glass-fallback: var(--pf-n-925);
+
+    /*
+     * Màu ngữ nghĩa. Đo được: để sót thì nền lỗi vẫn là `#fdeceb` và chữ sáng trên đó
+     * ra **1,05:1** (`p.pf-error-notice-text`). Bậc `-soft` ở khối tối là nền tối ấm,
+     * chữ `-ink` là bản sáng — đúng cặp để đọc được trên nền đen.
+     */
+    --pf-danger: #ff6f61;
+    --pf-danger-soft: #2a1a17;
+    --pf-danger-ink: #ff6f61;
+    --pf-danger-stroke: #ff6f61;
+
+    --pf-warning: #ffb340;
+    --pf-warning-soft: #2a2314;
+    --pf-warning-ink: #ffb340;
+    --pf-warning-stroke: #ffb340;
+
+    --pf-success: #4ade80;
+    --pf-success-soft: #12251c;
+    --pf-success-ink: #4ade80;
+    --pf-success-stroke: #4ade80;
+
+    --pf-info: #7aa2f7;
+    --pf-info-soft: #131f33;
+    --pf-info-ink: #7aa2f7;
+    --pf-info-stroke: #7aa2f7;
+
+    /*
+     * Nâng cao ở theme tối **không** dựa vào bóng đen — bóng đen trên nền gần đen là
+     * vô hình. Mỗi `--pf-elev-N` là một cặp: bóng nhạt **và** một vành sáng. Ghim
+     * cả cặp, nếu không thì thẻ sẽ chìm vào nền.
+     */
+    --pf-shadow-1: 0 1px 2px rgb(0 0 0 / 0.5);
+    --pf-shadow-2: 0 1px 2px rgb(0 0 0 / 0.45), 0 8px 24px rgb(0 0 0 / 0.5);
+    --pf-shadow-3: 0 1px 2px rgb(0 0 0 / 0.5), 0 16px 40px rgb(0 0 0 / 0.6);
+    --pf-shadow-popover: 0 1px 2px rgb(0 0 0 / 0.5), 0 24px 60px rgb(0 0 0 / 0.7);
+    --pf-shadow-inset-top: inset 0 1px 0 rgb(255 255 255 / 0.06);
+    --pf-elev-0: none;
+    --pf-elev-1: 0 1px 2px rgb(0 0 0 / 0.40), 0 0 0 1px rgb(255 255 255 / 0.07);
+    --pf-elev-2: 0 2px 6px rgb(0 0 0 / 0.42), 0 10px 28px rgb(0 0 0 / 0.44),
+      0 0 0 1px rgb(255 255 255 / 0.09);
+    --pf-elev-3: 0 4px 12px rgb(0 0 0 / 0.45), 0 24px 56px rgb(0 0 0 / 0.5),
+      0 0 0 1px rgb(255 255 255 / 0.11);
+    --pf-elev-4: 0 8px 24px rgb(0 0 0 / 0.48), 0 44px 96px rgb(0 0 0 / 0.6),
+      0 0 0 1px rgb(255 255 255 / 0.14);
+    --pf-glass-shadow: 0 1px 0 rgb(255 255 255 / 0.06) inset,
+      0 8px 28px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(255 255 255 / 0.1);
+
+    /* Vòng focus: trên nền tối, vàng sáng mới là thứ nhìn thấy. */
+    --pf-focus-ring: var(--pf-accent-300);
+    --pf-focus-ring-on-fill: var(--pf-on-accent);
+    --pf-focus-halo: rgb(14 14 17 / 0.9);
+    --pf-focus-halo-rgb: 14 14 17;
+
+    /* Nền ảnh và khung xương — vẫn là mảng tối trên trang tối. */
+    --pf-media-wash-soft: rgb(17 19 24 / 0.7);
+    --pf-media-wash: rgb(17 19 24 / 0.84);
+    --pf-media-ink: #f5f5f7;
+    --pf-media-ink-halo: rgb(0 0 0 / 0.45);
+    --pf-skeleton-base: rgb(255 255 255 / 0.07);
+    --pf-skeleton-sheen: rgb(255 255 255 / 0.02);
+
+    /*
+     * `color-scheme` là bắt buộc, không phải chi tiết trang trí: nó quyết định màu
+     * mà **control gốc của trình duyệt** vẽ ra. Không có nó, dropdown của
+     * `.wizard-select` và thanh cuộn vẫn trắng — một mảng sáng cắt ngang trang đen.
+     */
+    color-scheme: dark;
+  }
+}
+
 .wizard-scoped {
   --wizard-wash: color-mix(in srgb, var(--pf-lime) 16%, transparent);
 
