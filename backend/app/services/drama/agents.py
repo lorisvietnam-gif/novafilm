@@ -12,8 +12,8 @@ from app.services.ark import (
 )
 from app.services.drama.llm import drama_chat_json
 from app.services.drama.script_summary_prompt import (
-    SCRIPT_SUMMARY_SYSTEM_PROMPT,
     build_script_summary_user_message,
+    script_summary_system_prompt,
 )
 
 logger = logging.getLogger(__name__)
@@ -122,18 +122,30 @@ def _language_retry_suffix(locale: str, body: str) -> str:
 _DIRECTIVE_TOKEN = "__LANGUAGE_DIRECTIVE__"
 _LENGTH_UNIT_TOKEN = "__LENGTH_UNIT__"
 _MARKER_CLAUSE_TOKEN = "__SEEDANCE_MARKER_CLAUSE__"
+_LOCATION_EXAMPLE_BATCH_TOKEN = "__LOCATION_EXAMPLE_BATCH__"
+_LOCATION_EXAMPLE_OPTIMIZE_TOKEN = "__LOCATION_EXAMPLE_OPTIMIZE__"
+_LOCATION_EXAMPLE_BODY_TOKEN = "__LOCATION_EXAMPLE_BODY__"
 _EXAMPLE_TOKEN = "__OUTPUT_LANGUAGE_EXAMPLE__"
 _EXAMPLE_LEAD_TOKEN = "__LANGUAGE_EXAMPLE_LEAD__"
 
 
 def episode_prompt_language(locale: str) -> Any:
-    """Ngôn ngữ đầu ra cho đường `episode_script`, lấy từ bảng dùng chung của `ark.py`.
+    """Ngôn ngữ đầu ra cho đường `episode_script`, lấy từ bộ dùng chung của `ark.py`.
 
     Trả về `OutputLanguage` (mã, tên, câu chỉ thị, đơn vị đo dài, câu ngoại lệ
-    marker, ví dụ mẫu) để prompt dựng được tất cả mà không phải tự lặp lại bảng
-    ngôn ngữ ở đây.
+    marker, ví dụ mẫu, và `episode`/`summary` là **user message**) để prompt dựng
+    được tất cả mà không phải tự lặp lại bảng ngôn ngữ ở đây.
     """
     return resolve_output_language_spec(locale, default=DEFAULT_EPISODE_LOCALE)
+
+
+def episode_user_text(locale: str) -> Any:
+    """Bộ câu của **user message**, lấy từ cùng một resolver với system prompt.
+
+    Cố tình là một hàm riêng chứ không phải `episode_prompt_language(locale).episode`
+    tại chỗ dùng: đó là điểm để thêm kiểm tra sau này mà không phải sửa mọi nơi gọi.
+    """
+    return episode_prompt_language(locale).episode
 
 
 def _fill(template: str, lang: Any) -> str:
@@ -141,6 +153,9 @@ def _fill(template: str, lang: Any) -> str:
         template.replace(_DIRECTIVE_TOKEN, lang.directive)
         .replace(_LENGTH_UNIT_TOKEN, lang.length_unit)
         .replace(_MARKER_CLAUSE_TOKEN, lang.marker_clause)
+        .replace(_LOCATION_EXAMPLE_BATCH_TOKEN, lang.episode.location_example_batch)
+        .replace(_LOCATION_EXAMPLE_OPTIMIZE_TOKEN, lang.episode.location_example_optimize)
+        .replace(_LOCATION_EXAMPLE_BODY_TOKEN, lang.episode.location_example_body)
         .replace(_EXAMPLE_TOKEN, lang.body_example)
         .replace(_EXAMPLE_LEAD_TOKEN, lang.example_lead)
     )
@@ -174,7 +189,7 @@ _EPISODE_BATCH_CONTENT_SYSTEM = """你是专业的短剧/网剧编剧，负责�
 
 格式要求（每集 content 须严格遵守）：
 1. 按场次组织，场号格式为 ### 场{集数}-{场次}，如第 1 集第 2 场：### 场1-2
-2. 场头下一行写时间内外景，如：日 内 灵山大雄宝殿 / 夜 外 妖寨大门外 / 晨外 羽山刑场
+2. 场头下一行写时间内外景，如：__LOCATION_EXAMPLE_BATCH__
 3. 下一行写：出场人物：角色A、角色B（只写可出镜人物名；不要写「某某（声音）」「某某音色」等音色标注）
 4. 动作用 △ 开头，独占一行；动作须具体可拍（景别、调度、道具、表情），禁止一句带过
 5. 台词格式：角色名（情绪/vo/os/动作）：台词内容；旁白用 vo，内心独白用 os；台词要有潜台词与冲突；括号内写情绪/vo/os，不要写「声音」「音色」
@@ -200,7 +215,7 @@ _EPISODE_OPTIMIZE_SYSTEM = """你是专业的短剧/网剧编剧，负责把用�
 
 格式要求（content 须严格遵守）：
 1. 按场次组织，场号格式为 ### 场{集数}-{场次}，如第 2 集第 1 场：### 场2-1
-2. 场头下一行写时间内外景，如：日 内 教室 / 夜 外 天台
+2. 场头下一行写时间内外景，如：__LOCATION_EXAMPLE_OPTIMIZE__
 3. 下一行写：出场人物：角色A、角色B（只写可出镜人物名；不要写音色标注）
 4. 动作用 △ 开头，独占一行；动作须具体可拍
 5. 台词格式：角色名（情绪/vo/os/动作）：台词内容；旁白用 vo，内心独白用 os
@@ -245,7 +260,7 @@ _EPISODE_BODY_FROM_BRIEF_SYSTEM = """你是专业的短剧/网剧编剧，根据
 
 格式要求（content 须严格遵守）：
 1. 按场次组织，场号格式为 ### 场{集数}-{场次}，如第 2 集第 1 场：### 场2-1
-2. 场头下一行写时间内外景，如：日 内 教室 / 夜 外 天台 / 晨外 操场
+2. 场头下一行写时间内外景，如：__LOCATION_EXAMPLE_BODY__
 3. 下一行写：出场人物：角色A、角色B（只写可出镜人物名；不要写「某某（声音）」「某某音色」等音色标注）
 4. 动作用 △ 开头，独占一行；动作须具体可拍（景别、调度、道具、表情），禁止一句带过
 5. 台词格式：角色名（情绪/vo/os/动作）：台词内容；旁白用 vo，内心独白用 os；台词要有潜台词与冲突；括号内写情绪/vo/os，不要写「声音」「音色」
@@ -305,7 +320,13 @@ def episode_brief_from_body_system(locale: str) -> str:
     return _fill(_EPISODE_BRIEF_FROM_BODY_SYSTEM, episode_prompt_language(locale))
 
 
-def _format_neighbor_episode_briefs(episodes: list[dict[str, Any]], number: int, limit: int = 3) -> str:
+def _format_neighbor_episode_briefs(
+    episodes: list[dict[str, Any]],
+    number: int,
+    *,
+    text: Any,
+    limit: int = 3,
+) -> str:
     """邻集标题/创意/摘要，作正文节选的补充。"""
     others = [
         item
@@ -315,18 +336,18 @@ def _format_neighbor_episode_briefs(episodes: list[dict[str, Any]], number: int,
     others.sort(key=lambda x: abs(int(x.get("episodeNumber") or 0) - number))
     picked = others[:limit]
     if not picked:
-        return "（暂无邻集）"
+        return text.neighbor_briefs_empty
     blocks: list[str] = []
     for item in sorted(picked, key=lambda x: int(x.get("episodeNumber") or 0)):
         num = item.get("episodeNumber")
-        title = item.get("title") or f"第 {num} 集"
+        title = item.get("title") or text.episode_bare.format(number=num)
         creative = str(item.get("creative") or "").strip()
         summary = str(item.get("summary") or "").strip()
-        parts = [f"第 {num} 集《{title}》"]
+        parts = [text.episode_title_wrapped.format(number=num, title=title)]
         if creative:
-            parts.append(f"创意：{creative[:400]}")
+            parts.append(f"{text.brief_creative_label}{creative[:400]}")
         if summary:
-            parts.append(f"摘要：{summary[:500]}")
+            parts.append(f"{text.brief_summary_label}{summary[:500]}")
         blocks.append("\n".join(parts))
     return "\n\n".join(blocks)
 
@@ -334,6 +355,8 @@ def _format_neighbor_episode_briefs(episodes: list[dict[str, Any]], number: int,
 def _format_neighbor_episode_bodies(
     episodes: list[dict[str, Any]],
     number: int,
+    *,
+    text: Any,
     limit: int = 3,
 ) -> str:
     """与 batch 同级：取距当前集最近、且已有正文的若干集节选。"""
@@ -347,19 +370,19 @@ def _format_neighbor_episode_bodies(
     others.sort(key=lambda x: abs(int(x.get("episodeNumber") or 0) - number))
     picked = others[:limit]
     if not picked:
-        return "（暂无邻集正文）"
+        return text.neighbor_bodies_empty
     blocks: list[str] = []
     for item in sorted(picked, key=lambda x: int(x.get("episodeNumber") or 0)):
         num = item.get("episodeNumber")
-        title = item.get("title") or f"第 {num} 集"
+        title = item.get("title") or text.episode_bare.format(number=num)
         body = str(item.get("body") or item.get("content") or "").strip()
         if len(body) > 1800:
-            body = body[:1800] + "\n…（上文已截断）"
-        blocks.append(f"{num}.{title}：\n{body}")
+            body = body[:1800] + "\n" + text.truncated
+        blocks.append(text.episode_title_line.format(number=num, title=title) + "\n" + body)
     return "\n\n".join(blocks)
 
 
-def format_character_asset_names_line(names: list[str] | None) -> str:
+def format_character_asset_names_line(names: list[str] | None, *, text: Any) -> str:
     """定妆角色名一行，供单集 prompt 约束称呼。"""
     cleaned: list[str] = []
     for raw in names or []:
@@ -367,9 +390,9 @@ def format_character_asset_names_line(names: list[str] | None) -> str:
         if name and name not in cleaned:
             cleaned.append(name)
     if not cleaned:
-        return "（暂无定妆角色资产；新角色须在出场人物行写清全名）"
+        return text.cast_empty
     joined = "、".join(cleaned[:80])
-    return f"须优先使用这些定妆名：{joined}；新角色须在出场人物行写清全名"
+    return text.cast_rule.format(names=joined)
 
 
 def build_single_episode_context(
@@ -377,17 +400,21 @@ def build_single_episode_context(
     existing: list[dict[str, Any]],
     number: int,
     *,
+    text: Any,
     project_source: str = "",
     character_asset_names: list[str] | None = None,
 ) -> list[str]:
     """单集 summary/body/full/brief/optimize 共用的厚上下文块。"""
     return [
-        f"整剧原始创意：\n{(project_source or '').strip() or '（无）'}",
-        f"全剧剧本摘要：\n{format_summary_text(project_summary)}",
-        f"全剧分集规划：\n{_format_episode_title_list(existing)}",
-        f"邻集正文（近 {3} 集节选）：\n{_format_neighbor_episode_bodies(existing, number)}",
-        f"邻集创意/摘要补充：\n{_format_neighbor_episode_briefs(existing, number)}",
-        f"已有定妆角色名：\n{format_character_asset_names_line(character_asset_names)}",
+        f"{text.source_heading}\n{(project_source or '').strip() or text.source_empty}",
+        f"{text.summary_heading}\n{format_summary_text(project_summary, text=text)}",
+        f"{text.outline_heading}\n{_format_episode_title_list(existing, text=text)}",
+        text.neighbor_bodies_heading.format(limit=3)
+        + f"\n{_format_neighbor_episode_bodies(existing, number, text=text)}",
+        f"{text.neighbor_briefs_heading}\n"
+        f"{_format_neighbor_episode_briefs(existing, number, text=text)}",
+        f"{text.cast_heading}\n"
+        f"{format_character_asset_names_line(character_asset_names, text=text)}",
     ]
 
 
@@ -407,18 +434,20 @@ async def run_episode_summary_from_creative(
     if len(brief) < 20:
         raise ValueError("本集原始创意至少 20 字")
     title_text = (title or "").strip() or f"第 {number} 集"
+    text = episode_user_text(locale)
     user_parts = [
         *build_single_episode_context(
             project_summary,
             existing,
             number,
+            text=text,
             project_source=project_source,
             character_asset_names=character_asset_names,
         ),
-        f"当前集号：{number}",
-        f"当前集名：{title_text}",
-        f"本集原始创意：\n{brief}",
-        "请只输出本集 title 与 summary。",
+        f"{text.single_number_label}{number}",
+        f"{text.single_title_label}{title_text}",
+        f"{text.single_creative_heading}\n{brief}",
+        text.single_ask_summary,
     ]
     data = await drama_chat_json(
         episode_summary_from_creative_system(locale),
@@ -463,19 +492,21 @@ async def run_episode_body_from_brief(
         raise ValueError("请先填写本集创意或摘要")
     title_text = (title or "").strip() or f"第 {number} 集"
     lang = episode_prompt_language(locale)
+    text = lang.episode
     user_parts = [
         *build_single_episode_context(
             project_summary,
             existing,
             number,
+            text=text,
             project_source=project_source,
             character_asset_names=character_asset_names,
         ),
-        f"当前集号：{number}",
-        f"当前集名：{title_text}",
-        f"本集原始创意：\n{brief or '（无，以摘要为准）'}",
-        f"本集剧情摘要：\n{syn or '（无，以创意为准）'}",
-        "请撰写本集拍摄正文 content。",
+        f"{text.single_number_label}{number}",
+        f"{text.single_title_label}{title_text}",
+        f"{text.single_creative_heading}\n{brief or text.single_creative_fallback}",
+        f"{text.single_summary_heading}\n{syn or text.single_summary_fallback}",
+        text.single_ask_body,
     ]
     data = await drama_chat_json(
         episode_body_from_brief_system(locale),
@@ -499,9 +530,13 @@ async def run_episode_body_from_brief(
             "\n\n".join(
                 user_parts
                 + [
-                    f"上一稿过短（不足 {MIN_EPISODE_CONTENT_CHARS} {lang.length_unit}），请扩写至约 "
-                    f"{TARGET_EPISODE_CONTENT_CHARS} {lang.length_unit}，"
-                    f"含 {EPISODE_SCENE_COUNT_HINT}、每场 2-3 段 △ 与 2-3 句台词，仍只输出第 {number} 集。"
+                    text.single_retry_too_short_rule.format(
+                        minimum=MIN_EPISODE_CONTENT_CHARS,
+                        target=TARGET_EPISODE_CONTENT_CHARS,
+                        unit=lang.length_unit,
+                        scenes=text.scene_count_hint,
+                        number=number,
+                    )
                 ]
             ),
             max_tokens=8192,
@@ -572,18 +607,20 @@ async def run_episode_brief_from_body(
     if len(script_body) < 80:
         raise ValueError("本集剧本内容过短，无法反推创意与摘要")
     title_text = (title or "").strip() or f"第 {number} 集"
+    text = episode_user_text(locale)
     user_parts = [
         *build_single_episode_context(
             project_summary,
             existing,
             number,
+            text=text,
             project_source=project_source,
             character_asset_names=character_asset_names,
         ),
-        f"当前集号：{number}",
-        f"当前集名：{title_text}",
-        f"本集拍摄正文：\n{script_body[:12000]}",
-        "请只输出本集 title、creative、summary；不要改写正文。",
+        f"{text.single_number_label}{number}",
+        f"{text.single_title_label}{title_text}",
+        f"{text.single_body_heading}\n{script_body[:12000]}",
+        text.single_ask_brief,
     ]
     data = await drama_chat_json(
         episode_brief_from_body_system(locale),
@@ -616,6 +653,8 @@ async def run_script_summary(
     creative: str,
     episode_count: int | None = None,
     image_style_id: str | None = None,
+    *,
+    locale: str = "",
 ) -> dict[str, Any]:
     # Build structured outline from creative brief
     trimmed = (creative or "").strip()
@@ -626,9 +665,10 @@ async def run_script_summary(
         trimmed,
         episode_count=episode_count,
         image_style_id=image_style_id,
+        locale=locale,
     )
     data = await drama_chat_json(
-        SCRIPT_SUMMARY_SYSTEM_PROMPT,
+        script_summary_system_prompt(locale),
         user_message,
         max_tokens=8192,
     )
@@ -834,6 +874,99 @@ def _content_char_len(text: str) -> int:
     return len("".join((text or "").split()))
 
 
+def _format_episode_numbers(numbers: list[int]) -> str:
+    """`[2]` -> `2`; `[2, 3, 4]` -> `2-4`. Dùng để câu lỗi nói đúng tập nào hỏng."""
+    if not numbers:
+        return ""
+    if len(numbers) == 1:
+        return str(numbers[0])
+    return f"{numbers[0]}-{numbers[-1]}"
+
+
+def _episode_quality(item: dict[str, Any]) -> tuple[int, int, int]:
+    """Xếp hạng một tập: đạt ngưỡng trước, ít chữ Hán sau, dài hơn cuối.
+
+    Ba khoá theo đúng thứ tự quan trọng: một tập đủ dài mà còn sót chữ Hán vẫn hơn một
+    tập sạch mà ngắn, vì ngắn thì `auto_missing_episode_numbers` vẫn coi là chưa xong.
+    """
+    body = str(item.get("body") or item.get("content") or "")
+    return (
+        1 if _content_char_len(body) >= MIN_EPISODE_CONTENT_CHARS else 0,
+        -count_translatable_cjk(body),
+        _content_char_len(body),
+    )
+
+
+def _prefer_better_episodes(
+    original: list[dict[str, Any]],
+    retry: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Sau một lần thử lại, ghép **bản tốt hơn của từng tập**, không phải bản mới.
+
+    Thử lại không phải lúc nào cũng hơn: model có thể trả về ngắn hơn, hoặc văn xuôi
+    vẫn Trung mà lại thêm chữ Hán mới. Thay thẳng là **ném đi thứ đã tốt** — và với
+    locale=vi, một tập sạch ở lần một bị thay bằng một tập bẩn ở lần hai thì người
+    dùng nhận bản bẩn.
+
+    Giữ thứ tự `original` để `merge_episode_bodies` và tiến độ không đổi.
+    """
+    by_number = {
+        int(item.get("episodeNumber") or 0): item
+        for item in retry or []
+        if isinstance(item, dict)
+    }
+    merged: list[dict[str, Any]] = []
+    for item in original or []:
+        if not isinstance(item, dict):
+            continue
+        number = int(item.get("episodeNumber") or 0)
+        challenger = by_number.get(number)
+        if challenger is not None and _episode_quality(challenger) > _episode_quality(item):
+            merged.append(challenger)
+        else:
+            merged.append(item)
+    return merged
+
+
+def short_or_missing_episodes(
+    episodes: list[dict[str, Any]],
+    start: int,
+    end: int,
+) -> list[int]:
+    """集号 trong `[start, end]` mà **không** đạt ngưỡng chất lượng.
+
+    Đếm cả hai trường hợp, vì chúng là một:
+
+    - **thiếu hẳn**: `_normalize_batch_episodes` bỏ mục có `content` rỗng, nên tập
+      không có mặt trong `episodes` mà không ai biết;
+    - **quá ngắn**: có mặt nhưng dưới `MIN_EPISODE_CONTENT_CHARS`, tức là
+      `auto_missing_episode_numbers` vẫn coi là chưa xong — vòng lặp sẽ sinh lại nó
+      mãi, mỗi vòng lại ghi một dòng dùng 40 分 (đo thật: task 821 ghi 3 dòng dùng và
+      để lại 11/12 tập rỗng).
+
+    Ngưỡng dùng **đúng** con số mà `auto_missing_episode_numbers` dùng để chọn tập
+    kế tiếp. Nếu hai chỗ lệch nhau thì "tập này đã xong" và "tập này còn thiếu" là hai
+    ý kiến khác nhau trong cùng một lượt, và vòng lặp thắng.
+
+    Công khai (không có dấu `_`) vì `jobs.py` dùng cùng một định nghĩa để quyết định
+    có thu tiền lượt này không. Hai chỗ lệch nhau là lỗi quay lại đúng cái lỗi này.
+    """
+    by_number: dict[int, str] = {}
+    for item in episodes or []:
+        if not isinstance(item, dict):
+            continue
+        try:
+            number = int(item.get("episodeNumber") or 0)
+        except (TypeError, ValueError):
+            continue
+        by_number[number] = str(item.get("body") or item.get("content") or "")
+    return [
+        number
+        for number in range(start, end + 1)
+        if _content_char_len(by_number.get(number, "")) < MIN_EPISODE_CONTENT_CHARS
+    ]
+
+
 def normalize_series_title(raw: str | None) -> str:
     """清洗 AI 输出的剧名，去掉书名号/引号与过长尾巴。"""
     title = str(raw or "").strip()
@@ -884,39 +1017,49 @@ def pick_auto_project_title(
     return series
 
 
-def format_summary_text(summary: dict[str, Any]) -> str:
+def format_summary_text(summary: dict[str, Any], *, text: Any) -> str:
     # Human-readable outline for UI / LLM context
     lines = [
-        f"剧名：{summary.get('seriesTitle', '')}",
-        f"集数：{summary.get('episodeCount', '')}",
-        f"类型：{summary.get('storyType', '')}",
-        f"受众：{summary.get('targetAudience', '')}",
-        f"钩子：{summary.get('coreHook', '')}",
-        f"一句话：{summary.get('oneLineStory', '')}",
+        f"{text.series_title_label}{summary.get('seriesTitle', '')}",
+        f"{text.episode_count_label}{summary.get('episodeCount', '')}",
+        f"{text.story_type_label}{summary.get('storyType', '')}",
+        f"{text.audience_label}{summary.get('targetAudience', '')}",
+        f"{text.hook_label}{summary.get('coreHook', '')}",
+        f"{text.one_line_label}{summary.get('oneLineStory', '')}",
         "",
-        "人物：",
+        text.characters_label,
     ]
     for c in summary.get("characters") or []:
         if isinstance(c, dict):
             lines.append(
-                f"- {c.get('name', '')}（{c.get('roleType', '')}/{c.get('title', '')}）："
-                f"{c.get('visualImage', '')}；标签：{c.get('coreTags', '')}；"
-                f"弧光：{c.get('growthArc', '')}"
+                text.character_line.format(
+                    name=c.get("name", ""),
+                    role=c.get("roleType", ""),
+                    title=c.get("title", ""),
+                    visual=c.get("visualImage", ""),
+                    tags=c.get("coreTags", ""),
+                    arc=c.get("growthArc", ""),
+                )
             )
-    lines.extend(["", "梗概：", str(summary.get("synopsis") or "")])
+    lines.extend(["", text.synopsis_label, str(summary.get("synopsis") or "")])
     return "\n".join(lines)
 
 
-def _format_episode_title_list(episodes: list[dict[str, Any]]) -> str:
+def _format_episode_title_list(episodes: list[dict[str, Any]], *, text: Any) -> str:
     rows: list[str] = []
     for item in sorted(episodes, key=lambda x: int(x.get("episodeNumber") or 0)):
         num = item.get("episodeNumber")
-        title = item.get("title") or f"第 {num} 集"
-        rows.append(f"第 {num} 集：{title}")
-    return "\n".join(rows) if rows else "（暂无分集规划）"
+        title = item.get("title") or text.episode_bare.format(number=num)
+        rows.append(text.episode_line.format(number=num, title=title))
+    return "\n".join(rows) if rows else text.outline_empty
 
 
-def _format_existing_episode_content(episodes: list[dict[str, Any]], limit: int = 3) -> str:
+def _format_existing_episode_content(
+    episodes: list[dict[str, Any]],
+    *,
+    text: Any,
+    limit: int = 3,
+) -> str:
     # 仅附最近若干集正文，控制上下文长度
     completed = [
         item
@@ -925,17 +1068,17 @@ def _format_existing_episode_content(episodes: list[dict[str, Any]], limit: int 
     ]
     completed.sort(key=lambda x: int(x.get("episodeNumber") or 0))
     if not completed:
-        return "（暂无，本批次从开篇写起）"
+        return text.batch_existing_empty
     tail = completed[-limit:]
     blocks: list[str] = []
     for item in tail:
         num = item.get("episodeNumber")
-        title = item.get("title") or f"第 {num} 集"
+        title = item.get("title") or text.episode_bare.format(number=num)
         body = str(item.get("body") or item.get("content") or "").strip()
         # 过长时截断尾部摘要，避免挤占当前集生成空间
         if len(body) > 1800:
-            body = body[:1800] + "\n…（上文已截断）"
-        blocks.append(f"{num}.{title}：\n{body}")
+            body = body[:1800] + "\n" + text.truncated
+        blocks.append(text.episode_title_line.format(number=num, title=title) + "\n" + body)
     return "\n\n".join(blocks)
 
 
@@ -973,16 +1116,18 @@ async def run_episode_outline(
     locale: str = "",
 ) -> list[dict[str, Any]]:
     # 生成全集集名大纲
-    summary_text = format_summary_text(summary)
+    lang = episode_prompt_language(locale)
+    text = lang.episode
+    summary_text = format_summary_text(summary, text=text)
     user = "\n".join(
         [
-            f"总集数：{episode_count} 集（episodes 数组必须恰好 {episode_count} 项）",
+            text.outline_total_rule.format(total=episode_count),
             "",
-            f"原始创意：\n{(creative or '').strip()}",
+            f"{text.source_heading_short}\n{(creative or '').strip()}",
             "",
-            f"剧本摘要：\n{summary_text}",
+            f"{text.summary_heading_short}\n{summary_text}",
             "",
-            "请输出全部分集的 episodeNumber 与 title。",
+            text.outline_ask,
         ]
     )
     data = await drama_chat_json(episode_outline_system(locale), user, max_tokens=4096)
@@ -1024,6 +1169,32 @@ async def ensure_episode_outline(
     return merge_episode_bodies(outline, existing), True
 
 
+def next_episode_batch_range(
+    existing: list[dict[str, Any]],
+    total: int,
+    batch_size: int = 1,
+) -> tuple[int, int] | None:
+    """`(start, end)` của lô kế tiếp, hoặc `None` nếu không còn tập thiếu.
+
+    Tách ra thành hàm vì **hai chỗ phải cùng một câu trả lời**: `run_episode_script_batch`
+    sinh lô này, còn `jobs.py` dùng chính lô đó để quyết định có thu tiền không. Trước
+    đây `jobs.py` lấy `range(missing[0], missing[-1] + 1)` — với `batch_size=1` và 12 tập
+    thiếu thì đó là 12 tập trong khi lô chỉ có 1, nên chốt chặn đòi những tập mà vòng
+    này không hề được yêu cầu và báo lỗi oan (đo thật: lượt chạy đầu tiên của đợt 2,
+    project 42, 10:43:54).
+    """
+    missing = auto_missing_episode_numbers(existing, total)
+    if not missing:
+        return None
+    start = missing[0]
+    end = start
+    for i in range(1, min(batch_size, len(missing))):
+        if missing[i] != end + 1:
+            break
+        end = missing[i]
+    return start, end
+
+
 async def run_episode_script_batch(
     summary: dict[str, Any],
     existing: list[dict[str, Any]],
@@ -1035,51 +1206,54 @@ async def run_episode_script_batch(
 ) -> list[dict[str, Any]]:
     # 按缺失集号生成下一批正文（默认逐集）；手动空集不参与自动补写
     target = int(total or summary.get("episodeCount") or 12)
-    missing = auto_missing_episode_numbers(existing, target)
-    if not missing:
+    span = next_episode_batch_range(existing, target, batch_size)
+    if span is None:
         return []
-    start = missing[0]
-    end = start
-    for i in range(1, min(batch_size, len(missing))):
-        if missing[i] != end + 1:
-            break
-        end = missing[i]
+    start, end = span
 
     title_by_num = {
         int(item.get("episodeNumber") or 0): str(item.get("title") or "")
         for item in existing
         if isinstance(item, dict)
     }
+    lang = episode_prompt_language(locale)
+    text = lang.episode
     batch_titles = "\n".join(
-        f"第 {n} 集：{title_by_num.get(n) or f'第 {n} 集'}" for n in range(start, end + 1)
+        text.episode_line.format(
+            number=n, title=title_by_num.get(n) or text.episode_bare.format(number=n)
+        )
+        for n in range(start, end + 1)
     )
     batch_size_n = end - start + 1
-    summary_text = format_summary_text(summary)
-    lang = episode_prompt_language(locale)
+    summary_text = format_summary_text(summary, text=text)
     # 长度单位跟 locale 走。写死「汉字」时，locale=vi 的请求仍会把正文拖回中文
     # （实测 project 28：locale=vi 出 6/6 tập toàn chữ Trung）。
-    length_rule = (
-        f"每集 content 约 {TARGET_EPISODE_CONTENT_CHARS} {lang.length_unit}"
-        f"（不少于 {MIN_EPISODE_CONTENT_CHARS}），含 {EPISODE_SCENE_COUNT_HINT}、精简 △ 与台词"
+    length_rule = text.batch_length_rule.format(
+        target=TARGET_EPISODE_CONTENT_CHARS,
+        unit=lang.length_unit,
+        minimum=MIN_EPISODE_CONTENT_CHARS,
+        scenes=text.scene_count_hint,
     )
     user = "\n".join(
         [
-            f"当前任务：撰写第 {start} 集至第 {end} 集（共 {batch_size_n} 集）的完整剧本正文",
-            f"全剧共 {target} 集",
-            f"episodes 输出数组必须恰好 {batch_size_n} 项，episodeNumber 从 {start} 到 {end}",
+            text.batch_task_rule.format(start=start, end=end, count=batch_size_n),
+            text.batch_total_rule.format(total=target),
+            text.batch_array_rule.format(count=batch_size_n, start=start, end=end),
             length_rule,
             "",
-            f"原始创意：\n{(creative or '').strip() or '（无额外创意，以摘要为准）'}",
+            f"{text.source_heading_short}\n"
+            f"{(creative or '').strip() or text.batch_creative_empty}",
             "",
-            f"剧本摘要：\n{summary_text}",
+            f"{text.summary_heading_short}\n{summary_text}",
             "",
-            f"全剧分集规划：\n{_format_episode_title_list(existing)}",
+            f"{text.outline_heading}\n{_format_episode_title_list(existing, text=text)}",
             "",
-            f"本批次待撰写：\n{batch_titles}",
+            f"{text.batch_pending_heading}\n{batch_titles}",
             "",
-            f"已有剧集正文：\n{_format_existing_episode_content(existing)}",
+            f"{text.batch_existing_heading}\n"
+            f"{_format_existing_episode_content(existing, text=text)}",
             "",
-            f"请输出第 {start}–{end} 集各集的 content 字段（可附带 title）。",
+            text.batch_ask_rule.format(start=start, end=end),
         ]
     )
 
@@ -1095,27 +1269,30 @@ async def run_episode_script_batch(
         raise ValueError("分集剧本返回格式无效")
 
     normalized = _normalize_batch_episodes(episodes, start, end, title_by_num)
-    # 已知 hai vấn đề lặp lại: quá ngắn, và còn tiếng Trung khi locale không phải `zh`.
+    # 已知 ba vấn đề lặp lại: quá ngắn, còn tiếng Trung khi locale không phải `zh`, và
+    # **thiếu hẳn tập** — `_normalize_batch_episodes` bỏ mục có `content` rỗng nên một
+    # tập bị model trả về rỗng biến mất khỏi kết quả mà không ai biết (đo thật:
+    # task 821 ghi 3 dòng dùng 40 分 rồi để lại 11/12 tập rỗng).
     # Mỗi cái tốn đúng một lần gọi thử lại — không lồng vòng, vì sau hai lần thì đã là
     # chuyện của model chứ không phải của prompt.
-    too_short = [
-        item
-        for item in normalized
-        if _content_char_len(str(item.get("body") or "")) < MIN_EPISODE_CONTENT_CHARS
-    ]
+    too_short = short_or_missing_episodes(normalized, start, end)
     wrong_language = _language_retry_suffix(
         locale, "\n".join(str(item.get("body") or "") for item in normalized)
     )
     if too_short or wrong_language:
         parts = [
             user,
-            "\n\n上次输出需要返工。",
+            "\n\n" + text.batch_rework_notice,
         ]
         if too_short:
             parts.append(
-                f"过长/过短：每集 content 约 {TARGET_EPISODE_CONTENT_CHARS} "
-                f"{lang.length_unit}（不少于 {MIN_EPISODE_CONTENT_CHARS}），"
-                f"含 {EPISODE_SCENE_COUNT_HINT}、精简 △ 与台词，不得压缩成梗概。"
+                text.batch_rework_length_rule.format(
+                    target=TARGET_EPISODE_CONTENT_CHARS,
+                    unit=lang.length_unit,
+                    minimum=MIN_EPISODE_CONTENT_CHARS,
+                    scenes=text.scene_count_hint,
+                )
+                + text.batch_rework_no_summary
             )
         parts.append(wrong_language)
         retry = await drama_chat_json(
@@ -1126,10 +1303,18 @@ async def run_episode_script_batch(
         )
         retry_eps = retry.get("episodes") if isinstance(retry, dict) else retry
         if isinstance(retry_eps, list):
-            normalized = _normalize_batch_episodes(retry_eps, start, end, title_by_num)
+            normalized = _prefer_better_episodes(
+                normalized, _normalize_batch_episodes(retry_eps, start, end, title_by_num)
+            )
 
-    if not normalized:
-        raise ValueError(f"模型未返回第 {start}–{end} 集正文")
+    # Sau khi thử lại vẫn thiếu ⇒ **báo lỗi**, không trả về danh sách thiếu. Trả về thiếu
+    # nghĩa là `jobs.py` ghi tiếp vòng sau và lại thu tiền cho một tập không ra gì.
+    unresolved = short_or_missing_episodes(normalized, start, end)
+    if unresolved:
+        raise ValueError(
+            f"模型未返回可用的第 {_format_episode_numbers(unresolved)} 集正文"
+            f"（仍为空或短于 {MIN_EPISODE_CONTENT_CHARS} {lang.length_unit}）"
+        )
     return normalized
 
 
@@ -1157,24 +1342,30 @@ async def run_episode_script_from_draft(
         if isinstance(item, dict)
     }
     current_title = title_by_num.get(number) or f"第 {number} 集"
+    lang = episode_prompt_language(locale)
+    text = lang.episode
     ctx = build_single_episode_context(
         summary,
         existing,
         number,
+        text=text,
         project_source=creative,
         character_asset_names=character_asset_names,
     )
-    lang = episode_prompt_language(locale)
     user = "\n\n".join(
         [
-            f"当前任务：把用户草稿优化为第 {number} 集完整拍摄剧本",
-            f"episodeNumber 必须为 {number}，episodes 数组必须恰好 1 项",
-            f"当前集名：{current_title}（可按草稿核心事件微调 title）",
-            f"每集 content 约 {TARGET_EPISODE_CONTENT_CHARS} {lang.length_unit}"
-            f"（不少于 {MIN_EPISODE_CONTENT_CHARS}），含 {EPISODE_SCENE_COUNT_HINT}、精简 △ 与台词",
+            text.optimize_task_rule.format(number=number),
+            text.optimize_array_rule.format(number=number),
+            text.optimize_title_rule.format(title=current_title),
+            text.batch_length_rule.format(
+                target=TARGET_EPISODE_CONTENT_CHARS,
+                unit=lang.length_unit,
+                minimum=MIN_EPISODE_CONTENT_CHARS,
+                scenes=text.scene_count_hint,
+            ),
             *ctx,
-            f"用户提供的第 {number} 集草稿：\n{draft_text}",
-            f"请输出第 {number} 集的 title 与 content。",
+            f"{text.optimize_draft_heading.format(number=number)}\n{draft_text}",
+            text.optimize_ask_rule.format(number=number),
         ]
     )
     data = await drama_chat_json(
@@ -1187,20 +1378,17 @@ async def run_episode_script_from_draft(
     if not isinstance(episodes, list):
         raise ValueError("分集剧本返回格式无效")
     normalized = _normalize_batch_episodes(episodes, number, number, title_by_num)
-    too_short = [
-        item
-        for item in normalized
-        if _content_char_len(str(item.get("body") or "")) < MIN_EPISODE_CONTENT_CHARS
-    ]
-    if too_short:
+    if short_or_missing_episodes(normalized, number, number):
         retry_user = (
             user
-            + "\n\n上次输出过短。请按用户草稿重写第 "
-            + str(number)
-            + " 集，content 约 "
-            + str(TARGET_EPISODE_CONTENT_CHARS)
-            + f" {lang.length_unit}（不少于 {MIN_EPISODE_CONTENT_CHARS}），"
-            + f"含 {EPISODE_SCENE_COUNT_HINT}、精简 △ 与台词。"
+            + "\n\n"
+            + text.optimize_retry_too_short_rule.format(
+                number=number,
+                target=TARGET_EPISODE_CONTENT_CHARS,
+                unit=lang.length_unit,
+                minimum=MIN_EPISODE_CONTENT_CHARS,
+                scenes=text.scene_count_hint,
+            )
         )
         retry = await drama_chat_json(
             episode_optimize_system(locale),
@@ -1210,9 +1398,14 @@ async def run_episode_script_from_draft(
         )
         retry_eps = retry.get("episodes") if isinstance(retry, dict) else retry
         if isinstance(retry_eps, list):
-            normalized = _normalize_batch_episodes(retry_eps, number, number, title_by_num)
-    if not normalized:
-        raise ValueError(f"模型未返回第 {number} 集正文")
+            normalized = _prefer_better_episodes(
+                normalized, _normalize_batch_episodes(retry_eps, number, number, title_by_num)
+            )
+    if short_or_missing_episodes(normalized, number, number):
+        raise ValueError(
+            f"模型未返回可用的第 {number} 集正文"
+            f"（仍为空或短于 {MIN_EPISODE_CONTENT_CHARS} {lang.length_unit}）"
+        )
     origin_item = next(
         (
             item

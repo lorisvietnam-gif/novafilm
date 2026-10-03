@@ -27,11 +27,14 @@ from app.services.billing import record_line, record_llm_chat_line
 from app.services.drama.billing_util import record_seed_assets_llm_usage
 from app.services.drama.seed import seed_assets_from_episode_body
 from app.services.drama.agents import (
+    MIN_EPISODE_CONTENT_CHARS,
     auto_missing_episode_numbers,
     count_completed_episodes,
     ensure_episode_outline,
+    episode_prompt_language,
     format_summary_text,
     merge_episode_bodies,
+    next_episode_batch_range,
     pick_auto_project_title,
     resolve_episode_target,
     run_episode_body_from_brief,
@@ -41,6 +44,7 @@ from app.services.drama.agents import (
     run_episode_script_from_draft,
     run_episode_summary_from_creative,
     run_script_summary,
+    short_or_missing_episodes,
 )
 from app.services.drama.asset_video import generate_asset_video
 from app.services.drama.generation import (
@@ -237,11 +241,15 @@ async def run_script_summary_job(project_id: int) -> dict[str, Any]:
         creative = (script.source or "").strip()
         episode_count = (project.params or {}).get("episode_count")
         image_style_id = (project.params or {}).get("image_style_id")
+        # locale 同样 quyết định ngôn ngữ của `summary`： tóm tắt là đầu vào của mọi
+        # prompt phân tập, tóm tắt bằng tiếng Trung thì kéo `episode_content` theo.
+        locale = str((project.params or {}).get("locale") or get_settings().default_locale)
         try:
             summary = await run_script_summary(
                 creative,
                 episode_count=int(episode_count) if episode_count else None,
                 image_style_id=str(image_style_id) if image_style_id else None,
+                locale=locale,
             )
         except Exception as exc:  # noqa: BLE001
             params = dict(script.params or {})
@@ -255,7 +263,9 @@ async def run_script_summary_job(project_id: int) -> dict[str, Any]:
 
         script.summary = summary
         params = dict(script.params or {})
-        params["summary_text"] = format_summary_text(summary)
+        params["summary_text"] = format_summary_text(
+            summary, text=episode_prompt_language(locale).episode
+        )
         params["summary_status"] = "completed"
         params["summary_error"] = None
         params.pop("summary_generating_at", None)
@@ -423,6 +433,54 @@ def _assert_episode_content_written(
         raise RuntimeError(f"{where} 结束时 episode_content 没有任何正文，不落用量、退回全部预扣{suffix}")
 
 
+def _assert_requested_episodes_written(
+    *,
+    where: str,
+    episodes: list[Any] | None,
+    requested: list[int],
+    task_id: int | None,
+) -> None:
+    """本轮**被要求**写的每一集都必须真的写出来，否则这一轮不收钱。
+
+    Đây là chỗ đợt 1 thiếu. `_assert_episode_content_written` hỏi"`episode_content` có
+    đổi không" — trả lời "có" chỉ cần **một** tập đủ dài. Đo thật (2026-10-03, project 39,
+    locale=vi, task 821): vòng lặp sinh lại tập 1 ba lần vì nó ngắn hơn ngưỡng, mỗi vòng
+    ghi một dòng dùng 40 分, rồi báo lỗi. Kết quả: `charged=120`, `refunded=456`,
+    **11/12 tập rỗng**, và người dùng vẫn mất 120 分 cho một tập.
+
+    `requested` là **đúng khoảng lô vừa sinh** (`next_episode_batch_range`), không phải
+    toàn bộ danh sách tập thiếu: với `batch_size=1` mà 12 tập thiếu thì lô chỉ có 1 tập,
+    đòi cả 12 là đòi những tập vòng này không được yêu cầu — và sẽ báo lỗi oang.
+
+    Ngưỡng ở đây là **cùng** ngưỡng mà `auto_missing_episode_numbers` dùng để chọn tập
+    kế tiếp (`short_or_missing_episodes`). Nếu hai chỗ lệch nhau thì vòng lặp sẽ sinh
+    lại tập vừa ghi, mỗi lần lại thu tiền — đúng lỗi trên.
+
+    **Phải gọi trước `record_line`**: `settle_task` trừ theo `usage_events`, dòng đã
+    nằm trong bảng là tiền người dùng mất kể cả khi task fail (task 788: fail vẫn
+    charged=320). Muốn hoàn thì đừng viết dòng đó.
+
+    Thay vì trả về một danh sách thiếu, hàm **ném lỗi**: người dùng phải được báo là
+    tập nào không ra, chứ không phải nhìn một trang có 11/12 tập trống mà báo thành công.
+    """
+    if not requested:
+        return
+    unresolved = short_or_missing_episodes(episodes or [], min(requested), max(requested))
+    if unresolved:
+        raise RuntimeError(
+            f"分集生成要求写第 {'-'.join(str(n) for n in range(min(requested), max(requested) + 1))}"
+            f" 集，但第 {'-'.join(str(n) for n in unresolved)} 集写出来是空的或短于 "
+            f"{MIN_EPISODE_CONTENT_CHARS} 字符；本轮不落用量、退回全部预扣"
+            f"，task_id={task_id}"
+        )
+    logger.info(
+        "%s 逐集核对通过 requested=%s done=%s",
+        where,
+        requested,
+        count_completed_episodes(episodes or [], max(requested)),
+    )
+
+
 async def run_episode_scripts_job(
     project_id: int,
     force: bool = False,
@@ -587,6 +645,10 @@ async def run_episode_scripts_job(
                     total,
                     missing[:5],
                 )
+                # Lấy khoảng của lô **trước khi** ghi: sau khi merge thì tập đầu đã
+                # đạt ngưỡng và hàm này sẽ trả về lô *kế tiếp*. Cùng hàm với
+                # `run_episode_script_batch` nên không có chuyện hai bên tính khác nhau.
+                span = next_episode_batch_range(existing, total, 1) or (missing[0], missing[-1])
                 batch = await run_episode_script_batch(
                     summary,
                     existing,
@@ -609,6 +671,15 @@ async def run_episode_scripts_job(
                     spent_llm=True,
                     require_non_empty=True,
                     episodes=existing,
+                    task_id=task_id,
+                )
+                # `episode_content` đổi không đủ: phải là **đúng lô vừa yêu cầu** đã đạt
+                # ngưỡng. Nếu không, vòng sau sẽ sinh lại chúng và lại thu tiền (task 821:
+                # 3 dòng dùng 40 分 rồi còn 11/12 tập rỗng).
+                _assert_requested_episodes_written(
+                    where=f"分集正文 第 {span[0]}–{span[1]} 集",
+                    episodes=existing,
+                    requested=list(range(span[0], span[1] + 1)),
                     task_id=task_id,
                 )
                 iter_fp = next_fp
@@ -856,6 +927,15 @@ async def _run_single_episode_script_job(
                 episodes=existing,
                 task_id=task_id,
             )
+            # 单集路径同理：`require_non_empty` 问的是「有没有正文」，不是「**这一集**的
+            # 正文够不够长」。集号 3 留着别人写的旧正文时，一集 rỗng vẫn lọt qua đó.
+            if mode in {"body", "full", "optimize"}:
+                _assert_requested_episodes_written(
+                    where=f"单集剧本 第 {episode_number} 集（{mode}）",
+                    episodes=existing,
+                    requested=[int(episode_number)],
+                    task_id=task_id,
+                )
 
             assets_created = 0
             assets_reused = 0
