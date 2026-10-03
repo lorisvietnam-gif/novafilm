@@ -1,6 +1,6 @@
 # BÁO CÁO — Hoàn tất hiển thị Bảng chỉ đạo Prompt ở `/wizard`
 
-Lane `bunny/2` · commit `3f1cde4`, `d70a59d`, `f0dc0a2` · ngày 2026-10-03
+Lane `bunny/2` · commit `3f1cde4`, `d70a59d`, `d9a8cd0` · ngày 2026-10-03
 Brief: `docs/briefs/case-prompt-board-finish-b2.md`
 
 ---
