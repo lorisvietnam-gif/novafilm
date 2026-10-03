@@ -1192,13 +1192,23 @@ export const viPages = {
       copyFailed: 'Sao chép tự động không được. Bạn bôi đen và copy thủ công.',
       emptyFrames: 'Chưa có khung hình nào để sao chép.',
       /**
-       * Toast sau khi sao chép. Nói đúng **một** việc: đã vào bộ nhớ tạm, dán sang nền
-       * tảng khác để quay. Không hứa "đang tạo video" — hệ thống không gọi được API
-       * video nào, nên lời hứa đó là nói dối và người dùng sẽ chờ mãi.
+       * Toast sau khi bấm **Sao chép tất cả** — câu nguyên văn brief `B2` chốt, nên giữ
+       * nguyên dấu chấm than: đây là văn bản đã duyệt, không phải chỗ để viết lại cho hay.
+       *
+       * "sẵn sàng render" là **prompt** sẵn sàng, không phải hệ thống đang render: không
+       * có API video nào chạy được (TokenFree không khoá, Veo hết hạn ngạch), nên đổi
+       * thành "đang tạo video" là một lời hứa không có thật.
        */
-      toastAll: 'Đã sao chép toàn bộ prompt. Dán sang nền tảng render bên ngoài để quay.',
+      toastAll: 'Đã chép Prompt cấu hình, sẵn sàng render!',
+      /** Nói rõ **thẻ nào** vừa được chép — cùng lý do có riêng `toastField` bên cạnh. */
       toastField: 'Đã sao chép phần {field}. Dán riêng phần này sang nền tảng render bên ngoài.',
       toastFrame: 'Đã sao chép khung {no}. Dán sang nền tảng render bên ngoài để quay.',
+      /**
+       * Khi `clipboard.writeText` bị từ chối. Phải **có** câu này: nếu im lặng thì người
+       * dùng đi dán vào Veo một ô rỗng rồi mất công tìm hiểu vì sao — lỗi sao chép đáng
+       * để nghe hơn thành công.
+       */
+      toastFailed: 'Không sao chép được. Bôi đen phần bạn cần rồi copy thủ công.',
       summaryLabel: 'Tóm tắt thiết lập',
       summaryTarget: 'Đích đến: {target}',
       summaryVoice: 'Giọng: {voice}',

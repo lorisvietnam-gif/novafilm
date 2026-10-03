@@ -48,6 +48,16 @@ const DRAFT_PER_FRAME = 'Cinematic shot, consistent character, natural lighting.
 /** Số câu tối đa khi tự tách prompt thành khung. */
 const MAX_DRAFT_FRAMES = 4
 
+/**
+ * Bao lâu lời báo tồn tại, tính bằng **mili giây**.
+ *
+ * Cùng một hằng cho cả nhãn nút ("Đã sao chép") lẫn vùng sống, vì đó là **một** sự kiện:
+ * người dùng bấm Copy xong thì cả hai cùng phải về trạng thái trước đó. Rời nhau là một
+ * nửa vẫn còn — đo được: nhãn nút đã về "Sao chép" còn dải thông báo thì vẫn nằm đó, và
+ * người dùng tưởng vừa sao chép xong mới được báo.
+ */
+const TOAST_MS = 2400
+
 /** Tách câu để dựng khung nháp từ ý tưởng của người dùng. */
 function splitSentences(text: string): string[] {
   return text
@@ -101,7 +111,7 @@ export default function WizardPage() {
   }, [])
 
   /**
-   * Timer của nút "đã sao chép" phải bị **huỷ** khi rời trang.
+   * Timer của lời báo phải bị **huỷ** khi rời trang.
    *
    * Trước đây gọi `window.setTimeout` rồi bỏ mặc: điều hướng đi trước khi 2 giây trôi
    * là callback giữ nguyên closure cũ và `setCopied` gọi vào state của một component đã
@@ -226,25 +236,39 @@ export default function WizardPage() {
  * `message` là câu sẽ được trình đọc màn hình đọc lên. Nội dung của nó do **chỗ gọi**
  * quyết định, không suy ra ở đây — vì lời báo phải nói đúng việc vừa xảy ra, và "vừa
  * sao chép phần Máy quay" khác "vừa sao chép cả bài".
+ *
+ * Hẹn lời báo nằm **ngoài** `try`, và nó xoá **cả hai** thứ: nhãn nút và vùng sống. Trước
+ * đây timer chỉ `setCopied('')`, nên dải thông báo nằm lại vĩnh viễn — tức là nó là một
+ * **biển báo**, không phải toast. Đo được: `wizard-copy-ux-check.mjs` phần C bắt được vì
+ * 6 giây sau khi bấm Copy dải vẫn còn nguyên văn bản.
+ *
+ * Nhánh lỗi cũng phải **báo**: sao chép hỏng là tin cần nghe hơn là sao chép thành công —
+ * nếu im lặng thì người dùng đi dán vào Veo một ô rỗng rồi mất công tìm hiểu vì sao.
  */
-async function copyText(value: string, token: string, message: string) {
+  async function copyText(value: string, token: string, message: string) {
     setCopyFailed(false)
     // Rỗng thì không báo: đó là nút bị tắt, không phải một cú bấm thất bại.
     if (!value) return
+
+    let said = message
     try {
       await navigator.clipboard.writeText(value)
       setCopied(token)
-      announce(message)
-      clearCopyTimer()
-      copyTimer.current = window.setTimeout(() => {
-        copyTimer.current = null
-        setCopied('')
-      }, 2400)
     } catch {
       // Clipboard API cần ngữ cảnh bảo mật; localhost thì được, http trên LAN thì không.
       setCopyFailed(true)
+      said = t('wizard.export.toastFailed')
     }
+
+    announce(said)
+    clearCopyTimer()
+    copyTimer.current = window.setTimeout(() => {
+      copyTimer.current = null
+      setCopied('')
+      setToast('')
+    }, TOAST_MS)
   }
+
 
   /**
    * Đẩy câu báo vào vùng sống.

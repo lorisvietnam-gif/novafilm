@@ -1143,9 +1143,13 @@ export const zhPages = {
       copied: '已复制',
       copyFailed: '自动复制失败，请手动选中文字复制。',
       emptyFrames: '还没有可以复制的分镜。',
-      toastAll: '提示词已复制。粘到外部渲染平台上就能生成。',
+      /** 点了「全部复制」之后的提示：`vi` 用 brief B2 定下的原句，这里给对应说法。 */
+      toastAll: '提示词已复制，可以直接渲染。',
+      /** 说清复制的是**哪一张卡**——这正是 `toastField` 存在的理由。 */
       toastField: '{field}已复制。只把这一段粘到外部渲染平台上。',
       toastFrame: '第 {no} 镜已复制。粘到外部渲染平台上就能生成。',
+      /** `clipboard.writeText` 被拒时播报。沉默会让用户带着空框去粘贴。 */
+      toastFailed: '自动复制失败，请手动选中需要的部分复制。',
       summaryLabel: '设置摘要',
       summaryTarget: '目标：{target}',
       summaryVoice: '配音：{voice}',
