@@ -176,7 +176,7 @@ _OUTPUT_LANGUAGE_DIRECTIVES: dict[str, str] = {
     "vi": (
         "Toàn bộ nội dung bạn viết phải bằng tiếng Việt, có dấu đầy đủ: mô tả hành động "
         "sau △, tên địa điểm, lời thoại, tên tập, tiêu đề và tóm tắt. "
-        "Nhãn cảm xúc trong dấu ngoặc của dòng thoại cũng phải là tiếng Việt, ví dụ "
+        "Phần nhãn cảm xúc trong dấu ngoặc của dòng thoại cũng phải là tiếng Việt, ví dụ "
         "Linh（khẽ, os）：… — giữ nguyên dấu ngoặc （） và hai token vo/os, chỉ chuyển "
         "chữ trong ngoặc sang tiếng Việt. "
         "Tên riêng, tên địa điểm, nhãn dán và thuật ngữ kỹ thuật cũng viết bằng tiếng Việt; "
