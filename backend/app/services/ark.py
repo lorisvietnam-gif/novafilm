@@ -175,11 +175,20 @@ _OUTPUT_LANGUAGE_DIRECTIVES: dict[str, str] = {
     "zh": "语言使用简体中文（正文、标题、集名、摘要一律如此；专有名词与技术术语可保留原文）",
     "vi": (
         "Toàn bộ nội dung bạn viết phải bằng tiếng Việt, có dấu đầy đủ: mô tả hành động "
-        "sau △, tên địa điểm, lời thoại, tên tập, tiêu đề và tóm tắt."
+        "sau △, tên địa điểm, lời thoại, tên tập, tiêu đề và tóm tắt. "
+        "Nhãn cảm xúc trong dấu ngoặc của dòng thoại cũng phải là tiếng Việt, ví dụ "
+        "Linh（khẽ, os）：… — giữ nguyên dấu ngoặc （） và hai token vo/os, chỉ chuyển "
+        "chữ trong ngoặc sang tiếng Việt. "
+        "Tên riêng, tên địa điểm, nhãn dán và thuật ngữ kỹ thuật cũng viết bằng tiếng Việt; "
+        "tuyệt đối không chèn ký tự Hán vào bất kỳ chỗ nào nào."
     ),
     "en": (
         "Everything you write must be in English: action descriptions after △, location "
-        "names, dialogue, episode titles, titles and summaries."
+        "names, dialogue, episode titles, titles and summaries. "
+        "The emotion label inside the parentheses of a dialogue line must be English too, "
+        "e.g. Linh（quietly, os）：… — keep the （） parentheses and the vo/os tokens "
+        "exactly as they are, and translate only the words inside. "
+        "Never insert Chinese characters anywhere."
     ),
 }
 
