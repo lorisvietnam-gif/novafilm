@@ -35,13 +35,6 @@ function ratio(fg, bg) {
   const a = lum(f); const b = lum(bg.slice(0, 3))
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
 }
-function parseColor(v) {
-  const m = String(v || '').match(/rgba?\(([^)]+)\)/)
-  if (!m) return null
-  const p = m[1].split(',').map((x) => parseFloat(x.trim()))
-  if (p.some((x) => Number.isNaN(x))) return null
-  return [p[0], p[1], p[2], p.length > 3 ? p[3] : 1]
-}
 
 async function wsUrl() {
   for (let i = 0; i < 60; i += 1) {
