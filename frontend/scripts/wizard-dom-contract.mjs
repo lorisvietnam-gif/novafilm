@@ -8,6 +8,10 @@
  * Đếm cả `visible` vì brief cấm lách bằng cách "ẩn đi cho audit quên": một phần tử còn
  * trong DOM nhưng `display:none` thì `visible` rơi về 0 và báo động.
  *
+ * Đo **cả hai theme**. Đổi nền `/wizard` là thay CSS theo `prefers-color-scheme`, nên
+ * chỉ đo theme mặc định là đo nhầm chỗ: Edge headless trên máy này mặc định là **tối**,
+ * nơi thay đổi không có tác dụng gì.
+ *
  * Dùng: node scripts\wizard-dom-contract.mjs [base]
  * Thoát mã khác 0 nếu một selector nào mất hoặc bị ẩn ở bất kỳ bước nào.
  */
@@ -121,27 +125,34 @@ async function main() {
     await send('Page.enable')
     await send('Runtime.enable')
 
-    for (let n = 1; n <= 4; n += 1) {
-      await send('Page.navigate', { url: BASE + '/wizard' })
-      await sleep(2200)
-      for (let i = 1; i < n; i += 1) {
-        await evalIn(
-          `(() => { const b=[...document.querySelectorAll('.wizard-actions .pf-btn')].pop(); if (b) b.click(); return !!b })()`,
-        )
-        await sleep(900)
-      }
-      const r = await evalIn(PROBE)
-      console.log(`\nbuoc ${n} (${r.step})`)
-      for (const sel of SELECTORS) {
-        console.log(`  ${sel.padEnd(34)} total=${r[sel].total} visible=${r[sel].visible}`)
-        const floor = FLOOR[sel]
-        if (floor !== undefined && r[sel].visible < floor) {
-          problems.push(`buoc ${n}: ${sel} visible=${r[sel].visible}, can >= ${floor}`)
+    for (const theme of ['light', 'dark']) {
+      await send('Emulation.setEmulatedMedia', {
+        media: 'screen',
+        features: [{ name: 'prefers-color-scheme', value: theme }],
+      })
+
+      for (let n = 1; n <= 4; n += 1) {
+        await send('Page.navigate', { url: BASE + '/wizard' })
+        await sleep(2200)
+        for (let i = 1; i < n; i += 1) {
+          await evalIn(
+            `(() => { const b=[...document.querySelectorAll('.wizard-actions .pf-btn')].pop(); if (b) b.click(); return !!b })()`,
+          )
+          await sleep(900)
         }
+        const r = await evalIn(PROBE)
+        console.log(`\n${theme} · buoc ${n} (${r.step})`)
+        for (const sel of SELECTORS) {
+          console.log(`  ${sel.padEnd(34)} total=${r[sel].total} visible=${r[sel].visible}`)
+          const floor = FLOOR[sel]
+          if (floor !== undefined && r[sel].visible < floor) {
+            problems.push(`${theme} buoc ${n}: ${sel} visible=${r[sel].visible}, can >= ${floor}`)
+          }
+        }
+        console.log(`  nen shell            = ${r['__shell-bg']}`)
+        console.log(`  nen .wizard-scoped   = ${r['__wizard-bg']}`)
+        console.log(`  chu tieu de           = ${r['__title-color']}`)
       }
-      console.log(`  nen shell            = ${r['__shell-bg']}`)
-      console.log(`  nen .wizard-scoped   = ${r['__wizard-bg']}`)
-      console.log(`  chu tieu de           = ${r['__title-color']}`)
     }
     ws.close()
   } finally {
