@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -338,6 +339,90 @@ async def dispatch_episode_scripts_job(
     return task_id
 
 
+def _episode_content_fingerprint(episodes: list[Any]) -> str:
+    """指纹：真正写进 `episode_content` 的那部分（集号 + 正文）。
+
+    用它回答一个 `try/except` 回答不了的问题 —— **LLM 到底有没有写进东西**。
+    LLM 不抛异常：它返回垃圾、parser 吞掉垃圾，于是没有任何异常可抓；只有把调用
+    前后的内容比一比才知道这一轮是不是白花钱。
+
+    只取正文与集号，忽略 `creative`/`summary`/`origin` 等派生字段：那几项由同一次
+    调用带回但不影响"这一集有没有正文"，混进来会让指纹在正文没变时也变化。
+    """
+    rows: list[str] = []
+    for item in episodes or []:
+        if not isinstance(item, dict):
+            rows.append(f"~{type(item).__name__}")
+            continue
+        raw_number = item.get("episodeNumber", item.get("episode_number"))
+        body = str(item.get("body") or item.get("content") or "")
+        rows.append(f"{raw_number!s}\x1f{hashlib.sha1(body.encode('utf-8')).hexdigest()}")
+    rows.sort()
+    return hashlib.sha1("\x1e".join(rows).encode("utf-8")).hexdigest()
+
+
+def _episode_record_fingerprint(item: Any) -> str:
+    """指纹：单集记录的**全部**内容（正文 + 创意 + 摘要 + 集名）。
+
+    单集路径要跟全集路径用不同的口径：`summary` / `brief` 两种模式本来就**不该**动
+    正文（只回填创意与摘要），拿正文指纹去判它们必然误报「什么都没写」。
+    """
+    if not isinstance(item, dict):
+        return f"~{type(item).__name__}"
+    parts = [
+        str(item.get("episodeNumber", item.get("episode_number")) or ""),
+        str(item.get("body") or item.get("content") or ""),
+        str(item.get("creative") or ""),
+        str(item.get("summary") or item.get("synopsis") or ""),
+        str(item.get("title") or ""),
+    ]
+    return hashlib.sha1("\x1f".join(parts).encode("utf-8")).hexdigest()
+
+
+def _find_episode(episodes: list[Any], number: int) -> Any:
+    for item in episodes or []:
+        if not isinstance(item, dict):
+            continue
+        try:
+            if int(item.get("episodeNumber") or 0) == int(number):
+                return item
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
+def _assert_episode_content_written(
+    *,
+    where: str,
+    before: str,
+    after: str,
+    spent_llm: bool,
+    task_id: int | None,
+    require_non_empty: bool,
+    episodes: list[Any] | None = None,
+) -> None:
+    """写了却等于没写 ⇒ 抛错，让上层 `ok=False` ⇒ `_fail_task` ⇒ 全额退预扣。
+
+    **必须在 `record_line` 之前调**：`settle_task` 按 `usage_events` 实扣，只要用量行
+    已经落库，任务就算失败也收得到钱（task 788 实测：failed 仍 charged=320）。
+    要退款就不能写下那一行。
+
+    `require_non_empty` 交给调用方判断，因为「正文为空」只对产出正文的三种模式成立：
+    `summary` 模式允许该集还没有正文。
+    """
+    suffix = f"，task_id={task_id}" if task_id else ""
+    if spent_llm and before == after:
+        raise RuntimeError(
+            f"{where} 调用了文字模型但 episode_content 一个字节都没变"
+            f"（指纹 {before[:12]}），本轮不落用量、退回全部预扣{suffix}"
+        )
+    if require_non_empty and not any(
+        isinstance(item, dict) and str(item.get("body") or item.get("content") or "").strip()
+        for item in (episodes or [])
+    ):
+        raise RuntimeError(f"{where} 结束时 episode_content 没有任何正文，不落用量、退回全部预扣{suffix}")
+
+
 async def run_episode_scripts_job(
     project_id: int,
     force: bool = False,
@@ -418,6 +503,20 @@ async def run_episode_scripts_job(
             script.summary = summary
 
         creative = (script.source or "").strip()
+        # locale 决定正文语言：项目创建时写入 `params.locale`，老项目没有就落到
+        # `settings.default_locale`。不接 locale 就是 project 28 那种结果 ——
+        # locale=vi 却出 6/6 集中文（见 brief docs/briefs/case-episode-locale-and-silent-charge-b4.md）。
+        locale = str((project.params or {}).get("locale") or get_settings().default_locale)
+        # 「这一轮有没有花过 LLM 的钱」。只有花过又没写进去，才该报错退款；
+        # 什么都没生成的空跑（例如正文已达标）不算失败，也不能改成失败。
+        spent_llm = False
+        # `initial_fp` = 本任务开始时（force 清空之后）的正文指纹，收尾时用来证明
+        # 「这一整轮真的改了东西」；`iter_fp` 每轮滚动，用来抓「这一轮白花钱」。
+        # 两者混用会自己把自己判成没写东西，所以分开存。
+        # 取在 force 清空**之后**：force 本来就会清空正文，若在清空前取，
+        # 「什么都没做」与「清空后重写」会算出同一个起始值，判断就废了。
+        initial_fp = _episode_content_fingerprint(existing)
+        iter_fp = initial_fp
         try:
             if force and existing:
                 params0 = dict(script.params or {})
@@ -438,6 +537,8 @@ async def run_episode_scripts_job(
                     params0["episode_content_error"] = None
                     script.params = params0
                     await db.flush()
+                    initial_fp = _episode_content_fingerprint(existing)
+                    iter_fp = initial_fp
                     logger.info("已清空分集正文准备重写 project_id=%s total=%s", project_id, total)
                 else:
                     logger.info(
@@ -447,7 +548,10 @@ async def run_episode_scripts_job(
                         total,
                     )
 
-            existing, outline_used_llm = await ensure_episode_outline(creative, summary, existing, total)
+            existing, outline_used_llm = await ensure_episode_outline(
+                creative, summary, existing, total, locale=locale
+            )
+            spent_llm = spent_llm or outline_used_llm
             script.episode_content = {"episodes": existing}
             params_outline = dict(script.params or {})
             params_outline["episode_content_status"] = "generating"
@@ -489,8 +593,26 @@ async def run_episode_scripts_job(
                     batch_size=1,
                     total=total,
                     creative=creative,
+                    locale=locale,
                 )
+                if not batch:
+                    # 原来这个 raise 排在 record_line 之后：任务确实什么都没写，
+                    # 但 40 分已经落进 usage_events，failed 也照样收得到。先挪上来。
+                    raise RuntimeError("分集生成无进度")
                 existing = merge_episode_bodies(existing, batch)
+                # 这一轮花了钱，就必须在落用量之前证明它写进了东西。
+                next_fp = _episode_content_fingerprint(existing)
+                _assert_episode_content_written(
+                    where=f"分集正文 第 {missing[0]}–{missing[-1]} 集",
+                    before=iter_fp,
+                    after=next_fp,
+                    spent_llm=True,
+                    require_non_empty=True,
+                    episodes=existing,
+                    task_id=task_id,
+                )
+                iter_fp = next_fp
+                spent_llm = True
                 script.episode_content = {"episodes": existing}
                 params = dict(script.params or {})
                 params["episode_content_status"] = "generating"
@@ -536,9 +658,17 @@ async def run_episode_scripts_job(
                     raise RuntimeError(
                         f"分集生成未完成（{count_completed_episodes(existing, total)}/{total}）"
                     )
-                if not batch:
-                    raise RuntimeError("分集生成无进度")
 
+            # 收尾：跑过 LLM 就必须真的写进了正文（大纲那次调用也算花钱）。
+            _assert_episode_content_written(
+                where="分集剧本生成",
+                before=initial_fp,
+                after=iter_fp,
+                spent_llm=spent_llm,
+                require_non_empty=True,
+                episodes=existing,
+                task_id=task_id,
+            )
             params = dict(script.params or {})
             params["episode_content_status"] = "completed"
             params["episode_content_error"] = None
@@ -628,6 +758,10 @@ async def _run_single_episode_script_job(
         ).scalars().all()
         character_asset_names = [str(n).strip() for n in char_name_rows if str(n or "").strip()]
 
+        locale = str((project.params or {}).get("locale") or get_settings().default_locale)
+        # 比的是**这一集**的整条记录，不是全集正文：summary / brief 模式只回填
+        # 创意与摘要，正文理应不变，拿全集正文指纹判必然误报。
+        before_fp = _episode_record_fingerprint(_find_episode(existing, episode_number))
         try:
             if mode == "summary":
                 if len(ep_creative) < 20:
@@ -640,6 +774,7 @@ async def _run_single_episode_script_job(
                     project_source=project_source,
                     title=ep_title,
                     character_asset_names=character_asset_names,
+                    locale=locale,
                 )
             elif mode == "body":
                 batch = await run_episode_body_from_brief(
@@ -651,6 +786,7 @@ async def _run_single_episode_script_job(
                     project_source=project_source,
                     title=ep_title,
                     character_asset_names=character_asset_names,
+                    locale=locale,
                 )
             elif mode == "full":
                 if len(ep_creative) < 20:
@@ -663,6 +799,7 @@ async def _run_single_episode_script_job(
                     project_source=project_source,
                     title=ep_title,
                     character_asset_names=character_asset_names,
+                    locale=locale,
                 )
             elif mode == "brief":
                 ep_body = str((current or {}).get("body") or (current or {}).get("content") or "").strip()
@@ -676,6 +813,7 @@ async def _run_single_episode_script_job(
                     project_source=project_source,
                     title=ep_title,
                     character_asset_names=character_asset_names,
+                    locale=locale,
                 )
             else:
                 if not draft or len(draft) < 20:
@@ -687,6 +825,7 @@ async def _run_single_episode_script_job(
                     draft,
                     creative=project_source,
                     character_asset_names=character_asset_names,
+                    locale=locale,
                 )
             if origin == "manual":
                 for item in batch:
@@ -704,6 +843,19 @@ async def _run_single_episode_script_job(
                 existing = list(fresh_content)
             existing = merge_episode_bodies(existing, batch, prefer_incoming=True)
             script.episode_content = {"episodes": existing}
+
+            # 跑过 LLM 就必须真的改了这一集，否则退款 + 报错，绝不 settle。
+            # `require_non_empty` 只给产出正文的三种模式：summary 模式本来就允许
+            # 这一集还没有正文（它只回填创意与摘要）。
+            _assert_episode_content_written(
+                where=f"单集剧本 第 {episode_number} 集（{mode}）",
+                before=before_fp,
+                after=_episode_record_fingerprint(_find_episode(existing, episode_number)),
+                spent_llm=True,
+                require_non_empty=mode in {"body", "full", "optimize"},
+                episodes=existing,
+                task_id=task_id,
+            )
 
             assets_created = 0
             assets_reused = 0

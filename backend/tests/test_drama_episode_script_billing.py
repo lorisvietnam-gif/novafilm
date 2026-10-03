@@ -139,7 +139,7 @@ async def test_episode_script_all_episodes_records_usage_on_task(db_session: Asy
     async def _fake_batch(_summary, _existing, **_kwargs):
         return [{"episodeNumber": 1, "title": "Tap 1", "body": DONE_BODY}]
 
-    async def _fake_outline(_creative, _summary, existing, _total):
+    async def _fake_outline(_creative, _summary, existing, _total, **_kwargs):
         return existing, False
 
     try:
