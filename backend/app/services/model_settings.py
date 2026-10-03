@@ -15,10 +15,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # Danh sách model Kira phục vụ. Model id lấy từ trang model chính thức của Kira; thêm model mới
 # chỉ cần bổ sung vào đây, không phải sửa chỗ khác.
 #
-# `deepseek-v4-flash-free` là model **văn bản** của chính Kira, thêm vào đây làm kênh dự
-# phòng khi Gemini trả 429 (đã đo: `kiraai.vn` trả 200, `generativelanguage.googleapis.com`
-# trả 404 cho đúng tên model này — nên nó **không** thuộc channel `text-openai`).
-KIRA_IMAGE_MODELS = ["hy-image-v3.5-free", "deepseek-v4-flash-free"]
+# Hằng số này từng tên là `KIRA_IMAGE_MODELS` khi nó chỉ chứa model ảnh. Nay nó còn chứa
+# **model văn bản** nữa, vì một kênh chỉ đăng ký đúng một model chữ thì model đó chết là
+# hệ thống chết: `resolve_logical_model_candidates` trả về đúng 1 ứng viên, không có dự phòng
+# nào để dùng (đo 2026-10-02, task 810: `mimo-v2.6-flash-free` trả 504 trong khi `hy3` /
+# `hy4` / `qwen3.8-flash-next-free` cùng kênh đều 200 — nhưng chúng không có mặt trong danh
+# sách nên không bao giờ được thử).
+#
+# `deepseek-v4-flash-free` đã bị gỡ: đo lại 2026-10-03 trên đúng khoá này nó trả
+# **HTTP 403**. Để nó trong danh sách là để một khoá chết nằm trong đường dự phòng.
+KIRA_CHANNEL_MODELS = [
+    "hy-image-v3.5-free",
+    "mimo-v2.6-flash-free",
+    "hy3",
+    "hy4",
+    "qwen3.8-flash-next-free",
+]
 
 from app.config import Settings, get_settings, reload_settings
 from app.models_settings import AppSettings, SystemModelChannelRow
@@ -206,7 +218,7 @@ def _bootstrap_channels_from_env(settings: Settings | None = None) -> list[Syste
                 has_api_key=True,
                 api_format="openai",
                 protocol="auto",
-                models=KIRA_IMAGE_MODELS,
+                models=KIRA_CHANNEL_MODELS,
                 enabled=True,
                 # Đứng trước TokenFree: khi phân giải năng lực `image`, thử channel này trước.
                 sort_order=-2,

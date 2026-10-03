@@ -8,16 +8,30 @@ import logging
 from typing import Any, NamedTuple
 
 import httpx
-
 from app.config import get_settings
-from app.services.logical_model_router import resolve_logical_model, resolve_logical_model_id
+from app.services.logical_model_router import (
+    resolve_logical_model_id,
+    resolve_same_channel_failover_routes,
+)
 
 logger = logging.getLogger(__name__)
 
 # DEFAULT_MAX_TOKENS: structured output such as episode bodies needs enough completion room
 DEFAULT_MAX_TOKENS = 32768
+
 # 上游瞬时故障后的重试间隔。别太长：用户已经在等了。
 GATEWAY_RETRY_BACKOFF_SEC = 2.0
+
+# 一次调用最多打多少个上游候选（首选 + 备选）。
+#
+# 为什么不把候选列表走完：判断一个候选死没死要跑满 read timeout 才算，多一个候选
+# 就多一份等待。3 个够挡住「首选模型被上游下线」这种真事故，又不会让用户等 N 倍时间。
+#
+# 为什么需要它（实测 2026-10-02，task 810）：首选 `mimo-v2.6-flash-free` 返回 504，
+# 同一时刻 `hy3` / `hy4` / `qwen3.8-flash-next-free` 都是 200 —— 但那三个不在候选
+# 列表里，因为渠道的 models 白名单只登记了一个文字模型。只取 `candidates[0]` 的话，
+# 一个上游抖动就等于整个文字功能停摆。
+MAX_TEXT_ROUTES_PER_CALL = 3
 
 
 class LlmUnavailableError(RuntimeError):
@@ -220,69 +234,106 @@ async def chat_completions(
 ) -> str:
     settings = get_settings()
     logical_id = resolve_logical_model_id("text", None)
-    route = resolve_logical_model("text", logical_id)
-    if route:
-        api_key = route.api_key
-        model = (route.upstream_model or "").strip()
-        base = route.base_url.rstrip("/") or resolve_llm_base_url()
-    else:
-        api_key = resolve_llm_api_key()
-        model = (settings.model_llm or "").strip()
-        base = resolve_llm_base_url()
-    if not model:
+    # 候选列表就是逻辑模型上的全部 binding（`LogicalModel` 的注释原文就是
+    # "multi-channel failover"），已按 binding priority / 渠道 sort_order 排好序。
+    # 以前只取 `candidates[0]`，等于把 failover 定义写空了：登记了 3 个备选也没人用。
+    targets = _resolve_text_targets(logical_id, settings)
+    if not targets:
         raise LlmUnavailableError(
             "未解析到可用文字模型。请在管理后台填写 TokenFree API Key，拉取并选择文本模型。"
         )
-    # The kimi family only accepts temperature=0.6; any other value returns 400
-    effective_temperature = 0.6 if model.lower().startswith("kimi") else temperature
 
-    payload: dict[str, Any] = {
-        "model": model,
-        "temperature": effective_temperature,
-        "max_tokens": max_tokens,
-        "messages": [
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
-    }
-    extra = _llm_extra_body(model)
-    if extra:
-        payload.update(extra)
-    if response_format:
-        payload["response_format"] = response_format
+    # 限流和 5xx 是瞬时的：同一个候选重试一次，再换下一个候选。
+    # 只重试一次：用户等的是结果，不是无限重试。代价要说清楚——撞上 60s 网关墙时，
+    # 一次失败会拖到约 2 倍时长才给出结果或报错。所以长度必须压到让这个尾巴很难出现，
+    # 而不是靠重试兜底。
+    first_budget = 2 if retry_gateway else 1
+    last_exc: LlmUpstreamError | None = None
+    for index, (model, base, api_key) in enumerate(targets):
+        # The kimi family only accepts temperature=0.6; any other value returns 400
+        effective_temperature = 0.6 if model.lower().startswith("kimi") else temperature
 
-    logger.info(
-        "调用文字 LLM model=%s base=%s user_len=%s max_tokens=%s",
-        model,
-        base,
-        len(user or ""),
-        max_tokens,
-    )
-    # 限流和 5xx 是瞬时的，重试一次。只重试一次：用户等的是结果，不是无限重试。
-    # 代价要说清楚——撞上 60s 网关墙时，一次失败会拖到约 2 倍时长才给出结果或报错。
-    # 所以长度必须压到让这个尾巴很难出现，而不是靠重试兜底。
-    attempts = 2 if retry_gateway else 1
-    for attempt in range(1, attempts + 1):
-        try:
-            return await _chat_completions_once(
-                payload,
-                base=base,
-                api_key=api_key,
-                model=model,
-                timeout=timeout,
-                stream=stream,
-            )
-        except LlmUpstreamError as exc:
-            if attempt >= attempts or not _is_transient_gateway_error(exc):
-                raise
-            logger.warning(
-                "文字 LLM 上游瞬时故障(HTTP %s)，第 %s 次重试: %s",
-                exc.status_code,
-                attempt,
-                exc,
-            )
-            await asyncio.sleep(GATEWAY_RETRY_BACKOFF_SEC)
-    raise AssertionError("unreachable")
+        payload: dict[str, Any] = {
+            "model": model,
+            "temperature": effective_temperature,
+            "max_tokens": max_tokens,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+        }
+        extra = _llm_extra_body(model)
+        if extra:
+            payload.update(extra)
+        if response_format:
+            payload["response_format"] = response_format
+
+        logger.info(
+            "调用文字 LLM model=%s base=%s user_len=%s max_tokens=%s candidate=%s/%s",
+            model,
+            base,
+            len(user or ""),
+            max_tokens,
+            index + 1,
+            len(targets),
+        )
+        # 首选保留原有的同路重试；备选只打一发：它已经是在兜底了，再重试只是让用户多等。
+        budget = first_budget if index == 0 else 1
+        for attempt in range(1, budget + 1):
+            try:
+                return await _chat_completions_once(
+                    payload,
+                    base=base,
+                    api_key=api_key,
+                    model=model,
+                    timeout=timeout,
+                    stream=stream,
+                )
+            except LlmUpstreamError as exc:
+                if not _is_transient_gateway_error(exc):
+                    # 4xx 是请求本身的问题（参数错、没鉴权），换模型只会得到同样的错。
+                    raise
+                last_exc = exc
+                if attempt >= budget:
+                    break
+                logger.warning(
+                    "文字 LLM 上游瞬时故障(HTTP %s)，第 %s 次重试: %s",
+                    exc.status_code,
+                    attempt,
+                    exc,
+                )
+                await asyncio.sleep(GATEWAY_RETRY_BACKOFF_SEC)
+        logger.warning(
+            "文字 LLM 候选 %s 用尽重试仍失败，换下一个候选 (%s/%s 共 %s 个)",
+            model,
+            index + 1,
+            len(targets),
+            len(targets),
+        )
+    assert last_exc is not None  # 有 targets 就至少发过一次，进来必带异常
+    raise last_exc
+
+
+def _resolve_text_targets(
+    logical_id: str,
+    settings: Any,
+) -> list[tuple[str, str, str]]:
+    """(model, base_url, api_key) 列表，按优先级排好，最多 `MAX_TEXT_ROUTES_PER_CALL` 个。"""
+    targets: list[tuple[str, str, str]] = []
+    for route in resolve_same_channel_failover_routes(
+        "text", logical_id, limit=MAX_TEXT_ROUTES_PER_CALL
+    ):
+        model = (route.upstream_model or "").strip()
+        if not model:
+            continue
+        targets.append((model, route.base_url.rstrip("/") or resolve_llm_base_url(), route.api_key))
+    if targets:
+        return targets
+    # 逻辑模型一个都解析不出来：退回 .env 那条老路，行为与改动前一致。
+    model = (settings.model_llm or "").strip()
+    if not model:
+        return []
+    return [(model, resolve_llm_base_url(), resolve_llm_api_key())]
 
 
 # 真正发一次请求。chat_completions 负责重试策略，这里只管"发一次、要么成功要么抛"。

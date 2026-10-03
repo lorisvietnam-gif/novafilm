@@ -218,13 +218,21 @@ def test_parse_expand_content_flattens_and_caps_theme_mode():
 
 
 def _use_route(monkeypatch, model: str = "deepseek-v4-flash-free") -> None:
+    """把文字路由钉死成一条，避免用例去读真配置。
+
+    钉的是 `resolve_same_channel_failover_routes` 而不是旧的 `resolve_logical_model`：
+    现在 `chat_completions` 走的是 failover 链（首选 + 同渠道备选），单一 model
+    等价于「没有备选」，也正是这些用例要验的行为。
+    """
     import app.services.llm_client as lc
 
     route = SimpleNamespace(
         upstream_model=model, base_url="https://provider.test/v1", api_key="key", channel_id="c"
     )
     monkeypatch.setattr(lc, "resolve_logical_model_id", lambda capability, model_id: "text-model")
-    monkeypatch.setattr(lc, "resolve_logical_model", lambda capability, model_id: route)
+    monkeypatch.setattr(
+        lc, "resolve_same_channel_failover_routes", lambda *args, **kwargs: [route]
+    )
 
 
 def _use_transport(monkeypatch, handler) -> None:

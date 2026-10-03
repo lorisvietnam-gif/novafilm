@@ -168,6 +168,180 @@ def resolve_output_language(locale: str, *, default: str) -> str:
     return default
 
 
+# Câu ép ngôn ngữ, viết theo từng locale. Marker kỹ thuật (`### 场1-2`, `△`,
+# `【空镜】`, `出场人物：`) là hợp đồng máy↔máy với đường Seedance — không dịch, không
+# đụng tới ở đây; chỉ câu yêu cầu ngôn ngữ mới đổi.
+_OUTPUT_LANGUAGE_DIRECTIVES: dict[str, str] = {
+    "zh": "语言使用简体中文（正文、标题、集名、摘要一律如此；专有名词与技术术语可保留原文）",
+    "vi": (
+        "Toàn bộ nội dung bạn viết phải bằng tiếng Việt, có dấu đầy đủ: mô tả hành động "
+        "sau △, tên địa điểm, lời thoại, tên tập, tiêu đề và tóm tắt."
+    ),
+    "en": (
+        "Everything you write must be in English: action descriptions after △, location "
+        "names, dialogue, episode titles, titles and summaries."
+    ),
+}
+
+# Danh sách token **không được dịch** — đây là danh sách *ngoại lệ*, không phải
+# danh sách nội dung.
+#
+# Vì sao là ngoại lệ chứ không phải "những thứ cần dịch": lần sửa đầu tiên viết câu
+# "áp dụng cho cả tiêu đề, tên tập, tóm tắt và lời thoại" — tức là một danh sách
+# **đóng**. LLM đọc đúng nghĩa đen của nó và bỏ nguyên phần còn lại: đo thật ở
+# locale=vi, mô tả sau △ và tên địa điểm vẫn ra tiếng Trung. Liệt kê cái được phép
+# dịch thì không bao giờ đủ; phải liệt kê cái **không** được dịch.
+#
+# Nguồn: `build_fragments.py` (SCENE_HEADER_RE / CAST_LINE_RE / VOICE_TYPE_ACTION_RE),
+# `seedance_segments.py` (PRODUCTION_META_PREFIXES / VISUAL_SHOT_LABEL_RE /
+# paren_voice_kind), và 5 bản phân tích lặp lại trong `frontend/src/lib/`.
+SEEDANCE_CONTRACT_TOKENS = (
+    "### 场",
+    "出场人物：",
+    "△",
+    "【空镜",
+    "【画面",
+    "【字幕",
+    "【BGM",
+    "【配乐",
+    "【人物介绍",
+    "【片头",
+    "【背景介绍",
+    "【强制约束",
+    "【强制约束",
+    "【旁白",
+    "【对白",
+    "【内心独白",
+    "@duration:N",
+    "@asset:N",
+    "vo",
+    "os",
+    "旁白",
+    "无",  # 出场人物 rỗng: EMPTY_CAST sentinel trong build_fragments.py
+    # Nhãn cảnh quan đứng trước `：` (VISUAL_SHOT_LABEL_RE so khớp đúng danh sách này).
+    # Ví dụ mẫu phải dùng chúng, KHÔNG dịch — lần sửa đầu tiên viết ví dụ "△ Gần cảnh:"
+    # và model học cả việc dịch nhãn, làm mất luôn cảnh trong `build_fragments`.
+    "特写 / 近景 / 中景 / 全景 / 远景 / 跟拍 / 俯拍 / 仰拍 / 航拍 / 推镜 / 拉镜 / 摇镜",
+    "空镜 / 画面",
+    # Tiền tố giờ + trong/ngoài ở dòng bối cảnh: dòng này phải khớp SCENE_LOCATION_RE
+    # thì mới được coi là bối cảnh; nằm ngoài thì rơi xuống thân bài.
+    "日/夜/晨/黄昏/傍晚/凌晨/清晨/午/晚",
+    "内/外/内外",
+)
+
+# Ví dụ mẫu **bằng đúng ngôn ngữ đích**, đặt token ở đúng chỗ của nó.
+#
+# Vì sao cần ví dụ chứ không chỉ câu cấm: tám quy tắc định dạng trong prompt đều có
+# ví dụ tiếng Trung, và ví dụ là cái LLM bắt chước mạnh hơn mệnh lệnh. Đo thật ở
+# locale=vi: dù đã có câu "mọi thứ bằng tiếng Việt" + danh sách token cấm dịch, phần
+# mô tả sau △ và tên địa điểm vẫn ra tiếng Trung (224 ký tự Hán còn sót). Một ví dụ
+# đúng ngôn ngữ đích kéo được phần văn xuôi sang, để token marker ở nguyên vị trí.
+OUTPUT_LANGUAGE_BODY_EXAMPLE: dict[str, str] = {
+    "zh": (
+        "### 场1-1\n"
+        "日 内 教室\n"
+        "出场人物：林小满\n"
+        "△ 特写：林小满抬头，笔尖停在纸上。\n"
+        "林小满（低声，os）：又是这一天。\n"
+        "【空镜：窗外樟树的影子落在课桌上。】"
+    ),
+    "vi": (
+        "### 场1-1\n"
+        "日 内 Lớp học\n"
+        "出场人物：Linh\n"
+        "△ 特写：Linh ngẩng đầu, đầu bút dừng lại trên trang giấy.\n"
+        "Linh（khẽ, os）：Lại là ngày này.\n"
+        "【空镜：Bóng cây đổ trên bàn ghế.】"
+    ),
+    "en": (
+        "### 场1-1\n"
+        "日 内 Classroom\n"
+        "出场人物：Linh\n"
+        "△ 特写：Linh looks up, her pen stopping on the page.\n"
+        "Linh（quietly, os）：This day again.\n"
+        "【空镜：Tree shadow falls across the desk.】"
+    ),
+}
+
+# Đơn vị đếm độ dài. `汉字` **chỉ** đúng với tiếng Trung: để lại nó ở locale khác là
+# một câu lệnh sai, và là thứ kéo nội dung về tiếng Trung.
+_OUTPUT_LANGUAGE_LENGTH_UNITS: dict[str, str] = {
+    "zh": "汉字",
+    "vi": "ký tự",
+    "en": "characters",
+}
+
+
+def _seedance_marker_clause(lang: str) -> str:
+    """Câu liệt kê token cấm dịch, viết theo locale của prompt.
+
+    `zh` trả chuỗi rỗng: với tiếng Trung thì "đừng dịch" là vô nghĩa, và câu đó chỉ
+    làm prompt dài thêm. Câu của `zh` phải giữ nguyên đúng như trước khi có locale.
+    """
+    if lang == "zh":
+        return ""
+    tokens = " · ".join(SEEDANCE_CONTRACT_TOKENS)
+    if lang == "vi":
+        return (
+            "Ngoại lệ duy nhất: các token máy đọc sau phải viết **đúng như đã cho**, "
+            f"không dịch, không thêm bớt: {tokens}. "
+            "Ngoài ra, các ví dụ tiếng Trung trong chỉ dẫn này chỉ là **ví dụ về hình thức** — "
+            "hãy tự viết nội dung của mình bằng tiếng Việt. Không được viết chữ Hán nào khác."
+        )
+    return (
+        "The only exception: these machine-read tokens must be written exactly as given, "
+        f"never translated: {tokens}. "
+        "The Chinese examples elsewhere in these instructions illustrate the *shape* only — "
+        "write your own content in English. No other Chinese characters."
+    )
+
+
+def _example_lead(lang: str) -> str:
+    if lang == "zh":
+        return "示例（一场戏，请严格照此格式与语言）："
+    if lang == "vi":
+        return "Ví dụ một cảnh — bám theo đúng cả hình thức lẫn ngôn ngữ này:"
+    return "Example scene — follow both its shape and its language exactly:"
+
+
+@dataclass(frozen=True)
+class OutputLanguage:
+    """Ngôn ngữ đầu ra của một prompt, đã giải quyết trọn vẹn.
+
+    Gom cả câu chỉ thị lẫn đơn vị đo độ dài vào **một** chỗ, vì cả hai đều phải đổi
+    theo locale: để sót `汉字` trong câu "约 550 汉字" khiến LLM kéo nội dung về
+    tiếng Trung dù câu chỉ thị đã bảo tiếng Việt (đo thật: project 28 locale=vi ra
+    6/6 tập toàn chữ Trung).
+    """
+
+    code: str
+    name: str
+    directive: str
+    length_unit: str
+    marker_clause: str
+    example_lead: str
+    body_example: str
+
+
+def resolve_output_language_spec(locale: str, *, default: str) -> OutputLanguage:
+    """Giải quyết `locale` thành bộ chỉ thị + đơn vị đo dùng chung cho mọi prompt.
+
+    Nguồn sự thật **duy nhất** cho ngôn ngữ đầu ra: `_OUTPUT_LANGUAGE_NAMES` /
+    `_OUTPUT_LANGUAGE_NOUNS` cùng hai bảng ở trên. Thêm bảng ở module khác là tạo
+    hai nguồn sự thật, chúng sẽ trôi lệch nhau sau vài lần sửa.
+    """
+    lang = resolve_output_language(locale, default=default)
+    return OutputLanguage(
+        code=lang,
+        name=_OUTPUT_LANGUAGE_NAMES[lang],
+        directive=_OUTPUT_LANGUAGE_DIRECTIVES[lang],
+        length_unit=_OUTPUT_LANGUAGE_LENGTH_UNITS[lang],
+        marker_clause=_seedance_marker_clause(lang),
+        example_lead=_example_lead(lang),
+        body_example=OUTPUT_LANGUAGE_BODY_EXAMPLE[lang],
+    )
+
+
 def _storyboard_language_rule(lang: str, *, with_fields: bool) -> str:
     """Câu ép ngôn ngữ cho prompt phân cảnh, đã giữ danh sách trường.
 

@@ -171,6 +171,75 @@ def resolve_logical_model_id(
     return aliases.get(raw.lower(), raw)
 
 
+def resolve_same_channel_failover_routes(
+    capability: LogicalModelCapability,
+    requested_model_id: str,
+    *,
+    limit: int = 3,
+    preferred_channel_id: str = "",
+) -> list[ResolvedModelRoute]:
+    """首选路由 + **同一渠道**上的其它可用模型，凑成一条 failover 链。
+
+    为什么需要它：`resolve_logical_model_candidates` 只覆盖**一个**逻辑模型的多个
+    binding；而 `synchronize_logical_models_with_channels` 是按「渠道里登记过的上游
+    模型」一个模型建一个逻辑模型。所以同一渠道上的多个文字模型各自是独立的逻辑
+    模型 —— 首选那个被上游下线时，候选列表就只剩它自己，登记了备选也没人用得上
+    （实测 2026-10-02 task 810：`mimo-v2.6-flash-free` 504，同渠道 `hy3`/`hy4`/
+    `qwen3.8-flash-next-free` 都是 200）。
+
+    为什么**限定同渠道**：跨渠道换模型等于在一次请求的中途换掉计费方。估价按
+    首选模型算，实际用量却记到另一个 provider 的费率上，`settle_task` 会打出
+    「多退少补」的差额告警，而用户从没同意过这件事。换网关是运维决定，不该由
+    重试逻辑顺手做掉。
+    """
+    snapshot = get_routing_snapshot()
+    cap = max(1, int(limit))
+    requested = (requested_model_id or "").strip()
+
+    primary = resolve_logical_model_candidates(
+        capability,
+        requested,
+        preferred_channel_id=preferred_channel_id,
+    )
+    routes: list[ResolvedModelRoute] = []
+    seen: set[tuple[str, str]] = set()
+    for route in primary:
+        seen.add((route.channel_id, route.upstream_model))
+        routes.append(route)
+        if len(routes) >= cap:
+            return routes
+
+    # 没有首选就直接收工：换渠道是运维决定，不由重试逻辑代劳。
+    primary_channels = {route.channel_id for route in primary}
+    if not primary_channels:
+        return routes
+
+    for model in snapshot.logical_models:
+        if len(routes) >= cap:
+            break
+        if not model.enabled or model.capability != capability:
+            continue
+        if requested and model.id.lower() == requested.lower():
+            continue
+        for route in _routes_for_logical_model(
+            model,
+            capability,
+            snapshot.channels,
+            preferred_channel_id=preferred_channel_id,
+        ):
+            # 只收首选所在的渠道：跨渠道等于中途换计费方。
+            if route.channel_id not in primary_channels:
+                continue
+            key = (route.channel_id, route.upstream_model)
+            if key in seen:
+                continue
+            seen.add(key)
+            routes.append(route)
+            if len(routes) >= cap:
+                break
+    return routes
+
+
 # 解析上游 endpoint（兼容旧 alias 逻辑）
 def resolve_upstream_model(
     capability: LogicalModelCapability,
