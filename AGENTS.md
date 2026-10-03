@@ -1,4 +1,4 @@
-# AGENTS.md — novafilm (bản sở hữu riêng của chúng ta)
+﻿# AGENTS.md — novafilm (bản sở hữu riêng của chúng ta)
 
 ## 0. Danh tính dự án
 
@@ -169,6 +169,19 @@ báo origin của frontend.
   trong khi `/api/billing/preflight` báo `false` cùng lúc. Ở `auth.py` nó nằm trong luồng xác
   thực — **đừng sửa vội.** Phải có test xác thực xanh trước, rồi mới đổi sang `get_settings()`
   lúc gọi hàm. Xem `docs/briefs/` khi giao.
+- **Danh sách model viết cứng là quả bom nổ chậm.** Nhà cung cấp gỡ quyền theo thời gian
+  mà code không biết. Đã xảy ra thật: `WIZARD_MODEL_CHAIN` có 4 model, **3** nằm trong danh
+  sách `403 model_not_allowed` của khoá Kira, mỗi lượt gọi mất một vòng thử rồi vẫn 403
+  (`b363233`). **Health check không bắt được** — nó chỉ gõ model *mặc định*, còn chuỗi dự phòng
+  phía sau mục mát trong im lặng.
+  - **Chỉ đưa model vào danh sách sau khi đã gọi thật và nhận 200.**
+  - Sửa danh sách model ⇒ chạy lại kịch bản thật qua đúng endpoint, đọc cả tổng ký tự
+    Trung của đầu ra. Test có mock sẽ không bắt được chuyện này.
+  - Ưu tiên model đã cấu hình trong DB (xem `GET /api/health` → `models.llm`) trước khi
+    đổ tới danh sách dự phòng.
+- **Mọi danh sách phụ thuộc bên thứ ba (model, endpoint, giá, quyền) đều cần một bước đo lại
+  định kỳ.** Không có danh sách nào tự báo mình đã hỏng.
+
 - **TRƯỚC MỖI LẦN ĐO TIỀN, đọc lại cờ cấu hình — đừng tin ký ức.**
   `billing_enabled` và `model_image` sống trong overlay của DB và **có thể tự trôi về mặc
   định** giữa các phiên. Đã xảy ra thật: tôi bật billing một lần, nhiều giờ sau đọc
