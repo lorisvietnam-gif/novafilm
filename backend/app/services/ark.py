@@ -800,19 +800,46 @@ def resolve_output_language_spec(locale: str, *, default: str) -> OutputLanguage
     )
 
 
+_STORYBOARD_HUMAN_FIELDS_ZH = "title、text、camera、bgm、segments"
+_STORYBOARD_SEEDANCE_FIELDS_ZH = "img_prompt、video_prompt"
+_STORYBOARD_HUMAN_FIELDS_LATIN = (
+    "title, text, camera, bgm, segments"
+)
+_STORYBOARD_SEEDANCE_FIELDS_LATIN = "img_prompt, video_prompt"
+
+
 def _storyboard_language_rule(lang: str, *, with_fields: bool) -> str:
-    """Câu ép ngôn ngữ cho prompt phân cảnh, đã giữ danh sách trường.
+    """Câu ép ngôn ngữ cho prompt phân cảnh.
+
+    **Hai nhóm trường khác nhau về người đọc:**
+
+    - `title`、`text`、`camera`、`bgm`、`segments` — người Việt đọc trong UI, **theo locale**.
+    - `img_prompt`、`video_prompt` — **máy đọc**, đưa thẳng cho Seedance. Seedance hiểu
+      tiếng Trung tốt hơn hẳn tiếng Việt, nên nhóm này **giữ nguyên tiếng Trung**.
+
+    Gộp cả hai nhóm là sai: dịch `img_prompt` sang tiếng Việt là làm giảm chất lượng ảnh,
+    và điều đó **không phục hồi được** vì người dùng không đọc được trường đó.
 
     `with_fields=False` dùng cho nhánh image_text, vốn chỉ có một câu
     "所有字段必须使用简体中文。" không liệt kê trường — giữ nguyên hình dạng cũ.
     """
     name = _OUTPUT_LANGUAGE_NAMES.get(lang, _OUTPUT_LANGUAGE_NAMES["zh"])
     if lang == "vi":
-        listed = f" ({_STORYBOARD_FIELD_LIST_LATIN})" if with_fields else ""
-        return f"Mọi trường{listed} phải viết bằng {name}."
+        if not with_fields:
+            return f"Mọi trường phải viết bằng {name}."
+        return (
+            f"Các trường {_STORYBOARD_HUMAN_FIELDS_LATIN} phải viết bằng {name}; "
+            f"còn {_STORYBOARD_SEEDANCE_FIELDS_LATIN} phải viết bằng tiếng Trung "
+            "（简体）vì Seedance hiểu tiếng Trung."
+        )
     if lang == "en":
-        listed = f" ({_STORYBOARD_FIELD_LIST_LATIN})" if with_fields else ""
-        return f"Every field{listed} must be written in {name}."
+        if not with_fields:
+            return f"Every field must be written in {name}."
+        return (
+            f"Fields {_STORYBOARD_HUMAN_FIELDS_LATIN} must be written in {name}; "
+            f"but {_STORYBOARD_SEEDANCE_FIELDS_LATIN} must be written in Simplified "
+            "Chinese, because Seedance understands Chinese prompts."
+        )
     listed = f"（包括 {_STORYBOARD_FIELD_LIST_ZH}）" if with_fields else ""
     return f"所有字段必须使用{name}{listed}。"
 
