@@ -1167,13 +1167,17 @@ export const enPages = {
       copyFailed: 'Automatic copy failed. Select the text and copy it by hand.',
       emptyFrames: 'There are no frames to copy yet.',
       /**
-       * Toast after copying. Says exactly one thing: it is on the clipboard, paste it
-       * into another platform to shoot. Never "creating your video" — no video API is
-       * reachable, so that would be a promise the page cannot keep.
+       * Toast after **Copy all** — the exact wording the B2 brief fixed, so the
+       * Vietnamese keeps it verbatim. "Ready to render" describes the **prompt**, not
+       * this system: no video API is reachable, so "creating your video" would be a
+       * promise the page cannot keep.
        */
-      toastAll: 'Prompt copied. Paste it into an external rendering platform to shoot.',
+      toastAll: 'Prompt copied, ready to render!',
+      /** Names **which card** was copied — the reason `toastField` exists at all. */
       toastField: '{field} copied. Paste just that part into an external rendering platform.',
       toastFrame: 'Frame {no} copied. Paste it into an external rendering platform to shoot.',
+      /** Spoken when `clipboard.writeText` is refused. Silence would send the user off to paste an empty box. */
+      toastFailed: 'Could not copy automatically. Select the part you need and copy it by hand.',
       summaryLabel: 'Settings summary',
       summaryTarget: 'Destination: {target}',
       summaryVoice: 'Voice: {voice}',

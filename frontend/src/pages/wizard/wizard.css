@@ -434,22 +434,50 @@
 /*
  * Toast sau khi sao chép. `role="status"` + `aria-live="polite"` nằm trong TSX.
  *
- * `:empty` ẩn đi khi chưa có gì để báo — vùng sống phải có mặt sẵn trong DOM thì nội dung
- * đổi mới được đọc, nhưng một khối rỗng có khung thì vẫn là một lỗ hổng trên trang.
+ * `position: fixed` là **bắt buộc**, không phải lựa chọn trang trí. Ở luồng nội tuyến nó
+ * đẩy cả bảng xuống: đo được 55px (`wizard-copy-ux-check.mjs` phần B) mỗi lần bấm Copy ở
+ * một thẻ ở hàng thứ hai — tức là thứ người dùng đang nhìn cũng nhảy theo. Toast thì phải
+ * **bay lên trên** nội dung, không được chen vào dòng.
  */
 .wizard-toast {
-  margin: 0 0 var(--pf-space-3);
+  position: fixed;
+  inset-inline: 0;
+  bottom: var(--pf-space-4);
+  z-index: var(--pf-z-toast);
+  width: fit-content;
+  max-width: min(34rem, calc(100% - 2rem));
+  margin: 0 auto;
   padding: 0.55rem 0.8rem;
   border: 1px solid var(--pf-accent-200);
   border-inline-start: 3px solid var(--pf-lime);
   border-radius: var(--pf-radius-sm);
   background: var(--pf-accent-100);
+  box-shadow: var(--pf-elev-3);
   font-size: var(--pf-text-sm);
   color: var(--pf-ink);
+  /*
+   * Không bắt chuột. Lời báo là thứ người dùng **không** cần bấm vào, và nó nổi ngay
+   * trên nút "Quay lại" ở cuối trang — nuốt cú bấm đó là mất một lần bấm.
+   */
+  pointer-events: none;
 }
 
+/*
+ * Rỗng thì **không được** rời khỏi cây trợ năng.
+ *
+ * Trước đây dòng này là `display: none`, và đo bằng `Accessibility.getFullAXTree` trên
+ * chính Edge thì vùng sống **không có mặt** lúc còn rỗng (`axTree=false`). Đó là điều
+ * kiện để thông báo được đọc: một vùng `aria-live` không có trong cây thì không có gì để
+ * so sánh, nên phần lớn trình đọc màn hình im lặng — tức là `role="status"` trên trang này
+ * là hình thức. Brief B2 gọi đây là điều kiện WCAG, nên nó là điều kiện, không phải tuỳ chọn.
+ *
+ * Vì vậy rỗng thì chỉ **bằng không**: xoá padding và viền, để lại một hộp 0×0. Không dùng
+ * `display: none`, `visibility: hidden` hay `hidden` — cả ba đều đưa nó ra khỏi cây.
+ */
 .wizard-toast:empty {
-  display: none;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
 }
 
 /* --- Hành động chung ----------------------------------------------------- */

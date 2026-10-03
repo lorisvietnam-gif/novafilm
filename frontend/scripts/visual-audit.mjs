@@ -285,6 +285,7 @@ const ROUTES_BASE = [
 const WIZARD_IDEA =
   'Một cô gái trẻ mặc áo khoác da chạy băng qua phố mưa lúc đêm, dừng lại trước một quán cà phê nhỏ, ngẩng đầu nhìn đèn neon và thở dài.'
 
+
 /** Bấm nút cuối trong `.wizard-actions` — luôn là "Tiếp tục", không phụ thuộc ngôn ngữ. */
 const WIZARD_NEXT = `(() => {
   const btns = document.querySelectorAll('.wizard-actions .pf-btn')
@@ -344,16 +345,19 @@ const WIZARD_GENERATE = `(() => {
  * Khai báo chuỗi thao tác cho từng route; mỗi bước chạy một đoạn JS trong trang rồi
  * chụp ảnh riêng `<route>-<suffix>.png`. Bước nào ném lỗi thì **cả lô dừng** — một
  * bước không chạy được nghĩa là route đó chưa được kiểm, không phải là "0 ký tự Trung".
+ *
+ * `after` là selector **phải** xuất hiện trước khi chụp. Không có nó thì bước chụp được
+ * trang **chưa dựng xong** rồi vẫn báo đạt — đúng cái bẫy đã làm ảnh bước 4 của `/wizard`
+ * chụp dòng "Chưa có khung hình nào để sao chép": đo cái rỗng rồi tưởng xanh.
  */
 const WALKTHROUGHS = {
   'tram-de-prompt': [
-    { suffix: 'buoc-2-y-tuong', run: WIZARD_NEXT },
-    // Bấm soạn: endpoint chưa có nên đoạn này cố tình đi qua nhánh lỗi của bước 2,
-    // đúng thứ brief yêu cầu phải thấy bằng ảnh: có lỗi tiếng Việt, không trắng trang,
-    // và bước 4 vẫn tới được.
-    { suffix: 'buoc-2-da-soan', run: WIZARD_GENERATE },
-    { suffix: 'buoc-3-dich-den', run: WIZARD_NEXT },
-    { suffix: 'buoc-4-sao-chep', run: WIZARD_NEXT },
+    { suffix: 'buoc-2-y-tuong', run: WIZARD_NEXT, after: '.wizard-textarea' },
+    // Bấm soạn. Endpoint đã bị chặn ở `auditRoutes` nên bước 2 dựng bản nháp trong trình
+    // duyệt: có ghi chú tiếng Việt, không trắng trang, và bước 4 tới được **có bảng thật**.
+    { suffix: 'buoc-2-da-soan', run: WIZARD_GENERATE, after: '.wizard-readout' },
+    { suffix: 'buoc-3-dich-den', run: WIZARD_NEXT, after: '.wizard-target-grid' },
+    { suffix: 'buoc-4-sao-chep', run: WIZARD_NEXT, after: '.wizard-board-card' },
   ],
 }
 
@@ -409,6 +413,11 @@ const CDP_TIMEOUT_MS = Number(process.env.AUDIT_CDP_TIMEOUT_MS || 60_000)
  * thì chính nó là nguyên nhân hai lần chạy cho hai con số khác nhau.
  */
 const PAGE_READY_TIMEOUT_MS = Number(process.env.AUDIT_PAGE_TIMEOUT_MS || 45_000)
+/**
+ * Mốc riêng cho các bước lái thử — ngắn hơn `PAGE_READY_TIMEOUT_MS` vì ở đây trang đã ổn
+ * định rồi, chỉ còn chờ một thứ **có mặt**. Cho mượn mốc của cả trang là chờ thừa.
+ */
+const STEP_READY_TIMEOUT_MS = Number(process.env.AUDIT_STEP_TIMEOUT_MS || 15_000)
 const POLL_MS = Number(process.env.AUDIT_POLL_MS || 700)
 const QUIET_POLLS = 3
 
@@ -955,10 +964,69 @@ async function auditRoutes(ROUTES, token, locale) {
   const dir = join(OUT, locale)
   mkdirSync(dir, { recursive: true })
 
+  /**
+   * Chờ một selector xuất hiện — điều kiện **có mặt**, khác hẳn `waitForSettled` vốn chỉ
+   * chờ văn bản đứng yên. Một lệnh gọi mạng đang bay thì trang vẫn "đứng yên", nên
+   * `waitForSettled` trả về đúng lúc bấm Copy còn chưa sinh ra bảng.
+   *
+   * Hết giờ thì **ném lỗi** chứ không chụp tiếp: một bước không dựng được phải nói ra,
+   * không được trở thành một ảnh trống rồi báo xanh.
+   */
+  const waitForSelector = async (selector, what) => {
+    const deadline = Date.now() + STEP_READY_TIMEOUT_MS
+    for (;;) {
+      const r = await send('Runtime.evaluate', {
+        expression: `!!document.querySelector(${JSON.stringify(selector)})`,
+        returnByValue: true,
+      })
+      if (r?.result?.value === true) return
+      if (Date.now() > deadline) {
+        throw new Error(
+          `${what}: khong thay ${selector} sau ${STEP_READY_TIMEOUT_MS / 1000}s. `
+            + 'Buoc nay KHONG duoc coi la da kiem tra.',
+        )
+      }
+      await sleep(POLL_MS)
+    }
+  }
+
   const results = []
   try {
     // `Page.enable` chỉ cần một lần cho cả lô.
     await send('Page.enable')
+
+    /*
+     * Chặn endpoint soạn prompt, **giống hệt** `wizard-board-check.mjs` và
+     * `wizard-cls-check.mjs`.
+     *
+     * Vì sao bắt buộc: `WIZARD_GENERATE` bấm "soạn", và endpoint đó **tồn tại**, gọi mô
+     * hình thật — đo được 62 giây cho một ý tưởng. `waitForSettled` chỉ chờ văn bản **đứng
+     * yên**, mà trong lúc chờ mạng thì văn bản vẫn đứng yên, nên nó kết luận "ổn định" rồi
+     * chụp. Hai cú bấm "Tiếp tục" sau đó đưa sang bước 4 **trước khi** lệnh gọi quay về.
+     *
+     * Hậu quả đo được: `tram-de-prompt-buoc-4-sao-chep.png` chụp đúng dòng "Chưa có khung
+     * hình nào để sao chép" — **không có bảng**. Và dòng tổng kết vẫn in "8 buoc · 0 buoc van
+     * van", tức là một xanh giả đúng thứ brief B2 cấm: có bằng chứng, nhưng bằng chứng của
+     * cái rỗng.
+     *
+     * Chặn thì bước 2 đi nhánh dựng bản nháp trong trình duyệt (`buildDraftFrames`), bảng
+     * dựng ra **ngay** và ảnh bước 4 chứa được bảng thật. Đổi lại audit không còn phụ thuộc
+     * vào một lệnh gọi mô hình 62 giây — điều mà AGENTS.md đã ghi là nguyên nhân làm hai
+     * lần chạy cho hai con số khác nhau.
+     */
+    await send('Fetch.enable', { patterns: [{ urlPattern: '*api/wizard/generate_prompt*' }] })
+    const rawOnMessage = ws.onmessage
+    ws.onmessage = (ev) => {
+      const msg = JSON.parse(ev.data)
+      if (msg.method === 'Fetch.requestPaused') {
+        send('Fetch.failRequest', {
+          requestId: msg.params.requestId,
+          errorReason: 'BlockedByClient',
+        }).catch(() => { })
+        return
+      }
+      rawOnMessage(ev)
+    }
 
     {
       for (const [route, name] of ROUTES) {
@@ -1057,6 +1125,10 @@ async function auditRoutes(ROUTES, token, locale) {
             )
           }
           await waitForSettled(`${route} (${stepDef.suffix})`)
+          if (stepDef.after) {
+            await waitForSelector(stepDef.after, `${route} (${stepDef.suffix})`)
+            await waitForSettled(`${route} (${stepDef.suffix}, sau khi co noi dung)`)
+          }
 
           const stepMetrics = await send('Page.getLayoutMetrics')
           const stepShot = await send('Page.captureScreenshot', {
