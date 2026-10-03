@@ -517,6 +517,18 @@
   color: var(--pf-ink-secondary);
 }
 
+/*
+ * Khung chưa tách được trường nào. Dùng **cùng** màu và cùng đậm nặng với
+ * `.wizard-field-error` — màu đã đo đạt AA trên nền đen của trang này.
+ * Cố ý không dùng `--pf-warning`: đo trên nền đen, `#8a5300` chỉ đạt 3.31:1, dưới ngưỡng
+ * 4.5:1 cho chữ nhỏ. Đổi ngưỡng để cho dễ đạt thì sai; chọn màu đã đạt thì đúng.
+ */
+.wizard-board-coverage.is-warn {
+  margin-top: 0.35rem;
+  color: var(--pf-ink);
+  font-weight: 600;
+}
+
 /* Nút lớn, đặt giữa khối kết quả. */
 .wizard-board-primary {
   display: flex;

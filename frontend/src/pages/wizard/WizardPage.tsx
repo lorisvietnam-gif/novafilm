@@ -21,7 +21,14 @@ import {
   MAX_REFERENCE_IMAGES,
   formatReferenceImageLimitMessage,
 } from '../../lib/referenceImages'
-import { boardCardText, buildArtDirectionBoard, type BoardCard } from './artDirection'
+import {
+  BOARD_FIELDS,
+  boardCardText,
+  buildArtDirectionBoard,
+  parsePromptFields,
+  type BoardCard,
+  type BoardField,
+} from './artDirection'
 import './wizard.css'
 
 /** Thứ tự cố định của bốn đích đến; chỉ số dùng để tra nhãn trong pack i18n. */
@@ -29,23 +36,46 @@ const TARGETS = ['veo', 'muse', 'kling', 'seedance'] as const
 type TargetId = (typeof TARGETS)[number]
 
 /**
- * Đuôi bối cảnh cho **bản nháp dựng trong trình duyệt**.
+ * Bốn trường mà **bản nháp dựng trong trình duyệt** tự điền.
  *
  * Cố ý viết thẳng tiếng Anh ở đây chứ không đưa vào pack i18n: đây là **payload
  * gửi cho mô hình video**, không phải văn bản người dùng đọc trên trang. Nếu đưa
  * vào pack thì người dùng locale `vi` sẽ nhận prompt tiếng Việt rồi dán vào Veo —
  * đúng thứ họ không cần. Kiểm tra ảnh chụp chỉ đếm ký tự Trung nên không ảnh hưởng.
+ *
+ * Tách **theo trường** chứ không phải theo câu. Bảng ở bước 4 đọc đúng dòng
+ * `nhãn: giá trị` — cùng dạng `normalize_prompt()` ở `prompt_writer.py` — nên một
+ * hằng văn xuôi sẽ không rơi vào ô nào và bảng sẽ trống trơn.
+ *
+ * `subject` và `setting` **không** có ở đây: bản nháp không có nhân vật, cũng không
+ * có địa điểm. Thừa trống còn hơn bịa — xem `artDirection.ts`.
  */
-const DRAFT_FRAMING =
-  'Medium shot, gentle dolly-in, soft rim light, shallow depth of field, cinematic, 8 seconds.'
+const DRAFT_FIELDS: Partial<Record<BoardField, string>> = {
+  camera: 'Medium shot, gentle dolly-in',
+  lighting: 'natural lighting, soft rim light',
+  style: 'cinematic, shallow depth of field',
+  duration: '8 seconds',
+}
+
+/**
+ * Ghép một prompt có nhãn từ câu ý tưởng và bốn trường dựng sẵn.
+ *
+ * Thứ tự dòng lấy từ `BOARD_FIELDS` — **một** nguồn duy nhất, khớp `PROMPT_FIELDS` ở
+ * backend. Trường không có giá trị thì **không** in ra dòng, thay vì in `subject:` rỗng:
+ * một dòng rỗng là một ô trống mà người dùng phải tự đoán xem là thiếu hay là lỗi.
+ */
+function buildLabelledPrompt(action: string): string {
+  const values: Partial<Record<BoardField, string>> = { action, ...DRAFT_FIELDS }
+  return BOARD_FIELDS
+    .filter((field) => values[field])
+    .map((field) => `${field}: ${values[field]}`)
+    .join('\n')
+}
 
 /** Một ảnh đang chờ ở bước 1. Chỉ tồn tại trong trình duyệt — xem `wizard.refs.localOnly`. */
 type RefImage = { url: string; name: string }
 
-/** Câu tiếng Anh hay dùng để bọc mỗi câu của ý tưởng thành khung. */
-const DRAFT_PER_FRAME = 'Cinematic shot, consistent character, natural lighting.'
-
-/** Số câu tối đa khi tự tách prompt thành khung. */
+/** Số câu tối đa khi tự tách ý tưởng của người dùng thành khung. */
 const MAX_DRAFT_FRAMES = 4
 
 /**
@@ -477,6 +507,17 @@ export default function WizardPage() {
                         total: board.cards.length,
                       })}
                     </p>
+                    {/*
+                      Khung nào không đọc được nhãn thì **không** điền vào ô nào. Số đếm ở đây
+                      để người dùng biết bảng đang thiếu bao nhiêu, thay vì tưởng bảy thẻ đầy là
+                      đã đủ thông tin. Văn bản gốc của khung vẫn hiện nguyên ở `.wizard-frames`
+                      ngay dưới bảng — không mất gì.
+                    */}
+                    {board.unlabelled ? (
+                      <p className="wizard-board-coverage is-warn">
+                        {t('wizard.board.unlabelledFrames', { count: board.unlabelled })}
+                      </p>
+                    ) : null}
                   </div>
 
                   {/*
@@ -786,9 +827,18 @@ function normalizeFrames(frames: WizardFrame[] | undefined, prompt: string): Wiz
     .map((f) => ({ ...f, prompt: (f.prompt || '').trim() }))
     .filter((f) => f.prompt)
   if (cleaned.length) return cleaned
+
+  /*
+   * `prompt` của backend cũng là **danh sách nhãn**, đúng dạng mỗi `frames[].prompt`.
+   * Tách nó theo câu thì `subject: A woman in a leather jacket` bị cắt làm đôi và
+   * bảng bước 4 mất hết ô — nên prompt đọc được nhãn thì giữ nguyên làm **một** khung.
+   */
+  const trimmed = (prompt || '').trim()
+  if (parsePromptFields(trimmed).fields.length) return [{ prompt: trimmed }]
+
   return splitSentences(prompt || '')
     .slice(0, MAX_DRAFT_FRAMES)
-    .map((sentence) => ({ prompt: `${sentence} ${DRAFT_PER_FRAME}`.trim() }))
+    .map((sentence) => ({ prompt: buildLabelledPrompt(sentence) }))
 }
 
 /**
@@ -800,5 +850,5 @@ function normalizeFrames(frames: WizardFrame[] | undefined, prompt: string): Wiz
 function buildDraftFrames(idea: string): WizardFrame[] {
   const sentences = splitSentences(idea)
   const parts = (sentences.length ? sentences : [idea]).slice(0, MAX_DRAFT_FRAMES)
-  return parts.map((sentence) => ({ prompt: `${sentence} ${DRAFT_FRAMING}`.trim() }))
+  return parts.map((sentence) => ({ prompt: buildLabelledPrompt(sentence) }))
 }

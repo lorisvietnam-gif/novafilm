@@ -33,9 +33,11 @@
  *  4. Không nút sao chép nào được nằm trong `.wizard-actions` (xem `wizard.css`).
  *
  * ---- BẤT BIẾN CỦA BẢNG ---------------------------------------------------------
- * Mệnh đề nào cũng phải xuất hiện ở **ít nhất một** thẻ. Bảng sinh ra để người dùng cắm
- * một đoạn; một mệnh đề rơi khỏi mọi thẻ là một đoạn họ không bao giờ lấy được. Script này
- * đo lại điều đó trên DOM đang render, không tin lời khai của mã nguồn.
+ * Mỗi trường của prompt phải nằm ở **đúng thẻ của nó**, đúng một lần. Bảng sinh ra để
+ * người dùng cắm một đoạn; một trường rơi khỏi bảng là một đoạn họ không bao giờ lấy được,
+ * và một trường nằm ở hai thẻ là hai thẻ nói cùng một điều — bấm Copy ở đâu ra chỗ đó.
+ * Script này đo lại điều đó trên DOM đang render, không tin lời khai của mã nguồn. Chi tiết
+ * ba cách đo nằm ở `COVERAGE` bên dưới.
  */
 import { spawn, execFileSync } from 'node:child_process'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
@@ -161,27 +163,67 @@ const WIZARD_GENERATE = `(() => {
 })()`
 
 /**
- * Bất biến "không mất câu nào", đo lại từ DOM đang render.
+ * Bất biến của bảng, đo lại từ DOM đang render.
  *
- * Lấy mệnh đề của **mọi** khung ở `.wizard-frame-prompt`, cắt y hệt cách `splitClauses` của
- * mã nguồn, rồi hỏi mỗi câu có xuất hiện ở thẻ nào không. Cắt lại ở đây là cố ý: dùng lại
- * hàm của mã nguồn thì chỉ chứng minh mã nguồn tự nhất quán với chính nó.
+ * Bản trước đây quét **từ khoá** trong văn xuôi nên một câu tiếng Việt dài rơi vào ba thẻ
+ * cùng lúc; bấm "Sao chép" ở ô nào cũng ra cùng một câu. Nay backend tách sẵn
+ * (`normalize_prompt()` ở `prompt_writer.py`): mỗi dòng prompt là `nhãn: giá trị`, và bảng
+ * chỉ đọc nhãn. Nên bất biến cần đo **không phải** "mệnh đề không rơi khỏi bảng" — đó là bất
+ * biến của thiết kế cũ — mà là ba điều sau, và cả ba đều đo được trên DOM:
+ *
+ *   1. **lost**      — mỗi cặp `nhãn: giá trị` trong prompt phải xuất hiện ở đúng thẻ của nó.
+ *   2. **misplaced** — một giá trị thuộc nhãn X không được nằm ở thẻ `data-field != X`.
+ *   3. **duplicated**— cùng một giá trị không được xuất hiện ở hai thẻ khác nhau.
+ *
+ * Điểm 2 và 3 chính là lỗi mà bản cũ mắc, và cả hai đều **đo** được chứ không suy ra: nếu bảng
+ * dán nội dung ô khác vào ô trống thì chúng bắt được. Nguyên tắc của brief là thừa trống còn
+ * hơn bịa, nên ô trống phải được phép — còn ô trùng thì phải fail.
+ *
+ * Cắt lại ở đây bằng regex riêng là cố ý: dùng lại hàm của mã nguồn thì chỉ chứng minh mã
+ * nguồn tự nhất quán với chính nó.
  */
 const COVERAGE = `(() => {
-  const split = (prompt) => prompt
-    .replace(/\\s+/g, ' ')
-    .split(/\\s*[;:]\\s*|,(?=\\s)|\\.(?=\\s|$)|\\s+[-\\u2013\\u2014]\\s+/)
-    .map((s) => s.trim().replace(/[.,;:]+$/, ''))
-    .filter(Boolean)
-  const prompts = [...document.querySelectorAll('.wizard-frame-prompt')].map((p) => p.textContent)
-  const clauses = prompts.flatMap(split)
-  const values = new Set(
-    [...document.querySelectorAll('.wizard-board-slot')]
-      .flatMap((li) => [...li.querySelectorAll('.wizard-board-value')])
-      .flatMap((v) => split(v.textContent)),
-  )
-  const lost = clauses.filter((c) => !values.has(c))
-  return { total: clauses.length, covered: clauses.length - lost.length, lost: lost.slice(0, 5) }
+  const LABEL = /^\\s*(?:[-*\\u2022]\\s*)?(?:\\*\\*)?([a-z][a-z ]*?)(?:\\*\\*)?\\s*[:\\uff1a]\\s*/i
+  const FIELDS = ['subject', 'action', 'setting', 'camera', 'lighting', 'style', 'duration']
+  const declared = []
+  for (const raw of document.querySelectorAll('.wizard-frame-prompt')) {
+    for (const line of (raw.textContent || '').split('\\n')) {
+      const t = line.trim()
+      if (!t) continue
+      const m = LABEL.exec(t)
+      if (!m) continue
+      const label = m[1].replace(/\\s+/g, ' ').trim().toLowerCase()
+      const value = t.slice(m[0].length).trim()
+      if (FIELDS.includes(label) && value) declared.push({ field: label, value })
+    }
+  }
+
+  const cards = [...document.querySelectorAll('.wizard-board-card')].map((c) => ({
+    field: c.dataset.field || null,
+    values: [...c.querySelectorAll('.wizard-board-value')].map((v) => v.textContent.trim()),
+  }))
+  const where = new Map()
+  for (const card of cards) for (const v of card.values) {
+    if (!where.has(v)) where.set(v, [])
+    where.get(v).push(card.field)
+  }
+
+  const lost = []
+  const misplaced = []
+  const duplicated = []
+  for (const { field, value } of declared) {
+    /*
+     * So **thẻ khác nhau**, không phải số ô: model viết cùng một chủ thể cho cả ba khung là
+     * đúng (cùng một nhân vật), và đó là ba ô *trong cùng một thẻ*. Đếm ô thì bản kiểm này
+     * sẽ báo trùng oan mỗi lần chạy với kết quả thật của mô hình.
+     */
+    const hosts = [...new Set(where.get(value) || [])]
+    if (!hosts.includes(field)) {
+      (hosts.length ? misplaced : lost).push(field + '=' + value + (hosts.length ? ' -> ' + hosts.join('+') : ''))
+    }
+    if (hosts.length > 1) duplicated.push(value + ' -> ' + hosts.join('+'))
+  }
+  return { total: declared.length, lost, misplaced, duplicated }
 })()`
 
 /**
@@ -228,8 +270,20 @@ function verify(board, covered, tag) {
   require_(board.toastLive === 'polite', `${tag} toast thieu aria-live="polite" (hien: ${board.toastLive})`)
 
   require_(
+    covered && covered.total > 0,
+    `${tag} khong tach duoc truong nao tu prompt — bang rong, co phai \`generate_prompt\` bi chan roi khong tach lai?`,
+  )
+  require_(
     covered && covered.lost.length === 0,
-    `${tag} ${covered ? covered.lost.length : '?'} menh de roi khoi moi the, vi du: ${covered ? covered.lost.join(' / ') : ''}`,
+    `${tag} ${covered ? covered.lost.length : '?'} truong roi khoi the cua no, vi du: ${covered ? covered.lost.join(' / ') : ''}`,
+  )
+  require_(
+    covered && covered.misplaced.length === 0,
+    `${tag} ${covered ? covered.misplaced.length : '?'} gia tri nam o sai the, vi du: ${covered ? covered.misplaced.join(' / ') : ''}`,
+  )
+  require_(
+    covered && covered.duplicated.length === 0,
+    `${tag} ${covered ? covered.duplicated.length : '?'} gia tri bi danh o nhieu the, vi du: ${covered ? covered.duplicated.join(' / ') : ''}`,
   )
 
   // Hợp đồng DOM: các selector audit bấm phải còn, và `.wizard-actions` không được nuốt
@@ -247,10 +301,15 @@ function verify(board, covered, tag) {
   console.log(
     `${tag} 7 the · ${filled.length} co noi dung · nut lon ${board.primaryCopyButtons}`
       + ` · toast ${board.toastRole}/${board.toastLive}`
-      + ` · menh de ${covered ? `${covered.covered}/${covered.total}` : '?'} con lai tren it nhat mot the`,
+      + ` · truong ${covered ? `${covered.total - covered.lost.length}/${covered.total}` : '?'} dung the cua no`,
   )
   for (const f of filled) console.log(`       ${f}`)
   console.log(`       rong (nut Copy tat): ${empties.join(', ') || '(khong co)'}`)
+  if (covered && (covered.lost.length || covered.misplaced.length || covered.duplicated.length)) {
+    for (const v of covered.lost) console.log(`       MAT: ${v}`)
+    for (const v of covered.misplaced) console.log(`       SAI THE: ${v}`)
+    for (const v of covered.duplicated) console.log(`       TRUNG: ${v}`)
+  }
 }
 
 /** Đọc trạng thái bảng từ DOM đang render. Không giữ bản sao ở Node. */
