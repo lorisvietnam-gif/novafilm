@@ -252,6 +252,145 @@ def test_body_example_keeps_contract_tokens_and_target_language():
             assert token.strip(), "danh sách token không được có mục rỗng"
 
 
+# Đo thật 2026-10-03, project 43 (locale=vi, job path), ngay **sau** khi user message đã
+# được dịch: `cjk_prose` của 3 tập là 6, 0, 0 — và cả 6 ký tự đều nằm trên dòng bối
+# cảnh: `夜 外 老街`, `夜 外 旧巷`, `夜 内 老宅`. `夜 外` là marker (được giữ), còn `老街`
+# là tên địa điểm và là **văn xuôi**. Nó ra tiếng Trung vì quy tắc 2 của system prompt
+# liệt kê ví dụ địa điểm tiếng Trung.
+@pytest.mark.asyncio
+async def test_retry_result_is_merged_not_swapped_in(monkeypatch):
+    """Thử lại không phải lúc nào cũng hơn — phải lấy **bản tốt hơn của từng tập**.
+
+    Đo thật 2026-10-03 (project 44, locale=vi): lần một có 30 ký tự Hán, thử lại trả về
+    một dòng nữa lẫn Trung **và** làm hỏng marker (`夜 夅` thay vì `夜 外`). Thay thẳng
+    bản mới là ném đi bản cũ; với batch nhiều tập thì còn ném cả những tập vốn đã sạch.
+    """
+    # Dùng `\n` vì `_SHOT_LABEL_RE` chỉ bỏ nhãn cảnh quan ở **đầu dòng**.
+    long_clean = "△ 特写：Cô cúi xuống món ăn, mắt cô lấp lánh.\n" * 20
+    long_dirty = "△ 特写：Cô cúi xuống，眼睛睁大，很久说不出话。\n" * 20
+    assert agents.count_translatable_cjk(long_clean) == 0
+    assert agents.count_translatable_cjk(long_dirty) > 0
+    assert len("".join(long_dirty.split())) >= agents.MIN_EPISODE_CONTENT_CHARS
+
+    replies = [
+        # Lần một: tập 1 sạch, tập 2 bẩn.
+        {
+            "episodes": [
+                {"episodeNumber": 1, "content": long_clean},
+                {"episodeNumber": 2, "content": long_dirty},
+            ]
+        },
+        # Thử lại: tập 1 bẩn, tập 2 sạch.
+        {
+            "episodes": [
+                {"episodeNumber": 1, "content": long_dirty},
+                {"episodeNumber": 2, "content": long_clean},
+            ]
+        },
+    ]
+    seen: list[str] = []
+
+    async def fake_chat(_system: str, user: str, **_kwargs):
+        seen.append(user)
+        return replies[min(len(seen) - 1, len(replies) - 1)]
+
+    monkeypatch.setattr(agents, "drama_chat_json", fake_chat)
+    out = await agents.run_episode_script_batch(
+        {"episodeCount": 2},
+        [{"episodeNumber": 1, "body": ""}, {"episodeNumber": 2, "body": ""}],
+        batch_size=2,
+        total=2,
+        locale="vi",
+    )
+
+    assert len(seen) == 2, "phải thử lại đúng một lần"
+    by_number = {int(item["episodeNumber"]): str(item.get("body") or "") for item in out}
+    assert by_number[1] == long_clean.strip(), "tập 1 đã sạch thì không được đổi lấy bản bẩn"
+    assert by_number[2] == long_clean.strip(), "tập 2 bẩn thì phải lấy bản sạch của lần thử lại"
+
+
+@pytest.mark.asyncio
+async def test_retry_cannot_downgrade_a_long_body_to_a_short_one(monkeypatch):
+    """Lần thử lại ngắn hơn ngưỡng không được làm hỏng bản dài đã có.
+
+    Bản ngắn bị `auto_missing_episode_numbers` coi là chưa xong, nên nhận nó cũng là
+    tự tạo một vòng lặp sinh lại — đúng cái đã làm task 821 mất tiền oan.
+    """
+    long_dirty = "△ 特写：Cô cúi xuống，眼睛睁大，很久说不出话。\n" * 30
+    assert len("".join(long_dirty.split())) >= agents.MIN_EPISODE_CONTENT_CHARS
+    replies = [
+        {"episodes": [{"episodeNumber": 1, "content": long_dirty}]},
+        {"episodes": [{"episodeNumber": 1, "content": "△ 特写：Cô cúi xuống."}]},
+    ]
+    seen: list[str] = []
+
+    async def fake_chat(_system: str, user: str, **_kwargs):
+        seen.append(user)
+        return replies[min(len(seen) - 1, len(replies) - 1)]
+
+    monkeypatch.setattr(agents, "drama_chat_json", fake_chat)
+    out = await agents.run_episode_script_batch(
+        {"episodeCount": 1},
+        [{"episodeNumber": 1, "body": ""}],
+        total=1,
+        locale="vi",
+    )
+
+    assert len(seen) == 2, "phải thử lại đúng một lần"
+    assert str(out[0].get("body") or "") == long_dirty.strip(), (
+        "bản dài của lần một phải được giữ, không đổi lấy bản ngắn của lần thử lại"
+    )
+
+
+_LOCATION_FIELDS = (
+    "location_example_batch",
+    "location_example_optimize",
+    "location_example_body",
+)
+
+# Ba system prompt vốn đã có ba ví dụ địa điểm khác nhau; gộp lại một sẽ đổi prompt
+# của người dùng tiếng Trung. Khóa từng chuỗi để việc gộp đó phải là một chủ ý.
+_ZH_LOCATION_EXAMPLES = {
+    "location_example_batch": "日 内 灵山大雄宝殿 / 夜 外 妖寨大门外 / 晨外 羽山刑场",
+    "location_example_optimize": "日 内 教室 / 夜 外 天台",
+    "location_example_body": "日 内 教室 / 夜 外 天台 / 晨外 操场",
+}
+
+
+def test_chinese_location_examples_are_preserved_verbatim():
+    zh = resolve_output_language_spec("zh", default="zh").episode
+    for field, expected in _ZH_LOCATION_EXAMPLES.items():
+        assert getattr(zh, field) == expected, f"{field} của zh bị đổi"
+
+
+def test_location_examples_keep_the_time_tokens_and_drop_chinese_prose():
+    """Tiền tố `日/内/外` là hợp đồng; phần sau nó là tên địa điểm và phải theo locale."""
+    for lang in ("zh", "vi", "en"):
+        episode = resolve_output_language_spec(lang, default="vi").episode
+        for field in _LOCATION_FIELDS:
+            value = getattr(episode, field)
+            assert re.search(r"[日晨晚夜]\s*(?:内|外)", value), f"{lang}.{field} mất token 日/夜 + 内/外"
+            if lang != "zh":
+                # Đo phần **sau** token, không đo cả dòng.
+                tail = value.split("晨外")[-1].split("夜 外")[-1].split("日 内")[-1]
+                assert not CJK_RE.search(tail), (
+                    f"{lang}.{field} còn tên địa điểm tiếng Trung: {tail!r}"
+                )
+
+
+def test_location_example_actually_reaches_the_system_prompts():
+    """Không được để lại `__LOCATION_EXAMPLE…__` trong prompt đã dựng."""
+    for lang in ("zh", "vi", "en"):
+        for builder in (
+            agents.episode_batch_content_system,
+            agents.episode_optimize_system,
+            agents.episode_body_from_brief_system,
+        ):
+            text = builder(lang)
+            assert "__LOCATION_EXAMPLE" not in text, f"{builder.__name__}({lang}) còn token thô"
+            assert re.search(r"[日晨晚夜]\s*(?:内|外)", text)
+
+
 @pytest.mark.asyncio
 async def test_batch_retries_when_the_prose_is_still_chinese(monkeypatch):
     """Chỉ thị không đủ; phải có vòng kiểm–nhắc với đúng dòng sai.
@@ -259,9 +398,12 @@ async def test_batch_retries_when_the_prose_is_still_chinese(monkeypatch):
     Đo thật trên `mimo-v2.6-flash-free`, locale=vi: có đủ câu chỉ thị + danh sách token
     cấm dịch + ví dụ mẫu, mô tả sau △ vẫn tiếng Trung (224 ký tự Hán). Chỉ khi chỉ ra
     từng dòng sai thì mới ra 0.
+
+    Thân hai bản phải **đủ dài**: `short_or_missing_episodes` coi tập ngắn là chưa
+    viết xong và ném lỗi, nên một thân ngắn sẽ khiến test vấp nhầm chỗ khác.
     """
-    chinese = "△ 特写：Cô cúi xuống, miệng hơn há，眼睛睁大。"
-    bodies = [chinese, "△ 特写：Cô cúi xuống, miệng hơn há."]
+    chinese = "△ 特写：Cô cúi xuống, miệng hơn há，眼睛睁大。" + "Linh nhìn xuống món ăn. " * 40
+    bodies = [chinese, "△ 特写：Cô cúi xuống, miệng hơn há." + "Linh nhìn xuống món ăn. " * 40]
     seen: list[str] = []
 
     async def fake_chat(_system: str, user: str, **_kwargs):

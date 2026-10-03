@@ -304,6 +304,455 @@ def _example_lead(lang: str) -> str:
     return "Example scene — follow both its shape and its language exactly:"
 
 
+# ---------------------------------------------------------------------------
+# Ngôn ngữ của **user message** — cùng một bộ, cùng một chỗ.
+# ---------------------------------------------------------------------------
+#
+# Vì sao phần này tồn tại (đo thật 2026-10-03, project 41, locale=vi, task 824):
+# đợt 1 đã dịch **system prompt** sang tiếng Việt và kết quả vẫn ra tiếng Trung —
+# 271 ký tự Hán trong phần văn xuôi của 3 tập, cộng 3 tên tập bằng chữ Hán. Nguyên
+# nhân là user message: nó vẫn viết `"请输出第 1–3 集各集的 content 字段"`,
+# `"原始创意："`, `"剧本摘要："`, `"第 N 集："`. Trong cùng một lời gọi LLM thì câu nào
+# chi tiết hơn thì câu đó thắng, và khuôn tiếng Trung chi tiết hơn nhiều.
+#
+# Ranh giới: chỉ **câu giải thích / yêu cầu / nhãn** đổi theo locale. Khuôn kịch bản
+# (`### 场1-2`, `日 内`, `出场人物：`, `△`, `【空镜：`, nhãn cảnh quan `特写：`) là **hợp
+# đồng máy↔máy** với Seedance — giữ nguyên tiếng Trung ở mọi locale, không có ngoại lệ.
+# Đó là lý do `zh` của bảng dưới phải **giống hệt** chuỗi cũ: với tiếng Trung thì
+# "dịch" là vô nghĩa và chỉ làm prompt dài thêm.
+
+
+@dataclass(frozen=True)
+class EpisodePromptText:
+    """Câu giải thích + nhãn trong user message của prompt phân tập.
+
+    Trường nào là **mẫu** thì dùng `str.format` với tên tham số đã đặt ở trên; trường
+    nào là **nhãn đầu dòng** thì giữ dấu `：` bên trong chuỗi. Tách hai loại để không
+    phải cộng tay dấu phẩy ở nơi gọi.
+    """
+
+    # --- khối ngữ cảnh chung ---
+    #
+    # `scene_count_hint` là bản dịch của `agents.EPISODE_SCENE_COUNT_HINT` cho **user
+    # message**. Hằng số gốc vẫn dùng trong system prompt (tiếng Trung theo chuẩn chung
+    # của dự án), nhưng để `2-3 场` nằm giữa câu tiếng Việt thì sai.
+    scene_count_hint: str
+    # `*_heading_short` là bản **không** tiền tố "cả bộ": prompt大纲 và prompt批量 viết
+    # nhãn cũ là `原始创意：` / `剧本摘要：`, còn khối ngữ cảnh của prompt một tập viết
+    # `整剧原始创意：` / `全剧剧本摘要：`. Giữ nguyên cả hai vì lý do zh phải không đổi
+    # một byte — đo bằng cách render prompt zh của HEAD rồi so.
+    source_heading: str
+    source_heading_short: str
+    source_empty: str
+    summary_heading: str
+    summary_heading_short: str
+    outline_heading: str
+    outline_empty: str
+    neighbor_bodies_heading: str
+    neighbor_bodies_empty: str
+    neighbor_briefs_heading: str
+    neighbor_briefs_empty: str
+    cast_heading: str
+    cast_empty: str
+    cast_rule: str
+    truncated: str
+
+    # --- nhãn trong khối `全剧剧本摘要` ---
+    series_title_label: str
+    episode_count_label: str
+    story_type_label: str
+    audience_label: str
+    hook_label: str
+    one_line_label: str
+    characters_label: str
+    character_line: str
+    synopsis_label: str
+
+    # --- nhãn tập ---
+    episode_line: str
+    episode_bare: str
+    episode_title_wrapped: str
+    episode_title_line: str
+    brief_creative_label: str
+    brief_summary_label: str
+
+    # --- user message của `run_episode_outline` ---
+    outline_total_rule: str
+    outline_ask: str
+
+    # --- user message của `run_episode_script_batch` ---
+    batch_task_rule: str
+    batch_total_rule: str
+    batch_array_rule: str
+    batch_length_rule: str
+    batch_creative_empty: str
+    batch_pending_heading: str
+    batch_existing_heading: str
+    batch_existing_empty: str
+    batch_ask_rule: str
+    batch_rework_notice: str
+    batch_rework_length_rule: str
+    batch_rework_no_summary: str
+
+    # --- user message của các prompt một tập ---
+    #
+    # `location_example*` là phần **tên địa điểm** trong ví dụ của quy tắc
+    # "场头下一行写时间内外景". Đo thật 2026-10-03 (project 43, locale=vi, job path): sau
+    # khi dịch user message, `cjk_prose` rơi từ 271 xuống **6**, và sáu ký tự đó **đều**
+    # là tên địa điểm — `夜 外 老街`, `夜 外 旧巷`, `夜 内 老宅`. Tiền tố `夜 外` là
+    # marker (được phép giữ); `老街` là văn xuôi và đã ra tiếng Trung. Nguyên nhân: quy
+    # tắc 2 trong system prompt liệt kê ví dụ tiếng Trung (`灵山大雄宝殿 / 妖寨大门外 /
+    # 羽山刑场`) và ví dụ là thứ LLM bắt chước mạnh nhất — cùng luận đã dùng cho
+    # `body_example`.
+    #
+    # Ba trường vì **ba system prompt vốn đã có ba ví dụ khác nhau**; gộp lại một sẽ
+    # đổi prompt tiếng Trung, mà đổi prompt `zh` là đổi sản phẩm của người dùng tiếng
+    # Trung. Đo bằng cách render prompt `zh` rồi so với HEAD, từng dòng.
+    location_example_batch: str
+    location_example_optimize: str
+    location_example_body: str
+    single_number_label: str
+    single_title_label: str
+    single_creative_heading: str
+    single_summary_heading: str
+    single_body_heading: str
+    single_creative_fallback: str
+    single_summary_fallback: str
+    single_ask_summary: str
+    single_ask_body: str
+    single_ask_brief: str
+    single_retry_too_short_rule: str
+
+    # --- user message của prompt tối ưu bản nháp ---
+    optimize_task_rule: str
+    optimize_array_rule: str
+    optimize_title_rule: str
+    optimize_draft_heading: str
+    optimize_ask_rule: str
+    optimize_retry_too_short_rule: str
+
+
+_EPISODE_PROMPT_TEXT: dict[str, dict[str, str]] = {
+    "zh": {
+        "source_heading": "整剧原始创意：",
+        "scene_count_hint": "2-3 场",
+        "source_heading_short": "原始创意：",
+        "source_empty": "（无）",
+        "summary_heading": "全剧剧本摘要：",
+        "summary_heading_short": "剧本摘要：",
+        "outline_heading": "全剧分集规划：",
+        "outline_empty": "（暂无分集规划）",
+        "neighbor_bodies_heading": "邻集正文（近 {limit} 集节选）：",
+        "neighbor_bodies_empty": "（暂无邻集正文）",
+        "neighbor_briefs_heading": "邻集创意/摘要补充：",
+        "neighbor_briefs_empty": "（暂无邻集）",
+        "cast_heading": "已有定妆角色名：",
+        "cast_empty": "（暂无定妆角色资产；新角色须在出场人物行写清全名）",
+        "cast_rule": "须优先使用这些定妆名：{names}；新角色须在出场人物行写清全名",
+        "truncated": "…（上文已截断）",
+        "series_title_label": "剧名：",
+        "episode_count_label": "集数：",
+        "story_type_label": "类型：",
+        "audience_label": "受众：",
+        "hook_label": "钩子：",
+        "one_line_label": "一句话：",
+        "characters_label": "人物：",
+        "character_line": "- {name}（{role}/{title}）：{visual}；标签：{tags}；弧光：{arc}",
+        "synopsis_label": "梗概：",
+        "episode_line": "第 {number} 集：{title}",
+        "episode_bare": "第 {number} 集",
+        "episode_title_wrapped": "第 {number} 集《{title}》",
+        "episode_title_line": "{number}.{title}：",
+        "brief_creative_label": "创意：",
+        "brief_summary_label": "摘要：",
+        "outline_total_rule": "总集数：{total} 集（episodes 数组必须恰好 {total} 项）",
+        "outline_ask": "请输出全部分集的 episodeNumber 与 title。",
+        "batch_task_rule": "当前任务：撰写第 {start} 集至第 {end} 集"
+        "（共 {count} 集）的完整剧本正文",
+        "batch_total_rule": "全剧共 {total} 集",
+        "batch_array_rule": "episodes 输出数组必须恰好 {count} 项，"
+        "episodeNumber 从 {start} 到 {end}",
+        "batch_length_rule": "每集 content 约 {target} {unit}（不少于 {minimum}），"
+        "含 {scenes}、精简 △ 与台词",
+        "batch_creative_empty": "（无额外创意，以摘要为准）",
+        "batch_pending_heading": "本批次待撰写：",
+        "batch_existing_heading": "已有剧集正文：",
+        "batch_existing_empty": "（暂无，本批次从开篇写起）",
+        "batch_ask_rule": "请输出第 {start}–{end} 集各集的 content 字段（可附带 title）。",
+        "batch_rework_notice": "上次输出需要返工。",
+        "batch_rework_length_rule": "过长/过短：每集 content 约 {target} {unit}"
+        "（不少于 {minimum}），含 {scenes}、精简 △ 与台词",
+        "batch_rework_no_summary": "，不得压缩成梗概。",
+        "location_example_batch": "日 内 灵山大雄宝殿 / 夜 外 妖寨大门外 / 晨外 羽山刑场",
+        "location_example_optimize": "日 内 教室 / 夜 外 天台",
+        "location_example_body": "日 内 教室 / 夜 外 天台 / 晨外 操场",
+        "single_number_label": "当前集号：",
+        "single_title_label": "当前集名：",
+        "single_creative_heading": "本集原始创意：",
+        "single_summary_heading": "本集剧情摘要：",
+        "single_body_heading": "本集拍摄正文：",
+        "single_creative_fallback": "（无，以摘要为准）",
+        "single_summary_fallback": "（无，以创意为准）",
+        "single_ask_summary": "请只输出本集 title 与 summary。",
+        "single_ask_body": "请撰写本集拍摄正文 content。",
+        "single_ask_brief": "请只输出本集 title、creative、summary；不要改写正文。",
+        "single_retry_too_short_rule": "上一稿过短（不足 {minimum} {unit}），"
+        "请扩写至约 {target} {unit}，含 {scenes}、每场 2-3 段 △ 与 2-3 句台词，"
+        "仍只输出第 {number} 集。",
+        "optimize_task_rule": "当前任务：把用户草稿优化为第 {number} 集完整拍摄剧本",
+        "optimize_array_rule": "episodeNumber 必须为 {number}，episodes 数组必须恰好 1 项",
+        "optimize_title_rule": "当前集名：{title}（可按草稿核心事件微调 title）",
+        "optimize_draft_heading": "用户提供的第 {number} 集草稿：",
+        "optimize_ask_rule": "请输出第 {number} 集的 title 与 content。",
+        "optimize_retry_too_short_rule": "上次输出过短。请按用户草稿重写第 {number} 集，"
+        "content 约 {target} {unit}（不少于 {minimum}），含 {scenes}、精简 △ 与台词。",
+    },
+    "vi": {
+        "source_heading": "Toàn bộ ý tưởng gốc của bộ phim:",
+        "scene_count_hint": "2-3 cảnh",
+        "source_heading_short": "Ý tưởng gốc:",
+        "source_empty": "(không có)",
+        "summary_heading": "Tóm tắt kịch bản cả bộ:",
+        "summary_heading_short": "Tóm tắt kịch bản:",
+        "outline_heading": "Dàn tập đã lên của cả bộ:",
+        "outline_empty": "(chưa có dàn tập nào)",
+        "neighbor_bodies_heading": "Nội dung các tập lân cận (trích {limit} tập gần nhất):",
+        "neighbor_bodies_empty": "(chưa có nội dung tập lân cận nào)",
+        "neighbor_briefs_heading": "Bổ sung ý tưởng/tóm tắt của tập lân cận:",
+        "neighbor_briefs_empty": "(chưa có tập lân cận nào)",
+        "cast_heading": "Tên nhân vật đã chốt truyền hình:",
+        "cast_empty": "(chưa có tài nguyên nhân vật nào; nhân vật mới phải ghi rõ họ tên "
+        "ở dòng 出场人物)",
+        "cast_rule": "Hãy ưu tiên dùng các tên đã chốt này: {names}; "
+        "nhân vật mới phải ghi rõ họ tên ở dòng 出场人物",
+        "truncated": "…(phần trên đã bị cắt)",
+        "series_title_label": "Tên phim:",
+        "episode_count_label": "Số tập:",
+        "story_type_label": "Thể loại:",
+        "audience_label": "Đối tượng:",
+        "hook_label": "Điểm móc:",
+        "one_line_label": "Một câu tóm tắt:",
+        "characters_label": "Nhân vật:",
+        "character_line": "- {name} ({role}/{title}): {visual}; Nhãn: {tags}; Nội cung: {arc}",
+        "synopsis_label": "Nội dung:",
+        "episode_line": "Tập {number}: {title}",
+        "episode_bare": "Tập {number}",
+        "episode_title_wrapped": "Tập {number}: «{title}»",
+        "episode_title_line": "{number}.{title}:",
+        "brief_creative_label": "Ý tưởng: ",
+        "brief_summary_label": "Tóm tắt: ",
+        "outline_total_rule": "Tổng số tập: {total} tập "
+        "(mảng episodes phải có đúng {total} phần tử)",
+        "outline_ask": "Hãy trả về episodeNumber và title của toàn bộ các tập.",
+        "batch_task_rule": "Nhiệm vụ hiện tại: viết toàn văn kịch bản quay cho các tập "
+        "{start} đến {end} (tổng {count} tập)",
+        "batch_total_rule": "Cả bộ dài {total} tập",
+        "batch_array_rule": "Mảng episodes phải có đúng {count} phần tử, "
+        "episodeNumber chạy từ {start} đến {end}",
+        "batch_length_rule": "Mỗi tập content dài khoảng {target} {unit} "
+        "(không ít hơn {minimum}), gồm {scenes}, lược △ và lời thoại",
+        "batch_creative_empty": "(không có ý tưởng bổ sung, dựa vào tóm tắt)",
+        "batch_pending_heading": "Các tập cần viết trong lô này:",
+        "batch_existing_heading": "Nội dung các tập đã có:",
+        "batch_existing_empty": "(chưa có, lô này viết từ đầu)",
+        "batch_ask_rule": "Hãy trả về trường content của các tập {start}–{end} "
+        "(kèm title nếu có).",
+        "batch_rework_notice": "Lần trả về trước cần làm lại.",
+        "batch_rework_length_rule": "Quá dài hoặc quá ngắn: mỗi tập content dài khoảng "
+        "{target} {unit} (không ít hơn {minimum}), gồm {scenes}, lược △ và lời thoại",
+        "batch_rework_no_summary": ", không được nén lại thành đại cương.",
+        "location_example_batch": "日 内 Lớp học / 夜 外 Ngõ cổ / 晨外 Sân trường",
+        "location_example_optimize": "日 内 Lớp học / 夜 外 Sân thượng",
+        "location_example_body": "日 内 Lớp học / 夜 外 Sân thượng / 晨外 Sân trường",
+        "single_number_label": "Số tập hiện tại:",
+        "single_title_label": "Tên tập hiện tại:",
+        "single_creative_heading": "Ý tưởng gốc của tập này:",
+        "single_summary_heading": "Tóm tắt cốt truyện của tập này:",
+        "single_body_heading": "Nội dung quay của tập này:",
+        "single_creative_fallback": "(không có, lấy theo tóm tắt)",
+        "single_summary_fallback": "(không có, lấy theo ý tưởng gốc)",
+        "single_ask_summary": "Hãy chỉ trả về title và summary của tập này.",
+        "single_ask_body": "Hãy viết nội dung quay content của tập này.",
+        "single_ask_brief": "Hãy chỉ trả về title, creative và summary của tập này; "
+        "đừng viết lại nội dung.",
+        "single_retry_too_short_rule": "Bản trước quá ngắn (dưới {minimum} {unit}), "
+        "hãy viết lại dài khoảng {target} {unit}, gồm {scenes}, mỗi cảnh 2-3 đoạn △ "
+        "và 2-3 câu thoại, và vẫn chỉ trả về tập {number}.",
+        "optimize_task_rule": "Nhiệm vụ hiện tại: chuyển bản nháp của người dùng thành "
+        "kịch bản quay trọn vẹn cho tập {number}",
+        "optimize_array_rule": "episodeNumber phải bằng {number}, mảng episodes phải có "
+        "đúng 1 phần tử",
+        "optimize_title_rule": "Tên tập hiện tại: {title} "
+        "(có thể chỉnh title theo sự kiện chính của bản nháp)",
+        "optimize_draft_heading": "Bản nháp của tập {number} do người dùng cung cấp:",
+        "optimize_ask_rule": "Hãy trả về title và content của tập {number}.",
+        "optimize_retry_too_short_rule": "Lần trước quá ngắn. Hãy viết lại tập {number} "
+        "theo bản nháp của người dùng, content dài khoảng {target} {unit} "
+        "(không ít hơn {minimum}), gồm {scenes}, lược △ và lời thoại.",
+    },
+    "en": {
+        "source_heading": "Original idea for the whole series:",
+        "scene_count_hint": "2-3 scenes",
+        "source_heading_short": "Original idea:",
+        "source_empty": "(none)",
+        "summary_heading": "Script summary for the whole series:",
+        "summary_heading_short": "Script summary:",
+        "outline_heading": "Episode outline for the whole series:",
+        "outline_empty": "(no episode outline yet)",
+        "neighbor_bodies_heading": "Neighbouring episode bodies (excerpts of the "
+        "{limit} nearest):",
+        "neighbor_bodies_empty": "(no neighbouring episode bodies yet)",
+        "neighbor_briefs_heading": "Extra idea/summary from neighbouring episodes:",
+        "neighbor_briefs_empty": "(no neighbouring episodes yet)",
+        "cast_heading": "Locked-in character names:",
+        "cast_empty": "(no character assets yet; new characters must be given a full "
+        "name on the 出场人物 line)",
+        "cast_rule": "Prefer these locked-in names: {names}; new characters must be "
+        "given a full name on the 出场人物 line",
+        "truncated": "…(earlier text truncated)",
+        "series_title_label": "Series title:",
+        "episode_count_label": "Episode count:",
+        "story_type_label": "Genre:",
+        "audience_label": "Audience:",
+        "hook_label": "Hook:",
+        "one_line_label": "One-line pitch:",
+        "characters_label": "Characters:",
+        "character_line": "- {name} ({role}/{title}): {visual}; Tags: {tags}; Arc: {arc}",
+        "synopsis_label": "Synopsis:",
+        "episode_line": "Episode {number}: {title}",
+        "episode_bare": "Episode {number}",
+        "episode_title_wrapped": "Episode {number}: “{title}”",
+        "episode_title_line": "{number}.{title}:",
+        "brief_creative_label": "Idea: ",
+        "brief_summary_label": "Summary: ",
+        "outline_total_rule": "Total episodes: {total} (the episodes array must have "
+        "exactly {total} items)",
+        "outline_ask": "Return the episodeNumber and title of every episode.",
+        "batch_task_rule": "Current task: write the complete shooting script for "
+        "episodes {start} to {end} ({count} episodes in total)",
+        "batch_total_rule": "The whole series runs to {total} episodes",
+        "batch_array_rule": "The episodes array must have exactly {count} items, with "
+        "episodeNumber running from {start} to {end}",
+        "batch_length_rule": "Each episode's content should be about {target} {unit} "
+        "(no fewer than {minimum}), containing {scenes}, with tight △ actions and dialogue",
+        "batch_creative_empty": "(no extra idea, follow the summary)",
+        "batch_pending_heading": "Episodes to write in this batch:",
+        "batch_existing_heading": "Existing episode bodies:",
+        "batch_existing_empty": "(none yet, this batch starts from the opening)",
+        "batch_ask_rule": "Return the content field of episodes {start}-{end} (title "
+        "optional).",
+        "batch_rework_notice": "The previous response has to be redone.",
+        "batch_rework_length_rule": "Too long or too short: each episode's content should "
+        "be about {target} {unit} (no fewer than {minimum}), containing {scenes}, with "
+        "tight △ actions and dialogue",
+        "batch_rework_no_summary": ", and do not compress it into a synopsis.",
+        "location_example_batch": "日 内 Classroom / 夜 外 Old alley / 晨外 Schoolyard",
+        "location_example_optimize": "日 内 Classroom / 夜 外 Rooftop",
+        "location_example_body": "日 内 Classroom / 夜 外 Rooftop / 晨外 Schoolyard",
+        "single_number_label": "Current episode number:",
+        "single_title_label": "Current episode title:",
+        "single_creative_heading": "Original idea for this episode:",
+        "single_summary_heading": "Plot summary for this episode:",
+        "single_body_heading": "Shooting script for this episode:",
+        "single_creative_fallback": "(none, follow the summary)",
+        "single_summary_fallback": "(none, follow the original idea)",
+        "single_ask_summary": "Return only this episode's title and summary.",
+        "single_ask_body": "Write this episode's shooting script content.",
+        "single_ask_brief": "Return only this episode's title, creative and summary; "
+        "do not rewrite the script.",
+        "single_retry_too_short_rule": "The last draft was too short (under {minimum} "
+        "{unit}); rewrite it to about {target} {unit}, with {scenes}, 2-3 △ action "
+        "beats and 2-3 lines of dialogue per scene, and still return only episode "
+        "{number}.",
+        "optimize_task_rule": "Current task: turn the user's draft into a complete "
+        "shooting script for episode {number}",
+        "optimize_array_rule": "episodeNumber must be {number}, and the episodes array "
+        "must have exactly 1 item",
+        "optimize_title_rule": "Current episode title: {title} (you may adjust the title "
+        "to the draft's core event)",
+        "optimize_draft_heading": "Draft of episode {number} supplied by the user:",
+        "optimize_ask_rule": "Return the title and content of episode {number}.",
+        "optimize_retry_too_short_rule": "The previous version was too short. Rewrite "
+        "episode {number} from the user's draft, about {target} {unit} (no fewer than "
+        "{minimum}), containing {scenes}, with tight △ actions and dialogue.",
+    },
+}
+
+# Nhãn và câu của user message sinh **剧本摘要**. Tách riêng khỏi bảng trên vì nó thuộc
+# agent khác (không có marker Seedance nào), nhưng cùng một nguồn: thêm bảng thứ ba ở
+# module khác là tạo hai nơi phải sửa cùng lúc.
+@dataclass(frozen=True)
+class SummaryPromptText:
+    """Câu giải thích + nhãn trong prompt sinh tóm tắt kịch bản."""
+
+    creative_heading: str
+    params_heading: str
+    episode_count_rule: str
+    style_rule: str
+    style_note: str
+    style_must_match: str
+    title_length_rule: str
+    synopsis_language_rule: str
+    language_rule: str
+
+
+_SUMMARY_PROMPT_TEXT: dict[str, dict[str, str]] = {
+    "zh": {
+        "creative_heading": "原始创意：",
+        "params_heading": "制作参数：",
+        "episode_count_rule": "- 目标集数：{count} 集"
+        "（输出中的 episodeCount 必须与该值完全一致，不得自行修改）",
+        "style_rule": "- 画面风格：{label}（{style_id}）",
+        "style_note": "  风格说明：{note}",
+        "style_must_match": "  人物 visualImage、故事类型标签与整体美学须符合该画面风格",
+        "title_length_rule": "seriesTitle 必须是可作项目名的短剧名：4–16 个汉字"
+        "（可含少量数字/标点），有记忆点、可上架；禁止复述整句梗概，"
+        "禁止用「一句话故事」原文当剧名，禁止「未命名」「短剧」等占位",
+        "synopsis_language_rule": "synopsis 用一段完整中文叙述故事，"
+        "从世界观、矛盾、结盟、高潮、结局到余韵，长度 200–400 字",
+        "language_rule": "语言统一使用简体中文，偏影视策划文档风格，避免空泛形容词堆砌",
+    },
+    "vi": {
+        "creative_heading": "Ý tưởng gốc:",
+        "params_heading": "Tham số sản xuất:",
+        "episode_count_rule": "- Số tập mục tiêu: {count} tập "
+        "(episodeCount trong kết quả phải đúng bằng giá trị này, không tự ý đổi)",
+        "style_rule": "- Phong cách hình ảnh: {label} ({style_id})",
+        "style_note": "  Mô tả phong cách: {note}",
+        "style_must_match": "  visualImage của nhân vật, nhãn thể loại và thẩm mỹ "
+        "chung phải hợp với phong cách hình ảnh này",
+        "title_length_rule": "seriesTitle phải là một tên phim ngắn dùng được làm tên "
+        "dự án: 4–16 {unit}, có điểm nhớ và đủ điều kiện phát hành; cấm chép lại cả "
+        "câu tóm tắt, cấm dùng nguyên văn câu một dòng làm tên phim, cấm dùng chỗ "
+        "đệm như «Chưa đặt tên», «Phim ngắn»",
+        "synopsis_language_rule": "synopsis là một đoạn văn xuôi bằng {name} thuật "
+        "tả trọn câu chuyện, từ thế giới quan, xung đột, liên minh, cao trào, kết cục "
+        "đến phần còn lại, dài 200–400 {unit}",
+        "language_rule": "Toàn bộ văn bản phải dùng {name}, theo văn phong tài liệu "
+        "phân tích phim, tránh chồng chất danh từ rỗng",
+    },
+    "en": {
+        "creative_heading": "Original idea:",
+        "params_heading": "Production parameters:",
+        "episode_count_rule": "- Target episode count: {count} (episodeCount in the "
+        "output must match this value exactly; do not change it)",
+        "style_rule": "- Visual style: {label} ({style_id})",
+        "style_note": "  Style notes: {note}",
+        "style_must_match": "  Each character's visualImage, the genre tags and the "
+        "overall look must match this visual style",
+        "title_length_rule": "seriesTitle must be a short title that works as a project "
+        "name: 4-16 {unit}, memorable and release-ready; do not restate the one-line "
+        "story, do not reuse that sentence as the title, and do not use placeholders "
+        "like \"Untitled\" or \"Short film\"",
+        "synopsis_language_rule": "synopsis is one continuous piece of prose in {name} "
+        "covering the whole story, from worldbuilding and conflict through alliance, "
+        "climax, ending and aftermath, 200-400 {unit} long",
+        "language_rule": "Write everything in {name}, in the register of a film "
+        "development document, without piling up empty adjectives",
+    },
+}
+
+
 @dataclass(frozen=True)
 class OutputLanguage:
     """Ngôn ngữ đầu ra của một prompt, đã giải quyết trọn vẹn.
@@ -321,14 +770,21 @@ class OutputLanguage:
     marker_clause: str
     example_lead: str
     body_example: str
+    episode: EpisodePromptText
+    summary: SummaryPromptText
 
 
 def resolve_output_language_spec(locale: str, *, default: str) -> OutputLanguage:
     """Giải quyết `locale` thành bộ chỉ thị + đơn vị đo dùng chung cho mọi prompt.
 
     Nguồn sự thật **duy nhất** cho ngôn ngữ đầu ra: `_OUTPUT_LANGUAGE_NAMES` /
-    `_OUTPUT_LANGUAGE_NOUNS` cùng hai bảng ở trên. Thêm bảng ở module khác là tạo
+    `_OUTPUT_LANGUAGE_NOUNS` cùng các bảng ở trên. Thêm bảng ở module khác là tạo
     hai nguồn sự thật, chúng sẽ trôi lệch nhau sau vài lần sửa.
+
+    `episode` / `summary` là **user message** của hai agent drama. Chúng nằm ở đây
+    chứ không nằm trong `services/drama/` vì lý do đo được: system prompt đã theo
+    locale mà user message thì không, và LLM làm theo câu chi tiết hơn — cùng một lời
+    gọi mà một nửa tiếng Việt, một nửa tiếng Trung thì ra tiếng Trung.
     """
     lang = resolve_output_language(locale, default=default)
     return OutputLanguage(
@@ -339,6 +795,8 @@ def resolve_output_language_spec(locale: str, *, default: str) -> OutputLanguage
         marker_clause=_seedance_marker_clause(lang),
         example_lead=_example_lead(lang),
         body_example=OUTPUT_LANGUAGE_BODY_EXAMPLE[lang],
+        episode=EpisodePromptText(**_EPISODE_PROMPT_TEXT[lang]),
+        summary=SummaryPromptText(**_SUMMARY_PROMPT_TEXT[lang]),
     )
 
 

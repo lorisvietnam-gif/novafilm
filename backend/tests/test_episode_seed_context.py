@@ -1,5 +1,6 @@
 """单集生成上下文组装 + 正文增量 seed 去重/新建（纯函数，不调 LLM）。"""
 
+from app.services.ark import resolve_output_language_spec
 from app.services.drama.agents import (
     build_single_episode_context,
     format_character_asset_names_line,
@@ -8,6 +9,9 @@ from app.services.drama.seed import (
     classify_episode_seed_ops,
     collect_episode_seed_names,
 )
+
+# user message theo locale; test này khẳng định nội dung tiếng Trung nên ép `zh`.
+ZH = resolve_output_language_spec("zh", default="zh").episode
 
 
 def test_build_single_episode_context_includes_titles_neighbors_and_cast():
@@ -39,6 +43,7 @@ def test_build_single_episode_context_includes_titles_neighbors_and_cast():
         summary,
         existing,
         2,
+        text=ZH,
         project_source="整剧：儿童看月亮",
         character_asset_names=["小明", "老师"],
     )
@@ -54,8 +59,35 @@ def test_build_single_episode_context_includes_titles_neighbors_and_cast():
 
 
 def test_format_character_asset_names_line_empty():
-    line = format_character_asset_names_line([])
+    line = format_character_asset_names_line([], text=ZH)
     assert "暂无定妆角色资产" in line
+
+
+def test_single_episode_context_follows_the_locale():
+    """Cùng dữ liệu, locale=vi thì nhãn của user message phải ra tiếng Việt.
+
+    Đo thật 2026-10-03 (project 41, locale=vi, task 824): system prompt đã theo locale
+    mà user message thì không, nên nội dung vẫn ra tiếng Trung — 271 ký tự Hán trong
+    phần văn xuôi của 3 tập. Khối ngữ cảnh nằm ngay trong user message đó.
+    """
+    vi = resolve_output_language_spec("vi", default="vi").episode
+    parts = build_single_episode_context(
+        {"episodeCount": 1, "synopsis": "Truyện ngắn."},
+        [{"episodeNumber": 1, "title": "Mở màn", "body": "### 场1-1\n△ Cô bước vào." * 20}],
+        1,
+        text=vi,
+        project_source="Một cô gái đi tìm cha.",
+        character_asset_names=["Linh"],
+    )
+    joined = "\n\n".join(parts)
+    assert "Tóm tắt kịch bản cả bộ:" in joined
+    assert "Tập 1: Mở màn" in joined
+    # Chữ Hán còn lại trong user message phải **chỉ** là token hợp đồng Seedance.
+    import re as _re
+
+    runs = set(_re.findall(r"[\u4e00-\u9fff]+", joined))
+    assert runs <= {"出场人物", "场"}, f"lọt chữ Hán ngoài hợp đồng: {runs}"
+    assert "出场人物" in runs, "hướng dẫn vẫn phải nhắc đúng tên dòng của hợp đồng"
 
 
 def test_collect_episode_seed_names_from_cast_and_summary():
