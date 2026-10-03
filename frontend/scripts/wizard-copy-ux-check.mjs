@@ -216,6 +216,24 @@ const READ_PROBE = `(() => ({
   rafSeen: window.__rafSeen || 0,
 }))()`
 
+/**
+ * Câu toast mà brief `case-prompt-board-finish-b2` mục 3 **chốt nguyên văn** cho nút
+ * "Sao chép tất cả".
+ *
+ * Chỗ này ép **nguyên văn** vì đó là điều brief yêu cầu — nhưng "chép lại đúng một câu"
+ * mà không kiểm thì chỉ là lời hứa trong commit message. Màu đậm của yêu cầu là **không**
+ * hứa hệ thống đang render: không có API video nào chạy được, nên "sẵn sàng render" ở đây
+ * là **prompt** sẵn sàng, không phải NOVAFILM đang quay.
+ */
+const COPY_ALL_TOAST_VI = 'Đã chép Prompt cấu hình, sẵn sàng render!'
+
+const COPY_ALL = `(() => {
+  const btn = document.querySelector('.wizard-board-primary .pf-btn')
+  if (!btn) throw new Error('khong tim thay nut Copy tat ca')
+  btn.click()
+  return true
+})()`
+
 /** Ghi đè clipboard để **từ chối có chủ đích** — đo nhánh lỗi thay vì đoán. */
 const BREAK_CLIPBOARD = `(() => {
   Object.defineProperty(navigator.clipboard, 'writeText', {
@@ -244,14 +262,13 @@ async function waitForSelector(send, selector, label) {
 }
 
 /** Có nút nào của `.wizard-toast` nằm trong cây trợ năng không. */
-async function inAxTree(send, label) {
+async function inAxTree(send) {
   const tree = await send('Accessibility.getFullAXTree')
-  const hit = (tree?.nodes || []).some((n) => {
+  return (tree?.nodes || []).some((n) => {
     const name = (n.name?.value || '')
     const role = (n.role?.value || '')
     return role === 'status' || /wizard-toast|Đã sao chép|LOI_BAO/.test(name)
   })
-  return hit
 }
 
 async function main() {
@@ -371,7 +388,7 @@ async function main() {
     /* --- A: vùng sống lúc rỗng ---------------------------------------------- */
     console.log('\nA. Vung song luc RONG')
     const empty = await evaluate(READ_EMPTY)
-    const axEmpty = await inAxTree(send, 'empty')
+      const axEmpty = await inAxTree(send)
     if (empty.missing) {
       require_(false, 'A: khong tim thay .wizard-toast')
     } else {
@@ -416,6 +433,10 @@ async function main() {
     console.log('\nD. Co che hen loi bao khi tab AN')
     for (const mode of ['raf', 'timer']) {
       const armed = await evaluate(ARM_PROBE(mode))
+      require_(
+        armed?.armed === true,
+        `D: probe (${mode}) khong len duoc — cai do khong phai loi cua trang, la loi cua phep do`,
+      )
       const other = await (await fetch(`http://127.0.0.1:${port}/json/new?${encodeURIComponent('about:blank')}`, {
         method: 'PUT', signal: AbortSignal.timeout(CDP_TIMEOUT_MS),
       })).json()
@@ -459,6 +480,26 @@ async function main() {
     require_(contract.actionLabels.length === 1, `F: .wizard-actions phai chi con 1 nut, hien ${contract.actionLabels.length}`)
     require_(contract.copyInActions === 0, 'F: co nut sao chep lot vao .wizard-actions')
     require_(contract.toastStillPresent, 'F: vung song bi thao khoi DOM')
+
+    /*
+     * G: câu chữ brief chốt cho nút lớn. Đo sau khi C đã xác nhận vùng sống trống và sau
+     * khi clipboard đã được khôi phục, nên đây là cú bấm sạch đầu tiên của nhánh thành công.
+     */
+    console.log('\nG. Cau toast cua nut Copy tat ca')
+    await evaluate(COPY_ALL)
+    await sleep(700)
+    const allToast = await evaluate(READ_AFTER)
+    measure('all', allToast.text ? 'co' : 'khong', `"${allToast.text}"`)
+    require_(!!allToast.text, 'G: bam Copy tat ca xong vung song van rong')
+    require_(
+      allToast.text === COPY_ALL_TOAST_VI,
+      `G: toast cua nut lon sai nguoi văn.\n       brief  : "${COPY_ALL_TOAST_VI}"\n       hien tai: "${allToast.text}"`,
+    )
+    require_(
+      !/đang (tạo|render|quay)/i.test(allToast.text || ''),
+      `G: toast hua NOVAFILM dang render — khong co API video nao chay duoc: "${allToast.text}"`,
+    )
+    await shoot('g-copy-tat-ca')
   } finally {
     if (ws) ws.close()
     for (const t of tabs) {
