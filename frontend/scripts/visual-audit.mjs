@@ -195,7 +195,11 @@ const SEEDANCE_META_PREFIXES = [
   '【字幕', '【BGM', '【配乐', '【人物介绍', '【片头', '【背景介绍', '【强制约束',
   '【旁白', '【对白', '【画面', '【空镜',
 ]
-const SEEDANCE_META_RE = /【(?:字幕|BGM|配乐|人物介绍|片头|背景介绍|强制约束|旁白|对白|画面|空镜)[^\n]*/g
+// Regex ghép từ danh sách trên: khớp tới ký tự Hàn đầu tiên sau mỗi tiền tố.
+const SEEDANCE_META_RE = new RegExp(
+  `(?:${SEEDANCE_META_PREFIXES.join('|')})[^\\n]*`,
+  'g',
+)
 const DURATION_TOKEN_RE_G = /@duration:\d+/g
 
 /** Trả về `{ marker, content }` — số ký tự Trung của marker Seedance và của nội dung. */
@@ -1185,9 +1189,6 @@ function report(results) {
     // phần locale thay đổi được. Gộp chung thì không biết con số nào là nợ thật.
     const markerTotal = scored.reduce((a, r) => a + (r.cjkMarker || 0), 0)
     const contentTotal = scored.reduce((a, r) => a + (r.cjkContent || 0), 0)
-    const badContent = scored.filter(
-      (r) => (r.cjkContent || 0) > 0 || r.rawKeys.length || r.errors || r.visible < 40,
-    )
     console.log(
       `  ${locale}: marker Seedance (cam tinh, KHONG duoc dich) = ${markerTotal}`
       + ` · noi dung (co the dich) = ${contentTotal}`,
