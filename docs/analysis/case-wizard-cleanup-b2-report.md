@@ -173,24 +173,38 @@ không có nhánh nào vẽ badge.
 nickname khi không có ảnh. Bỏ nó là bỏ đường vào trang tài khoản trên **cả 25 route**, không
 phải dọn một phần tử rác.
 
-Đồng thời nó nằm trong `SiteNav.tsx` — layout dùng chung qua `AppShell` — mà brief tự dặn
-*"nếu chúng thuộc layout dùng chung thì báo board, đừng tự sửa file chung"*.
+Nó lại nằm trong `SiteNav.tsx` — layout dùng chung qua `AppShell` — mà brief tự dặn *"nếu
+chúng thuộc layout dùng chung thì báo board, đừng tự sửa file chung"*.
 
-Vì vậy **phần 2 không đụng vào code**. Cần board xác nhận:
-1. Badge "0" và avatar "A" trong ảnh của brief lấy từ **bản dựng nào**. Nav hiện tại đã qua
-   `40c1734` và `cb9818f`; git log không có commit nào thêm badge vào `SiteNav.tsx`.
-2. Có phải board muốn nói **nav của trang quản trị** (`admin/`, cổng 5174) không? Nếu vậy đó là
-   cây mã khác và `SiteNav.tsx` không liên quan.
+**(c) Đã tìm cả ở trang quản trị, cũng không có.** `AdminLayout.tsx:416` có một
+`admin-icon-btn` với icon `Bell`, cũng không badge và cũng không handler — nhưng nó không nằm
+cạnh "Trợ giúp" và không ở `/wizard`. Hai cây mã khác nhau, không phải một.
 
-Xem mục 5.
+### Nghi phóng đoán
+Nav hiện tại đã qua `40c1734` *"fix(design): unbreak nav wrapping…"* và `cb9818f` *"feat(vi):
+finish the shared UI kit…"*. `git log -- frontend/src/components/layout/SiteNav.tsx` cho thấy
+**không có commit nào từng thêm badge** vào file này. Nên khả năng cao nhất: ảnh trong brief
+lấy từ một bản dựng cũ, không phải từ code hiện tại.
+
+### Cách đo
+Edge headless + CDP, đăng nhập bằng tài khoản thử, ép `localStorage['novafilm.locale']='vi'`,
+điều hướng `http://127.0.0.1:5183/wizard`, rồi:
+
+- in `document.querySelector('.pf-nav-right').outerHTML` (nguyên văn ở mục 4a);
+- quét `document.querySelectorAll('body *')`, lấy phần tử **không có con**, `textContent`
+  cắt trắng đúng bằng `"0"`, khung hiện hữu (`width ≥ 1 && height ≥ 1`), không
+  `display:none` / `visibility:hidden`.
+
+Cả hai lần in ra ở trên. Ảnh `frontend/.kilo/wizard-real/vi-light-real-output.png` cũng thấy
+thanh trên cùng: chỉ có `中` trong bộ chuyển ngôn ngữ, không badge.
 
 ---
 
 ## 5. Cần board quyết
 
 1. **Phần 2 chưa làm được gì, và không nên làm bừa.** Hai phần tử mà brief mô tả: một không
-   tồn tại, một là avatar thật đang hoạt động trong layout dùng chung. Cần board chỉ lại
-   mục tiêu (xem câu hỏi ở mục 4) trước khi có việc gì để làm.
+   tồn tại ở cả hai cây mã, một là avatar thật đang hoạt động trong layout dùng chung. Trước khi
+   có việc gì để làm thì cần board chỉ lại mục tiêu — xem mục 4.
 2. **`DRAFT_FIELDS` là tiền đề cho bản nháp.** Nó tự điền `camera / lighting / style /
    duration` bằng giá trị hằng, và để `subject` / `setting` trống vì không có dữ liệu. Nếu
    board muốn bản nháp có đủ bảy trường thì phải cho nhân vật và bối cảnh vào ý tưởng — đó là
