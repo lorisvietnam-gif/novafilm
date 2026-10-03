@@ -82,10 +82,16 @@ WIZARD_CHANNEL_ID = "text-openai"
 # Thứ tự là thứ tự thử. Xem docstring để biết vì sao không chỉ có một model, và vì
 # sao các model chết / không miễn phí bị loại.
 WIZARD_MODEL_CHAIN: tuple[str, ...] = (
-    "gemini-3-flash-preview",
-    "ling-3.0-flash-free",
-    "mimo-v2.6-flash-free",
-    "deepseek-v4-flash-free",
+    # Đo 2026-10-03: khoá Kira trả `403 model_not_allowed` cho `gemini-3-flash-preview`,
+    # `ling-3.0-flash-free` và `deepseek-v4-flash-free`. Danh sách được phép là
+    # kira-mini-1.0, hy4, hy3, hy-image-v3.5-free, qwen3.8-*, mimo-v2.6-flash-free,
+    # space-bunny-alpha, laguna-s-2.1-free, laguna-xs-2.1-free.
+    # Chỉ đưa vào đây model **đã đo là chạy**; thêm model chết là mỗi lượt gọi mất một vòng
+    # thử rồi vẫn 403.
+    "hy3",  # đo 200, 1,06s
+    "mimo-v2.6-flash-free",  # đo 200, 2,07s
+    "hy4",  # đo 200, 4,20s
+    "qwen3.8-flash-next-free",  # đo 200, 1,85s
 )
 
 # Một lần thử lại cho lỗi vận chuyển (ngắt giữa luồng, 429, 5xx). Không thử lại lỗi
